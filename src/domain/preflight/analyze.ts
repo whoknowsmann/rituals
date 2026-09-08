@@ -4,7 +4,7 @@ import type {
 } from './types'
 
 export const PRECHECK_DISCLAIMER =
-  'Preflight analyzes normalized evidence and does not guarantee transaction safety.'
+  'Preflight is a safety aid, not a guarantee.'
 
 export function analyze(evidence: PreflightEvidence): PreflightResult {
   const unsupported = evidence.programs
@@ -13,7 +13,7 @@ export function analyze(evidence: PreflightEvidence): PreflightResult {
   const severeAuthorityLoss = evidence.authorityChanges.some(
     (change) => change.kind === 'AUTHORITY_LOSS' && change.severity === 'SEVERE',
   )
-  const simulationSucceeded = evidence.simulation.status === 'SUCCESS'
+  const simulationSucceeded = evidence.simulation.status === 'SUCCEEDED'
   const analysisComplete =
     evidence.evidenceComplete &&
     unsupported.length === 0 &&
@@ -26,19 +26,26 @@ export function analyze(evidence: PreflightEvidence): PreflightResult {
       ? 'CLEAR'
       : 'HOLD'
   const confidence = verdict === 'CLEAR' ? 'HIGH' : verdict === 'HOLD' ? 'MEDIUM' : 'HIGH'
-  const warnings = [
+  const summary =
+    verdict === 'CLEAR'
+      ? 'No supported high-risk behavior was detected in the available evidence.'
+      : verdict === 'HOLD'
+        ? 'Analysis is incomplete or contains unsupported behavior. Verify independently.'
+        : 'Severe authority loss was detected. Do not sign.'
+  const warnings = [...new Set([
     ...evidence.unresolvedElements.map(() => 'UNRESOLVED_EVIDENCE'),
     ...unsupported.map(() => 'UNSUPPORTED_OR_UNKNOWN_PROGRAM'),
-    ...(evidence.simulation.status === 'FAILURE' ? ['SIMULATION_FAILED'] : []),
+    ...(evidence.simulation.status === 'FAILED' ? ['SIMULATION_FAILED'] : []),
     ...(evidence.simulation.status === 'NOT_RUN' ? ['SIMULATION_NOT_RUN'] : []),
     ...(severeAuthorityLoss ? ['SEVERE_AUTHORITY_LOSS'] : []),
-  ]
+  ])]
 
   return {
-    version: 1,
+    schemaVersion: '1.0',
     verdict,
     confidence,
     analysisComplete,
+    summary,
     observations: [
       ...evidence.assetMovements.map(() => 'ASSET_MOVEMENT'),
       ...evidence.authorityChanges.map(() => 'AUTHORITY_CHANGE'),
@@ -51,7 +58,11 @@ export function analyze(evidence: PreflightEvidence): PreflightResult {
     unsupported: [...unsupported, ...evidence.unresolvedElements],
     simulation: { ...evidence.simulation },
     recommendedAction:
-      verdict === 'CLEAR' ? 'PROCEED' : verdict === 'HOLD' ? 'REVIEW' : 'DO_NOT_PROCEED',
+      verdict === 'CLEAR'
+        ? 'PROCEED_WITH_REVIEW'
+        : verdict === 'HOLD'
+          ? 'VERIFY_INDEPENDENTLY'
+          : 'DO_NOT_SIGN',
     disclaimer: PRECHECK_DISCLAIMER,
   }
 }

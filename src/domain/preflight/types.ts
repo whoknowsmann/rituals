@@ -1,7 +1,6 @@
 export type Verdict = 'CLEAR' | 'HOLD' | 'ABORT'
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW'
 export type ProgramSupport = 'SUPPORTED' | 'UNSUPPORTED' | 'UNKNOWN'
-export type SimulationStatus = 'SUCCESS' | 'FAILURE' | 'NOT_RUN'
 export type AuthorityChangeKind = 'AUTHORITY_LOSS' | 'AUTHORITY_GAIN' | 'DELEGATE_CHANGE'
 export type AuthoritySeverity = 'SEVERE' | 'NON_SEVERE'
 
@@ -25,10 +24,10 @@ export interface AuthorityChange {
   readonly authority?: string
 }
 
-export interface SimulationEvidence {
-  readonly status: SimulationStatus
-  readonly reason?: string
-}
+export type SimulationEvidence =
+  | { readonly status: 'SUCCEEDED'; readonly reason: null }
+  | { readonly status: 'FAILED'; readonly reason: string }
+  | { readonly status: 'NOT_RUN'; readonly reason: string | null }
 
 export interface PreflightEvidence {
   readonly evidenceComplete: boolean
@@ -40,10 +39,11 @@ export interface PreflightEvidence {
 }
 
 export interface PreflightResult {
-  readonly version: 1
+  readonly schemaVersion: '1.0'
   readonly verdict: Verdict
   readonly confidence: Confidence
   readonly analysisComplete: boolean
+  readonly summary: string
   readonly observations: readonly string[]
   readonly inferredIntent: readonly string[]
   readonly assetChanges: readonly AssetMovement[]
@@ -52,6 +52,9 @@ export interface PreflightResult {
   readonly warnings: readonly string[]
   readonly unsupported: readonly string[]
   readonly simulation: SimulationEvidence
-  readonly recommendedAction: 'PROCEED' | 'REVIEW' | 'DO_NOT_PROCEED'
+  readonly recommendedAction:
+    | 'PROCEED_WITH_REVIEW'
+    | 'VERIFY_INDEPENDENTLY'
+    | 'DO_NOT_SIGN'
   readonly disclaimer: string
 }
