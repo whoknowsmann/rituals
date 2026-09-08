@@ -1,7 +1,11 @@
 export type Verdict = 'CLEAR' | 'HOLD' | 'ABORT'
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW'
 export type ProgramSupport = 'SUPPORTED' | 'UNSUPPORTED' | 'UNKNOWN'
-export type AuthorityChangeKind = 'AUTHORITY_LOSS' | 'AUTHORITY_GAIN' | 'DELEGATE_CHANGE'
+export type AuthorityChangeKind =
+  | 'AUTHORITY_CHANGE'
+  | 'AUTHORITY_LOSS'
+  | 'AUTHORITY_GAIN'
+  | 'DELEGATE_CHANGE'
 export type AuthoritySeverity = 'SEVERE' | 'NON_SEVERE'
 
 export interface ProgramObservation {

@@ -1,8 +1,13 @@
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
-import { Button, Card, Chip, Divider, Text } from 'react-native-paper'
+import { Button, Card, Chip, Divider, Text, TextInput } from 'react-native-paper'
 import { analyze } from '../domain/preflight/analyze'
 import { PREFLIGHT_FIXTURES } from '../domain/preflight/fixtures'
+import {
+  inspectBase64Transaction,
+  type TransactionInspection,
+} from '../domain/preflight/inspectTransaction'
+import { TransactionDecodeError } from '../domain/solana/decodeTransaction'
 import { buildResultViewModel, type ResultTone } from '../components/preflight/resultViewModel'
 
 const toneColors: Record<ResultTone, { border: string; accent: string; surface: string }> = {
@@ -32,13 +37,39 @@ function DetailList({ title, values }: { title: string; values: readonly string[
 
 export function PreflightScreen() {
   const [selectedFixtureId, setSelectedFixtureId] = useState(PREFLIGHT_FIXTURES[0].id)
+  const [serializedInput, setSerializedInput] = useState('')
+  const [inspection, setInspection] = useState<TransactionInspection | null>(null)
+  const [inputError, setInputError] = useState<string | null>(null)
   const selectedFixture =
     PREFLIGHT_FIXTURES.find((fixture) => fixture.id === selectedFixtureId) ?? PREFLIGHT_FIXTURES[0]
-  const result = useMemo(
+  const fixtureResult = useMemo(
     () => buildResultViewModel(analyze(selectedFixture.evidence)),
     [selectedFixture],
   )
+  const result = inspection
+    ? buildResultViewModel(inspection.result)
+    : fixtureResult
   const colors = toneColors[result.tone]
+
+  const selectFixture = (fixtureId: string) => {
+    setSelectedFixtureId(fixtureId)
+    setInspection(null)
+    setInputError(null)
+  }
+
+  const inspectInput = () => {
+    try {
+      setInspection(inspectBase64Transaction(serializedInput))
+      setInputError(null)
+    } catch (error) {
+      setInspection(null)
+      setInputError(
+        error instanceof TransactionDecodeError
+          ? `${error.code}: ${error.message}`
+          : 'Transaction could not be inspected.',
+      )
+    }
+  }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -60,7 +91,7 @@ export function PreflightScreen() {
           <Button
             key={fixture.id}
             mode={selectedFixtureId === fixture.id ? 'contained' : 'outlined'}
-            onPress={() => setSelectedFixtureId(fixture.id)}
+            onPress={() => selectFixture(fixture.id)}
             compact
             style={styles.fixtureButton}
           >
@@ -73,11 +104,58 @@ export function PreflightScreen() {
         ))}
       </View>
 
+      <Text variant="labelLarge" style={styles.sectionLabel}>
+        OR PASTE A SERIALIZED TRANSACTION
+      </Text>
+      <TextInput
+        mode="outlined"
+        label="Canonical base64 transaction"
+        value={serializedInput}
+        onChangeText={setSerializedInput}
+        multiline
+        numberOfLines={4}
+        maxLength={1700}
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={styles.transactionInput}
+      />
+      <Button
+        mode="contained"
+        icon="shield-search"
+        onPress={inspectInput}
+        disabled={serializedInput.trim().length === 0}
+        style={styles.inspectButton}
+      >
+        Decode transaction
+      </Button>
+      <Text style={styles.inputNote}>
+        Local decode only. Nothing is signed, submitted, or sent to a wallet.
+      </Text>
+      {inputError ? <Text style={styles.errorText}>{inputError}</Text> : null}
+
+      {inspection ? (
+        <Card style={styles.identityCard}>
+          <Card.Content>
+            <Text variant="labelLarge" style={styles.detailHeading}>
+              REVIEW ID {inspection.identity.displayId}
+            </Text>
+            <Text style={styles.identityText}>
+              {inspection.decoded.messageVersion === 'legacy' ? 'Legacy' : 'v0'} ·{' '}
+              {inspection.identity.byteLength} bytes · {inspection.decoded.instructions.length}{' '}
+              instruction(s)
+            </Text>
+            <Text style={styles.identityText}>
+              Fee payer: {inspection.decoded.feePayer}
+            </Text>
+          </Card.Content>
+        </Card>
+      ) : null}
+
       <Card style={[styles.resultCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
         <Card.Content>
           <View style={styles.badgeRow}>
             <Chip textStyle={{ color: colors.accent }} style={styles.fixtureChip}>
-              SAFE FIXTURE
+              {inspection ? 'IMPORTED TX' : 'SAFE FIXTURE'}
             </Chip>
             <Text style={[styles.completeness, { color: colors.accent }]}>
               {result.completeness}
@@ -114,7 +192,9 @@ export function PreflightScreen() {
       </Card>
 
       <Text style={styles.disclaimer}>{result.disclaimer}</Text>
-      <Text style={styles.fixtureLabel}>{selectedFixture.label}</Text>
+      <Text style={styles.fixtureLabel}>
+        {inspection ? `SHA-256 ${inspection.identity.sha256}` : selectedFixture.label}
+      </Text>
     </ScrollView>
   )
 }
@@ -153,6 +233,35 @@ const styles = StyleSheet.create({
   },
   fixtureButton: {
     borderRadius: 8,
+  },
+  transactionInput: {
+    backgroundColor: '#101720',
+  },
+  inspectButton: {
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  inputNote: {
+    color: '#75869a',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  errorText: {
+    color: '#ff7a84',
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  identityCard: {
+    backgroundColor: '#101720',
+    borderColor: '#344151',
+    borderWidth: 1,
+    marginTop: 14,
+  },
+  identityText: {
+    color: '#b8c7d8',
+    fontSize: 12,
+    lineHeight: 19,
   },
   resultCard: {
     borderWidth: 1,
