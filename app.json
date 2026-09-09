@@ -27,6 +27,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2107d183-c638-4f46-8770-ccd02a65facb"
+      }
+    },
+    "owner": "argussmithson"
   }
 }
