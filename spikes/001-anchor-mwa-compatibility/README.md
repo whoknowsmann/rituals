@@ -37,14 +37,27 @@ React Native 0.76.9
 
 All commands below were run from the repository root unless a directory is shown.
 
-### Anchor program build
+### Clean reproducible identity and Anchor build
 
 ```bash
-cd spikes/001-anchor-mwa-compatibility/program
+rm -rf spikes/001-anchor-mwa-compatibility/program/target \
+  spikes/001-anchor-mwa-compatibility/program/test-ledger \
+  spikes/001-anchor-mwa-compatibility/.verify
+cd spikes/001-anchor-mwa-compatibility
+PROGRAM_ID=$(node prepare.mjs)
+test "$PROGRAM_ID" = "$(solana-keygen pubkey .verify/identity/anchor_mwa_spike-keypair.json)"
+test "$PROGRAM_ID" = "$(grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' program/Anchor.toml)"
+test "$PROGRAM_ID" = "$(grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' program/programs/anchor-mwa-spike/src/lib.rs)"
+test "$PROGRAM_ID" = "$(grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' client/instruction.ts)"
+cd program
 anchor build
 ```
 
-**PASS.** The minimal Anchor program compiled and emitted the deployable SBF artifact and IDL. The disposable workspace needed `[profile.release] overflow-checks = true` and `idl-build = ["anchor-lang/idl-build"]`.
+`prepare.mjs` creates a fresh disposable deploy keypair under `.verify/`, then synchronizes its public ID into `Anchor.toml`, `declare_id!`, and the client before compilation. It never writes a private key to tracked files. The equality checks are a required guard: the keypair used for deployment, Anchor's declared ID, and the client ID must be identical.
+
+**PASS (clean-from-no-target run).** The minimal Anchor program compiled and emitted the deployable SBF artifact and IDL. The disposable workspace needed `[profile.release] overflow-checks = true` and `idl-build = ["anchor-lang/idl-build"]`.
+
+The first spike commit's apparent local success was not cleanly reproducible: it depended on stale generated `target/` state. After deleting `target/`, Anchor generated a different deploy keypair (`5b8xpiXkm5YCHmBsJeGYPrQABeSn9WUnb5fYxsCVGPGK`) while the source and client declared `8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB`; deployment then failed at transaction simulation with `Attempt to load a program that does not exist`. This repair makes identity preparation explicit and checks the three IDs before deployment.
 
 The Solana 3.0.13 platform build tool uses rustc 1.84.1-dev, despite the host rustc being 1.93.1. Current crates initially selected edition-2024/Rust-1.85-incompatible versions. The spike's generated `Cargo.lock` pins compatible transitive versions (`blake3 1.5.5`, `zeroize 1.8.1`, `borsh 1.5.7`, `proc-macro-crate 3.1.0`, `indexmap 2.7.1`, and `unicode-segmentation 1.12.0`). No system or global tool was changed.
 
@@ -77,21 +90,23 @@ The executable test also verifies negative `u64` input is rejected.
 
 ### Actual program test
 
-A local Agave validator was started on disposable ports (`18899` RPC, `18000` gossip, `19900` faucet), the generated program was deployed, and the web3.js TypeScript harness was run:
+A local Agave validator was started on disposable ports (`18899` RPC, `18000` gossip, `19900` faucet), the just-built program was deployed with the keypair from `prepare.mjs`, and the web3.js TypeScript harness was run:
 
 ```bash
-cd spikes/001-anchor-mwa-compatibility/program
+cd spikes/001-anchor-mwa-compatibility
+PROGRAM_ID=$(cat .verify/program-id.txt)
+cd program
 solana-test-validator --reset --quiet --rpc-port 18899 --faucet-port 19900 --gossip-port 18000
 solana program deploy target/deploy/anchor_mwa_spike.so \
-  --program-id target/deploy/anchor_mwa_spike-keypair.json \
+  --program-id ../.verify/identity/anchor_mwa_spike-keypair.json \
   --url http://127.0.0.1:18899
-cd ../../../..
-SPIKE_RPC_URL=http://127.0.0.1:18899 \
+cd ../../..
+SPIKE_RPC_URL=http://127.0.0.1:18899 SPIKE_PROGRAM_ID="$PROGRAM_ID" \
   node --experimental-strip-types \
   spikes/001-anchor-mwa-compatibility/client/run-program-test.ts
 ```
 
-**PASS.** The harness generated a disposable payer and state keypair, requested a local airdrop, submitted the actual instruction, and read the account back. It verified the program owner, initialized account size, stored authority, and stored value. The only output warnings were web3.js deprecation warnings about explicitly passing an unnecessary state keypair; the transaction succeeded.
+**PASS.** The harness validated the client ID against `SPIKE_PROGRAM_ID`, generated a disposable payer and state keypair, requested a local airdrop, submitted the actual instruction, and read the account back. It verified the program owner, initialized account size, stored authority, and stored value. The `state` init account is now signer+writable, so `[authority, state]` is required and no unnecessary-state-signature warning is emitted.
 
 The Anchor CLI's normal TypeScript test path was not used because the root intentionally has no `@coral-xyz/anchor` dependency. The narrower local-validator harness is the recorded equivalent and uses the same Anchor-generated instruction ABI.
 
@@ -116,4 +131,8 @@ rm -rf .verify/expo-export
 
 ## Verdict: VALIDATED
 
-The requested compatibility evidence is complete for the selected architecture: Anchor onchain plus a thin existing-web3.js/MWA mobile client. This validates feasibility only; it does not validate Rituals economics, security, production deployment, native MWA signing, or the full Anchor client bundle.
+The requested compatibility evidence is complete after a clean-from-no-target identity preparation, rebuild, deployment, transaction, and readback: Anchor onchain plus a thin existing-web3.js/MWA mobile client. This validates feasibility only; it does not validate Rituals economics, security, production deployment, native MWA signing, or the full Anchor client bundle.
+
+### Cleanup
+
+After verification, stop the validator and remove `program/target`, `program/test-ledger`, `.verify`, generated deploy keypairs, and temporary export output. None of those artifacts are part of the spike commit.

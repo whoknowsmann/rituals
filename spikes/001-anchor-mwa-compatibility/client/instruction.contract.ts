@@ -18,7 +18,7 @@ const ix = buildSetValueInstruction({ state, authority }, value);
 assert(ix.programId.equals(PROGRAM_ID), 'program id mismatch');
 assert(ix.keys.length === 3, 'Anchor account list must contain three keys');
 assert(ix.keys[0].pubkey.equals(state), 'state key order mismatch');
-assert(ix.keys[0].isWritable && !ix.keys[0].isSigner, 'state constraints mismatch');
+assert(ix.keys[0].isWritable && ix.keys[0].isSigner, 'state constraints mismatch');
 assert(ix.keys[1].pubkey.equals(authority), 'authority key order mismatch');
 assert(ix.keys[1].isWritable && ix.keys[1].isSigner, 'signer constraint mismatch');
 assert(ix.keys[2].pubkey.equals(SystemProgram.programId), 'system program mismatch');

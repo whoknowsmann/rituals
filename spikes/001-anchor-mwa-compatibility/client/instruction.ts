@@ -35,7 +35,7 @@ export function buildSetValueInstruction(
   return new TransactionInstruction({
     programId: PROGRAM_ID,
     keys: [
-      { pubkey: accounts.state, isSigner: false, isWritable: true },
+      { pubkey: accounts.state, isSigner: true, isWritable: true },
       { pubkey: accounts.authority, isSigner: true, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],

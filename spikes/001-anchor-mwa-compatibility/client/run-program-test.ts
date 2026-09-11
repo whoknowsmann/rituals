@@ -11,6 +11,11 @@ import { buildSetValueInstruction, PROGRAM_ID } from './instruction.ts';
 
 async function main(): Promise<void> {
   const url = process.env.SPIKE_RPC_URL ?? 'http://127.0.0.1:8899';
+  const expectedProgramId = process.env.SPIKE_PROGRAM_ID;
+  if (!expectedProgramId) throw new Error('SPIKE_PROGRAM_ID is required');
+  if (PROGRAM_ID.toBase58() !== expectedProgramId) {
+    throw new Error(`client program id mismatch: ${PROGRAM_ID.toBase58()} != ${expectedProgramId}`);
+  }
   const connection = new Connection(url, 'confirmed');
   const authority = Keypair.generate();
   const state = Keypair.generate();
