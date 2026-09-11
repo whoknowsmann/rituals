@@ -27,6 +27,8 @@ assert(ix.data.length === 16, 'u64 instruction data length mismatch');
 assert(ix.data.subarray(0, 8).equals(Buffer.from(SET_VALUE_DISCRIMINATOR)), 'discriminator mismatch');
 assert(ix.data.readBigUInt64LE(8) === value, 'u64 encoding mismatch');
 
+assert(Buffer.from(encodeSetValue(0xffff_ffff_ffff_ffffn)).readBigUInt64LE(8) === 0xffff_ffff_ffff_ffffn, 'max u64 encoding mismatch');
+
 let rejected = false;
 try {
   encodeSetValue(-1n);
@@ -34,5 +36,13 @@ try {
   rejected = true;
 }
 assert(rejected, 'negative u64 should be rejected');
+
+rejected = false;
+try {
+  encodeSetValue(0x1_0000_0000_0000_0000n);
+} catch {
+  rejected = true;
+}
+assert(rejected, 'u64 overflow should be rejected');
 
 console.log('client instruction test passed: keys, signer/writable flags, discriminator, and u64 data verified');

@@ -53,7 +53,9 @@ cd program
 anchor build
 ```
 
-`prepare.mjs` creates a fresh disposable deploy keypair under `.verify/`, then synchronizes its public ID into `Anchor.toml`, `declare_id!`, and the client before compilation. It never writes a private key to tracked files. The equality checks are a required guard: the keypair used for deployment, Anchor's declared ID, and the client ID must be identical.
+`prepare.mjs` creates a fresh disposable deploy keypair under `.verify/`, then synchronizes its public ID into `Anchor.toml`, `declare_id!`, and the client before compilation. It never writes a private key to tracked files. It pre-reads and validates all three tracked files before key generation, writes each replacement through a same-directory temporary file and rename, and rolls back every completed replacement plus generated identity output on failure. `.verify/` is disposable and ignored by the nested spike `.gitignore`; its directory is mode `0700` and keypair mode `0600` where supported. The equality checks are a required guard: the keypair used for deployment, Anchor's declared ID, and the client ID must be identical.
+
+The supported program test harness is the direct `node --experimental-strip-types client/run-program-test.ts` command below, with `SPIKE_RPC_URL` and `SPIKE_PROGRAM_ID` set. `anchor test` is not supported: this spike intentionally has no Anchor JavaScript dependency and no Anchor test script entry.
 
 **PASS (clean-from-no-target run).** The minimal Anchor program compiled and emitted the deployable SBF artifact and IDL. The disposable workspace needed `[profile.release] overflow-checks = true` and `idl-build = ["anchor-lang/idl-build"]`.
 
@@ -86,7 +88,19 @@ node .verify/client/instruction.contract.js
 client instruction test passed: keys, signer/writable flags, discriminator, and u64 data verified
 ```
 
-The executable test also verifies negative `u64` input is rejected.
+The executable contract test verifies negative, maximum, and overflowing `u64` inputs are handled correctly.
+
+### Prepare failure-safety tests
+
+Run the dependency-free fixture tests from the repository root:
+
+```bash
+node spikes/001-anchor-mwa-compatibility/prepare.contract.mjs
+```
+
+**PASS.** The test copies the three tracked replacement files into temporary fixture trees and verifies: successful one-ID synchronization with `0700` verification-directory and `0600` private-key permissions; malformed/ambiguous IDs fail before `solana-keygen` and leave files untouched; and a scoped `SPIKE_PREPARE_TEST=1` mid-write hook restores all files and removes keypair/program-id output. The hook is rejected unless the explicit test-only flag is present.
+
+The nested `.gitignore` covers `/.verify/`, `/program/target/`, and `/program/test-ledger/`, which are the disposable key, build, and validator-ledger paths used by this README.
 
 ### Actual program test
 
