@@ -9,8 +9,14 @@ describe('requiredAdditionalConfirmations', () => {
   it.each([
     ['HONOR', 2, 0],
     ['ONE_FRIEND', 2, 1],
+    ['ONE_FRIEND', 3, 1],
+    ['ONE_FRIEND', 4, 1],
+    ['ONE_FRIEND', 5, 1],
+    ['ONE_FRIEND', 6, 1],
     ['MAJORITY', 2, 1],
+    ['MAJORITY', 3, 2],
     ['MAJORITY', 4, 2],
+    ['MAJORITY', 5, 3],
     ['MAJORITY', 6, 3],
     ['UNANIMOUS', 2, 1],
     ['UNANIMOUS', 4, 3],
@@ -40,8 +46,16 @@ describe('requiredAdditionalConfirmations', () => {
 })
 
 describe('assertValidAdditionalConfirmationThreshold', () => {
-  it.each([0, 1, 3])('accepts threshold %d for four funded members', (threshold) => {
-    expect(assertValidAdditionalConfirmationThreshold(threshold, 4)).toBeUndefined()
+  it.each([
+    [0, 2],
+    [1, 2],
+    [0, 4],
+    [1, 4],
+    [3, 4],
+    [0, 6],
+    [5, 6],
+  ])('accepts threshold %d for %d funded members', (threshold, memberCount) => {
+    expect(assertValidAdditionalConfirmationThreshold(threshold, memberCount)).toBeUndefined()
   })
 
   it.each([-1, 4, 2.5, Number.NaN, Number.POSITIVE_INFINITY])(
