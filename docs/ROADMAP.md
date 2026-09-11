@@ -1,64 +1,148 @@
 # Roadmap
 
-## Completed
+Status labels describe observed implementation, not aspiration.
 
-- [x] Correct and consolidate product/hackathon source-of-truth documentation
-- [x] Create private GitHub repository
-- [x] Commit implementation plan before product code
-- [x] Import official Solana Mobile Expo template v3.0.0
-- [x] Verify clean dependency installation
-- [x] Verify TypeScript
-- [x] Verify Expo Doctor 18/18
-- [x] Verify Android JavaScript bundle export
-- [x] Add real test runner
-- [x] Implement deterministic normalized-evidence analyzer
-- [x] Add harmless CLEAR, HOLD, and ABORT fixtures
-- [x] Add tested presentation view model
-- [x] Replace template home UI with initial Preflight result screen
+## Completed — reusable foundation
 
-## In progress / immediate
+- [x] Private GitHub repository and draft PR workflow
+- [x] Expo/React Native Android shell
+- [x] MWA dependencies and authorization plumbing
+- [x] Deterministic legacy/v0 transaction decoding
+- [x] Exact reviewed-byte identity
+- [x] Fixture-backed Preflight domain/UI prototype
+- [x] Unit tests, TypeScript, Expo Doctor, and Android bundle gates
+- [x] EAS project and signed development APK
+- [x] Physical Seeker install/launch proof
+- [x] Consumer-course-correction research across prior winners and dApp landscape
+- [x] Three interactive consumer sketches
+- [x] Rituals selected, named, and scoped
+- [x] Equal event-tranche and no-forfeiture-rake economics
+- [x] Multisignature threshold-attestation accountability model
+- [x] Corrected Hub MVP and target architecture
+- [x] Detailed Rituals rebuild implementation plan
 
-- [ ] Review and commit the first result-screen vertical slice
-- [ ] Add CI for tests, typecheck, and Expo Doctor
-- [ ] Decide and test framework upgrade path for unresolved advisories
-- [ ] Locate or establish an Android APK build path
-- [ ] Exercise real MWA authorization on Android
+## Active — M0 contracts and feasibility
 
-## P0 next
+- [x] Create private `feat/rituals-rebuild` branch and commit plan/sketches
+- [ ] Re-run and record current repository baseline
+- [x] Inspect Rust/Solana/Anchor toolchains
+- [x] Validate Anchor program plus existing Expo/web3.js compatibility in a throwaway spike
+- [ ] Validate native MWA signing for a Rituals transaction
+- [ ] Define Rituals domain types
+- [ ] Test threshold derivation
+- [ ] Test exact stake and activation-fee math
+- [ ] Test settlement conservation and atomic-unit remainder policy
+- [ ] Test canonical invite/rule digest
+- [ ] Test lifecycle guards and safe unresolved-claim handling
 
-- [ ] Validate and decode supported serialized transaction input
-- [ ] Support legacy and versioned transaction messages
-- [ ] Report address lookup table resolution status
-- [ ] Decode supported System Program and SPL Token instructions
-- [ ] Add malformed and oversized input tests
-- [ ] Add simulation adapter and explicit failure handling
-- [ ] Add exact reviewed-byte identity check
-- [ ] Produce and install an Android APK
-- [ ] Record reproducible demo steps
+## M1 — program truth
 
-## P1 judging leverage
+- [ ] Scaffold pinned Anchor workspace and CI
+- [ ] Initialize protocol configuration
+- [ ] Create immutable ritual/member configuration
+- [ ] Fund program-controlled SPL escrow
+- [ ] Lock exact activation fee at activation
+- [ ] Cancel safely before activation
+- [ ] Sign completion claims
+- [ ] Record unique eligible approvals
+- [ ] Enforce threshold and replay boundaries
+- [ ] Question/void unresolved events safely
+- [ ] Settle current event only
+- [ ] Prove conservation for every 2–6-member attendance combination
+- [ ] Generate/freeze IDL and typed React Native program adapter
 
-- [ ] Constrained AI narration over public deterministic result JSON
-- [ ] Deterministic narration fallback
-- [ ] Real SKR balance/staking-delegation lookup
-- [ ] Show delegated official Guardian when available
-- [ ] Domain-separated signed community-report prototype
-- [ ] Local scan history with deletion
+## M2 — consumer loop
 
-## P2 stretch
+- [ ] Replace Preflight cockpit with Rituals visual system
+- [ ] Home and ritual-detail states
+- [ ] Broad ritual templates
+- [ ] Create/review flow with exact disclosures
+- [ ] Private invitation and digest verification
+- [ ] Funding/activation status
+- [ ] Completion claim flow
+- [ ] Confirmation inbox and question path
+- [ ] Settlement receipt
+- [ ] Loading, empty, rejected, stale, and error states
+- [ ] MWA-backed writes and confirmed state readback
+- [ ] Optional local reminders if native compatibility permits
 
-- [ ] Android share/deep-link import
-- [ ] Developer `preflightAndSign` integration pattern
-- [ ] Panic Mode
-- [ ] Validated community-report service
-- [ ] Devnet report-hash anchoring
-- [ ] Public program/domain reputation feeds
+## M3 — device and security proof
 
-## Submission/admin blockers
+- [ ] Migrate visible app/MWA identity to Rituals
+- [ ] Decide EAS project and Android package migration deliberately
+- [ ] Deploy new program and valueless test mint to devnet
+- [ ] Run documented two-wallet devnet cycle
+- [ ] Verify pending/questioned no-confiscation path
+- [ ] Build signed standalone APK
+- [ ] Install, cold-start, connect wallet, and run full loop on Seeker
+- [ ] Record build ID, hash, package, device facts, signatures, and balances
+- [ ] Threat model and program review
+- [ ] Dependency advisory classification/remediation decision
+- [ ] Publisher/privacy/UGC checklist
 
-- [ ] Confirm operative judging rubric with organizer
-- [ ] Confirm authoritative prize structure and any SKR bonus
-- [ ] Complete registration and record team details
-- [ ] Freeze eligible team roster and representative
-- [ ] Prepare dApp Store listing/publication materials
-- [ ] Submit complete accessible package at least 24 hours early
+## M4 — submission
+
+- [ ] Resolve operative rubric and prize/SKR questions with organizer
+- [ ] Add only a verified high-leverage SKR integration after P0
+- [ ] Add only bounded non-adjudicative AI after P0, if worthwhile
+- [ ] Demo script and capture
+- [ ] Pitch brief/deck
+- [ ] dApp Store listing assets and policy disclosures
+- [ ] Registration, roster, representative, wallet, KYC readiness
+- [ ] Clean source/security review
+- [ ] Submit at least 24 hours before official close
+
+## Approved future doors — after P0
+
+### P1 candidate: solo rituals
+
+- [ ] Prototype self-attestation for a one-member ritual only after the private-group P0 loop is complete
+- [ ] Precommit a non-platform, policy/custody-safe destination for missed tranches
+- [ ] Resolve destination custody, refunds, publisher policy, and applicable legal treatment before valuable funds
+
+### Exploratory P2: public/app-wide challenge templates
+
+- [ ] Evaluate versioned challenge-template schemas and narrow adapters
+- [ ] Separately design reward source, moderation/UGC, privacy, and Sybil-resistance controls
+
+P0 does not include public discovery, feeds, leaderboards, public groups, stranger betting, or sponsor-funded pools.
+
+## Cut order under schedule pressure
+
+Cut first:
+
+1. AI;
+2. SKR discount if not required;
+3. local push/reminders;
+4. free non-financial mode;
+5. polish beyond the core journey;
+6. granular dispute voting;
+7. backend/push infrastructure.
+
+Never cut:
+
+- exact fee and stake disclosure;
+- threshold authorization;
+- checked/conservative settlement math;
+- no-forfeiture-rake invariant;
+- unresolved-claim safety;
+- read-after-write verification;
+- two-wallet devnet proof;
+- standalone Seeker APK;
+- honest devnet/mainnet labeling;
+- submission accessibility and rehearsal.
+
+## Post-hackathon, only after gates
+
+- Mainnet stablecoin support
+- Independent audit and incident response
+- Granular dispute resolution
+- Push-notification backend
+- Encrypted optional evidence
+- Larger groups/cycles
+- Premium coordination features
+- Public/app-wide challenge templates only after separate reward, moderation, privacy, Sybil-resistance, and publisher-policy review
+- Production analytics with consent
+- Broader token support
+
+Detailed plan: `docs/plans/2026-09-09-rituals-rebuild.md`.

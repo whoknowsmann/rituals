@@ -1,71 +1,177 @@
 # Development
 
-## Observed environment
+## Current repository state
 
-Verified on 2026-09-08 under Ubuntu 24.04 WSL2:
+The codebase still runs the verified Preflight prototype. Rituals is documented but not yet implemented. Use `docs/plans/2026-09-09-rituals-rebuild.md` for the rebuild and do not claim its acceptance criteria before observing them.
 
-- Node.js 26.3.0
-- npm 11.16.0
-- OpenJDK 21.0.12
-- No `ANDROID_HOME`
-- No standalone Gradle command
-- No ADB
+## Observed baseline
 
-The package metadata supports Node 18+, but the exact release CI version has not been selected.
+Last verified before this documentation correction:
+
+- Ubuntu 24.04 under WSL2;
+- Expo `~52.0.49`;
+- React Native `0.76`;
+- Node/npm/JDK details must be re-read live before build/toolchain decisions;
+- 31 JavaScript tests passed;
+- TypeScript passed;
+- Expo Doctor passed 18/18;
+- Android Metro export succeeded;
+- a signed EAS development APK was installed/launched on a physical Seeker;
+- Windows ADB provided the working USB transport;
+- MWA packages/plumbing exist, but a complete real Rituals transaction flow does not.
+
+Do not copy stale system-version values from this document into troubleshooting; inspect live state.
 
 ## Clean setup
 
-    npm ci
+```bash
+npm ci
+```
 
-Do not use `npm audit fix --force`; current audit recommendations include incompatible major downgrades/upgrades across Expo, React Native, navigation, and SPL Token.
+Preserve `package-lock.json`. Do not run `npm audit fix --force`; Expo, React Native, navigation, Solana, and native modules are version-coupled.
 
-## Quality gates
+## Current JavaScript quality gates
 
-    npm test
-    npm run typecheck
-    npm run doctor
+```bash
+npm test
+npm run typecheck
+npm run doctor
+```
 
-Current observed result:
+Re-run and record the exact current test count before the Rituals branch begins.
 
-- 13 tests pass across two files
-- TypeScript passes
-- Expo Doctor passes 18/18 checks
+## Android bundle smoke test
 
-## Bundle smoke test
+Use a disposable directory inside the project:
 
-    rm -rf /tmp/preflight-expo-export
-    npx expo export --platform android --output-dir /tmp/preflight-expo-export
+```bash
+rm -rf .verify/expo-export
+npx expo export --platform android --output-dir .verify/expo-export
+rm -rf .verify/expo-export
+```
 
-This verifies Metro can produce the Android JavaScript bundle. It does not produce or install an APK.
+This proves Metro can emit an Android JavaScript bundle. It is not an APK, installation test, native-module test, wallet test, or standalone release proof.
+
+CI currently writes its export to `/tmp/preflight-expo-export`; the local command above uses `.verify/expo-export` so disposable artifacts stay within the repository and can be cleaned explicitly.
 
 ## Android and MWA
 
-Expo Go does not support the required native MWA package. Use a custom development build with an Android device/emulator and an MWA-compatible wallet.
+Expo Go cannot load the required native Mobile Wallet Adapter package.
 
-This machine currently lacks Android SDK/ADB configuration. Options to evaluate next:
+Use:
 
-1. Configure an existing Windows Android SDK for WSL use if one is already installed.
-2. Use EAS cloud build after authenticating an Expo account.
-3. Install local Android command-line tooling only with explicit owner approval.
+- source/tests/EAS commands in WSL;
+- Windows ADB for USB transport;
+- physical Solana Seeker as the native/MWA source of truth;
+- EAS development build for iteration;
+- signed standalone/internal APK for final acceptance.
 
-A real MWA authorization must be exercised before marking wallet integration complete.
+Before device work, load the Solana Mobile skill's verified Android/EAS reference and inspect live ADB/device state. Do not assume a serial, port, SDK path, Metro process, or wallet session remains current.
 
-## TDD workflow
+Every state-changing action must:
 
-For production logic:
+1. present exact effect;
+2. request MWA authorization/signature;
+3. wait for transaction confirmation;
+4. fetch the exact target account/balances;
+5. mark success only when expected state is observed.
 
-1. Add one behavior test.
-2. Run it and confirm the expected failure.
-3. Implement the minimum behavior.
-4. Run the focused test.
-5. Run the full tests and typecheck.
-6. Refactor only while green.
+## Program toolchain
+
+The quarantined compatibility spike established the following observed versions and result:
+
+- Rust `1.93.1` host toolchain; Solana platform build tooling used Rust `1.84.1-dev`;
+- Solana CLI `3.0.13` (Agave);
+- Anchor CLI `0.31.1`;
+- Node `26.3.0`, npm `11.16.0`, Java `21.0.12`;
+- Anchor `0.31.1` onchain build and local-validator instruction/readback: validated with Rust-1.84-compatible transitive crate pins;
+- existing Expo bundle with the thin web3.js client path: validated;
+- native MWA signing for Rituals: not exercised and unvalidated.
+
+Before production program work:
+
+```bash
+rustc --version || true
+cargo --version || true
+solana --version || true
+anchor --version || true
+node --version
+npm --version
+java -version
+```
+
+Do not install or globally change Rust, Solana CLI, Anchor, Node, Java, Android tooling, or package managers without presenting the exact need and receiving approval.
+
+The spike remains throwaway code under `spikes/001-anchor-mwa-compatibility/`; none of it is production code. Production workspace files may now land using its pinned-version and client strategy, but actual Rituals token escrow, program economics, security, devnet deployment, native MWA signing, and the two-wallet flow still require separate verification.
+
+Expected production commands, once the production workspace exists and its local harness is documented:
+
+```bash
+anchor build
+anchor test
+```
+
+These do not apply to the current spike: its supported program test is the direct Node/web3.js harness documented in `spikes/001-anchor-mwa-compatibility/README.md`, not `anchor test`. Do not add production commands to CI until they run reproducibly locally.
+
+## Strict TDD workflow
+
+For every new behavior:
+
+1. write one focused failing test;
+2. run it and confirm it fails because the behavior is missing;
+3. implement only enough to pass;
+4. run the focused test;
+5. run the relevant full suite;
+6. refactor only while green;
+7. commit the coherent slice.
+
+Pure money and lifecycle logic must not be written before its failing test.
 
 ## Current test files
 
+Preflight/historical foundation:
+
 - `src/domain/preflight/analyze.test.ts`
+- `src/domain/preflight/inspectTransaction.test.ts`
+- `src/domain/preflight/reviewIdentity.test.ts`
+- `src/domain/solana/decodeTransaction.test.ts`
 - `src/components/preflight/resultViewModel.test.ts`
+
+Planned Rituals tests are listed task-by-task in the rebuild plan.
 
 ## Git workflow
 
-The private repository currently develops on `main` during bootstrap. Move feature work to short-lived branches once the baseline is stable. Do not push credentials, wallet material, Android keystores, Expo tokens, or `.env` files.
+- Repository remains private.
+- Create `feat/rituals-rebuild` before production changes.
+- Commit the plan before code.
+- Keep commits small and green.
+- Do not push unless authorized.
+- Do not rewrite or delete the known-good Preflight history.
+- Keep deployment IDs, test-mint facts, and scrubbed acceptance evidence in docs; keep authorities and secrets out of Git.
+
+Never commit:
+
+- seed phrases/private keys;
+- wallet/deployment-authority keypairs;
+- Android keystores;
+- EAS/GitHub/RPC tokens;
+- `.env` files;
+- valuable-wallet data;
+- unsanitized device logs.
+
+## Dependency strategy
+
+The Expo 52 baseline has unresolved advisories. Classify affected direct/transitive paths and shipped-runtime relevance. Test any framework migration in an isolated worktree, one Expo SDK at a time, and merge only after tests, typecheck, Doctor, Android export, APK, and MWA regression checks pass.
+
+Do not mix an Expo upgrade with the first Rituals vertical slice unless the existing stack blocks the required program/MWA integration.
+
+## Acceptance documents
+
+During implementation create and keep current:
+
+- `docs/DEVNET_DEMO.md`
+- `docs/DEVNET_ACCEPTANCE.md`
+- `docs/THREAT_MODEL.md`
+- `docs/PUBLISHER_CHECKLIST.md`
+- `docs/DEMO_SCRIPT.md`
+- `docs/SUBMISSION_CHECKLIST.md`
