@@ -2,7 +2,7 @@
 
 ## Honest status
 
-The current source tree still implements the Preflight prototype. It contains deterministic transaction-decoding/review utilities and MWA plumbing, but it does not contain the planned Rituals program, escrow, claims, approvals, or settlement flow.
+The current source tree still runs the Preflight mobile UI. It now also contains implemented pure Rituals contracts plus a production Anchor ProtocolConfig initializer, native ProgramTest tests, and an SBF build. It does not yet contain the Rituals escrow/claims/approvals/settlement program or a real devnet/MWA flow.
 
 Rituals P0 is intentionally devnet and valueless-token only. Nothing in the target architecture is a claim that mainnet funds are presently safe.
 
@@ -36,7 +36,7 @@ Until tests and independent review prove these invariants, the program is not re
 
 ## Compatibility evidence and limits
 
-The quarantined Anchor/MWA spike validated Anchor `0.31.1` onchain feasibility, including a clean build, local-validator instruction, and account readback with Rust-1.84-compatible transitive crate pins. It also validated the existing Expo bundle with a thin web3.js instruction client. This does not validate Rituals economics, the production program, devnet deployment, or native MWA signing; native MWA signing for Rituals remains unvalidated.
+Compatibility evidence now includes the production ProtocolConfig initializer's native ProgramTest coverage, local SBF build, and generated IDL, in addition to the quarantined Anchor/MWA spike and existing Expo bundle. This is not evidence that the full Rituals program is validated: escrow, claims, approvals, settlement, real devnet deployment, and native MWA signing remain unvalidated.
 
 Production mobile should use a thin typed `@solana/web3.js` client from a frozen IDL rather than importing `@coral-xyz/anchor`. Keep the spike's generated keypairs, build output, validator ledger, and client quarantined.
 
@@ -183,6 +183,10 @@ Never commit:
 - valuable token material.
 
 Keep repository private. Scrub device logs and acceptance artifacts before committing.
+
+## CI supply-chain boundary
+
+CI action references and the Anchor source revision are immutable commit pins. The Solana CLI installer is downloaded over verified TLS and executed only after its exact SHA-256 matches the reviewed `v3.0.13` installer. The installer can still fetch versioned upstream binary artifacts, so residual upstream artifact trust remains; any mutation of the installer itself fails closed.
 
 ## Dependency risk
 

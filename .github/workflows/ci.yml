@@ -19,10 +19,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -47,15 +47,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up pinned host Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.93.1
 
       - name: Cache Rust targets and Cargo registries
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
@@ -64,16 +64,25 @@ jobs:
             program-tests/target
           key: rituals-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'program-tests/Cargo.lock') }}
 
-      # Official Anza shell installer; URL is pinned to the tested release.
-      # The installer is trusted supply-chain input and is not commit-pinned.
+      # Official Anza installer URL is pinned to the tested release. The
+      # upstream binary artifacts remain trusted inputs after installation.
       - name: Install Solana CLI 3.0.13
-        run: sh -c "$(curl -sSfL https://release.anza.xyz/v3.0.13/install)"
+        run: |
+          installer="$(mktemp)"
+          trap 'rm -f "$installer"' EXIT
+          curl --fail --show-error --silent --location --proto '=https' --tlsv1.2 \
+            --output "$installer" https://release.anza.xyz/v3.0.13/install
+          printf '%s  %s\n' \
+            dfab59a5773be04a284501f276a58a7856e2f42ae6ea68564140d0b3a56ce8c6 \
+            "$installer" | sha256sum --check --strict
+          sh "$installer"
 
       - name: Add Solana CLI to PATH
         run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
       - name: Install Anchor CLI v0.31.1
-        run: cargo install --git https://github.com/solana-foundation/anchor --tag v0.31.1 anchor-cli --locked
+        # Reviewed commit for the v0.31.1 tag.
+        run: cargo install --git https://github.com/solana-foundation/anchor --rev 47284f8f0b9844c6b83234aa90f556bad00e12ed anchor-cli --locked
 
       - name: Verify program toolchain
         run: |

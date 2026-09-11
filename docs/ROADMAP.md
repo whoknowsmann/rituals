@@ -21,24 +21,23 @@ Status labels describe observed implementation, not aspiration.
 - [x] Corrected Hub MVP and target architecture
 - [x] Detailed Rituals rebuild implementation plan
 
-## Active — M0 contracts and feasibility
+## Completed — M0 contracts and feasibility
 
 - [x] Create private `feat/rituals-rebuild` branch and commit plan/sketches
-- [ ] Re-run and record current repository baseline
+- [x] Re-run and record current repository baseline
 - [x] Inspect Rust/Solana/Anchor toolchains
 - [x] Validate Anchor program plus existing Expo/web3.js compatibility in a throwaway spike
-- [ ] Validate native MWA signing for a Rituals transaction
-- [ ] Define Rituals domain types
-- [ ] Test threshold derivation
-- [ ] Test exact stake and activation-fee math
-- [ ] Test settlement conservation and atomic-unit remainder policy
-- [ ] Test canonical invite/rule digest
-- [ ] Test lifecycle guards and safe unresolved-claim handling
+- [x] Define Rituals domain types
+- [x] Test threshold derivation
+- [x] Test exact stake and activation-fee math
+- [x] Test settlement conservation and atomic-unit remainder policy
+- [x] Test canonical invite/rule digest
+- [x] Test lifecycle guards and safe unresolved-claim handling
 
-## M1 — program truth
+## M1 — program truth (active)
 
-- [ ] Scaffold pinned Anchor workspace and CI
-- [ ] Initialize protocol configuration
+- [x] Scaffold pinned Anchor workspace and CI (remote CI remains unverified)
+- [x] Initialize protocol configuration
 - [ ] Create immutable ritual/member configuration
 - [ ] Fund program-controlled SPL escrow
 - [ ] Lock exact activation fee at activation
@@ -71,6 +70,7 @@ Status labels describe observed implementation, not aspiration.
 - [ ] Migrate visible app/MWA identity to Rituals
 - [ ] Decide EAS project and Android package migration deliberately
 - [ ] Deploy new program and valueless test mint to devnet
+- [ ] Native MWA signing for Rituals
 - [ ] Run documented two-wallet devnet cycle
 - [ ] Verify pending/questioned no-confiscation path
 - [ ] Build signed standalone APK
