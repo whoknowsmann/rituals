@@ -304,7 +304,9 @@ async fn assert_create_error(
     .await
     .unwrap();
     let mut members = members;
-    members[0] = creator.pubkey();
+    if let Some(first) = members.first_mut() {
+        *first = creator.pubkey();
+    }
     let ix = create_ix_custom(
         &creator.pubkey(),
         1,
@@ -426,7 +428,18 @@ async fn create_ritual_rejects_repeated_nonce_without_changing_original() {
 async fn create_ritual_reports_the_exact_structural_error_matrix() {
     let creator = Pubkey::new_unique();
     let member = Pubkey::new_unique();
+    assert_create_error(vec![], 100, one_event(), [1; 32], 0, None, 6006).await;
     assert_create_error(vec![creator], 100, one_event(), [1; 32], 0, None, 6006).await;
+    assert_create_error(
+        vec![Pubkey::new_unique(), Pubkey::default()],
+        100,
+        one_event(),
+        [1; 32],
+        0,
+        None,
+        6019,
+    )
+    .await;
     assert_create_error(
         chronological_events(7)
             .iter()

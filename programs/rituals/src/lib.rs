@@ -20,11 +20,17 @@ pub mod rituals {
         maximum_fee: u64,
         maximum_member_stake: u64,
     ) -> Result<()> {
-        require!((1..=10_000).contains(&fee_basis_points), RitualsError::InvalidFeeBasisPoints);
+        require!(
+            (1..=10_000).contains(&fee_basis_points),
+            RitualsError::InvalidFeeBasisPoints
+        );
         require!(minimum_fee > 0, RitualsError::InvalidMinimumFee);
         require!(maximum_fee > 0, RitualsError::InvalidMaximumFee);
         require!(minimum_fee <= maximum_fee, RitualsError::FeeBoundsReversed);
-        require!(maximum_member_stake > 0, RitualsError::InvalidMaximumMemberStake);
+        require!(
+            maximum_member_stake > 0,
+            RitualsError::InvalidMaximumMemberStake
+        );
 
         let config = &mut ctx.accounts.protocol_config;
         config.schema_version = 1;
@@ -54,30 +60,73 @@ pub mod rituals {
     ) -> Result<()> {
         let config = &ctx.accounts.protocol_config;
         require!(!config.paused, RitualsError::ProtocolPaused);
-        require!((2..=config.max_members as usize).contains(&members.len()), RitualsError::InvalidMemberCount);
-        require!(members.iter().all(|member| members.iter().filter(|other| *other == member).count() == 1), RitualsError::DuplicateMember);
-        require!(members.contains(&ctx.accounts.creator.key()), RitualsError::CreatorNotMember);
-        require!(!rule_digest.iter().all(|byte| *byte == 0), RitualsError::ZeroRuleDigest);
-        require!((1..=config.max_events as usize).contains(&schedule.len()), RitualsError::InvalidScheduleCount);
+        require!(
+            (2..=config.max_members as usize).contains(&members.len()),
+            RitualsError::InvalidMemberCount
+        );
+        require!(
+            members.iter().all(|member| *member != Pubkey::default()),
+            RitualsError::DefaultMember,
+        );
+        require!(
+            members
+                .iter()
+                .all(|member| members.iter().filter(|other| *other == member).count() == 1),
+            RitualsError::DuplicateMember
+        );
+        require!(
+            members.contains(&ctx.accounts.creator.key()),
+            RitualsError::CreatorNotMember
+        );
+        require!(
+            !rule_digest.iter().all(|byte| *byte == 0),
+            RitualsError::ZeroRuleDigest
+        );
+        require!(
+            (1..=config.max_events as usize).contains(&schedule.len()),
+            RitualsError::InvalidScheduleCount
+        );
         for (index, window) in schedule.iter().enumerate() {
-            require!(window.opens >= 0 && window.opens < window.deadline && window.deadline < window.resolution, RitualsError::InvalidEventWindow);
+            require!(
+                window.opens >= 0
+                    && window.opens < window.deadline
+                    && window.deadline < window.resolution,
+                RitualsError::InvalidEventWindow
+            );
             if let Some(previous) = index.checked_sub(1).and_then(|i| schedule.get(i)) {
-                require!(window.opens > previous.resolution, RitualsError::ScheduleNotChronological);
+                require!(
+                    window.opens > previous.resolution,
+                    RitualsError::ScheduleNotChronological
+                );
             }
         }
-        require!(member_total_stake > 0 && member_total_stake <= config.maximum_member_stake, RitualsError::InvalidMemberStake);
-        require!(additional_confirmation_threshold <= (members.len() - 1) as u8, RitualsError::InvalidConfirmationThreshold);
+        require!(
+            member_total_stake > 0 && member_total_stake <= config.maximum_member_stake,
+            RitualsError::InvalidMemberStake
+        );
+        require!(
+            additional_confirmation_threshold <= (members.len() - 1) as u8,
+            RitualsError::InvalidConfirmationThreshold
+        );
         let group_pool = member_total_stake
             .checked_mul(members.len() as u64)
             .ok_or(RitualsError::StakePoolOverflow)?;
-        require!(member_total_stake % schedule.len() as u64 == 0, RitualsError::StakeNotDivisible);
+        require!(
+            member_total_stake % schedule.len() as u64 == 0,
+            RitualsError::StakeNotDivisible
+        );
         let per_event_allocation = member_total_stake / schedule.len() as u64;
-        require!(per_event_allocation > 0, RitualsError::InvalidPerEventAllocation);
+        require!(
+            per_event_allocation > 0,
+            RitualsError::InvalidPerEventAllocation
+        );
         let fee_raw = (group_pool as u128)
             .checked_mul(config.fee_basis_points as u128)
             .ok_or(RitualsError::FeeCalculationOverflow)?
             / 10_000;
-        let fee: u64 = fee_raw.try_into().map_err(|_| RitualsError::FeeCalculationOverflow)?;
+        let fee: u64 = fee_raw
+            .try_into()
+            .map_err(|_| RitualsError::FeeCalculationOverflow)?;
         let locked_activation_fee = fee.clamp(config.minimum_fee, config.maximum_fee);
         let clock = Clock::get()?;
         let ritual = &mut ctx.accounts.ritual;
@@ -108,7 +157,8 @@ pub mod rituals {
 pub struct InitializeProtocolConfig<'info> {
     #[account(init, payer = authority, space = 8 + ProtocolConfig::INIT_SPACE, seeds = [b"protocol-config"], bump)]
     pub protocol_config: Account<'info, ProtocolConfig>,
-    #[account(mut)] pub authority: Signer<'info>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -119,7 +169,8 @@ pub struct CreateRitual<'info> {
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(init, payer = creator, space = 8 + Ritual::INIT_SPACE, seeds = [b"ritual", creator.key().as_ref(), &nonce.to_le_bytes()], bump)]
     pub ritual: Account<'info, Ritual>,
-    #[account(mut)] pub creator: Signer<'info>,
+    #[account(mut)]
+    pub creator: Signer<'info>,
     /// CHECK: Task12 will validate mint owner and decimals; address allowlisting is enforced here.
     #[account(address = protocol_config.allowed_stake_mint)]
     pub stake_mint: UncheckedAccount<'info>,
@@ -151,10 +202,18 @@ pub struct EventWindow {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
-pub enum FeePayerMode { Host, Split }
+pub enum FeePayerMode {
+    Host,
+    Split,
+}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
-pub enum RitualStatus { Funding, Active, Completed, Cancelled }
+pub enum RitualStatus {
+    Funding,
+    Active,
+    Completed,
+    Cancelled,
+}
 
 #[account]
 #[derive(InitSpace)]
@@ -165,10 +224,12 @@ pub struct Ritual {
     pub nonce: u64,
     pub rule_digest: [u8; 32],
     pub stake_mint: Pubkey,
-    #[max_len(6)] pub members: Vec<Pubkey>,
+    #[max_len(6)]
+    pub members: Vec<Pubkey>,
     pub member_total_stake: u64,
     pub per_event_allocation: u64,
-    #[max_len(16)] pub schedule: Vec<EventWindow>,
+    #[max_len(16)]
+    pub schedule: Vec<EventWindow>,
     pub additional_confirmation_threshold: u8,
     pub fee_payer_mode: FeePayerMode,
     pub locked_activation_fee: u64,
@@ -182,23 +243,44 @@ pub struct Ritual {
 
 #[error_code]
 pub enum RitualsError {
-    #[msg("fee basis points must be between 1 and 10,000")] InvalidFeeBasisPoints,
-    #[msg("minimum fee must be positive")] InvalidMinimumFee,
-    #[msg("maximum fee must be positive")] InvalidMaximumFee,
-    #[msg("minimum fee must not exceed maximum fee")] FeeBoundsReversed,
-    #[msg("maximum member stake must be positive")] InvalidMaximumMemberStake,
-    #[msg("protocol is paused")] ProtocolPaused,
-    #[msg("member count must be between 2 and the configured maximum")] InvalidMemberCount,
-    #[msg("members must be unique")] DuplicateMember,
-    #[msg("creator must be a member")] CreatorNotMember,
-    #[msg("rule digest must be nonzero")] ZeroRuleDigest,
-    #[msg("schedule count is outside the configured bounds")] InvalidScheduleCount,
-    #[msg("event window timestamps are invalid")] InvalidEventWindow,
-    #[msg("schedule windows must be strictly chronological")] ScheduleNotChronological,
-    #[msg("member stake is outside the configured bounds")] InvalidMemberStake,
-    #[msg("confirmation threshold exceeds the member count")] InvalidConfirmationThreshold,
-    #[msg("member stake pool overflowed")] StakePoolOverflow,
-    #[msg("member stake is not divisible by the event count")] StakeNotDivisible,
-    #[msg("per-event allocation must be positive")] InvalidPerEventAllocation,
-    #[msg("fee calculation overflowed")] FeeCalculationOverflow,
+    #[msg("fee basis points must be between 1 and 10,000")]
+    InvalidFeeBasisPoints,
+    #[msg("minimum fee must be positive")]
+    InvalidMinimumFee,
+    #[msg("maximum fee must be positive")]
+    InvalidMaximumFee,
+    #[msg("minimum fee must not exceed maximum fee")]
+    FeeBoundsReversed,
+    #[msg("maximum member stake must be positive")]
+    InvalidMaximumMemberStake,
+    #[msg("protocol is paused")]
+    ProtocolPaused,
+    #[msg("member count must be between 2 and the configured maximum")]
+    InvalidMemberCount,
+    #[msg("members must be unique")]
+    DuplicateMember,
+    #[msg("creator must be a member")]
+    CreatorNotMember,
+    #[msg("rule digest must be nonzero")]
+    ZeroRuleDigest,
+    #[msg("schedule count is outside the configured bounds")]
+    InvalidScheduleCount,
+    #[msg("event window timestamps are invalid")]
+    InvalidEventWindow,
+    #[msg("schedule windows must be strictly chronological")]
+    ScheduleNotChronological,
+    #[msg("member stake is outside the configured bounds")]
+    InvalidMemberStake,
+    #[msg("confirmation threshold exceeds the member count")]
+    InvalidConfirmationThreshold,
+    #[msg("member stake pool overflowed")]
+    StakePoolOverflow,
+    #[msg("member stake is not divisible by the event count")]
+    StakeNotDivisible,
+    #[msg("per-event allocation must be positive")]
+    InvalidPerEventAllocation,
+    #[msg("fee calculation overflowed")]
+    FeeCalculationOverflow,
+    #[msg("member public keys must be non-default")]
+    DefaultMember,
 }
