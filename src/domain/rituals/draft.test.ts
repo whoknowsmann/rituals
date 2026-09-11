@@ -5,6 +5,7 @@ import {
   assertValidLockedRitualRules,
   canonicalizeRules,
   digestRules,
+  digestRulesSync,
   type LockedRitualRules,
 } from './draft'
 import type { PublicKeyText } from './types'
@@ -86,11 +87,57 @@ describe('locked Ritual rules', () => {
     for (const candidate of cases) expect(() => assertValidLockedRitualRules(candidate)).toThrow()
   })
 
-  it('changes its SHA-256 digest for every rule field mutation', async () => {
+  it('rejects sparse arrays and serialized-away array properties', () => {
+    const base = validRules()
+    const sparseSchedule = new Array(1) as unknown as LockedRitualRules['schedule']
+    const sparseMembers = new Array(2) as unknown as LockedRitualRules['members']
+    const namedSchedule = [base.schedule[0]] as unknown as Record<string, unknown>
+    namedSchedule.note = 'hidden'
+    const symbolSchedule = [base.schedule[0]] as unknown as Record<PropertyKey, unknown>
+    symbolSchedule[Symbol('hidden')] = true
+    const namedMembers = [...base.members] as unknown as Record<string, unknown>
+    namedMembers.note = 'hidden'
+    const symbolMembers = [...base.members] as unknown as Record<PropertyKey, unknown>
+    symbolMembers[Symbol('hidden')] = true
+    for (const schedule of [sparseSchedule, namedSchedule, symbolSchedule]) {
+      expect(() => assertValidLockedRitualRules({ ...base, schedule })).toThrow()
+    }
+    for (const members of [sparseMembers, namedMembers, symbolMembers]) {
+      expect(() => assertValidLockedRitualRules({ ...base, members })).toThrow()
+    }
+  })
+
+  it('rejects symbol keys on rules and schedule entries', () => {
+    const rules = validRules() as unknown as Record<PropertyKey, unknown>
+    rules[Symbol('private')] = true
+    expect(() => assertValidLockedRitualRules(rules)).toThrow()
+    const entry = { ...validRules().schedule[0] } as Record<PropertyKey, unknown>
+    entry[Symbol('private')] = true
+    expect(() => assertValidLockedRitualRules({ ...validRules(), schedule: [entry] })).toThrow()
+  })
+
+  it('rejects explicit schema, cluster, event index, and threshold violations', () => {
+    const base = validRules()
+    expect(() => assertValidLockedRitualRules({ ...base, schemaVersion: 2 })).toThrow()
+    expect(() => assertValidLockedRitualRules({ ...base, cluster: 'mainnet-beta' })).toThrow()
+    expect(() => assertValidLockedRitualRules({ ...base, schedule: [{ ...base.schedule[0], eventIndex: 1 }] })).toThrow()
+    expect(() => assertValidLockedRitualRules({ ...base, additionalConfirmationThreshold: 0 })).toThrow()
+  })
+
+  it('accepts both free zero-zero and funded positive-positive fee pairs', () => {
+    const base = validRules()
+    expect(() => assertValidLockedRitualRules({ ...base, memberTotalStake: 0n, activationFee: 0n })).not.toThrow()
+    expect(() => assertValidLockedRitualRules({ ...base, memberTotalStake: 0n, activationFee: 1n })).toThrow()
+    expect(() => assertValidLockedRitualRules({ ...base, memberTotalStake: 10n, activationFee: 1n })).not.toThrow()
+  })
+
+  it('changes its SHA-256 digest for every valid digest-bearing mutation', async () => {
     const base = validRules()
     const mutations: LockedRitualRules[] = [
       { ...base, title: 'Evening ritual' }, { ...base, requirement: 'Different' },
+      { ...base, schedule: [{ ...base.schedule[0], claimOpensAt: 0 }] },
       { ...base, schedule: [{ ...base.schedule[0], claimDeadlineAt: 201 }] },
+      { ...base, schedule: [{ ...base.schedule[0], resolutionDeadlineAt: 301 }] },
       { ...base, members: [base.members[1], base.members[0]] }, { ...base, memberTotalStake: 20n },
       { ...base, confirmationMode: 'MAJORITY', additionalConfirmationThreshold: 1 }, { ...base, stakeMint: key(4) }, { ...base, tokenDecimals: 7 },
       { ...base, activationFee: 2n }, { ...base, feePayerMode: 'SPLIT' },
@@ -98,5 +145,6 @@ describe('locked Ritual rules', () => {
     const original = await digestRules(base)
     for (const mutation of mutations) expect(await digestRules(mutation)).not.toBe(original)
     expect(original).toMatch(/^[0-9a-f]{64}$/)
+    expect(digestRulesSync(base)).toBe(original)
   })
 })

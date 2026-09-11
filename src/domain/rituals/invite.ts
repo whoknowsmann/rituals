@@ -36,7 +36,9 @@ function plain(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null
 }
 function exact(value: Record<string, unknown>, keys: readonly string[]): boolean {
-  const actual = Object.getOwnPropertyNames(value).sort()
+  const actualKeys = Reflect.ownKeys(value)
+  if (actualKeys.some((key) => typeof key !== 'string')) return false
+  const actual = (actualKeys as string[]).sort()
   const expected = [...keys].sort()
   return actual.length === expected.length && actual.every((key, index) => key === expected[index])
 }
@@ -52,18 +54,36 @@ function digest(value: unknown): value is RuleDigest {
 }
 
 export function verifyInvite(invite: unknown, onchain: unknown): VerificationResult {
-  if (!plain(invite) || !plain(onchain) || !exact(invite, INVITE_KEYS) || !exact(onchain, ACCOUNT_KEYS)) return { ok: false, reason: 'invalid_input' }
-  if (invite.domain !== RITUAL_INVITE_DOMAIN) return { ok: false, reason: 'wrong_domain' }
-  if (invite.schemaVersion !== RITUAL_INVITE_SCHEMA_VERSION) return { ok: false, reason: 'unsupported_schema' }
-  if (!digest(invite.ruleDigest) || !digest(onchain.ruleDigest)) return { ok: false, reason: 'invalid_input' }
-  const ritual = address(invite.ritual)
-  const account = address(onchain.address)
-  if (!ritual || !account) return { ok: false, reason: 'invalid_input' }
-  try { assertValidLockedRitualRules(invite.rules) } catch { return { ok: false, reason: 'invalid_rules' } }
-  if (invite.cluster !== DEVNET_CLUSTER || invite.rules.cluster !== DEVNET_CLUSTER || onchain.cluster !== DEVNET_CLUSTER) return { ok: false, reason: 'cluster_mismatch' }
-  if (ritual !== account) return { ok: false, reason: 'ritual_mismatch' }
-  let computed: RuleDigest
-  try { computed = digestRulesSync(invite.rules) } catch { return { ok: false, reason: 'invalid_rules' } }
-  if (computed !== invite.ruleDigest || computed !== onchain.ruleDigest) return { ok: false, reason: 'digest_mismatch' }
-  return { ok: true }
+  try {
+    if (!plain(invite) || !plain(onchain) || !exact(invite, INVITE_KEYS) || !exact(onchain, ACCOUNT_KEYS)) return { ok: false, reason: 'invalid_input' }
+    const inviteValue = invite as Record<string, unknown>
+    const onchainValue = onchain as Record<string, unknown>
+    const domain = inviteValue.domain
+    const schemaVersion = inviteValue.schemaVersion
+    const cluster = inviteValue.cluster
+    const ritualValue = inviteValue.ritual
+    const inviteDigest = inviteValue.ruleDigest
+    const rules = inviteValue.rules
+    const onchainCluster = onchainValue.cluster
+    const onchainDigest = onchainValue.ruleDigest
+    const accountValue = onchainValue.address
+    if (domain !== RITUAL_INVITE_DOMAIN) return { ok: false, reason: 'wrong_domain' }
+    if (schemaVersion !== RITUAL_INVITE_SCHEMA_VERSION) return { ok: false, reason: 'unsupported_schema' }
+    if (!digest(inviteDigest) || !digest(onchainDigest)) return { ok: false, reason: 'invalid_input' }
+    const ritual = address(ritualValue)
+    const account = address(accountValue)
+    if (!ritual || !account) return { ok: false, reason: 'invalid_input' }
+    if (rules !== null && typeof rules === 'object') {
+      Reflect.ownKeys(rules)
+      Object.getPrototypeOf(rules)
+    }
+    try { assertValidLockedRitualRules(rules) } catch { return { ok: false, reason: 'invalid_rules' } }
+    if (cluster !== DEVNET_CLUSTER || rules.cluster !== DEVNET_CLUSTER || onchainCluster !== DEVNET_CLUSTER) return { ok: false, reason: 'cluster_mismatch' }
+    if (ritual !== account) return { ok: false, reason: 'ritual_mismatch' }
+    const computed = digestRulesSync(rules)
+    if (computed !== inviteDigest || computed !== onchainDigest) return { ok: false, reason: 'digest_mismatch' }
+    return { ok: true }
+  } catch {
+    return { ok: false, reason: 'invalid_input' }
+  }
 }

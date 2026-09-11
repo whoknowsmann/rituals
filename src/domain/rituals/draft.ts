@@ -41,9 +41,17 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null
 }
 function exactKeys(value: Record<string, unknown>, keys: readonly string[], label: string): void {
-  const actual = Object.getOwnPropertyNames(value).sort()
+  const actualKeys = Reflect.ownKeys(value)
+  if (actualKeys.some((key) => typeof key !== 'string')) fail(`${label} has unexpected or missing fields`)
+  const actual = (actualKeys as string[]).sort()
   const expected = [...keys].sort()
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) fail(`${label} has unexpected or missing fields`)
+}
+function denseArray(value: unknown, min: number, max: number, label: string): asserts value is unknown[] {
+  if (!Array.isArray(value) || value.length < min || value.length > max) fail(`${label} must contain ${min}..${max} entries`)
+  const keys = Reflect.ownKeys(value)
+  if (keys.length !== value.length + 1 || !keys.includes('length') || keys.some((key) => key !== 'length' && (typeof key !== 'string' || !/^\d+$/.test(key) || Number(key) >= value.length || !Object.hasOwn(value, key)))) fail(`${label} must be dense and have no extra fields`)
+  for (let index = 0; index < value.length; index += 1) if (!Object.hasOwn(value, index)) fail(`${label} must be dense`)
 }
 function stringLength(value: string): number { return Array.from(value).length }
 function canonicalAddress(value: unknown, name: string): PublicKeyText {
@@ -70,9 +78,10 @@ export function assertValidLockedRitualRules(value: unknown): asserts value is L
   if (value.cluster !== DEVNET_CLUSTER) fail('cluster must be devnet')
   if (typeof value.title !== 'string' || value.title.trim().length === 0 || stringLength(value.title) > 80) fail('title is invalid')
   if (typeof value.requirement !== 'string' || value.requirement.trim().length === 0 || stringLength(value.requirement) > 280) fail('requirement is invalid')
-  if (!Array.isArray(value.schedule) || value.schedule.length < 1 || value.schedule.length > 16) fail('schedule must contain 1..16 entries')
+  denseArray(value.schedule, 1, 16, 'schedule')
   let previousResolution = -1
-  value.schedule.forEach((entry, index) => {
+  for (let index = 0; index < value.schedule.length; index += 1) {
+    const entry = value.schedule[index]
     if (!isPlainObject(entry)) fail('schedule entries must be plain objects')
     exactKeys(entry, SCHEDULE_KEYS, 'schedule entry')
     if (entry.eventIndex !== index) fail('eventIndex must be contiguous')
@@ -82,14 +91,15 @@ export function assertValidLockedRitualRules(value: unknown): asserts value is L
     if (!(opens < deadline && deadline < resolution)) fail('schedule timestamps must be ordered')
     if (index > 0 && opens <= previousResolution) fail('events must be strictly chronological')
     previousResolution = resolution
-  })
-  if (!Array.isArray(value.members) || value.members.length < 2 || value.members.length > 6) fail('members must contain 2..6 entries')
-  const members = value.members.map((member) => canonicalAddress(member, 'member'))
+  }
+  denseArray(value.members, 2, 6, 'members')
+  const members: PublicKeyText[] = []
+  for (let index = 0; index < value.members.length; index += 1) members.push(canonicalAddress(value.members[index], 'member'))
   if (new Set(members).size !== members.length) fail('members must be unique')
   const memberTotalStake = u64(value.memberTotalStake, 'memberTotalStake')
   try { derivePerEventAllocation(memberTotalStake, value.schedule.length) } catch { fail('memberTotalStake must divide across schedule events') }
   const activationFee = u64(value.activationFee, 'activationFee')
-  if (memberTotalStake > 0n && activationFee === 0n) fail('funded rituals require a positive activation fee')
+  if ((memberTotalStake === 0n) !== (activationFee === 0n)) fail('free rituals require zero fee and funded rituals require a positive fee')
   canonicalAddress(value.stakeMint, 'stakeMint')
   if (typeof value.tokenDecimals !== 'number' || !Number.isInteger(value.tokenDecimals) || value.tokenDecimals < 0 || value.tokenDecimals > 255) fail('tokenDecimals is invalid')
   if (typeof value.confirmationMode !== 'string' || !(CONFIRMATION_MODES as readonly string[]).includes(value.confirmationMode)) fail('confirmationMode is invalid')
@@ -122,10 +132,9 @@ export function canonicalizeRules(rules: LockedRitualRules): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(canonicalValue(rules)))
 }
 function toHex(bytes: Uint8Array): string { return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('') }
-export async function digestRules(rules: LockedRitualRules): Promise<RuleDigest> {
+function digestRulesImpl(rules: LockedRitualRules): RuleDigest {
   return toHex(sha256(canonicalizeRules(rules))) as RuleDigest
 }
+export async function digestRules(rules: LockedRitualRules): Promise<RuleDigest> { return digestRulesImpl(rules) }
 
-export function digestRulesSync(rules: LockedRitualRules): RuleDigest {
-  return toHex(sha256(canonicalizeRules(rules))) as RuleDigest
-}
+export function digestRulesSync(rules: LockedRitualRules): RuleDigest { return digestRulesImpl(rules) }

@@ -44,6 +44,34 @@ describe('Ritual invitations', () => {
     expect(verifyInvite({ ...invite, extra: true }, onchain)).toEqual({ ok: false, reason: 'invalid_input' })
   })
 
+  it('rejects symbol keys on rules, invite, and on-chain views', async () => {
+    const { invite, onchain } = await fixture()
+    const rulesWithSymbol = { ...invite.rules } as Record<PropertyKey, unknown>
+    rulesWithSymbol[Symbol('private')] = true
+    expect(verifyInvite({ ...invite, rules: rulesWithSymbol }, onchain)).toEqual({ ok: false, reason: 'invalid_rules' })
+    const inviteWithSymbol = { ...invite } as Record<PropertyKey, unknown>
+    inviteWithSymbol[Symbol('private')] = true
+    expect(verifyInvite(inviteWithSymbol, onchain)).toEqual({ ok: false, reason: 'invalid_input' })
+    const onchainWithSymbol = { ...onchain } as Record<PropertyKey, unknown>
+    onchainWithSymbol[Symbol('private')] = true
+    expect(verifyInvite(invite, onchainWithSymbol)).toEqual({ ok: false, reason: 'invalid_input' })
+  })
+
+  it('normalizes hostile objects and throwing top-level getters to invalid_input', async () => {
+    const { invite, onchain } = await fixture()
+    const hostile = new Proxy({}, {
+      getPrototypeOf: () => { throw new Error('prototype') },
+      ownKeys: () => { throw new Error('keys') },
+    })
+    expect(verifyInvite(hostile, onchain)).toEqual({ ok: false, reason: 'invalid_input' })
+    const throwingRules = Object.defineProperty({ ...invite }, 'rules', {
+      get: () => { throw new Error('rules') }, enumerable: true,
+    })
+    expect(verifyInvite(throwingRules, onchain)).toEqual({ ok: false, reason: 'invalid_input' })
+    const throwingOnchain = new Proxy(onchain, { get: () => { throw new Error('field') } })
+    expect(verifyInvite(invite, throwingOnchain)).toEqual({ ok: false, reason: 'invalid_input' })
+  })
+
   it('rejects malformed input without throwing', () => {
     expect(verifyInvite(null, null)).toEqual({ ok: false, reason: 'invalid_input' })
     expect(verifyInvite({}, {})).toEqual({ ok: false, reason: 'invalid_input' })
