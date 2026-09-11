@@ -69,7 +69,7 @@ describe('Ritual invitations', () => {
     })
     expect(verifyInvite(throwingRules, onchain)).toEqual({ ok: false, reason: 'invalid_input' })
     const throwingOnchain = new Proxy(onchain, { get: () => { throw new Error('field') } })
-    expect(verifyInvite(invite, throwingOnchain)).toEqual({ ok: false, reason: 'invalid_input' })
+    expect(verifyInvite(invite, throwingOnchain)).toEqual({ ok: true })
   })
 
   it('classifies invite and on-chain accessors as invalid_input without invoking getters', async () => {
@@ -99,6 +99,47 @@ describe('Ritual invitations', () => {
     expect(reads).toBe(0)
   })
 
+  it('uses descriptor-advertised invite and account values without invoking get traps', async () => {
+    const { invite, onchain } = await fixture()
+    let inviteGets = 0
+    let accountGets = 0
+    const inviteProxy = new Proxy({ ...invite }, {
+      get: () => { inviteGets += 1; throw new Error('invite get trap') },
+      getOwnPropertyDescriptor: (object, key) => Reflect.getOwnPropertyDescriptor(object, key),
+    })
+    const accountProxy = new Proxy({ ...onchain }, {
+      get: () => { accountGets += 1; throw new Error('account get trap') },
+      getOwnPropertyDescriptor: (object, key) => Reflect.getOwnPropertyDescriptor(object, key),
+    })
+    expect(verifyInvite(inviteProxy, accountProxy)).toEqual({ ok: true })
+    expect(inviteGets).toBe(0)
+    expect(accountGets).toBe(0)
+  })
+
+  it('classifies invalid descriptor-advertised invite fields without invoking get', async () => {
+    const { invite, onchain } = await fixture()
+    let gets = 0
+    const target = { ...invite, ritual: 'not-a-key' }
+    const proxy = new Proxy(target, {
+      get: () => { gets += 1; throw new Error('get trap') },
+      getOwnPropertyDescriptor: (object, key) => Reflect.getOwnPropertyDescriptor(object, key),
+    })
+    expect(verifyInvite(proxy, onchain)).toEqual({ ok: false, reason: 'invalid_input' })
+    expect(gets).toBe(0)
+  })
+
+  it('classifies invalid descriptor-advertised rules without invoking get', async () => {
+    const { invite, onchain } = await fixture()
+    let gets = 0
+    const invalidRules = { ...invite.rules, title: '' }
+    const rulesProxy = new Proxy(invalidRules, { get: () => { gets += 1; throw new Error('rules get trap') } })
+    const inviteProxy = new Proxy({ ...invite, rules: rulesProxy }, {
+      get: () => { gets += 1; throw new Error('invite get trap') },
+      getOwnPropertyDescriptor: (object, key) => Reflect.getOwnPropertyDescriptor(object, key),
+    })
+    expect(verifyInvite(inviteProxy, onchain)).toEqual({ ok: false, reason: 'invalid_rules' })
+    expect(gets).toBe(0)
+  })
   it('accepts frozen ordinary data-descriptor invites and account views', async () => {
     const { invite, onchain } = await fixture()
     Object.freeze(invite.rules.schedule[0])

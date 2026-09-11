@@ -6,6 +6,7 @@ import {
   canonicalizeRules,
   digestRules,
   digestRulesSync,
+  parseLockedRitualRules,
   type LockedRitualRules,
 } from './draft'
 import type { PublicKeyText } from './types'
@@ -152,6 +153,53 @@ describe('locked Ritual rules', () => {
     Object.defineProperty(memberList, '0', { get: () => { reads += 1; return base.members[0] }, enumerable: true })
     expect(() => assertValidLockedRitualRules({ ...base, members: memberList } as LockedRitualRules)).toThrow()
     expect(reads).toBe(0)
+  })
+
+  it('snapshots descriptor-advertised Proxy values without invoking its get trap', () => {
+    const base = validRules()
+    let gets = 0
+    const target = { ...base } as Record<string, unknown>
+    let getterReads = 0
+    Object.defineProperty(target, 'title', { configurable: true, enumerable: true, get: () => { getterReads += 1; return base.title } })
+    const rules = new Proxy(target, {
+      get: () => { gets += 1; throw new Error('get trap') },
+      getOwnPropertyDescriptor: (object, key) => {
+        const descriptor = Reflect.getOwnPropertyDescriptor(object, key)
+        if (key === 'title') return { configurable: true, enumerable: true, writable: true, value: base.title }
+        return descriptor
+      },
+    }) as unknown as LockedRitualRules
+    expect(canonicalizeRules(rules)).toEqual(canonicalizeRules(base))
+    expect(digestRulesSync(rules)).toBe(digestRulesSync(base))
+    expect(gets).toBe(0)
+    expect(getterReads).toBe(0)
+  })
+
+  it('rejects invalid descriptor-advertised Proxy rules without invoking get', () => {
+    const base = validRules()
+    let gets = 0
+    const target = { ...base } as Record<string, unknown>
+    const rules = new Proxy(target, {
+      get: () => { gets += 1; throw new Error('get trap') },
+      getOwnPropertyDescriptor: (object, key) => {
+        const descriptor = Reflect.getOwnPropertyDescriptor(object, key)
+        if (key === 'title') return { configurable: true, enumerable: true, writable: true, value: '' }
+        return descriptor
+      },
+    })
+    expect(() => parseLockedRitualRules(rules)).toThrow()
+    expect(gets).toBe(0)
+  })
+
+  it('returns a detached rules snapshot', () => {
+    const input = validRules()
+    const parsed = parseLockedRitualRules(input)
+    ;(input as unknown as Record<string, unknown>).title = 'Changed'
+    ;(input.schedule as unknown as Array<{ claimDeadlineAt: number }>)[0].claimDeadlineAt = 999
+    ;(input.members as PublicKeyText[])[0] = key(5)
+    expect(parsed.title).toBe('Morning ritual')
+    expect(parsed.schedule[0].claimDeadlineAt).toBe(200)
+    expect(parsed.members[0]).toBe(key(1))
   })
 
   it('accepts frozen ordinary data-descriptor rules', () => {

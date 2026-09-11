@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js'
-import { assertValidLockedRitualRules, digestRulesSync, type LockedRitualRules } from './draft'
+import { digestRulesSync, parseLockedRitualRules, type LockedRitualRules } from './draft'
 import { DEVNET_CLUSTER, type PublicKeyText, type RuleDigest } from './types'
 
 export const RITUAL_INVITE_DOMAIN = 'rituals.solana.invite' as const
@@ -35,16 +35,21 @@ function plain(value: unknown): value is Record<string, unknown> {
   const prototype = Object.getPrototypeOf(value)
   return prototype === Object.prototype || prototype === null
 }
-function exact(value: Record<string, unknown>, keys: readonly string[]): boolean {
+function snapshot(value: unknown, keys: readonly string[]): Record<string, unknown> | null {
+  if (!plain(value)) return null
   const actualKeys = Reflect.ownKeys(value)
-  if (actualKeys.some((key) => typeof key !== 'string')) return false
+  if (actualKeys.some((key) => typeof key !== 'string')) return null
   const actual = (actualKeys as string[]).sort()
   const expected = [...keys].sort()
-  if (actual.length !== expected.length || !actual.every((key, index) => key === expected[index])) return false
-  return keys.every((key) => {
+  if (actual.length !== expected.length || !actual.every((key, index) => key === expected[index])) return null
+  const result: Record<string, unknown> = {}
+  for (const key of keys) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key)
-    return Boolean(descriptor && 'value' in descriptor && descriptor.enumerable)
-  })
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) return null
+    // Snapshot descriptors for consistency; this is not blanket Proxy immunity.
+    result[key] = descriptor.value
+  }
+  return result
 }
 function address(value: unknown): PublicKeyText | null {
   if (typeof value !== 'string') return null
@@ -59,9 +64,9 @@ function digest(value: unknown): value is RuleDigest {
 
 export function verifyInvite(invite: unknown, onchain: unknown): VerificationResult {
   try {
-    if (!plain(invite) || !plain(onchain) || !exact(invite, INVITE_KEYS) || !exact(onchain, ACCOUNT_KEYS)) return { ok: false, reason: 'invalid_input' }
-    const inviteValue = invite as Record<string, unknown>
-    const onchainValue = onchain as Record<string, unknown>
+    const inviteValue = snapshot(invite, INVITE_KEYS)
+    const onchainValue = snapshot(onchain, ACCOUNT_KEYS)
+    if (!inviteValue || !onchainValue) return { ok: false, reason: 'invalid_input' }
     const domain = inviteValue.domain
     const schemaVersion = inviteValue.schemaVersion
     const cluster = inviteValue.cluster
@@ -77,14 +82,11 @@ export function verifyInvite(invite: unknown, onchain: unknown): VerificationRes
     const ritual = address(ritualValue)
     const account = address(accountValue)
     if (!ritual || !account) return { ok: false, reason: 'invalid_input' }
-    if (rules !== null && typeof rules === 'object') {
-      Reflect.ownKeys(rules)
-      Object.getPrototypeOf(rules)
-    }
-    try { assertValidLockedRitualRules(rules) } catch { return { ok: false, reason: 'invalid_rules' } }
-    if (cluster !== DEVNET_CLUSTER || rules.cluster !== DEVNET_CLUSTER || onchainCluster !== DEVNET_CLUSTER) return { ok: false, reason: 'cluster_mismatch' }
+    let normalizedRules: LockedRitualRules
+    try { normalizedRules = parseLockedRitualRules(rules) } catch { return { ok: false, reason: 'invalid_rules' } }
+    if (cluster !== DEVNET_CLUSTER || normalizedRules.cluster !== DEVNET_CLUSTER || onchainCluster !== DEVNET_CLUSTER) return { ok: false, reason: 'cluster_mismatch' }
     if (ritual !== account) return { ok: false, reason: 'ritual_mismatch' }
-    const computed = digestRulesSync(rules)
+    const computed = digestRulesSync(normalizedRules)
     if (computed !== inviteDigest || computed !== onchainDigest) return { ok: false, reason: 'digest_mismatch' }
     return { ok: true }
   } catch {
