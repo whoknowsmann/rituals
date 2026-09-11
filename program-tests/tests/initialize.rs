@@ -37,6 +37,7 @@ fn initialize_ix(
     fee_basis_points: u16,
     minimum_fee: u64,
     maximum_fee: u64,
+    maximum_member_stake: u64,
 ) -> Instruction {
     let (protocol_config, _) = config_pda();
     let accounts = rituals::accounts::InitializeProtocolConfig {
@@ -53,6 +54,7 @@ fn initialize_ix(
             fee_basis_points,
             minimum_fee,
             maximum_fee,
+            maximum_member_stake,
         }
         .data(),
     }
@@ -109,7 +111,7 @@ async fn initialize_protocol_config_stores_exact_state() {
     let (mut banks, payer, recent_blockhash) = start().await;
     let allowed = Pubkey::new_unique();
     let recipient = Pubkey::new_unique();
-    let ix = initialize_ix(&payer.pubkey(), allowed, recipient, 200, 50, 500);
+    let ix = initialize_ix(&payer.pubkey(), allowed, recipient, 200, 50, 500, 1_000);
     submit(&mut banks, &payer, ix, recent_blockhash).await.unwrap();
 
     let (address, bump) = config_pda();
@@ -135,7 +137,7 @@ async fn initialize_protocol_config_stores_exact_state() {
 async fn initialize_rejects_non_signing_authority() {
     let (mut banks, payer, recent_blockhash) = start().await;
     let authority = Keypair::new();
-    let mut ix = initialize_ix(&authority.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2);
+    let mut ix = initialize_ix(&authority.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2, 1_000);
     ix.accounts[1].is_signer = false;
     assert_custom_error(submit(&mut banks, &payer, ix, recent_blockhash).await, 3010);
 }
@@ -144,7 +146,7 @@ async fn initialize_rejects_non_signing_authority() {
 async fn initialize_rejects_invalid_basis_points() {
     for bps in [0, 10_001] {
         let (mut banks, payer, recent_blockhash) = start().await;
-        let ix = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), bps, 1, 2);
+        let ix = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), bps, 1, 2, 1_000);
         assert_custom_error(submit(&mut banks, &payer, ix, recent_blockhash).await, 6000);
     }
 }
@@ -153,7 +155,7 @@ async fn initialize_rejects_invalid_basis_points() {
 async fn initialize_rejects_invalid_fee_bounds() {
     for (minimum, maximum, expected) in [(0, 1, 6001), (1, 0, 6002), (2, 1, 6003)] {
         let (mut banks, payer, recent_blockhash) = start().await;
-        let ix = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, minimum, maximum);
+        let ix = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, minimum, maximum, 1_000);
         assert_custom_error(submit(&mut banks, &payer, ix, recent_blockhash).await, expected);
     }
 }
@@ -161,16 +163,16 @@ async fn initialize_rejects_invalid_fee_bounds() {
 #[tokio::test]
 async fn initialize_rejects_repeated_pda_initialization() {
     let (mut banks, payer, recent_blockhash) = start().await;
-    let first = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2);
+    let first = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2, 1_000);
     submit(&mut banks, &payer, first, recent_blockhash).await.unwrap();
     let original = read_config_snapshot(&mut banks).await;
-    let second = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2);
+    let second = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2, 1_000);
     assert_custom_error(submit(&mut banks, &payer, second, recent_blockhash).await, 0);
     assert_eq!(read_config_snapshot(&mut banks).await, original);
 }
 
 #[test]
 fn wished_for_initialize_api_compiles_against_native_program_entrypoint() {
-    let _ = initialize_ix(&Pubkey::new_unique(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2);
+    let _ = initialize_ix(&Pubkey::new_unique(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2, 1_000);
     let _ = AccountMeta::new_readonly(Pubkey::new_unique(), false);
 }
