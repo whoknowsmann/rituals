@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::{Mint, Token, TokenAccount};
 
 // Local-only placeholder identity; no deployed identity is implied.
 declare_id!("8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB");
@@ -20,6 +21,8 @@ pub mod rituals {
         maximum_fee: u64,
         maximum_member_stake: u64,
     ) -> Result<()> {
+        // The initializer records the address only. CreateRitual validates the
+        // concrete classic SPL token account and its mint for the first time.
         require!(
             (1..=10_000).contains(&fee_basis_points),
             RitualsError::InvalidFeeBasisPoints
@@ -143,6 +146,16 @@ pub mod rituals {
         ritual.additional_confirmation_threshold = additional_confirmation_threshold;
         ritual.fee_payer_mode = fee_payer_mode;
         ritual.locked_activation_fee = locked_activation_fee;
+        ritual.stake_decimals = ctx.accounts.stake_mint.decimals;
+        ritual.locked_fee_recipient = ctx.accounts.fee_recipient_token.key();
+        ritual.stake_vault = ctx.accounts.stake_vault.key();
+        ritual.fee_vault = ctx.accounts.fee_vault.key();
+        ritual.stake_vault_bump = ctx.bumps.stake_vault;
+        ritual.fee_vault_bump = ctx.bumps.fee_vault;
+        ritual.funded_members_bitmap = 0;
+        ritual.funded_member_count = 0;
+        ritual.funded_stake_total = 0;
+        ritual.funded_fee_total = 0;
         ritual.status = RitualStatus::Funding;
         ritual.current_event_index = 0;
         ritual.settled_event_count = 0;
@@ -171,10 +184,31 @@ pub struct CreateRitual<'info> {
     pub ritual: Account<'info, Ritual>,
     #[account(mut)]
     pub creator: Signer<'info>,
-    /// CHECK: Task12 will validate mint owner and decimals; address allowlisting is enforced here.
     #[account(address = protocol_config.allowed_stake_mint)]
-    pub stake_mint: UncheckedAccount<'info>,
+    pub stake_mint: Account<'info, Mint>,
+    #[account(address = protocol_config.fee_recipient)]
+    #[account(constraint = fee_recipient_token.mint == stake_mint.key())]
+    pub fee_recipient_token: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = creator,
+        seeds = [b"stake-vault", ritual.key().as_ref()],
+        bump,
+        token::mint = stake_mint,
+        token::authority = ritual,
+    )]
+    pub stake_vault: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = creator,
+        seeds = [b"fee-vault", ritual.key().as_ref()],
+        bump,
+        token::mint = stake_mint,
+        token::authority = ritual,
+    )]
+    pub fee_vault: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[account]
@@ -183,6 +217,7 @@ pub struct ProtocolConfig {
     pub schema_version: u8,
     pub authority: Pubkey,
     pub allowed_stake_mint: Pubkey,
+    /// The address is recorded without account validation; CreateRitual validates it.
     pub fee_recipient: Pubkey,
     pub fee_basis_points: u16,
     pub minimum_fee: u64,
@@ -233,6 +268,16 @@ pub struct Ritual {
     pub additional_confirmation_threshold: u8,
     pub fee_payer_mode: FeePayerMode,
     pub locked_activation_fee: u64,
+    pub stake_decimals: u8,
+    pub locked_fee_recipient: Pubkey,
+    pub stake_vault: Pubkey,
+    pub fee_vault: Pubkey,
+    pub stake_vault_bump: u8,
+    pub fee_vault_bump: u8,
+    pub funded_members_bitmap: u8,
+    pub funded_member_count: u8,
+    pub funded_stake_total: u64,
+    pub funded_fee_total: u64,
     pub status: RitualStatus,
     pub current_event_index: u8,
     pub settled_event_count: u8,

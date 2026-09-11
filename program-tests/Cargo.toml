@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 rituals = { path = "../programs/rituals" }
 anchor-lang = "=0.31.1"
+anchor-spl = { version = "=0.31.1", default-features = false, features = ["token", "token_2022"] }
 solana-program-test = "=2.3.1"
 solana-sdk = "=2.3.1"
 tokio = { version = "=1.45.0", features = ["macros", "rt-multi-thread"] }

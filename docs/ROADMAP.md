@@ -40,7 +40,8 @@ Status labels describe observed implementation, not aspiration.
 - [x] Initialize protocol configuration
 - [x] Create immutable ritual/member configuration
 - [x] Task11: enforce immutable Ritual creation invariants, group-pool overflow, and group-based locked fee math
-- [ ] Fund program-controlled SPL escrow
+- [x] Task12A: validate classic SPL mint/fee recipient and create empty Ritual-PDA token vaults
+- [ ] Fund program-controlled SPL escrow (Task12B)
 - [ ] Lock exact activation fee at activation
 - [ ] Cancel safely before activation
 - [ ] Sign completion claims

@@ -2,7 +2,7 @@
 
 ## Current repository state
 
-The codebase runs the verified Preflight prototype plus pure Rituals contracts, a production Anchor ProtocolConfig initializer, and immutable ritual creation. Mobile Rituals UI and escrow flow are not implemented. Use `docs/plans/2026-09-09-rituals-rebuild.md` for the rebuild and do not claim future acceptance criteria before observing them.
+The codebase runs the verified Preflight prototype plus pure Rituals contracts, a production Anchor ProtocolConfig initializer, and Task12A classic SPL mint validation with empty Ritual-PDA-authorized stake/fee vault creation. Funding, activation, cancellation, and mobile Rituals UI are not implemented. Use `docs/plans/2026-09-09-rituals-rebuild.md` for the rebuild and do not claim future acceptance criteria before observing them.
 
 ## Observed baseline
 

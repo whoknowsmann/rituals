@@ -1,5 +1,7 @@
 use anchor_lang::solana_program::{account_info::AccountInfo, entrypoint::ProgramResult};
+use anchor_lang::solana_program::{program_option::COption, program_pack::Pack};
 use anchor_lang::{AccountDeserialize, AccountSerialize, InstructionData, Space, ToAccountMetas};
+use anchor_spl::token::spl_token;
 use rituals::{EventWindow, FeePayerMode, RitualStatus};
 use solana_program_test::{processor, ProgramTest, ProgramTestContext};
 use solana_sdk::{
@@ -7,12 +9,57 @@ use solana_sdk::{
     clock::Clock,
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
+    rent::Rent,
     signature::{Keypair, Signer},
     system_program,
     transaction::{Transaction, TransactionError},
 };
 
 const PROGRAM_ID: Pubkey = rituals::ID;
+const FIXTURE_MINT: Pubkey = Pubkey::new_from_array([7; 32]);
+const FIXTURE_RECIPIENT: Pubkey = Pubkey::new_from_array([8; 32]);
+
+fn token_fixture_account(data: Vec<u8>) -> Account {
+    Account {
+        lamports: Rent::default().minimum_balance(data.len()),
+        data,
+        owner: spl_token::ID,
+        executable: false,
+        rent_epoch: 0,
+    }
+}
+
+fn with_token_fixtures(mut test: ProgramTest) -> ProgramTest {
+    let mint = spl_token::state::Mint {
+        mint_authority: COption::Some(Pubkey::new_from_array([9; 32])),
+        supply: 0,
+        decimals: 6,
+        is_initialized: true,
+        freeze_authority: COption::None,
+    };
+    let recipient = spl_token::state::Account {
+        mint: FIXTURE_MINT,
+        owner: Pubkey::new_from_array([10; 32]),
+        amount: 0,
+        delegate: COption::None,
+        state: spl_token::state::AccountState::Initialized,
+        is_native: COption::None,
+        delegated_amount: 0,
+        close_authority: COption::None,
+    };
+    let mut mint_data = vec![0; spl_token::state::Mint::LEN];
+    mint.pack_into_slice(&mut mint_data);
+    let mut recipient_data = vec![0; spl_token::state::Account::LEN];
+    recipient.pack_into_slice(&mut recipient_data);
+    test.add_program(
+        "spl_token",
+        spl_token::ID,
+        processor!(spl_token::processor::Processor::process),
+    );
+    test.add_genesis_account(FIXTURE_MINT, token_fixture_account(mint_data));
+    test.add_genesis_account(FIXTURE_RECIPIENT, token_fixture_account(recipient_data));
+    test
+}
 fn config_pda() -> Pubkey {
     Pubkey::find_program_address(&[b"protocol-config"], &PROGRAM_ID).0
 }
@@ -21,6 +68,9 @@ fn ritual_pda(creator: &Pubkey, nonce: u64) -> (Pubkey, u8) {
         &[b"ritual", creator.as_ref(), &nonce.to_le_bytes()],
         &PROGRAM_ID,
     )
+}
+fn vault_pda(seed: &[u8], ritual: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[seed, ritual.as_ref()], &PROGRAM_ID)
 }
 fn process_instruction(
     program_id: &Pubkey,
@@ -36,14 +86,22 @@ async fn start() -> (
     Keypair,
     solana_sdk::hash::Hash,
 ) {
-    ProgramTest::new("rituals", PROGRAM_ID, processor!(process_instruction))
-        .start()
-        .await
+    with_token_fixtures(ProgramTest::new(
+        "rituals",
+        PROGRAM_ID,
+        processor!(process_instruction),
+    ))
+    .start()
+    .await
 }
 async fn start_with_context() -> ProgramTestContext {
-    ProgramTest::new("rituals", PROGRAM_ID, processor!(process_instruction))
-        .start_with_context()
-        .await
+    with_token_fixtures(ProgramTest::new(
+        "rituals",
+        PROGRAM_ID,
+        processor!(process_instruction),
+    ))
+    .start_with_context()
+    .await
 }
 async fn submit(
     banks: &mut solana_program_test::BanksClient,
@@ -131,8 +189,12 @@ fn initialize_ix(authority: &Pubkey, mint: Pubkey) -> Instruction {
         program_id: PROGRAM_ID,
         accounts: accounts.to_account_metas(None),
         data: rituals::instruction::InitializeProtocolConfig {
-            allowed_stake_mint: mint,
-            fee_recipient: Pubkey::new_unique(),
+            allowed_stake_mint: if mint == *authority {
+                FIXTURE_MINT
+            } else {
+                mint
+            },
+            fee_recipient: FIXTURE_RECIPIENT,
             fee_basis_points: 200,
             minimum_fee: 50,
             maximum_fee: 500,
@@ -159,8 +221,12 @@ fn initialize_with_fee(
         program_id: PROGRAM_ID,
         accounts: accounts.to_account_metas(None),
         data: rituals::instruction::InitializeProtocolConfig {
-            allowed_stake_mint: mint,
-            fee_recipient: Pubkey::new_unique(),
+            allowed_stake_mint: if mint == *authority {
+                FIXTURE_MINT
+            } else {
+                mint
+            },
+            fee_recipient: FIXTURE_RECIPIENT,
             fee_basis_points: bps,
             minimum_fee: minimum,
             maximum_fee: maximum,
@@ -181,12 +247,18 @@ fn create_ix_custom(
     threshold: u8,
 ) -> Instruction {
     let (ritual, _) = ritual_pda(creator, nonce);
+    let stake_vault = vault_pda(b"stake-vault", &ritual).0;
+    let fee_vault = vault_pda(b"fee-vault", &ritual).0;
     let accounts = rituals::accounts::CreateRitual {
         protocol_config: config_pda(),
         ritual,
         creator: *creator,
-        stake_mint: mint,
+        stake_mint: if mint == *creator { FIXTURE_MINT } else { mint },
+        fee_recipient_token: FIXTURE_RECIPIENT,
+        stake_vault,
+        fee_vault,
         system_program: system_program::ID,
+        token_program: spl_token::ID,
     };
     Instruction {
         program_id: PROGRAM_ID,
@@ -581,7 +653,7 @@ async fn create_ritual_reports_the_exact_structural_error_matrix() {
         [1; 32],
         0,
         Some(Pubkey::new_unique()),
-        2012,
+        3012,
     )
     .await;
 }
@@ -617,8 +689,12 @@ async fn create_ritual_stores_immutable_configuration_and_locked_fee() {
         protocol_config: config_pda(),
         ritual,
         creator: creator.pubkey(),
-        stake_mint: creator.pubkey(),
+        stake_mint: FIXTURE_MINT,
+        fee_recipient_token: FIXTURE_RECIPIENT,
+        stake_vault: vault_pda(b"stake-vault", &ritual).0,
+        fee_vault: vault_pda(b"fee-vault", &ritual).0,
         system_program: system_program::ID,
+        token_program: spl_token::ID,
     };
     let ix = Instruction {
         program_id: PROGRAM_ID,
@@ -648,7 +724,17 @@ async fn create_ritual_stores_immutable_configuration_and_locked_fee() {
     assert_eq!(state.creator, creator.pubkey());
     assert_eq!(state.nonce, nonce);
     assert_eq!(state.rule_digest, [1; 32]);
-    assert_eq!(state.stake_mint, creator.pubkey());
+    assert_eq!(state.stake_mint, FIXTURE_MINT);
+    assert_eq!(state.stake_decimals, 6);
+    assert_eq!(state.locked_fee_recipient, FIXTURE_RECIPIENT);
+    assert_eq!(state.stake_vault, vault_pda(b"stake-vault", &ritual).0);
+    assert_eq!(state.fee_vault, vault_pda(b"fee-vault", &ritual).0);
+    assert_eq!(state.stake_vault_bump, vault_pda(b"stake-vault", &ritual).1);
+    assert_eq!(state.fee_vault_bump, vault_pda(b"fee-vault", &ritual).1);
+    assert_eq!(state.funded_members_bitmap, 0);
+    assert_eq!(state.funded_member_count, 0);
+    assert_eq!(state.funded_stake_total, 0);
+    assert_eq!(state.funded_fee_total, 0);
     assert_eq!(state.members, members);
     assert_eq!(state.member_total_stake, 100);
     assert_eq!(state.per_event_allocation, 50);
@@ -662,6 +748,21 @@ async fn create_ritual_stores_immutable_configuration_and_locked_fee() {
     assert_eq!(state.activated_at, 0);
     assert!(state.created_at >= clock_before.unix_timestamp);
     assert!(state.created_at <= clock_after.unix_timestamp);
+    for vault in [state.stake_vault, state.fee_vault] {
+        let account = banks.get_account(vault).await.unwrap().unwrap();
+        assert_eq!(account.owner, spl_token::ID);
+        let token = spl_token::state::Account::unpack(&account.data).unwrap();
+        assert_eq!(token.mint, FIXTURE_MINT);
+        assert_eq!(token.owner, ritual);
+        assert_eq!(token.amount, 0);
+    }
+    let recipient = banks.get_account(FIXTURE_RECIPIENT).await.unwrap().unwrap();
+    assert_eq!(
+        spl_token::state::Account::unpack(&recipient.data)
+            .unwrap()
+            .amount,
+        0
+    );
 }
 
 #[tokio::test]
@@ -786,6 +887,52 @@ async fn create_ritual_locks_fee_against_future_config_replacement() {
             .unwrap(),
         account_a_before
     );
+}
+
+#[tokio::test]
+async fn create_ritual_rejects_wrong_fee_recipient_address() {
+    let (mut banks, creator, hash) = start().await;
+    submit(
+        &mut banks,
+        &creator,
+        initialize_ix(&creator.pubkey(), creator.pubkey()),
+        hash,
+    )
+    .await
+    .unwrap();
+    let mut ix = create_ix(
+        &creator.pubkey(),
+        30,
+        creator.pubkey(),
+        vec![creator.pubkey(), Pubkey::new_unique()],
+        100,
+        one_event(),
+    );
+    ix.accounts[4].pubkey = Pubkey::new_unique();
+    assert_custom_error(submit(&mut banks, &creator, ix, hash).await, 3012);
+}
+
+#[tokio::test]
+async fn create_ritual_rejects_token_program_substitution() {
+    let (mut banks, creator, hash) = start().await;
+    submit(
+        &mut banks,
+        &creator,
+        initialize_ix(&creator.pubkey(), creator.pubkey()),
+        hash,
+    )
+    .await
+    .unwrap();
+    let mut ix = create_ix(
+        &creator.pubkey(),
+        31,
+        creator.pubkey(),
+        vec![creator.pubkey(), Pubkey::new_unique()],
+        100,
+        one_event(),
+    );
+    ix.accounts[8].pubkey = system_program::ID;
+    assert_custom_error(submit(&mut banks, &creator, ix, hash).await, 3008);
 }
 
 #[test]
