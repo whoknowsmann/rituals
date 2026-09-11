@@ -57,7 +57,7 @@ anchor build
 
 **PASS (clean-from-no-target run).** The minimal Anchor program compiled and emitted the deployable SBF artifact and IDL. The disposable workspace needed `[profile.release] overflow-checks = true` and `idl-build = ["anchor-lang/idl-build"]`.
 
-The first spike commit's apparent local success was not cleanly reproducible: it depended on stale generated `target/` state. After deleting `target/`, Anchor generated a different deploy keypair (`5b8xpiXkm5YCHmBsJeGYPrQABeSn9WUnb5fYxsCVGPGK`) while the source and client declared `8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB`; deployment then failed at transaction simulation with `Attempt to load a program that does not exist`. This repair makes identity preparation explicit and checks the three IDs before deployment.
+The first spike commit's apparent local success was not cleanly reproducible: it depended on stale generated `target/` state. After deleting `target/`, Anchor generated a different deploy keypair (`5b8xpiXkm5YCHmBsJeGYrPQABeSn9WUnb5fYxsCVGPGK`) while the source and client declared `8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB`; deployment then failed at transaction simulation with `Attempt to load a program that does not exist`. This repair makes identity preparation explicit and checks the three IDs before deployment.
 
 The Solana 3.0.13 platform build tool uses rustc 1.84.1-dev, despite the host rustc being 1.93.1. Current crates initially selected edition-2024/Rust-1.85-incompatible versions. The spike's generated `Cargo.lock` pins compatible transitive versions (`blake3 1.5.5`, `zeroize 1.8.1`, `borsh 1.5.7`, `proc-macro-crate 3.1.0`, `indexmap 2.7.1`, and `unicode-segmentation 1.12.0`). No system or global tool was changed.
 
@@ -135,4 +135,13 @@ The requested compatibility evidence is complete after a clean-from-no-target id
 
 ### Cleanup
 
-After verification, stop the validator and remove `program/target`, `program/test-ledger`, `.verify`, generated deploy keypairs, and temporary export output. None of those artifacts are part of the spike commit.
+After verification, stop the validator; remove `program/target`, `program/test-ledger`, `.verify`, generated deploy keypairs, and temporary export output; then restore the three tracked public-ID files rewritten by `prepare.mjs`:
+
+```bash
+git restore \
+  spikes/001-anchor-mwa-compatibility/program/Anchor.toml \
+  spikes/001-anchor-mwa-compatibility/program/programs/anchor-mwa-spike/src/lib.rs \
+  spikes/001-anchor-mwa-compatibility/client/instruction.ts
+```
+
+None of the generated artifacts or temporary identity changes are part of the spike commit.
