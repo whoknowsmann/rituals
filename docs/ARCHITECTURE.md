@@ -132,6 +132,8 @@ Core instructions:
 
 The creation-time fee is immutable: `group_pool = member_total_stake * member_count`, `fee_raw = floor(group_pool * fee_basis_points / 10_000)`, then the checked `u128` result is converted to `u64` and clamped to the configured minimum/maximum. `per_event_allocation = member_total_stake / event_count` remains per member; no token movement occurs during creation.
 
+Native ProgramTest proves this boundary under simulated direct replacement of the exact ProtocolConfig account: a created Ritual retains its full account state and locked quote while a later Ritual uses the replacement fee fields. The same harness proves that a paused configuration rejects creation with `ProtocolPaused` before the Ritual PDA exists.
+
 The admin cannot approve claims, rewrite active rules, choose payout recipients, or withdraw active ritual escrow.
 
 ## Threshold contract
