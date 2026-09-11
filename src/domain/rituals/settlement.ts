@@ -1,3 +1,4 @@
+import { PublicKey } from '@solana/web3.js'
 import { MAX_U64, splitAtomicUnits } from './money'
 import { CLAIM_STATUSES } from './types'
 import type { ClaimStatus, MemberIndex, PublicKeyText } from './types'
@@ -35,12 +36,26 @@ function assertAllocation(value: bigint): void {
 }
 
 function assertMembers(members: readonly MemberEventSettlementInput[]): void {
+  if (!Array.isArray(members)) throw new RangeError('members must be an array')
   if (!Number.isInteger(members.length) || members.length < 2 || members.length > 6) {
     throw new RangeError('members must contain between 2 and 6 entries')
   }
   const keys = new Set<PublicKeyText>()
   const indices = new Set<number>()
   for (const entry of members) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new RangeError('member entries must be non-null objects')
+    }
+    if (typeof entry.member !== 'string') {
+      throw new RangeError('member must be a canonical Solana public key')
+    }
+    try {
+      if (new PublicKey(entry.member).toBase58() !== entry.member) {
+        throw new Error('non-canonical public key')
+      }
+    } catch {
+      throw new RangeError('member must be a canonical Solana public key')
+    }
     if (keys.has(entry.member)) throw new RangeError('member keys must be unique')
     keys.add(entry.member)
     if (!Number.isSafeInteger(entry.memberIndex)) throw new RangeError('memberIndex must be a safe integer')
@@ -83,7 +98,8 @@ export function previewEventSettlement(
   return {
     kind: 'SETTLED',
     payouts: confirmed.map(({ member, memberIndex }) => {
-      const bonus = bonuses.get(member) ?? 0n
+      const bonus = bonuses.get(member)
+      if (bonus === undefined) throw new Error('internal invariant: bonus missing for confirmed member')
 
       return { member, memberIndex, principal: perEventAllocation, bonus, total: perEventAllocation + bonus }
     }),

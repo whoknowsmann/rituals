@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest'
+import { PublicKey } from '@solana/web3.js'
 import { MAX_U64 } from './money'
 import { previewEventSettlement } from './index'
 import type { ClaimStatus, MemberEventSettlementInput, MemberIndex, PublicKeyText } from './index'
 
-const member = (key: string, index: number, claimStatus: ClaimStatus | string): MemberEventSettlementInput => ({
-  member: key as PublicKeyText,
+const key = (index: number): PublicKeyText => new PublicKey(new Uint8Array(32).fill(index + 1)).toBase58() as PublicKeyText
+
+const member = (memberKey: string, index: number, claimStatus: ClaimStatus | string): MemberEventSettlementInput => ({
+  member: memberKey as PublicKeyText,
   memberIndex: index as MemberIndex,
   claimStatus: claimStatus as ClaimStatus,
 })
 
 const membersFor = (statuses: readonly (ClaimStatus | string)[], order = statuses.map((_, index) => index)) =>
-  order.map((index) => member(`member-${index}`, index, statuses[index]))
+  order.map((index) => member(key(index), index, statuses[index]))
 
 const payoutTotal = (result: Extract<ReturnType<typeof previewEventSettlement>, { kind: 'SETTLED' }>) =>
   result.payouts.reduce((sum, payout) => sum + payout.total, 0n)
@@ -21,18 +24,18 @@ const refundTotal = (result: Extract<ReturnType<typeof previewEventSettlement>, 
 describe('previewEventSettlement', () => {
   it('splits a four-member event with deterministic index-first remainder allocation', () => {
     const result = previewEventSettlement(5n, [
-      member('member-2', 2, 'CONFIRMED'),
-      member('member-0', 0, 'CONFIRMED'),
-      member('member-3', 3, 'UNCLAIMED'),
-      member('member-1', 1, 'CONFIRMED'),
+      member(key(2), 2, 'CONFIRMED'),
+      member(key(0), 0, 'CONFIRMED'),
+      member(key(3), 3, 'UNCLAIMED'),
+      member(key(1), 1, 'CONFIRMED'),
     ])
 
     expect(result).toEqual({
       kind: 'SETTLED',
       payouts: [
-        { member: 'member-0', memberIndex: 0, principal: 5n, bonus: 2n, total: 7n },
-        { member: 'member-1', memberIndex: 1, principal: 5n, bonus: 2n, total: 7n },
-        { member: 'member-2', memberIndex: 2, principal: 5n, bonus: 1n, total: 6n },
+        { member: key(0), memberIndex: 0, principal: 5n, bonus: 2n, total: 7n },
+        { member: key(1), memberIndex: 1, principal: 5n, bonus: 2n, total: 7n },
+        { member: key(2), memberIndex: 2, principal: 5n, bonus: 1n, total: 6n },
       ],
       forfeited: 5n,
     })
@@ -44,9 +47,9 @@ describe('previewEventSettlement', () => {
     expect(result).toEqual({
       kind: 'SETTLED',
       payouts: [
-        { member: 'member-0', memberIndex: 0, principal: 9n, bonus: 0n, total: 9n },
-        { member: 'member-1', memberIndex: 1, principal: 9n, bonus: 0n, total: 9n },
-        { member: 'member-2', memberIndex: 2, principal: 9n, bonus: 0n, total: 9n },
+        { member: key(0), memberIndex: 0, principal: 9n, bonus: 0n, total: 9n },
+        { member: key(1), memberIndex: 1, principal: 9n, bonus: 0n, total: 9n },
+        { member: key(2), memberIndex: 2, principal: 9n, bonus: 0n, total: 9n },
       ],
       forfeited: 0n,
     })
@@ -56,7 +59,7 @@ describe('previewEventSettlement', () => {
     const result = previewEventSettlement(11n, membersFor(['UNCLAIMED', 'CONFIRMED', 'UNCLAIMED']))
     expect(result).toEqual({
       kind: 'SETTLED',
-      payouts: [{ member: 'member-1', memberIndex: 1, principal: 11n, bonus: 22n, total: 33n }],
+      payouts: [{ member: key(1), memberIndex: 1, principal: 11n, bonus: 22n, total: 33n }],
       forfeited: 22n,
     })
   })
@@ -66,8 +69,8 @@ describe('previewEventSettlement', () => {
       kind: 'VOIDED',
       reason: 'NO_CONFIRMED_MEMBERS',
       refunds: [
-        { member: 'member-0', memberIndex: 0, amount: 7n },
-        { member: 'member-1', memberIndex: 1, amount: 7n },
+        { member: key(0), memberIndex: 0, amount: 7n },
+        { member: key(1), memberIndex: 1, amount: 7n },
       ],
     })
   })
@@ -78,9 +81,9 @@ describe('previewEventSettlement', () => {
       kind: 'VOIDED',
       reason: 'UNRESOLVED_CLAIMS',
       refunds: [
-        { member: 'member-0', memberIndex: 0, amount: 7n },
-        { member: 'member-1', memberIndex: 1, amount: 7n },
-        { member: 'member-2', memberIndex: 2, amount: 7n },
+        { member: key(0), memberIndex: 0, amount: 7n },
+        { member: key(1), memberIndex: 1, amount: 7n },
+        { member: key(2), memberIndex: 2, amount: 7n },
       ],
     })
   })
@@ -94,18 +97,18 @@ describe('previewEventSettlement', () => {
 
   it('assigns every remainder by confirmed memberIndex, not input order', () => {
     const result = previewEventSettlement(1n, [
-      member('member-4', 4, 'CONFIRMED'),
-      member('member-1', 1, 'UNCLAIMED'),
-      member('member-3', 3, 'CONFIRMED'),
-      member('member-0', 0, 'UNCLAIMED'),
-      member('member-2', 2, 'CONFIRMED'),
+      member(key(4), 4, 'CONFIRMED'),
+      member(key(1), 1, 'UNCLAIMED'),
+      member(key(3), 3, 'CONFIRMED'),
+      member(key(0), 0, 'UNCLAIMED'),
+      member(key(2), 2, 'CONFIRMED'),
     ])
     expect(result.kind).toBe('SETTLED')
     if (result.kind === 'SETTLED') {
       expect(result.payouts).toEqual([
-        { member: 'member-2', memberIndex: 2, principal: 1n, bonus: 1n, total: 2n },
-        { member: 'member-3', memberIndex: 3, principal: 1n, bonus: 1n, total: 2n },
-        { member: 'member-4', memberIndex: 4, principal: 1n, bonus: 0n, total: 1n },
+        { member: key(2), memberIndex: 2, principal: 1n, bonus: 1n, total: 2n },
+        { member: key(3), memberIndex: 3, principal: 1n, bonus: 1n, total: 2n },
+        { member: key(4), memberIndex: 4, principal: 1n, bonus: 0n, total: 1n },
       ])
     }
   })
@@ -135,28 +138,49 @@ describe('previewEventSettlement', () => {
   })
 
   it('rejects duplicate keys and duplicate, missing, or noncontiguous indices', () => {
-    expect(() => previewEventSettlement(1n, [member('same', 0, 'CONFIRMED'), member('same', 1, 'CONFIRMED')])).toThrow(RangeError)
-    expect(() => previewEventSettlement(1n, [member('a', 0, 'CONFIRMED'), member('b', 0, 'CONFIRMED')])).toThrow(RangeError)
-    expect(() => previewEventSettlement(1n, [member('a', 0, 'CONFIRMED'), member('b', 2, 'CONFIRMED')])).toThrow(RangeError)
-    expect(() => previewEventSettlement(1n, [member('a', -1, 'CONFIRMED'), member('b', 0, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(1n, [member(key(0), 0, 'CONFIRMED'), member(key(0), 1, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(1n, [member(key(0), 0, 'CONFIRMED'), member(key(1), 0, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(1n, [member(key(0), 0, 'CONFIRMED'), member(key(1), 2, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(1n, [member(key(0), -1, 'CONFIRMED'), member(key(1), 0, 'CONFIRMED')])).toThrow(RangeError)
+  })
+
+  it.each([
+    ['empty string member key', ''],
+    ['malformed member key', 'not-a-public-key'],
+    ['non-string member key', 42],
+    ['object member key', {}],
+  ])('rejects %s with a stable RangeError', (_label, memberKey) => {
+    expect(() => previewEventSettlement(1n, [
+      { member: memberKey as PublicKeyText, memberIndex: 0 as MemberIndex, claimStatus: 'CONFIRMED' },
+      member(key(1), 1, 'CONFIRMED'),
+    ])).toThrow(new RangeError('member must be a canonical Solana public key'))
+  })
+
+  it.each([
+    ['non-array members', null, 'members must be an array'],
+    ['null member entry', [null, member(key(1), 1, 'CONFIRMED')], 'member entries must be non-null objects'],
+    ['non-object member entry', ['entry', member(key(1), 1, 'CONFIRMED')], 'member entries must be non-null objects'],
+    ['array member entry', [[member(key(0), 0, 'CONFIRMED')], member(key(1), 1, 'CONFIRMED')], 'member entries must be non-null objects'],
+  ])('rejects %s with a stable RangeError', (_label, invalidMembers, message) => {
+    expect(() => previewEventSettlement(1n, invalidMembers as never)).toThrow(new RangeError(message))
   })
 
   it('rejects invalid member sizes, allocation values, pool overflow, and runtime statuses', () => {
-    expect(() => previewEventSettlement(1n, [member('a', 0, 'CONFIRMED')])).toThrow(RangeError)
-    expect(() => previewEventSettlement(1n, Array.from({ length: 7 }, (_, index) => member(`m${index}`, index, 'CONFIRMED')))).toThrow(RangeError)
-    expect(() => previewEventSettlement(-1n, [member('a', 0, 'CONFIRMED'), member('b', 1, 'CONFIRMED')])).toThrow(RangeError)
-    expect(() => previewEventSettlement(MAX_U64 + 1n, [member('a', 0, 'CONFIRMED'), member('b', 1, 'CONFIRMED')])).toThrow(RangeError)
-    expect(() => previewEventSettlement(MAX_U64, [member('a', 0, 'CONFIRMED'), member('b', 1, 'CONFIRMED')])).toThrow(RangeError)
-    expect(() => previewEventSettlement(1n, [member('a', 0, 'BOGUS'), member('b', 1, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(1n, [member(key(0), 0, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(1n, Array.from({ length: 7 }, (_, index) => member(key(index), index, 'CONFIRMED')))).toThrow(RangeError)
+    expect(() => previewEventSettlement(-1n, [member(key(0), 0, 'CONFIRMED'), member(key(1), 1, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(MAX_U64 + 1n, [member(key(0), 0, 'CONFIRMED'), member(key(1), 1, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(MAX_U64, [member(key(0), 0, 'CONFIRMED'), member(key(1), 1, 'CONFIRMED')])).toThrow(RangeError)
+    expect(() => previewEventSettlement(1n, [member(key(0), 0, 'BOGUS'), member(key(1), 1, 'CONFIRMED')])).toThrow(RangeError)
   })
 
   it('allows a zero allocation and does not mutate input', () => {
-    const input = [member('b', 1, 'CONFIRMED'), member('a', 0, 'UNCLAIMED')]
+    const input = [member(key(1), 1, 'CONFIRMED'), member(key(0), 0, 'UNCLAIMED')]
     const before = input.map((entry) => ({ ...entry }))
     const result = previewEventSettlement(0n, input)
     expect(result).toEqual({
       kind: 'SETTLED',
-      payouts: [{ member: 'b', memberIndex: 1, principal: 0n, bonus: 0n, total: 0n }],
+      payouts: [{ member: key(1), memberIndex: 1, principal: 0n, bonus: 0n, total: 0n }],
       forfeited: 0n,
     })
     expect(input).toEqual(before)
