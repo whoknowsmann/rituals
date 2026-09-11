@@ -38,7 +38,7 @@ npm run typecheck
 npm run doctor
 ```
 
-Re-run and record the exact current test count before the Rituals branch begins.
+Re-run and record the exact current test count before the Rituals branch begins. Native integration coverage lives in `program-tests/tests/create_ritual.rs` and `initialize.rs`; it asserts exact Anchor custom error numbers and verifies the persisted account schema/state.
 
 ## Android bundle smoke test
 

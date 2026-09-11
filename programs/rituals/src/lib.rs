@@ -67,14 +67,17 @@ pub mod rituals {
         }
         require!(member_total_stake > 0 && member_total_stake <= config.maximum_member_stake, RitualsError::InvalidMemberStake);
         require!(additional_confirmation_threshold <= (members.len() - 1) as u8, RitualsError::InvalidConfirmationThreshold);
-        let member_total_stake = member_total_stake.checked_add(0).ok_or(RitualsError::StakePoolOverflow)?;
+        let group_pool = member_total_stake
+            .checked_mul(members.len() as u64)
+            .ok_or(RitualsError::StakePoolOverflow)?;
         require!(member_total_stake % schedule.len() as u64 == 0, RitualsError::StakeNotDivisible);
         let per_event_allocation = member_total_stake / schedule.len() as u64;
         require!(per_event_allocation > 0, RitualsError::InvalidPerEventAllocation);
-        let fee = ((member_total_stake as u128)
+        let fee_raw = (group_pool as u128)
             .checked_mul(config.fee_basis_points as u128)
-            .ok_or(RitualsError::FeeCalculationOverflow)? / 10_000)
-            .min(u64::MAX as u128) as u64;
+            .ok_or(RitualsError::FeeCalculationOverflow)?
+            / 10_000;
+        let fee: u64 = fee_raw.try_into().map_err(|_| RitualsError::FeeCalculationOverflow)?;
         let locked_activation_fee = fee.clamp(config.minimum_fee, config.maximum_fee);
         let clock = Clock::get()?;
         let ritual = &mut ctx.accounts.ritual;

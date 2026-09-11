@@ -85,7 +85,7 @@ fn assert_custom_error(
 
 async fn read_config_snapshot(
     banks: &mut solana_program_test::BanksClient,
-) -> (u8, Pubkey, Pubkey, Pubkey, u16, u64, u64, u8, u8, bool, u8) {
+) -> (u8, Pubkey, Pubkey, Pubkey, u16, u64, u64, u64, u8, u8, bool, u8) {
     let (address, _) = config_pda();
     let account = banks.get_account(address).await.unwrap().unwrap();
     assert_eq!(account.owner, PROGRAM_ID);
@@ -99,6 +99,7 @@ async fn read_config_snapshot(
         config.fee_basis_points,
         config.minimum_fee,
         config.maximum_fee,
+        config.maximum_member_stake,
         config.max_members,
         config.max_events,
         config.paused,
@@ -127,6 +128,7 @@ async fn initialize_protocol_config_stores_exact_state() {
     assert_eq!(config.fee_basis_points, 200);
     assert_eq!(config.minimum_fee, 50);
     assert_eq!(config.maximum_fee, 500);
+    assert_eq!(config.maximum_member_stake, 1_000);
     assert_eq!(config.max_members, 6);
     assert_eq!(config.max_events, 16);
     assert!(!config.paused);
@@ -158,6 +160,13 @@ async fn initialize_rejects_invalid_fee_bounds() {
         let ix = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, minimum, maximum, 1_000);
         assert_custom_error(submit(&mut banks, &payer, ix, recent_blockhash).await, expected);
     }
+}
+
+#[tokio::test]
+async fn initialize_rejects_zero_maximum_member_stake() {
+    let (mut banks, payer, recent_blockhash) = start().await;
+    let ix = initialize_ix(&payer.pubkey(), Pubkey::new_unique(), Pubkey::new_unique(), 1, 1, 2, 0);
+    assert_custom_error(submit(&mut banks, &payer, ix, recent_blockhash).await, 6004);
 }
 
 #[tokio::test]

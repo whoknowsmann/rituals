@@ -39,6 +39,7 @@ Status labels describe observed implementation, not aspiration.
 - [x] Scaffold pinned Anchor workspace and CI (remote CI remains unverified)
 - [x] Initialize protocol configuration
 - [x] Create immutable ritual/member configuration
+- [x] Task11: enforce immutable Ritual creation invariants, group-pool overflow, and group-based locked fee math
 - [ ] Fund program-controlled SPL escrow
 - [ ] Lock exact activation fee at activation
 - [ ] Cancel safely before activation

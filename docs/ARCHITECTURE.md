@@ -130,6 +130,8 @@ Core instructions:
 - cancel unfunded ritual;
 - close completed zero-balance ritual.
 
+The creation-time fee is immutable: `group_pool = member_total_stake * member_count`, `fee_raw = floor(group_pool * fee_basis_points / 10_000)`, then the checked `u128` result is converted to `u64` and clamped to the configured minimum/maximum. `per_event_allocation = member_total_stake / event_count` remains per member; no token movement occurs during creation.
+
 The admin cannot approve claims, rewrite active rules, choose payout recipients, or withdraw active ritual escrow.
 
 ## Threshold contract
