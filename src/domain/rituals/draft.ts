@@ -46,12 +46,21 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[], labe
   const actual = (actualKeys as string[]).sort()
   const expected = [...keys].sort()
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) fail(`${label} has unexpected or missing fields`)
+  for (const key of keys) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) fail(`${label} fields must be enumerable data properties`)
+  }
 }
 function denseArray(value: unknown, min: number, max: number, label: string): asserts value is unknown[] {
   if (!Array.isArray(value) || value.length < min || value.length > max) fail(`${label} must contain ${min}..${max} entries`)
   const keys = Reflect.ownKeys(value)
   if (keys.length !== value.length + 1 || !keys.includes('length') || keys.some((key) => key !== 'length' && (typeof key !== 'string' || !/^\d+$/.test(key) || Number(key) >= value.length || !Object.hasOwn(value, key)))) fail(`${label} must be dense and have no extra fields`)
-  for (let index = 0; index < value.length; index += 1) if (!Object.hasOwn(value, index)) fail(`${label} must be dense`)
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length')
+  if (!lengthDescriptor || !('value' in lengthDescriptor) || lengthDescriptor.enumerable) fail(`${label} length must be a non-enumerable data property`)
+  for (let index = 0; index < value.length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) fail(`${label} indices must be enumerable data properties`)
+  }
 }
 function stringLength(value: string): number { return Array.from(value).length }
 function canonicalAddress(value: unknown, name: string): PublicKeyText {

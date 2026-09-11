@@ -124,6 +124,46 @@ describe('locked Ritual rules', () => {
     expect(() => assertValidLockedRitualRules({ ...base, additionalConfirmationThreshold: 0 })).toThrow()
   })
 
+  it('rejects accessor-backed rules before invoking a changing title getter', async () => {
+    const base = validRules()
+    let reads = 0
+    const rules = { ...base } as Record<string, unknown>
+    Object.defineProperty(rules, 'title', {
+      get: () => { reads += 1; return reads === 1 ? base.title : 'Changed after validation' },
+      enumerable: true,
+    })
+    expect(() => assertValidLockedRitualRules(rules)).toThrow()
+    expect(() => canonicalizeRules(rules as unknown as LockedRitualRules)).toThrow()
+    expect(() => digestRulesSync(rules as unknown as LockedRitualRules)).toThrow()
+    await expect(digestRules(rules as unknown as LockedRitualRules)).rejects.toThrow()
+    expect(reads).toBe(0)
+  })
+
+  it('rejects accessor-backed schedule fields and array indices without invoking getters', () => {
+    const base = validRules()
+    let reads = 0
+    const entry = { ...base.schedule[0] } as Record<string, unknown>
+    Object.defineProperty(entry, 'claimDeadlineAt', { get: () => { reads += 1; return 2 }, enumerable: true })
+    expect(() => assertValidLockedRitualRules({ ...base, schedule: [entry] })).toThrow()
+    const schedule = [...base.schedule] as unknown[]
+    Object.defineProperty(schedule, '0', { get: () => { reads += 1; return base.schedule[0] }, enumerable: true })
+    expect(() => assertValidLockedRitualRules({ ...base, schedule } as LockedRitualRules)).toThrow()
+    const memberList = [...base.members] as unknown[]
+    Object.defineProperty(memberList, '0', { get: () => { reads += 1; return base.members[0] }, enumerable: true })
+    expect(() => assertValidLockedRitualRules({ ...base, members: memberList } as LockedRitualRules)).toThrow()
+    expect(reads).toBe(0)
+  })
+
+  it('accepts frozen ordinary data-descriptor rules', () => {
+    const base = validRules()
+    Object.freeze(base.schedule[0])
+    Object.freeze(base.schedule)
+    Object.freeze(base.members)
+    Object.freeze(base)
+    expect(() => assertValidLockedRitualRules(base)).not.toThrow()
+    expect(() => canonicalizeRules(base)).not.toThrow()
+  })
+
   it('accepts both free zero-zero and funded positive-positive fee pairs', () => {
     const base = validRules()
     expect(() => assertValidLockedRitualRules({ ...base, memberTotalStake: 0n, activationFee: 0n })).not.toThrow()

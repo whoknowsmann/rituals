@@ -40,7 +40,11 @@ function exact(value: Record<string, unknown>, keys: readonly string[]): boolean
   if (actualKeys.some((key) => typeof key !== 'string')) return false
   const actual = (actualKeys as string[]).sort()
   const expected = [...keys].sort()
-  return actual.length === expected.length && actual.every((key, index) => key === expected[index])
+  if (actual.length !== expected.length || !actual.every((key, index) => key === expected[index])) return false
+  return keys.every((key) => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    return Boolean(descriptor && 'value' in descriptor && descriptor.enumerable)
+  })
 }
 function address(value: unknown): PublicKeyText | null {
   if (typeof value !== 'string') return null
