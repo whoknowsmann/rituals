@@ -1,0 +1,7 @@
+[workspace]
+members = ["programs/rituals"]
+exclude = ["program-tests"]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true

@@ -2,7 +2,7 @@
 
 ## Status boundary
 
-This file distinguishes **current implemented code** from the **approved Rituals target**. Until the rebuild lands, passing tests prove the Preflight prototype—not the Rituals escrow flow.
+This file distinguishes **current implemented code** from the **approved Rituals target**. Pure Rituals domain contracts and the production ProtocolConfig initializer are implemented; mobile UI, escrow, and the remaining Rituals instructions remain target work.
 
 ## Current implementation
 
@@ -104,7 +104,9 @@ Production mobile should use a thin typed `@solana/web3.js` client generated or 
 
 ## Onchain target
 
-An Anchor `0.31.1` program is the validated preferred implementation for the onchain target, subject to pinning the compatible transitive crates in its future workspace.
+An Anchor `0.31.1` program is the validated preferred implementation for the onchain target. Production SBF compilation and native ProgramTest are deliberately split into separate Cargo workspaces and lockfiles: the root lock is Rust-1.84/SBF-compatible, while `program-tests/Cargo.lock` is host-only and carries Solana `2.3.1`'s modern dependency graph.
+
+The production workspace currently implements only `initialize_protocol_config`. Its `ProtocolConfig` PDA uses seeds `[b"protocol-config"]` and stores schema version, authority, allowed stake mint, fee recipient/bounds, member/event caps, pause state, and bump. The fixed ID `8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB` is a **LOCAL TEST PLACEHOLDER**, not a deployable identity; no deployment keypair is retained.
 
 Core records:
 

@@ -36,3 +36,13 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Anchor/Solana build and local runtime artifacts
+target/
+program-tests/target/
+.anchor/
+test-ledger/
+**/test-ledger/
+deploy/*-keypair.json
+**/deploy/*-keypair.json
+target/deploy/*-keypair.json

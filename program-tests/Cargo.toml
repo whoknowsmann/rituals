@@ -1,0 +1,14 @@
+[package]
+name = "rituals-program-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+rituals = { path = "../programs/rituals" }
+anchor-lang = "=0.31.1"
+solana-program-test = "=2.3.1"
+solana-sdk = "=2.3.1"
+tokio = { version = "=1.45.0", features = ["macros", "rt-multi-thread"] }

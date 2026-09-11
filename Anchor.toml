@@ -1,0 +1,11 @@
+[programs.localnet]
+rituals = "8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test --manifest-path program-tests/Cargo.toml --locked"
+
+[workspace]

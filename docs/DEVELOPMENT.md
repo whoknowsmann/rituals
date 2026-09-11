@@ -2,7 +2,7 @@
 
 ## Current repository state
 
-The codebase still runs the verified Preflight prototype. Rituals is documented but not yet implemented. Use `docs/plans/2026-09-09-rituals-rebuild.md` for the rebuild and do not claim its acceptance criteria before observing them.
+The codebase runs the verified Preflight prototype plus pure Rituals contracts and a production Anchor ProtocolConfig initializer. Mobile Rituals UI and escrow flow are not implemented. Use `docs/plans/2026-09-09-rituals-rebuild.md` for the rebuild and do not claim future acceptance criteria before observing them.
 
 ## Observed baseline
 
@@ -12,7 +12,7 @@ Last verified before this documentation correction:
 - Expo `~52.0.49`;
 - React Native `0.76`;
 - Node/npm/JDK details must be re-read live before build/toolchain decisions;
-- 31 JavaScript tests passed;
+- 281 JavaScript/TypeScript tests passed;
 - TypeScript passed;
 - Expo Doctor passed 18/18;
 - Android Metro export succeeded;
@@ -104,14 +104,22 @@ Do not install or globally change Rust, Solana CLI, Anchor, Node, Java, Android 
 
 The spike remains throwaway code under `spikes/001-anchor-mwa-compatibility/`; none of it is production code. Production workspace files may now land using its pinned-version and client strategy, but actual Rituals token escrow, program economics, security, devnet deployment, native MWA signing, and the two-wallet flow still require separate verification.
 
-Expected production commands, once the production workspace exists and its local harness is documented:
+Production workspace commands:
 
 ```bash
+# SBF build and generated IDL (uses the root Cargo.lock)
 anchor build
-anchor test
+# Production crate compilation without native test dependencies
+cargo build --locked --workspace
+# Host-only ProgramTest harness (uses its independent lock)
+cargo test --manifest-path program-tests/Cargo.toml --locked
 ```
 
-These do not apply to the current spike: its supported program test is the direct Node/web3.js harness documented in `spikes/001-anchor-mwa-compatibility/README.md`, not `anchor test`. Do not add production commands to CI until they run reproducibly locally.
+The production workspace intentionally excludes `program-tests`: the SBF build uses the older platform Cargo toolchain and its own compatible lock, while native ProgramTest uses host Cargo and the modern Solana 2.3.1 graph. The native harness contains six tests covering exact state, signer and validation failures, duplicate initialization, and API compilation. Anchor generates `target/deploy/rituals.so` and `target/idl/rituals.json`; it does not deploy or require a deployment keypair. The fixed program ID in `Anchor.toml` and `declare_id!` is a **LOCAL TEST PLACEHOLDER** only. A later explicit credential operation must replace and synchronize it before devnet deployment.
+
+Root lock assertions must remain true: it excludes `solana-program-test`, `block-buffer 0.12.1`, `digest 0.11.3`, and `blake3 >= 1.8`; `program-tests/Cargo.lock` contains the native modern graph. Remote CI has not been run from this branch.
+
+After verification, remove `target/`, `.anchor/`, test ledgers, and deployment keypairs. Never create or retain a stable devnet authority in this repository.
 
 ## Strict TDD workflow
 

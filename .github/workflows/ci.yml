@@ -41,3 +41,56 @@ jobs:
 
       - name: Verify Android JavaScript bundle
         run: npx expo export --platform android --output-dir /tmp/preflight-expo-export
+
+  program:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pinned host Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.93.1
+
+      - name: Cache Rust targets and Cargo registries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            program-tests/target
+          key: rituals-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'program-tests/Cargo.lock') }}
+
+      # Official Anza shell installer; URL is pinned to the tested release.
+      # The installer is trusted supply-chain input and is not commit-pinned.
+      - name: Install Solana CLI 3.0.13
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v3.0.13/install)"
+
+      - name: Add Solana CLI to PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor CLI v0.31.1
+        run: cargo install --git https://github.com/solana-foundation/anchor --tag v0.31.1 anchor-cli --locked
+
+      - name: Verify program toolchain
+        run: |
+          rustc --version
+          solana --version
+          anchor --version
+
+      - name: Run native program tests
+        run: cargo test --manifest-path program-tests/Cargo.toml --locked
+
+      - name: Verify production workspace lock
+        run: cargo build --locked --workspace
+
+      - name: Build SBF program and IDL
+        run: anchor build
+
+      - name: Assert SBF and IDL artifacts
+        run: |
+          test -s target/deploy/rituals.so
+          test -s target/idl/rituals.json

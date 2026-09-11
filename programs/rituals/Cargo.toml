@@ -1,0 +1,20 @@
+[package]
+name = "rituals"
+version = "0.1.0"
+description = "Rituals protocol program"
+edition = "2021"
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+idl-build = ["anchor-lang/idl-build"]
+default = []
+
+[dependencies]
+anchor-lang = "=0.31.1"
