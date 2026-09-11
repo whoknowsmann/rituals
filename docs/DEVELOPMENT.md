@@ -115,11 +115,13 @@ cargo build --locked --workspace
 cargo test --manifest-path program-tests/Cargo.toml --locked
 ```
 
-The production workspace intentionally excludes `program-tests`: the SBF build uses the older platform Cargo toolchain and its own compatible lock, while native ProgramTest uses host Cargo and the modern Solana 2.3.1 graph. The native harness contains six tests covering exact state, signer and validation failures, duplicate initialization, and API compilation. Anchor generates `target/deploy/rituals.so` and `target/idl/rituals.json`; it does not deploy or require a deployment keypair. The fixed program ID in `Anchor.toml` and `declare_id!` is a **LOCAL TEST PLACEHOLDER** only. A later explicit credential operation must replace and synchronize it before devnet deployment.
+The production workspace intentionally excludes `program-tests`: the SBF build uses the older platform Cargo toolchain and its own compatible lock, while native ProgramTest uses host Cargo and the modern Solana 2.3.1 graph. The native harness contains six tests covering exact state, signer and validation failures, duplicate initialization, and API compilation. `anchor build` generates `target/deploy/rituals.so` and `target/idl/rituals.json` without deploying them; on a clean build it may also generate a disposable ignored `target/deploy/rituals-keypair.json`, which is a build artifact and must be removed. The fixed program ID in `Anchor.toml` and `declare_id!` is a **LOCAL TEST PLACEHOLDER** only. A later explicit credential operation must replace and synchronize it before devnet deployment.
 
 Root lock assertions must remain true: it excludes `solana-program-test`, `block-buffer 0.12.1`, `digest 0.11.3`, and `blake3 >= 1.8`; `program-tests/Cargo.lock` contains the native modern graph. Remote CI has not been run from this branch.
 
 After verification, remove `target/`, `.anchor/`, test ledgers, and deployment keypairs. Never create or retain a stable devnet authority in this repository.
+
+Run the native harness directly with `cargo test --manifest-path program-tests/Cargo.toml --locked`. Do not use `anchor test` for this scaffold: Anchor's command remains deployment-oriented before invoking any configured script, while the credential-free native harness intentionally registers the fixed placeholder ID in ProgramTest.
 
 ## Strict TDD workflow
 
