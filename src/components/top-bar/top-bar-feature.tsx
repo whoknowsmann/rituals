@@ -10,6 +10,7 @@ export function TopBar() {
   return (
     <Appbar.Header mode="small" style={styles.topBar}>
       <TopBarWalletMenu />
+      <Appbar.Content title="Rituals" subtitle="Devnet · fixture mode" />
 
       <Appbar.Action
         icon="cog"

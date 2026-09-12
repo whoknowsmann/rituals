@@ -1,12 +1,12 @@
 import { StyleSheet, View } from 'react-native'
 import { TopBar } from '../components/top-bar/top-bar-feature'
-import { PreflightScreen } from '../screens/PreflightScreen'
+import { RitualsHomeScreen } from '../screens/RitualsHomeScreen'
 
 export function HomeNavigator() {
   return (
     <View style={styles.shell}>
       <TopBar />
-      <PreflightScreen />
+      <RitualsHomeScreen />
     </View>
   )
 }
