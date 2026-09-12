@@ -1,28 +1,30 @@
 # Implementation Plan Index
 
-## Active plan
+## Current execution source
 
 The approved product direction is Rituals.
 
-Execute:
+Use:
 
-- `docs/plans/2026-09-09-rituals-rebuild.md`
+- `docs/ROADMAP.md` for current completed and remaining repository work;
+- the Hub note `Rituals Roadmap.md` for the concise product-level view;
+- `docs/plans/2026-09-09-rituals-rebuild.md` as the historical detailed execution record and acceptance reference.
 
-That plan defines exact phases, files, TDD cycles, program invariants, MWA integration, two-wallet devnet acceptance, standalone Seeker verification, documentation, and submission work.
+Do not blindly resume the detailed plan from its first unchecked-looking instruction. Several early branch, pivot, protocol, funding, activation, and mobile-replacement milestones are already complete.
 
 ## Historical plan
 
 This file previously contained the Preflight transaction-review vertical-slice plan. That plan was implemented and verified, then superseded by the Rituals pivot for the Clock In submission after the consumer-product course correction.
 
-Its implementation remains in the current source tree and Git history until the Rituals rebuild reaches an independently green fixture-backed vertical slice. Do not continue the old Preflight roadmap for the hackathon.
+Its implementation was removed from active source after the independently green Rituals fixture-backed home. It survives only in Git history and legacy build linkage. Do not restore or maintain it as active hackathon source.
 
 ## Required execution posture
 
-- Create `feat/rituals-rebuild` before production changes.
-- Commit the active plan before product code.
+- Continue on the existing private `feat/rituals-rebuild` branch.
+- Keep current progress in `docs/ROADMAP.md` and the Hub `Rituals Roadmap.md`.
 - Use strict RED–GREEN–REFACTOR for behavioral code.
 - Use the completed Anchor/MWA compatibility spike as the boundary for production dependencies: pin Rust-1.84-compatible transitive crates, keep mobile on a thin typed web3.js client from a frozen IDL, and separately validate native MWA signing.
-- Preserve the known-good Preflight/EAS/Seeker path until Rituals is verified.
+- Preserve archived behavior through Git history and existing build linkage only; do not reintroduce it into active source.
 - Keep P0 devnet and valueless-token only.
 - Verify external state by reading exact accounts/balances after every state-changing transaction.
 - Do not push, deploy, install global toolchains, or alter credentials without the appropriate authorization.

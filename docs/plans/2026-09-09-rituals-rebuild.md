@@ -1,8 +1,10 @@
 # Rituals Rebuild Implementation Plan
 
+> **Status:** Historical execution plan and acceptance reference. The product pivot, active-route replacement, and archived-product deletion are complete. Use `docs/ROADMAP.md` and the Hub `Rituals Roadmap.md` for current progress; do not restart completed steps from this document.
+
 > **For Hermes:** Use `subagent-driven-development` only after verifying the configured delegation route is hosted/non-local and functional. If delegation remains unavailable, execute each task directly with the same RED–GREEN–REFACTOR and two-stage review discipline.
 
-**Goal:** Replace the current Preflight screen with a Seeker-tested Rituals vertical slice in which two or more wallets fund a devnet ritual, one participant claims completion, another wallet confirms it, and a purpose-built Solana program settles the event deterministically.
+**Goal:** Deliver a Seeker-tested Rituals vertical slice in which two or more wallets fund a devnet ritual, one participant claims completion, another wallet confirms it, and a purpose-built Solana program settles the event deterministically.
 
 **Architecture:** Preserve the verified Expo/React Native, MWA, EAS, CI, and Android shell. Add pure TypeScript contracts for money, thresholds, lifecycle, invite digests, and transaction summaries; an Anchor program controls membership, SPL escrow, attestations, and settlement; the mobile client reads authoritative program state and requests every signature through MWA. P0 uses devnet and a valueless test SPL token, requires no hosted backend, and defaults unresolved/questioned claims to a no-forfeiture void/roll-forward path.
 
@@ -23,7 +25,7 @@
 ## Execution rules
 
 1. Work on a private feature branch.
-2. Never delete the working Preflight implementation until the Rituals fixture UI and test suite are green; then archive or remove it in a dedicated commit.
+2. The predecessor implementation was removed only after the Rituals fixture UI and test suite were green; preserve it through Git history rather than active source.
 3. Every behavioral function follows RED → observed expected failure → GREEN → full relevant suite → refactor.
 4. Every Solana state-changing test must read the resulting account/token state, not trust the transaction signature alone.
 5. No global Rust/Solana/Anchor/package installation without Jack's approval after live toolchain inspection.
