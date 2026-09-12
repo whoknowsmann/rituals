@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
+use anchor_spl::token::{self, spl_token, Mint, Token, TokenAccount};
 
 // Local-only placeholder identity; no deployed identity is implied.
 declare_id!("8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB");
@@ -161,6 +161,7 @@ pub mod rituals {
         ritual.settled_event_count = 0;
         ritual.created_at = clock.unix_timestamp;
         ritual.activated_at = 0;
+        ritual.cancelled_at = 0;
         ritual.bump = ctx.bumps.ritual;
         Ok(())
     }
@@ -334,6 +335,115 @@ pub mod rituals {
         ritual.activated_at = clock.unix_timestamp;
         Ok(())
     }
+
+    pub fn cancel_unactivated<'a>(
+        ctx: Context<'_, '_, '_, 'a, CancelUnactivated<'a>>,
+    ) -> Result<()> {
+        let ritual = &ctx.accounts.ritual;
+        require!(
+            ritual.status == RitualStatus::Funding,
+            RitualsError::InvalidRitualStatus
+        );
+        let first_window = ritual
+            .schedule
+            .first()
+            .ok_or(RitualsError::CancellationStateInconsistent)?;
+        let clock = Clock::get()?;
+        if clock.unix_timestamp < first_window.opens {
+            require!(
+                ctx.accounts.caller.key() == ritual.creator,
+                RitualsError::InvalidCancellationAuthority
+            );
+        }
+        ritual.validate_cancellation_state()?;
+        require!(
+            ctx.remaining_accounts.len() == ritual.members.len(),
+            RitualsError::InvalidRefundAccountCount
+        );
+        require!(
+            ctx.accounts.stake_vault.amount >= ritual.funded_stake_total,
+            RitualsError::CancellationStakeVaultShort
+        );
+        require!(
+            ctx.accounts.fee_vault.amount >= ritual.funded_fee_total,
+            RitualsError::CancellationFeeVaultShort
+        );
+
+        let mut destinations: Vec<AccountInfo<'a>> = Vec::with_capacity(ritual.members.len());
+        for (index, destination) in ctx.remaining_accounts.iter().enumerate() {
+            require!(
+                destination.is_writable && destination.owner == &spl_token::ID,
+                RitualsError::InvalidRefundDestination
+            );
+            require!(
+                !ctx.remaining_accounts[..index]
+                    .iter()
+                    .any(|previous| previous.key == destination.key),
+                RitualsError::InvalidRefundDestination
+            );
+            let mut raw_data: &[u8] = &destination.data.borrow();
+            let parsed = TokenAccount::try_deserialize(&mut raw_data)
+                .map_err(|_| error!(RitualsError::InvalidRefundDestination))?;
+            require!(
+                parsed.state == spl_token::state::AccountState::Initialized
+                    && parsed.mint == ritual.stake_mint
+                    && parsed.owner == ritual.members[index],
+                RitualsError::InvalidRefundDestination
+            );
+            destinations.push(destination.clone());
+        }
+
+        let creator = ritual.creator;
+        let nonce = ritual.nonce.to_le_bytes();
+        let bump = [ritual.bump];
+        let signer_seeds: &[&[u8]] = &[b"ritual", creator.as_ref(), nonce.as_ref(), bump.as_ref()];
+        for (index, destination) in destinations.iter().enumerate() {
+            if ritual.funded_members_bitmap & (1u8 << index) == 0 {
+                continue;
+            }
+            let cpi_accounts = token::TransferChecked {
+                from: ctx.accounts.stake_vault.to_account_info(),
+                mint: ctx.accounts.stake_mint.to_account_info(),
+                to: destination.clone(),
+                authority: ctx.accounts.ritual.to_account_info(),
+            };
+            token::transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    cpi_accounts,
+                    &[signer_seeds],
+                ),
+                ritual.member_total_stake,
+                ritual.stake_decimals,
+            )?;
+            let fee = ritual.fee_share_for_member_index(index)?;
+            if fee > 0 {
+                let cpi_accounts = token::TransferChecked {
+                    from: ctx.accounts.fee_vault.to_account_info(),
+                    mint: ctx.accounts.stake_mint.to_account_info(),
+                    to: destination.clone(),
+                    authority: ctx.accounts.ritual.to_account_info(),
+                };
+                token::transfer_checked(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        cpi_accounts,
+                        &[signer_seeds],
+                    ),
+                    fee,
+                    ritual.stake_decimals,
+                )?;
+            }
+        }
+        let ritual = &mut ctx.accounts.ritual;
+        ritual.status = RitualStatus::Cancelled;
+        ritual.cancelled_at = clock.unix_timestamp;
+        ritual.funded_members_bitmap = 0;
+        ritual.funded_member_count = 0;
+        ritual.funded_stake_total = 0;
+        ritual.funded_fee_total = 0;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -416,6 +526,20 @@ pub struct ActivateRitual<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct CancelUnactivated<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    pub caller: Signer<'info>,
+    #[account(address = ritual.stake_mint, constraint = stake_mint.decimals == ritual.stake_decimals)]
+    pub stake_mint: Account<'info, Mint>,
+    #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, token::mint = stake_mint, token::authority = ritual)]
+    pub stake_vault: Account<'info, TokenAccount>,
+    #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, token::mint = stake_mint, token::authority = ritual)]
+    pub fee_vault: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct ProtocolConfig {
@@ -488,6 +612,7 @@ pub struct Ritual {
     pub settled_event_count: u8,
     pub created_at: i64,
     pub activated_at: i64,
+    pub cancelled_at: i64,
     pub bump: u8,
 }
 
@@ -612,6 +737,79 @@ impl Ritual {
         }
         Ok(total)
     }
+
+    fn validate_cancellation_state(&self) -> Result<()> {
+        let member_count = self.members.len();
+        require!(
+            self.schema_version == 1 && (2..=6).contains(&member_count),
+            RitualsError::CancellationStateInconsistent
+        );
+        require!(
+            self.members
+                .iter()
+                .all(|member| *member != Pubkey::default())
+                && self.members.iter().all(|member| self
+                    .members
+                    .iter()
+                    .filter(|other| *other == member)
+                    .count()
+                    == 1)
+                && self.members.contains(&self.creator),
+            RitualsError::CancellationStateInconsistent
+        );
+        let event_count = self.schedule.len();
+        require!(
+            (1..=16).contains(&event_count),
+            RitualsError::CancellationStateInconsistent
+        );
+        for (index, window) in self.schedule.iter().enumerate() {
+            require!(
+                window.opens >= 0
+                    && window.opens < window.deadline
+                    && window.deadline < window.resolution,
+                RitualsError::CancellationStateInconsistent
+            );
+            if let Some(previous) = index.checked_sub(1).and_then(|i| self.schedule.get(i)) {
+                require!(
+                    previous.resolution < window.opens,
+                    RitualsError::CancellationStateInconsistent
+                );
+            }
+        }
+        require!(
+            self.member_total_stake > 0
+                && self.member_total_stake % event_count as u64 == 0
+                && self.per_event_allocation > 0
+                && self.per_event_allocation == self.member_total_stake / event_count as u64
+                && self.additional_confirmation_threshold <= (member_count - 1) as u8
+                && !self.rule_digest.iter().all(|byte| *byte == 0)
+                && self.locked_activation_fee > 0
+                && self.locked_fee_recipient != Pubkey::default(),
+            RitualsError::CancellationStateInconsistent
+        );
+        require!(
+            self.stake_mint != Pubkey::default()
+                && self.stake_vault != Pubkey::default()
+                && self.fee_vault != Pubkey::default(),
+            RitualsError::CancellationStateInconsistent
+        );
+        let mask = ((1u16 << member_count) - 1) as u8;
+        let expected_stake = self
+            .member_total_stake
+            .checked_mul(self.funded_member_count as u64)
+            .ok_or(RitualsError::CancellationStateInconsistent)?;
+        let expected_fee = self
+            .expected_fee_for_bitmap(self.funded_members_bitmap)
+            .map_err(|_| error!(RitualsError::CancellationStateInconsistent))?;
+        require!(
+            self.funded_members_bitmap & !mask == 0
+                && self.funded_member_count == self.funded_members_bitmap.count_ones() as u8
+                && self.funded_stake_total == expected_stake
+                && self.funded_fee_total == expected_fee,
+            RitualsError::CancellationStateInconsistent
+        );
+        Ok(())
+    }
 }
 
 #[error_code]
@@ -680,4 +878,16 @@ pub enum RitualsError {
     ActivationStakeVaultShort,
     #[msg("fee vault is short of its locked activation fee")]
     ActivationFeeVaultShort,
+    #[msg("caller cannot cancel before the first event opens")]
+    InvalidCancellationAuthority,
+    #[msg("refund account count must equal the member count")]
+    InvalidRefundAccountCount,
+    #[msg("refund destination is invalid")]
+    InvalidRefundDestination,
+    #[msg("cancellation funding state is inconsistent")]
+    CancellationStateInconsistent,
+    #[msg("stake vault is short of tracked cancellation liabilities")]
+    CancellationStakeVaultShort,
+    #[msg("fee vault is short of tracked cancellation liabilities")]
+    CancellationFeeVaultShort,
 }

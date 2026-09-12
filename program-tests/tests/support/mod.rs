@@ -258,6 +258,37 @@ pub(crate) fn activate_ix(creator: Pubkey, nonce: u64, recipient: Pubkey) -> Ins
 pub(crate) fn activate_ix_default(creator: Pubkey, nonce: u64) -> Instruction {
     activate_ix(creator, nonce, RECIPIENT)
 }
+pub(crate) fn cancel_ix(
+    creator: Pubkey,
+    nonce: u64,
+    caller: Pubkey,
+    destinations: &[Pubkey],
+) -> Instruction {
+    let ritual = ritual_pda(&creator, nonce);
+    let accounts = rituals::accounts::CancelUnactivated {
+        ritual,
+        caller,
+        stake_mint: MINT,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        fee_vault: vault_pda(b"fee-vault", &ritual),
+        token_program: spl_token::ID,
+    };
+    let mut metas = accounts.to_account_metas(None);
+    metas.extend(
+        destinations
+            .iter()
+            .map(|destination| solana_sdk::instruction::AccountMeta {
+                pubkey: *destination,
+                is_signer: false,
+                is_writable: true,
+            }),
+    );
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: metas,
+        data: rituals::instruction::CancelUnactivated {}.data(),
+    }
+}
 pub(crate) fn assert_error(result: Result<(), solana_program_test::BanksClientError>, code: u32) {
     match result {
         Err(solana_program_test::BanksClientError::TransactionError(
@@ -426,6 +457,43 @@ impl ActivationSnapshot {
             locked_recipient: get_account(context, locked_recipient).await,
             second_recipient,
             member_sources: sources,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct CancellationSnapshot {
+    pub protocol_config: Option<Account>,
+    pub ritual: Account,
+    pub stake_vault: Account,
+    pub fee_vault: Account,
+    pub fee_recipient: Account,
+    pub accounts: Vec<(Pubkey, Account)>,
+}
+
+impl CancellationSnapshot {
+    pub(crate) async fn capture(
+        context: &mut ProgramTestContext,
+        ritual: Pubkey,
+        fee_recipient: Pubkey,
+        accounts: &[Pubkey],
+    ) -> Self {
+        let protocol_config = context
+            .banks_client
+            .get_account(config_pda())
+            .await
+            .unwrap();
+        let mut captured = Vec::with_capacity(accounts.len());
+        for address in accounts {
+            captured.push((*address, get_account(context, *address).await));
+        }
+        Self {
+            protocol_config,
+            ritual: get_account(context, ritual).await,
+            stake_vault: get_account(context, vault_pda(b"stake-vault", &ritual)).await,
+            fee_vault: get_account(context, vault_pda(b"fee-vault", &ritual)).await,
+            fee_recipient: get_account(context, fee_recipient).await,
+            accounts: captured,
         }
     }
 }
