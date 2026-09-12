@@ -21,6 +21,7 @@ pub(crate) use solana_sdk::{
 pub(crate) const PROGRAM_ID: Pubkey = rituals::ID;
 pub(crate) const MINT: Pubkey = Pubkey::new_from_array([7; 32]);
 pub(crate) const RECIPIENT: Pubkey = Pubkey::new_from_array([8; 32]);
+pub(crate) const SECOND_RECIPIENT: Pubkey = Pubkey::new_from_array([15; 32]);
 pub(crate) const MINT_AUTHORITY: Pubkey = Pubkey::new_from_array([9; 32]);
 pub(crate) const WRONG_MINT: Pubkey = Pubkey::new_from_array([13; 32]);
 pub(crate) const OUTSIDER: Pubkey = Pubkey::new_from_array([14; 32]);
@@ -132,6 +133,7 @@ pub(crate) async fn start_with_members(
     );
     test.add_genesis_account(other_source, token_account(other.pubkey(), other_amount));
     test.add_genesis_account(OUTSIDER, token_account(OUTSIDER, 150));
+    test.add_genesis_account(SECOND_RECIPIENT, token_account(SECOND_RECIPIENT, 0));
     test.add_genesis_account(
         Pubkey::new_from_array([23; 32]),
         token_account_for(WRONG_MINT, creator.pubkey(), 150),
@@ -371,6 +373,63 @@ pub(crate) async fn replace_owner(
         }),
     );
 }
+pub(crate) async fn replace_account(
+    context: &mut ProgramTestContext,
+    address: Pubkey,
+    account: Account,
+) {
+    context.set_account(&address, &AccountSharedData::from(account));
+}
+
+pub(crate) async fn freeze_token_account(context: &mut ProgramTestContext, address: Pubkey) {
+    let original = get_account(context, address).await;
+    let mut token = spl_token::state::Account::unpack(&original.data).unwrap();
+    token.state = spl_token::state::AccountState::Frozen;
+    let mut data = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack_into_slice(&token, &mut data);
+    replace_account(context, address, Account { data, ..original }).await;
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ActivationSnapshot {
+    pub protocol_config: Account,
+    pub ritual: Account,
+    pub stake_vault: Account,
+    pub fee_vault: Account,
+    pub locked_recipient: Account,
+    pub second_recipient: Option<Account>,
+    pub member_sources: Vec<(Pubkey, Account)>,
+}
+
+impl ActivationSnapshot {
+    pub(crate) async fn capture(
+        context: &mut ProgramTestContext,
+        ritual: Pubkey,
+        locked_recipient: Pubkey,
+        member_sources: &[Pubkey],
+        include_second: bool,
+    ) -> Self {
+        let mut sources = Vec::with_capacity(member_sources.len());
+        for address in member_sources {
+            sources.push((*address, get_account(context, *address).await));
+        }
+        let second_recipient = if include_second {
+            Some(get_account(context, SECOND_RECIPIENT).await)
+        } else {
+            None
+        };
+        Self {
+            protocol_config: get_account(context, config_pda()).await,
+            ritual: get_account(context, ritual).await,
+            stake_vault: get_account(context, vault_pda(b"stake-vault", &ritual)).await,
+            fee_vault: get_account(context, vault_pda(b"fee-vault", &ritual)).await,
+            locked_recipient: get_account(context, locked_recipient).await,
+            second_recipient,
+            member_sources: sources,
+        }
+    }
+}
+
 pub(crate) async fn funding_snapshot(
     context: &mut ProgramTestContext,
     ritual: Pubkey,
