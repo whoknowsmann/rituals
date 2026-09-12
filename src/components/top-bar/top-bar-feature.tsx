@@ -1,12 +1,10 @@
 import { StyleSheet } from "react-native";
-import { Appbar, useTheme } from "react-native-paper";
-import { TopBarWalletButton, TopBarWalletMenu } from "./top-bar-ui";
+import { Appbar } from "react-native-paper";
+import { TopBarWalletMenu } from "./top-bar-ui";
 import { useNavigation } from "@react-navigation/core";
 
 export function TopBar() {
   const navigation = useNavigation();
-  const theme = useTheme();
-
   return (
     <Appbar.Header mode="small" style={styles.topBar}>
       <TopBarWalletMenu />
@@ -15,6 +13,7 @@ export function TopBar() {
       <Appbar.Action
         icon="cog"
         mode="contained-tonal"
+        accessibilityLabel="Settings"
         onPress={() => {
           navigation.navigate("Settings");
         }}

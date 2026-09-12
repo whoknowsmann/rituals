@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { HomeRitualSnapshot, RitualsHomeSnapshot } from '../../../data/rituals/RitualsRepository'
 import { FixtureRitualsRepository } from '../../../data/rituals/FixtureRitualsRepository'
 import type { RitualId, TokenAtomicUnits } from '../../../domain/rituals/types'
-import { buildHomeViewModel } from './homeViewModel'
+import { buildHomeViewModel, safeErrorMessage } from './homeViewModel'
 
 const activeRitual = {
   id: 'ritual-test' as RitualId,
@@ -106,7 +106,7 @@ describe('buildHomeViewModel', () => {
     const view = emptyView('error')
 
     expect(view.kind).toBe('error')
-    expect(view.errorMessage).toBe('Offline fixture error')
+    expect(view.errorMessage).toBe('Unable to load rituals right now.')
     expect(view.ctas).toEqual({ fundRitual: false, reviewConfirmations: false, createRitual: false })
     expect(view.disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
   })
@@ -134,10 +134,42 @@ describe('buildHomeViewModel', () => {
     expect(buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk).toBe('123,456,789 TEST')
   })
 
-  it.each([-1, 1.5, 101])('uses a safe invalid amount for decimals %s', (tokenDecimals) => {
+  it.each([-1, 1.5, 256])('uses a safe invalid amount for decimals %s', (tokenDecimals) => {
     const snapshot = snapshotWith({ activeRitual: { ...activeRitual, tokenDecimals } })
 
     expect(buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk).toBe('Invalid amount')
+  })
+
+  it('accepts 255 decimals and formats negative values safely', () => {
+    const snapshot = snapshotWith({ activeRitual: { ...activeRitual, stakeAtomicUnits: -123n as TokenAtomicUnits, tokenDecimals: 255 } })
+
+    const amount = buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk
+    expect(amount).not.toBe('Invalid amount')
+    expect(amount).toContain('-')
+  })
+
+  it('preserves the stable ritual id in the active item', async () => {
+    const view = buildHomeViewModel(await new FixtureRitualsRepository('populated').getHomeSnapshot())
+
+    expect(view.activeRituals[0].id).toBe('ritual-weekly-run')
+  })
+
+  it('keeps duplicate titles distinct with stable ids', () => {
+    const second = { ...activeRitual, id: 'ritual-second' as RitualId }
+    const view = buildHomeViewModel(snapshotWith({ activeRitual: undefined, activeRituals: [activeRitual, second] }))
+
+    expect(view.activeRituals.map((ritual) => ({ id: ritual.id, title: ritual.title }))).toEqual([
+      { id: 'ritual-test', title: 'Test ritual' },
+      { id: 'ritual-second', title: 'Test ritual' },
+    ])
+  })
+
+  it.each([
+    [new Error('private backend detail'), 'Unable to load rituals right now.'],
+    ['not an error', 'Unable to load rituals right now.'],
+    [null, 'Unable to load rituals right now.'],
+  ] as const)('maps arbitrary errors to a safe fixed message', (error, message) => {
+    expect(safeErrorMessage(error)).toBe(message)
   })
 
   it('includes disclosure on every presentation', () => {
