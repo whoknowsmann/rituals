@@ -319,9 +319,9 @@ pub struct FundMember<'info> {
     pub stake_mint: Account<'info, Mint>,
     #[account(mut, constraint = member_source.mint == stake_mint.key(), constraint = member_source.owner == member.key())]
     pub member_source: Account<'info, TokenAccount>,
-    #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, constraint = stake_vault.mint == stake_mint.key(), constraint = stake_vault.owner == ritual.key())]
+    #[account(mut, address = ritual.stake_vault, constraint = stake_vault.mint == stake_mint.key(), constraint = stake_vault.owner == ritual.key())]
     pub stake_vault: Account<'info, TokenAccount>,
-    #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, constraint = fee_vault.mint == stake_mint.key(), constraint = fee_vault.owner == ritual.key())]
+    #[account(mut, address = ritual.fee_vault, constraint = fee_vault.mint == stake_mint.key(), constraint = fee_vault.owner == ritual.key())]
     pub fee_vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
