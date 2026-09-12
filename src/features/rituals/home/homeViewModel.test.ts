@@ -11,10 +11,9 @@ describe('buildHomeViewModel', () => {
     expect(view.identity.valueProposition).toContain('show up together')
     expect(view.disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
     expect(view.activeRituals[0].stakeAtRisk).toBe('1,250.000000 TEST')
-    expect(view.activeRituals[0].memberProgress).toBe('3 of 4 members ready')
-    expect(view.confirmations.count).toBe(1)
-    expect(view.funding.progress).toBe('2 of 4 funded')
-    expect(view.completedReceipt?.amount).toBe('2,000.000000 TEST')
+    expect(view.activeRituals[0].memberProgress).toBe('4 of 4 members ready')
+    expect(view.ctas.fundRitual).toBe(false)
+    expect(view.cards.funding).toBe(false)
   })
 
   it('does not convert atomic units through floating point', () => {

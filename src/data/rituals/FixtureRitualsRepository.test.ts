@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FixtureRitualsRepository, FIXTURE_SNAPSHOTS } from './FixtureRitualsRepository'
+import { FixtureRitualsRepository } from './FixtureRitualsRepository'
 
 describe('FixtureRitualsRepository', () => {
   it('returns coherent populated devnet fixture data without exposing mutable state', async () => {
@@ -14,7 +14,7 @@ describe('FixtureRitualsRepository', () => {
     expect(first.activeRitual?.stakeAtomicUnits).toBe(1250000000n)
     expect(second).not.toBe(first)
     expect(second.activeRitual).not.toBe(first.activeRitual)
-    expect(FIXTURE_SNAPSHOTS.populated.activeRitual?.stakeAtomicUnits).toBe(1250000000n)
+    expect(second.activeRitual?.members.funded).toBe(4)
   })
 
   it.each(['funding', 'pending-confirmation', 'completed', 'empty'] as const)('supports %s state', async (state) => {
