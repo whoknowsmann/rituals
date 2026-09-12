@@ -2,7 +2,7 @@
 
 ## Honest status
 
-The current source tree still runs the Preflight mobile UI. It now also contains implemented pure Rituals contracts plus a production Anchor ProtocolConfig initializer, classic SPL mint/account validation, exact HOST- and SPLIT-mode SPL member funding with bitmap/liability accounting, native ProgramTest tests, and an SBF build. Funding validates stored accounting before CPIs, enforces both stored and derived vault PDAs with mint/authority constraints, and commits state only after exact transfers; SPLIT distributes the locked fee by ordered member index. The fee escrow is not revenue until activation. Activation, cancellation, claims/approvals/settlement, and a real devnet/MWA flow remain unimplemented.
+The current source tree still runs the Preflight mobile UI. It now also contains implemented pure Rituals contracts plus a production Anchor ProtocolConfig initializer, classic SPL mint/account validation, exact HOST- and SPLIT-mode SPL member funding with bitmap/liability accounting, native ProgramTest tests, and an SBF build. Funding validates stored accounting before CPIs, enforces both stored and derived vault PDAs with mint/authority constraints, and commits state only after exact transfers; SPLIT distributes the locked fee by ordered member index. The fee is quoted, stored, and locked at ritual creation; funding escrows deterministic member contributions in the fee vault. It is not protocol revenue until a future activation transfer, and activation is not implemented. Cancellation, claims/approvals/settlement, and a real devnet/MWA flow also remain unimplemented.
 
 Rituals P0 is intentionally devnet and valueless-token only. Nothing in the target architecture is a claim that mainnet funds are presently safe.
 
@@ -124,7 +124,7 @@ These reduce harm; they do not remove trust.
 - Verify recipient token accounts and authorities.
 - Never route rounding dust or forfeitures to the protocol.
 
-The initial 2% / 0.50–5.00 activation fee is a product hypothesis. The exact fee is stored per ritual at activation so later configuration changes cannot alter an existing commitment.
+The initial 2% / 0.50–5.00 fee is quoted, stored, and locked at ritual creation. Funding escrows each deterministic member contribution in the fee vault; it is not protocol revenue until a future activation transfer. Activation is not implemented, so no protocol-revenue transfer currently occurs.
 
 ## Devnet/mainnet boundary
 
