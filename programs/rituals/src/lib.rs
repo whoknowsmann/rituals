@@ -282,6 +282,75 @@ pub mod rituals {
         ritual.funded_fee_total = next_fee;
         Ok(())
     }
+
+    pub fn activate_ritual(ctx: Context<ActivateRitual>) -> Result<()> {
+        let ritual = &ctx.accounts.ritual;
+        require!(
+            ritual.status == RitualStatus::Funding,
+            RitualsError::InvalidRitualStatus
+        );
+        let member_count = ritual.members.len();
+        let member_mask = (1u16
+            .checked_shl(member_count as u32)
+            .ok_or(RitualsError::ActivationStateInconsistent)?
+            .checked_sub(1)
+            .ok_or(RitualsError::ActivationStateInconsistent)?) as u8;
+        let expected_stake = ritual
+            .member_total_stake
+            .checked_mul(member_count as u64)
+            .ok_or(RitualsError::ActivationStateInconsistent)?;
+        require!(
+            member_count > 0
+                && ritual.funded_members_bitmap == member_mask
+                && ritual.funded_member_count as usize == member_count
+                && ritual.funded_stake_total == expected_stake
+                && ritual.funded_fee_total == ritual.locked_activation_fee,
+            RitualsError::ActivationStateInconsistent
+        );
+        let first_window = ritual
+            .schedule
+            .first()
+            .ok_or(RitualsError::ActivationStateInconsistent)?;
+        let clock = Clock::get()?;
+        require!(
+            clock.unix_timestamp < first_window.opens,
+            RitualsError::ActivationWindowClosed
+        );
+        require!(
+            ctx.accounts.stake_vault.amount >= ritual.funded_stake_total,
+            RitualsError::ActivationStakeVaultShort
+        );
+        require!(
+            ctx.accounts.fee_vault.amount >= ritual.locked_activation_fee,
+            RitualsError::ActivationFeeVaultShort
+        );
+
+        let fee = ritual.locked_activation_fee;
+        let creator = ritual.creator;
+        let nonce = ritual.nonce.to_le_bytes();
+        let bump = [ritual.bump];
+        let signer_seeds: &[&[u8]] = &[b"ritual", creator.as_ref(), nonce.as_ref(), bump.as_ref()];
+        let cpi_accounts = token::TransferChecked {
+            from: ctx.accounts.fee_vault.to_account_info(),
+            mint: ctx.accounts.stake_mint.to_account_info(),
+            to: ctx.accounts.fee_recipient_token.to_account_info(),
+            authority: ctx.accounts.ritual.to_account_info(),
+        };
+        token::transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                cpi_accounts,
+                &[signer_seeds],
+            ),
+            fee,
+            ritual.stake_decimals,
+        )?;
+
+        let ritual = &mut ctx.accounts.ritual;
+        ritual.status = RitualStatus::Active;
+        ritual.activated_at = clock.unix_timestamp;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -344,6 +413,23 @@ pub struct FundMember<'info> {
     pub stake_vault: Account<'info, TokenAccount>,
     #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, token::mint = stake_mint, token::authority = ritual)]
     pub fee_vault: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct ActivateRitual<'info> {
+    #[account(seeds = [b"protocol-config"], bump = protocol_config.bump, address = ritual.protocol_config)]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    #[account(address = ritual.stake_mint, constraint = stake_mint.decimals == ritual.stake_decimals)]
+    pub stake_mint: Account<'info, Mint>,
+    #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, token::mint = stake_mint, token::authority = ritual)]
+    pub stake_vault: Account<'info, TokenAccount>,
+    #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, token::mint = stake_mint, token::authority = ritual)]
+    pub fee_vault: Account<'info, TokenAccount>,
+    #[account(mut, address = ritual.locked_fee_recipient, constraint = fee_recipient_token.mint == stake_mint.key())]
+    pub fee_recipient_token: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -527,4 +613,12 @@ pub enum RitualsError {
     FundingAccountingOverflow,
     #[msg("funding state is inconsistent")]
     FundingStateInconsistent,
+    #[msg("activation funding state is inconsistent")]
+    ActivationStateInconsistent,
+    #[msg("the first event has opened")]
+    ActivationWindowClosed,
+    #[msg("stake vault is short of its tracked liability")]
+    ActivationStakeVaultShort,
+    #[msg("fee vault is short of its locked activation fee")]
+    ActivationFeeVaultShort,
 }

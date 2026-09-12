@@ -235,6 +235,27 @@ pub(crate) fn fund_ix(creator: Pubkey, nonce: u64, member: Pubkey, source: Pubke
         data: rituals::instruction::FundMember {}.data(),
     }
 }
+pub(crate) fn activate_ix(creator: Pubkey, nonce: u64, recipient: Pubkey) -> Instruction {
+    let ritual = ritual_pda(&creator, nonce);
+    let accounts = rituals::accounts::ActivateRitual {
+        protocol_config: config_pda(),
+        ritual,
+        stake_mint: MINT,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        fee_vault: vault_pda(b"fee-vault", &ritual),
+        fee_recipient_token: recipient,
+        token_program: spl_token::ID,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::ActivateRitual {}.data(),
+    }
+}
+
+pub(crate) fn activate_ix_default(creator: Pubkey, nonce: u64) -> Instruction {
+    activate_ix(creator, nonce, RECIPIENT)
+}
 pub(crate) fn assert_error(result: Result<(), solana_program_test::BanksClientError>, code: u32) {
     match result {
         Err(solana_program_test::BanksClientError::TransactionError(
