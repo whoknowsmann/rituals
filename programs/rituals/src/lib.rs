@@ -385,7 +385,7 @@ pub mod rituals {
             let parsed = TokenAccount::try_deserialize(&mut raw_data)
                 .map_err(|_| error!(RitualsError::InvalidRefundDestination))?;
             require!(
-                parsed.state == spl_token::state::AccountState::Initialized
+                parsed.state != spl_token::state::AccountState::Uninitialized
                     && parsed.mint == ritual.stake_mint
                     && parsed.owner == ritual.members[index],
                 RitualsError::InvalidRefundDestination

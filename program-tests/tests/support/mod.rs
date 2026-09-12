@@ -297,6 +297,38 @@ pub(crate) fn assert_error(result: Result<(), solana_program_test::BanksClientEr
         other => panic!("expected {code}, got {other:?}"),
     }
 }
+
+pub(crate) fn cancel_ix_with_accounts(
+    creator: Pubkey,
+    nonce: u64,
+    caller: Pubkey,
+    stake_mint: Pubkey,
+    stake_vault: Pubkey,
+    fee_vault: Pubkey,
+    token_program: Pubkey,
+    destinations: &[Pubkey],
+) -> Instruction {
+    let ritual = ritual_pda(&creator, nonce);
+    let accounts = rituals::accounts::CancelUnactivated {
+        ritual,
+        caller,
+        stake_mint,
+        stake_vault,
+        fee_vault,
+        token_program,
+    };
+    let mut metas = accounts.to_account_metas(None);
+    metas.extend(
+        destinations
+            .iter()
+            .map(|destination| solana_sdk::instruction::AccountMeta::new(*destination, false)),
+    );
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: metas,
+        data: rituals::instruction::CancelUnactivated {}.data(),
+    }
+}
 pub(crate) async fn amount(context: &mut ProgramTestContext, address: Pubkey) -> u64 {
     let account = context
         .banks_client

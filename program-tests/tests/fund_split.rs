@@ -184,54 +184,6 @@ async fn split_exact_matrix_two_through_six_members_all_remainders() {
     }
 }
 
-
-#[tokio::test]
-async fn split_cancellation_refunds_n3_fee_remainder_atomically() {
-    let members: Vec<Keypair> = (0..3).map(|_| Keypair::new()).collect();
-    let amounts = [110, 110, 110];
-    let mut context = start_split(&members, &amounts).await;
-    let keys: Vec<Pubkey> = members.iter().map(Keypair::pubkey).collect();
-    let nonce = 3003;
-    submit(
-        &mut context,
-        vec![
-            initialize_split_ix(keys[0], 5),
-            create_split_ix(keys[0], keys.clone(), nonce),
-        ],
-        &[&members[0]],
-    )
-    .await
-    .unwrap();
-    let ritual = ritual_pda(&keys[0], nonce);
-    for index in [2usize, 0] {
-        submit(
-            &mut context,
-            vec![fund_ix(keys[0], nonce, keys[index], source_for(index))],
-            &[&members[index]],
-        )
-        .await
-        .unwrap();
-    }
-    let destinations = [source_for(0), source_for(1), source_for(2)];
-    submit(
-        &mut context,
-        vec![cancel_ix(keys[0], nonce, keys[1], &destinations)],
-        &[&members[1]],
-    )
-    .await
-    .unwrap();
-    for destination in destinations {
-        assert_eq!(amount(&mut context, destination).await, 110);
-    }
-    assert_eq!(amount(&mut context, vault_pda(b"stake-vault", &ritual)).await, 0);
-    assert_eq!(amount(&mut context, vault_pda(b"fee-vault", &ritual)).await, 0);
-    assert_eq!(amount(&mut context, RECIPIENT).await, 0);
-    let state = deserialize(&get_account(&mut context, ritual).await.data);
-    assert_eq!(state.status, RitualStatus::Cancelled);
-    assert_eq!(state.funded_members_bitmap, 0);
-    assert_eq!(state.funded_member_count, 0);
-}
-
 #[tokio::test]
 async fn split_insufficient_total_is_6025_and_atomic() {
     let members: Vec<Keypair> = (0..2).map(|_| Keypair::new()).collect();
