@@ -18,12 +18,14 @@ use solana_sdk::{
 const PROGRAM_ID: Pubkey = rituals::ID;
 const FIXTURE_MINT: Pubkey = Pubkey::new_from_array([7; 32]);
 const FIXTURE_RECIPIENT: Pubkey = Pubkey::new_from_array([8; 32]);
+const WRONG_OWNER_MINT: Pubkey = Pubkey::new_from_array([11; 32]);
+const WRONG_OWNER_RECIPIENT: Pubkey = Pubkey::new_from_array([12; 32]);
 
-fn token_fixture_account(data: Vec<u8>) -> Account {
+fn token_fixture_account(data: Vec<u8>, owner: Pubkey) -> Account {
     Account {
         lamports: Rent::default().minimum_balance(data.len()),
         data,
-        owner: spl_token::ID,
+        owner,
         executable: false,
         rent_epoch: 0,
     }
@@ -56,8 +58,23 @@ fn with_token_fixtures(mut test: ProgramTest) -> ProgramTest {
         spl_token::ID,
         processor!(spl_token::processor::Processor::process),
     );
-    test.add_genesis_account(FIXTURE_MINT, token_fixture_account(mint_data));
-    test.add_genesis_account(FIXTURE_RECIPIENT, token_fixture_account(recipient_data));
+    test.add_genesis_account(
+        FIXTURE_MINT,
+        token_fixture_account(mint_data.clone(), spl_token::ID),
+    );
+    test.add_genesis_account(
+        FIXTURE_RECIPIENT,
+        token_fixture_account(recipient_data.clone(), spl_token::ID),
+    );
+    // These blobs are valid classic SPL layouts; only their Solana account owner is wrong.
+    test.add_genesis_account(
+        WRONG_OWNER_MINT,
+        token_fixture_account(mint_data, system_program::ID),
+    );
+    test.add_genesis_account(
+        WRONG_OWNER_RECIPIENT,
+        token_fixture_account(recipient_data, system_program::ID),
+    );
     test
 }
 fn config_pda() -> Pubkey {
@@ -180,6 +197,10 @@ where
     assert_eq!(actual.bump, config.bump);
 }
 fn initialize_ix(authority: &Pubkey, mint: Pubkey) -> Instruction {
+    initialize_with_recipient(authority, mint, FIXTURE_RECIPIENT)
+}
+
+fn initialize_with_recipient(authority: &Pubkey, mint: Pubkey, recipient: Pubkey) -> Instruction {
     let accounts = rituals::accounts::InitializeProtocolConfig {
         protocol_config: config_pda(),
         authority: *authority,
@@ -194,7 +215,7 @@ fn initialize_ix(authority: &Pubkey, mint: Pubkey) -> Instruction {
             } else {
                 mint
             },
-            fee_recipient: FIXTURE_RECIPIENT,
+            fee_recipient: recipient,
             fee_basis_points: 200,
             minimum_fee: 50,
             maximum_fee: 500,
@@ -207,6 +228,26 @@ fn initialize_ix(authority: &Pubkey, mint: Pubkey) -> Instruction {
 fn initialize_with_fee(
     authority: &Pubkey,
     mint: Pubkey,
+    bps: u16,
+    minimum: u64,
+    maximum: u64,
+    maximum_member_stake: u64,
+) -> Instruction {
+    initialize_with_fee_and_recipient(
+        authority,
+        mint,
+        FIXTURE_RECIPIENT,
+        bps,
+        minimum,
+        maximum,
+        maximum_member_stake,
+    )
+}
+
+fn initialize_with_fee_and_recipient(
+    authority: &Pubkey,
+    mint: Pubkey,
+    recipient: Pubkey,
     bps: u16,
     minimum: u64,
     maximum: u64,
@@ -226,7 +267,7 @@ fn initialize_with_fee(
             } else {
                 mint
             },
-            fee_recipient: FIXTURE_RECIPIENT,
+            fee_recipient: recipient,
             fee_basis_points: bps,
             minimum_fee: minimum,
             maximum_fee: maximum,
@@ -246,6 +287,30 @@ fn create_ix_custom(
     digest: [u8; 32],
     threshold: u8,
 ) -> Instruction {
+    create_ix_custom_with_recipient(
+        creator,
+        nonce,
+        mint,
+        FIXTURE_RECIPIENT,
+        members,
+        stake,
+        schedule,
+        digest,
+        threshold,
+    )
+}
+
+fn create_ix_custom_with_recipient(
+    creator: &Pubkey,
+    nonce: u64,
+    mint: Pubkey,
+    recipient: Pubkey,
+    members: Vec<Pubkey>,
+    stake: u64,
+    schedule: Vec<EventWindow>,
+    digest: [u8; 32],
+    threshold: u8,
+) -> Instruction {
     let (ritual, _) = ritual_pda(creator, nonce);
     let stake_vault = vault_pda(b"stake-vault", &ritual).0;
     let fee_vault = vault_pda(b"fee-vault", &ritual).0;
@@ -254,7 +319,7 @@ fn create_ix_custom(
         ritual,
         creator: *creator,
         stake_mint: if mint == *creator { FIXTURE_MINT } else { mint },
-        fee_recipient_token: FIXTURE_RECIPIENT,
+        fee_recipient_token: recipient,
         stake_vault,
         fee_vault,
         system_program: system_program::ID,
@@ -302,6 +367,74 @@ fn assert_custom_error(result: Result<(), solana_program_test::BanksClientError>
         )) => assert_eq!(code, expected),
         other => panic!("expected custom transaction error {expected}, got {other:?}"),
     }
+}
+
+async fn assert_ritual_accounts_absent(
+    context: &mut ProgramTestContext,
+    creator: &Pubkey,
+    nonce: u64,
+) {
+    let (ritual, _) = ritual_pda(creator, nonce);
+    let stake_vault = vault_pda(b"stake-vault", &ritual).0;
+    let fee_vault = vault_pda(b"fee-vault", &ritual).0;
+    for address in [ritual, stake_vault, fee_vault] {
+        assert!(
+            context
+                .banks_client
+                .get_account(address)
+                .await
+                .unwrap()
+                .is_none(),
+            "unexpected account created at {address}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn create_ritual_rejects_wrong_solana_account_owners_with_exact_3007() {
+    let mut context = start_with_context().await;
+    let creator = context.payer.pubkey();
+    submit_context(
+        &mut context,
+        initialize_with_recipient(&creator, WRONG_OWNER_MINT, FIXTURE_RECIPIENT),
+    )
+    .await
+    .unwrap();
+    let wrong_mint_ix = create_ix_custom_with_recipient(
+        &creator,
+        100,
+        WRONG_OWNER_MINT,
+        FIXTURE_RECIPIENT,
+        vec![creator],
+        100,
+        one_event(),
+        [1; 32],
+        0,
+    );
+    assert_custom_error(submit_context(&mut context, wrong_mint_ix).await, 3007);
+    assert_ritual_accounts_absent(&mut context, &creator, 100).await;
+
+    let mut context = start_with_context().await;
+    let creator = context.payer.pubkey();
+    submit_context(
+        &mut context,
+        initialize_with_recipient(&creator, FIXTURE_MINT, WRONG_OWNER_RECIPIENT),
+    )
+    .await
+    .unwrap();
+    let wrong_recipient_ix = create_ix_custom_with_recipient(
+        &creator,
+        101,
+        FIXTURE_MINT,
+        WRONG_OWNER_RECIPIENT,
+        vec![creator],
+        100,
+        one_event(),
+        [1; 32],
+        0,
+    );
+    assert_custom_error(submit_context(&mut context, wrong_recipient_ix).await, 3007);
+    assert_ritual_accounts_absent(&mut context, &creator, 101).await;
 }
 
 #[tokio::test]

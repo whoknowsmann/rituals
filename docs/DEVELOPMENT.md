@@ -30,6 +30,10 @@ npm ci
 
 Preserve `package-lock.json`. Do not run `npm audit fix --force`; Expo, React Native, navigation, Solana, and native modules are version-coupled.
 
+## Token-2022 compile-only compatibility
+
+Both workspace manifests enable `anchor-spl/token_2022` solely because Anchor SPL `0.31.1`'s `idl_build.rs` unconditionally references the Token-2022 `token_interface` wrappers while generating the IDL. This is compile/IDL-generation support only. Runtime code imports classic `anchor_spl::token::{Mint, TokenAccount, Token}` and requires the classic SPL Token program (`TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`) for `Program<Token>`; it rejects system-program-owned and Token-2022-owned mint or token-account inputs. The program does not support Token-2022 at runtime.
+
 ## Current JavaScript quality gates
 
 ```bash
@@ -115,7 +119,7 @@ cargo build --locked --workspace
 cargo test --manifest-path program-tests/Cargo.toml --locked
 ```
 
-The production workspace intentionally excludes `program-tests`: the SBF build uses the older platform Cargo toolchain and its own compatible lock, while native ProgramTest uses host Cargo and the modern Solana 2.3.1 graph. The native harness contains fifteen tests covering exact state, signer and validation failures, duplicate initialization, API compilation, paused-protocol rejection, and locked-fee immutability across simulated configuration replacement. `anchor build` generates `target/deploy/rituals.so` and `target/idl/rituals.json` without deploying them; on a clean build it may also generate a disposable ignored `target/deploy/rituals-keypair.json`, which is a build artifact and must be removed. The fixed program ID in `Anchor.toml` and `declare_id!` is a **LOCAL TEST PLACEHOLDER** only. A later explicit credential operation must replace and synchronize it before devnet deployment.
+The production workspace intentionally excludes `program-tests`: the SBF build uses the older platform Cargo toolchain and its own compatible lock, while native ProgramTest uses host Cargo and the modern Solana 2.3.1 graph. The native harness contains eighteen tests covering exact state, signer and validation failures, duplicate initialization, API compilation, paused-protocol rejection, wrong Solana-account owners, and locked-fee immutability across simulated configuration replacement. `anchor build` generates `target/deploy/rituals.so` and `target/idl/rituals.json` without deploying them; on a clean build it may also generate a disposable ignored `target/deploy/rituals-keypair.json`, which is a build artifact and must be removed. The fixed program ID in `Anchor.toml` and `declare_id!` is a **LOCAL TEST PLACEHOLDER** only. A later explicit credential operation must replace and synchronize it before devnet deployment.
 
 Root lock assertions must remain true: it excludes `solana-program-test`, `block-buffer 0.12.1`, `digest 0.11.3`, and `blake3 >= 1.8`; `program-tests/Cargo.lock` contains the native modern graph. CI uses immutable commit pins for checkout, setup-node, cache, and the Rust toolchain. The Anchor CLI source is installed from the reviewed commit corresponding to tag `v0.31.1`; the Solana `v3.0.13` installer is SHA-256 checked before execution. Remote CI remains unverified.
 

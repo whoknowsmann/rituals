@@ -40,6 +40,10 @@ Compatibility evidence now includes the production ProtocolConfig initializer's 
 
 Production mobile should use a thin typed `@solana/web3.js` client from a frozen IDL rather than importing `@coral-xyz/anchor`. Keep the spike's generated keypairs, build output, validator ledger, and client quarantined.
 
+## Token-2022 boundary
+
+The `anchor-spl/token_2022` feature is enabled in both workspace manifests solely for compilation/IDL generation: Anchor SPL `0.31.1`'s `idl_build.rs` unconditionally references its Token-2022 `token_interface` wrappers. Runtime imports remain classic `anchor_spl::token::{Mint, TokenAccount, Token}` and `create_ritual` requires the classic Tokenkeg program for `Program<Token>`. System-program-owned and Token-2022-owned mint/token accounts are rejected, and this implementation provides no Token-2022 runtime support.
+
 ## Trust boundaries
 
 Treat as untrusted:
