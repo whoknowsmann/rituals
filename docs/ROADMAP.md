@@ -41,7 +41,7 @@ Status labels describe observed implementation, not aspiration.
 - [x] Create immutable ritual/member configuration
 - [x] Task11: enforce immutable Ritual creation invariants, group-pool overflow, and group-based locked fee math
 - [x] Task12A: validate classic SPL mint/fee recipient and create empty Ritual-PDA token vaults
-- [x] Task12B1: exact HOST-mode SPL funding with bitmap/liability accounting; SPLIT explicitly deferred
+- [x] Task12B1/Task12B2: exact HOST- and SPLIT-mode SPL funding with bitmap/liability accounting; activation/cancellation remain unchecked
 - [ ] Lock exact activation fee at activation
 - [ ] Cancel safely before activation
 - [ ] Sign completion claims

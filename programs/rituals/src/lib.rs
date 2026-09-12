@@ -172,34 +172,17 @@ pub mod rituals {
             ctx.accounts.ritual.status == RitualStatus::Funding,
             RitualsError::InvalidRitualStatus
         );
-        require!(
-            ctx.accounts.ritual.fee_payer_mode == FeePayerMode::Host,
-            RitualsError::SplitFundingNotImplemented
-        );
-
         let ritual = &ctx.accounts.ritual;
         let member_count = ritual.members.len() as u8;
         let member_mask = (1u16
             .checked_shl(member_count as u32)
             .ok_or(RitualsError::FundingStateInconsistent)?
             - 1) as u8;
-        let creator_index = ritual
-            .members
-            .iter()
-            .position(|member| *member == ritual.creator)
-            .ok_or(RitualsError::FundingStateInconsistent)?;
-        let creator_bit = 1u8
-            .checked_shl(creator_index as u32)
-            .ok_or(RitualsError::FundingStateInconsistent)?;
         let expected_stake = ritual
             .member_total_stake
             .checked_mul(ritual.funded_member_count as u64)
             .ok_or(RitualsError::FundingStateInconsistent)?;
-        let expected_fee = if ritual.funded_members_bitmap & creator_bit != 0 {
-            ritual.locked_activation_fee
-        } else {
-            0
-        };
+        let expected_fee = ritual.expected_fee_for_bitmap(ritual.funded_members_bitmap)?;
         require!(
             ritual.funded_member_count == ritual.funded_members_bitmap.count_ones() as u8
                 && ritual.funded_members_bitmap & !member_mask == 0
@@ -221,11 +204,7 @@ pub mod rituals {
         );
 
         let stake = ritual.member_total_stake;
-        let fee = if ctx.accounts.member.key() == ritual.creator {
-            ritual.locked_activation_fee
-        } else {
-            0
-        };
+        let fee = ritual.fee_share_for_member_index(member_index)?;
         let total = stake
             .checked_add(fee)
             .ok_or(RitualsError::FundingAmountOverflow)?;
@@ -262,11 +241,7 @@ pub mod rituals {
             .member_total_stake
             .checked_mul(next_count as u64)
             .ok_or(RitualsError::FundingAccountingOverflow)?;
-        let expected_next_fee = if next_bitmap & creator_bit != 0 {
-            ritual.locked_activation_fee
-        } else {
-            0
-        };
+        let expected_next_fee = ritual.expected_fee_for_bitmap(next_bitmap)?;
         require!(
             next_stake == expected_next_stake
                 && next_fee == expected_next_fee
@@ -445,6 +420,53 @@ pub struct Ritual {
     pub created_at: i64,
     pub activated_at: i64,
     pub bump: u8,
+}
+
+impl Ritual {
+    fn fee_share_for_member_index(&self, index: usize) -> Result<u64> {
+        let member = self
+            .members
+            .get(index)
+            .ok_or(RitualsError::FundingStateInconsistent)?;
+        match self.fee_payer_mode {
+            FeePayerMode::Host => Ok(if *member == self.creator {
+                self.locked_activation_fee
+            } else {
+                0
+            }),
+            FeePayerMode::Split => {
+                let count = self.members.len() as u64;
+                let base = self
+                    .locked_activation_fee
+                    .checked_div(count)
+                    .ok_or(RitualsError::FundingStateInconsistent)?;
+                let remainder = self.locked_activation_fee % count;
+                base.checked_add(u64::from((index as u64) < remainder))
+                    .ok_or(RitualsError::FundingAccountingOverflow.into())
+            }
+        }
+    }
+
+    fn expected_fee_for_bitmap(&self, bitmap: u8) -> Result<u64> {
+        let count = self.members.len();
+        let mask = (1u16
+            .checked_shl(count as u32)
+            .ok_or(RitualsError::FundingStateInconsistent)?
+            - 1) as u8;
+        require!(bitmap & !mask == 0, RitualsError::FundingStateInconsistent);
+        let mut total = 0u64;
+        for index in 0..count {
+            let bit = 1u8
+                .checked_shl(index as u32)
+                .ok_or(RitualsError::FundingStateInconsistent)?;
+            if bitmap & bit != 0 {
+                total = total
+                    .checked_add(self.fee_share_for_member_index(index)?)
+                    .ok_or(RitualsError::FundingAccountingOverflow)?;
+            }
+        }
+        Ok(total)
+    }
 }
 
 #[error_code]

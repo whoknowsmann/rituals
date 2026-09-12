@@ -481,7 +481,7 @@ async fn host_funding_tracks_ordered_members_and_exact_liabilities() {
 }
 
 #[tokio::test]
-async fn split_funding_is_explicitly_deferred_without_movement() {
+async fn split_funding_uses_exact_member_share() {
     let creator = Keypair::new();
     let other = Keypair::new();
     let source = Pubkey::new_from_array([22; 32]);
@@ -497,33 +497,16 @@ async fn split_funding_is_explicitly_deferred_without_movement() {
     .await
     .unwrap();
     let ritual = ritual_pda(&creator.pubkey(), 2);
-    let before = context
-        .banks_client
-        .get_account(ritual)
-        .await
-        .unwrap()
-        .unwrap()
-        .data;
-    assert_error(
-        submit(
-            &mut context,
-            vec![fund_ix(creator.pubkey(), 2, other.pubkey(), source)],
-            &[&other],
-        )
-        .await,
-        6023,
-    );
-    assert_eq!(
-        context
-            .banks_client
-            .get_account(ritual)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-        before
-    );
-    assert_eq!(amount(&mut context, source).await, 150);
+    submit(
+        &mut context,
+        vec![fund_ix(creator.pubkey(), 2, other.pubkey(), source)],
+        &[&other],
+    )
+    .await
+    .unwrap();
+    let state = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_eq!((state.funded_members_bitmap, state.funded_fee_total), (1, 25));
+    assert_eq!(amount(&mut context, source).await, 25);
 }
 
 #[tokio::test]

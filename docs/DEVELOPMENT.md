@@ -2,7 +2,7 @@
 
 ## Current repository state
 
-The codebase runs the verified Preflight prototype plus pure Rituals contracts, a production Anchor ProtocolConfig initializer, Task12A classic SPL mint validation, and Task12B1 exact HOST-mode funding. SPLIT funding is explicitly deferred; activation, cancellation, and mobile Rituals UI are not implemented. Use `docs/plans/2026-09-09-rituals-rebuild.md` for the rebuild and do not claim future acceptance criteria before observing them.
+The codebase runs the verified Preflight prototype plus pure Rituals contracts, a production Anchor ProtocolConfig initializer, Task12A classic SPL mint validation, and exact HOST/SPLIT-mode funding. Activation, cancellation, and mobile Rituals UI are not implemented. Use `docs/plans/2026-09-09-rituals-rebuild.md` for the rebuild and do not claim future acceptance criteria before observing them.
 
 ## Observed baseline
 
@@ -42,7 +42,7 @@ npm run typecheck
 npm run doctor
 ```
 
-Re-run and record the exact current test count before the Rituals branch begins. Native integration coverage lives in `program-tests/tests/create_ritual.rs`, `initialize.rs`, and `fund_member.rs`; the HOST funding suite has exactly 15 tests and asserts exact Anchor custom error numbers, byte-for-byte rejection snapshots, stored-plus-PDA vault defenses, and persisted bitmap/count/liability invariants. Errors 6020-6026 remain stable; malformed pre-state uses appended 6027.
+Re-run and record the exact current test count before the Rituals branch begins. Native integration coverage lives in `program-tests/tests/create_ritual.rs`, `initialize.rs`, and `fund_member.rs`; the HOST funding suite has exactly 15 tests and the SPLIT suite adds four test functions (including one looped 2–6-member/remainder matrix); together with the existing native tests, the harness has 52 test functions and asserts exact Anchor custom error numbers, byte-for-byte rejection snapshots, stored-plus-PDA vault defenses, and persisted bitmap/count/liability invariants. Errors 6020-6026 remain stable; malformed pre-state uses appended 6027.
 
 ## Android bundle smoke test
 
