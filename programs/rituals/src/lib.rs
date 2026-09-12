@@ -178,6 +178,35 @@ pub mod rituals {
         );
 
         let ritual = &ctx.accounts.ritual;
+        let member_count = ritual.members.len() as u8;
+        let member_mask = (1u16
+            .checked_shl(member_count as u32)
+            .ok_or(RitualsError::FundingStateInconsistent)?
+            - 1) as u8;
+        let creator_index = ritual
+            .members
+            .iter()
+            .position(|member| *member == ritual.creator)
+            .ok_or(RitualsError::FundingStateInconsistent)?;
+        let creator_bit = 1u8
+            .checked_shl(creator_index as u32)
+            .ok_or(RitualsError::FundingStateInconsistent)?;
+        let expected_stake = ritual
+            .member_total_stake
+            .checked_mul(ritual.funded_member_count as u64)
+            .ok_or(RitualsError::FundingStateInconsistent)?;
+        let expected_fee = if ritual.funded_members_bitmap & creator_bit != 0 {
+            ritual.locked_activation_fee
+        } else {
+            0
+        };
+        require!(
+            ritual.funded_member_count == ritual.funded_members_bitmap.count_ones() as u8
+                && ritual.funded_members_bitmap & !member_mask == 0
+                && ritual.funded_stake_total == expected_stake
+                && ritual.funded_fee_total == expected_fee,
+            RitualsError::FundingStateInconsistent
+        );
         let member_index = ritual
             .members
             .iter()
@@ -216,16 +245,33 @@ pub mod rituals {
             .funded_fee_total
             .checked_add(fee)
             .ok_or(RitualsError::FundingAccountingOverflow)?;
-        let next_bitmap = ritual
-            .funded_members_bitmap
-            .checked_add(bit)
-            .ok_or(RitualsError::FundingAccountingOverflow)?;
+        let next_bitmap = ritual.funded_members_bitmap | bit;
+        let group_pool = ritual
+            .member_total_stake
+            .checked_mul(member_count as u64)
+            .ok_or(RitualsError::FundingStateInconsistent)?;
         require!(
             next_count <= ritual.members.len() as u8,
             RitualsError::FundingAccountingOverflow
         );
         require!(
             next_bitmap & bit != 0,
+            RitualsError::FundingAccountingOverflow
+        );
+        let expected_next_stake = ritual
+            .member_total_stake
+            .checked_mul(next_count as u64)
+            .ok_or(RitualsError::FundingAccountingOverflow)?;
+        let expected_next_fee = if next_bitmap & creator_bit != 0 {
+            ritual.locked_activation_fee
+        } else {
+            0
+        };
+        require!(
+            next_stake == expected_next_stake
+                && next_fee == expected_next_fee
+                && next_stake <= group_pool
+                && next_fee <= ritual.locked_activation_fee,
             RitualsError::FundingAccountingOverflow
         );
 
@@ -319,9 +365,9 @@ pub struct FundMember<'info> {
     pub stake_mint: Account<'info, Mint>,
     #[account(mut, constraint = member_source.mint == stake_mint.key(), constraint = member_source.owner == member.key())]
     pub member_source: Account<'info, TokenAccount>,
-    #[account(mut, address = ritual.stake_vault, constraint = stake_vault.mint == stake_mint.key(), constraint = stake_vault.owner == ritual.key())]
+    #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, token::mint = stake_mint, token::authority = ritual)]
     pub stake_vault: Account<'info, TokenAccount>,
-    #[account(mut, address = ritual.fee_vault, constraint = fee_vault.mint == stake_mint.key(), constraint = fee_vault.owner == ritual.key())]
+    #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, token::mint = stake_mint, token::authority = ritual)]
     pub fee_vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
@@ -457,4 +503,6 @@ pub enum RitualsError {
     InsufficientSourceFunds,
     #[msg("funding accounting overflowed")]
     FundingAccountingOverflow,
+    #[msg("funding state is inconsistent")]
+    FundingStateInconsistent,
 }

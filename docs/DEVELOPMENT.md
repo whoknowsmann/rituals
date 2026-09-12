@@ -42,7 +42,7 @@ npm run typecheck
 npm run doctor
 ```
 
-Re-run and record the exact current test count before the Rituals branch begins. Native integration coverage lives in `program-tests/tests/create_ritual.rs` and `initialize.rs`; it asserts exact Anchor custom error numbers and verifies the persisted account schema/state.
+Re-run and record the exact current test count before the Rituals branch begins. Native integration coverage lives in `program-tests/tests/create_ritual.rs`, `initialize.rs`, and `fund_member.rs`; the HOST funding suite has exactly 15 tests and asserts exact Anchor custom error numbers, byte-for-byte rejection snapshots, stored-plus-PDA vault defenses, and persisted bitmap/count/liability invariants. Errors 6020-6026 remain stable; malformed pre-state uses appended 6027.
 
 ## Android bundle smoke test
 
