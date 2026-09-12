@@ -1,70 +1,23 @@
-# Rituals (rebuild planned; repository currently contains Preflight)
+# Rituals
 
-Rituals is a Solana Mobile accountability app for private groups:
+Rituals is a Solana Mobile accountability app for private groups: friends commit to a recurring activity, fund an equal stake, and confirm completion under a shared rule.
 
-> Put your money where your mouth is.
+## Current status
 
-A member signs that they completed a recurring commitment. The ritual's immutable policy requires a configured number of other funded members to co-sign. Once that threshold is reached, a purpose-built Solana program settles the event's escrow tranche under rules accepted before funding.
+The active app is a visible, fixture-backed Rituals home screen. It loads populated, funding, pending-confirmation, completed, empty, and error states from a deterministic repository and labels the data `DEVNET` / `NO REAL VALUE`. Rituals domain contracts cover draft, invite, lifecycle, money, settlement, and threshold behavior. Activation is implemented and approved. Cancellation is implemented but remains in review; it is not an approved/complete release feature.
 
-## Honest repository status
+The app uses hosted-model-compatible architecture but no hosted model is active in the current home slice. Wallet authorization is configured for Solana devnet through Mobile Wallet Adapter. No real transaction is submitted by the fixture home actions.
 
-The active repository implementation is still the verified **Preflight** Android prototype. The Rituals product, protocol, architecture, and rebuild sequence are documented, but no Rituals React Native screen or Solana escrow program has landed yet.
+This branch contains no active archived product UI or domain code. Git history is the rollback/archive boundary.
 
-Implemented and previously verified:
+## Stack
 
-- Expo/React Native Android application shell;
-- Mobile Wallet Adapter dependencies and authorization plumbing;
-- deterministic Solana legacy/v0 transaction decoding;
-- exact reviewed-byte fingerprinting;
-- Preflight CLEAR/HOLD/ABORT fixture/domain/UI slice;
-- 31 tests at the last recorded baseline;
-- TypeScript and Expo Doctor passing;
-- Android bundle export;
-- private GitHub CI;
-- signed development APK built, installed, and launched on a physical Solana Seeker.
+- Expo `~52.0.49` / React Native `0.76`
+- TypeScript, React Navigation, React Native Paper, TanStack Query
+- `@solana/web3.js`, SPL Token, Solana Mobile Wallet Adapter
+- Vitest and EAS Android builds
 
-Planned Rituals P0:
-
-- private groups of two to six funded members;
-- equal stake split into one tranche per recurring event;
-- Honor, one-friend, majority, and unanimous confirmation thresholds;
-- MWA-signed create, fund, claim, confirm/question, and settle actions;
-- program-controlled SPL-token escrow;
-- complete forfeiture redistribution to confirmed members;
-- disclosed activation fee independent of success/failure;
-- devnet and valueless test token only;
-- signed standalone Seeker APK and two-wallet acceptance run.
-
-Do not interpret design documents or HTML sketches as implemented mobile behavior.
-
-## Approved future doors (not implemented)
-
-- **Solo rituals — P1 candidate:** self-attestation may return completed event tranches, but any missed-tranche destination must be precommitted, non-platform, and policy/custody-safe before valuable funds are supported. P0 remains two to six funded members.
-- **Public/app-wide challenge templates — exploratory P2:** preserve versioned schemas and narrow adapters for a possible later mode. P0 has no discovery, feed, leaderboards, stranger betting, or sponsor pools.
-
-## Why this is multisig-like, not a shared multisig wallet
-
-A conventional multisig authorizes arbitrary transactions from one treasury. Rituals uses threshold signatures to authorize only a specific completion-claim state transition. Confirmers cannot choose recipients, alter amounts, or withdraw future tranches. The program executes the fixed payout formula.
-
-Consumer wording:
-
-> You sign that you did it. Your friends co-sign. The contract handles the rest.
-
-## Current stack
-
-- Expo `~52.0.49`
-- React Native `0.76`
-- TypeScript
-- React Navigation
-- React Native Paper
-- TanStack Query
-- `@solana/web3.js` 1.x
-- SPL Token
-- Solana Mobile Wallet Adapter
-- Vitest
-- EAS Android builds
-
-The compatibility spike is complete: Anchor `0.31.1` is feasible for the onchain program when its Rust-1.84-compatible transitive crates are pinned. Production mobile should use a thin typed `@solana/web3.js` client generated from a frozen IDL. Actual Rituals native MWA signing, token escrow, devnet deployment, and two-wallet flow remain unvalidated. Any missing global toolchain installation still requires explicit approval.
+`app.json` retains the existing slug, Android package, iOS bundle identifier, and EAS project ID as legacy build identifiers so the current build linkage is not broken. They are not the visible product identity; the visible name and wallet identity are Rituals. The private-repository URI in wallet identity remains temporary until a public origin exists.
 
 ## Local verification
 
@@ -78,31 +31,20 @@ npx expo export --platform android --output-dir .verify/expo-export
 rm -rf .verify/expo-export
 ```
 
-The bundle export proves Metro can create Android JavaScript output. It is not an APK, native-module test, MWA test, or device acceptance test.
+The export is a disposable Metro bundle smoke test, not APK, native MWA, wallet, or release proof. Expo Go cannot exercise the native MWA package.
 
-Expo Go cannot exercise the required native MWA package. Use a custom development/standalone Android build with an MWA-compatible wallet.
+## Safety boundary
 
-## Product safety boundary
-
-- Never request or store a seed phrase/private key.
-- Every ordinary wallet action uses MWA.
-- P0 uses devnet and valueless test assets.
-- A signature proves who attested; it does not prove the real-world activity.
-- Pending or questioned claims cannot silently become forfeitures.
-- Rituals takes no percentage of forfeitures.
-- Mainnet stablecoins are gated on applicable-law/publisher-policy review, dispute/liveness hardening, independent program review, privacy controls, and production operations.
+P0 is devnet with valueless test assets and explicit no-real-value labeling. Never request or store seed phrases, private keys, tokens, keystores, or valuable wallet material. A wallet signature proves attestation, not physical-world truth. Mainnet and valuable assets require independent program review, legal/publisher review, privacy controls, and an exercised two-wallet flow.
 
 ## Documentation
 
-- `docs/plans/2026-09-09-rituals-rebuild.md` — executable rebuild plan and acceptance gates
-- `docs/ARCHITECTURE.md` — current implementation versus target architecture
-- `docs/IMPLEMENTATION_PLAN.md` — implementation-plan index and historical boundary
-- `docs/DEVELOPMENT.md` — verified commands, device/build workflow, and TDD rules
-- `docs/SECURITY.md` — present and target trust boundaries
-- `docs/ROADMAP.md` — completed, active, and deferred milestones
+- `docs/ARCHITECTURE.md` — observed active boundaries
+- `docs/DEVELOPMENT.md` — setup and verification
+- `docs/ROADMAP.md` — completed and remaining work
+- `docs/SECURITY.md` — current limits and trust boundaries
+- `docs/plans/2026-09-09-rituals-rebuild.md` — historical rebuild plan
 
-Product and hackathon decisions are maintained in Jack's Hub Obsidian vault under `Projects/Preflight`; the dashboard note is `Rituals - Project Home.md`. The directory retains its historical name for now so existing links are not broken.
+## Sketch
 
-## Repository visibility
-
-This repository is private. Do not push credentials, wallets, seed phrases, deployment-authority files, Android keystores, EAS tokens, `.env` files, RPC secrets, or valuable test material.
+The retained consumer sketch is `sketches/consumer-pivot/001-rituals/`; its README and screenshot are the only active consumer-pivot artifacts.

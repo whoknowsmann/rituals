@@ -1,40 +1,20 @@
 # Development
 
-## Current repository state
+## Current state
 
-The codebase runs the verified Preflight prototype plus pure Rituals contracts, a production Anchor ProtocolConfig initializer, Task12A classic SPL mint validation, and exact HOST/SPLIT-mode funding. Activation, cancellation, and mobile Rituals UI are not implemented. Use `docs/plans/2026-09-09-rituals-rebuild.md` for the rebuild and do not claim future acceptance criteria before observing them.
+Rituals is the active product. The visible app is a deterministic, fixture-backed home slice with loading, populated, funding, pending-confirmation, completed, empty, and error states. Activation is implemented and approved. Cancellation is implemented but remains in review, not approved or complete. No real transaction is submitted by the fixture home actions.
 
-## Observed baseline
+The JavaScript/TypeScript source contains only active Rituals app code plus generic shell, cluster, and wallet plumbing. The retired product is preserved only by Git history.
 
-Last verified before this documentation correction:
-
-- Ubuntu 24.04 under WSL2;
-- Expo `~52.0.49`;
-- React Native `0.76`;
-- Node/npm/JDK details must be re-read live before build/toolchain decisions;
-- 281 JavaScript/TypeScript tests passed;
-- TypeScript passed;
-- Expo Doctor passed 18/18;
-- Android Metro export succeeded;
-- a signed EAS development APK was installed/launched on a physical Seeker;
-- Windows ADB provided the working USB transport;
-- MWA packages/plumbing exist, but a complete real Rituals transaction flow does not.
-
-Do not copy stale system-version values from this document into troubleshooting; inspect live state.
-
-## Clean setup
+## Setup
 
 ```bash
 npm ci
 ```
 
-Preserve `package-lock.json`. Do not run `npm audit fix --force`; Expo, React Native, navigation, Solana, and native modules are version-coupled.
+Do not run `npm audit fix --force`; Expo, React Native, navigation, Solana, and native modules are version-coupled.
 
-## Token-2022 compile-only compatibility
-
-Both workspace manifests enable `anchor-spl/token_2022` solely because Anchor SPL `0.31.1`'s `idl_build.rs` unconditionally references the Token-2022 `token_interface` wrappers while generating the IDL. This is compile/IDL-generation support only. Runtime code imports classic `anchor_spl::token::{Mint, TokenAccount, Token}` and requires the classic SPL Token program (`TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`) for `Program<Token>`; it rejects system-program-owned and Token-2022-owned mint or token-account inputs. The program does not support Token-2022 at runtime.
-
-## Current JavaScript quality gates
+## JavaScript quality gates
 
 ```bash
 npm test
@@ -42,11 +22,9 @@ npm run typecheck
 npm run doctor
 ```
 
-Native integration coverage lives in `program-tests/tests/create_ritual.rs`, `initialize.rs`, `fund_member.rs`, and `fund_split.rs`; the HOST funding suite has exactly 15 tests and the SPLIT suite has four test functions (including one looped 2–6-member/remainder matrix). The native harness has exactly 37 unique tests: create 11 + initialize 7 + HOST 15 + SPLIT 4. It asserts exact Anchor custom error numbers, complete Account-object rejection snapshots, stored-plus-PDA vault defenses, and persisted bitmap/count/liability invariants. Errors 6020-6026 remain stable; malformed pre-state uses appended 6027.
+The hygiene test scans active `App.tsx` and `src` for the archived product name and deleted imports. Keep it green when adding screens or routes. The exact test total is measured from the current checkout; do not copy historical totals into status claims.
 
 ## Android bundle smoke test
-
-Use a disposable directory inside the project:
 
 ```bash
 rm -rf .verify/expo-export
@@ -54,138 +32,22 @@ npx expo export --platform android --output-dir .verify/expo-export
 rm -rf .verify/expo-export
 ```
 
-This proves Metro can emit an Android JavaScript bundle. It is not an APK, installation test, native-module test, wallet test, or standalone release proof.
+This proves Metro can emit an Android JavaScript bundle. It is not an APK, native-module test, wallet test, or standalone release proof. Expo Go cannot load native Mobile Wallet Adapter.
 
-CI currently writes its export to `/tmp/preflight-expo-export`; the local command above uses `.verify/expo-export` so disposable artifacts stay within the repository and can be cleaned explicitly.
+## Wallet and build identity
 
-## Android and MWA
+MWA authorization uses Rituals on Solana devnet. The wallet URI is still the private repository URI until a public HTTPS origin exists. The Expo slug, Android package, iOS bundle identifier, and EAS project ID remain unchanged legacy build identifiers; do not change them as part of this product migration without a separate build-linkage decision.
 
-Expo Go cannot load the required native Mobile Wallet Adapter package.
+Use a custom development or standalone Android build for native MWA checks. Every future state-changing action must show its exact effect, request MWA authorization, wait for confirmation, read back the target state, and mark success only from observed state.
 
-Use:
+## Native boundary
 
-- source/tests/EAS commands in WSL;
-- Windows ADB for USB transport;
-- physical Solana Seeker as the native/MWA source of truth;
-- EAS development build for iteration;
-- signed standalone/internal APK for final acceptance.
+Rust, program tests, Cargo, and Anchor files are maintained independently from this JavaScript/docs migration. Run their pinned commands only when working on that boundary. Existing local/native artifacts and placeholder IDs are not deployment credentials or production proof.
 
-Before device work, load the Solana Mobile skill's verified Android/EAS reference and inspect live ADB/device state. Do not assume a serial, port, SDK path, Metro process, or wallet session remains current.
+## TDD and hygiene
 
-Every state-changing action must:
-
-1. present exact effect;
-2. request MWA authorization/signature;
-3. wait for transaction confirmation;
-4. fetch the exact target account/balances;
-5. mark success only when expected state is observed.
-
-## Program toolchain
-
-The quarantined compatibility spike established the following observed versions and result:
-
-- Rust `1.93.1` host toolchain; Solana platform build tooling used Rust `1.84.1-dev`;
-- Solana CLI `3.0.13` (Agave);
-- Anchor CLI `0.31.1`;
-- Node `26.3.0`, npm `11.16.0`, Java `21.0.12`;
-- Anchor `0.31.1` onchain build and local-validator instruction/readback: validated with Rust-1.84-compatible transitive crate pins;
-- existing Expo bundle with the thin web3.js client path: validated;
-- native MWA signing for Rituals: not exercised and unvalidated.
-
-Before production program work:
-
-```bash
-rustc --version || true
-cargo --version || true
-solana --version || true
-anchor --version || true
-node --version
-npm --version
-java -version
-```
-
-Do not install or globally change Rust, Solana CLI, Anchor, Node, Java, Android tooling, or package managers without presenting the exact need and receiving approval.
-
-The spike remains throwaway code under `spikes/001-anchor-mwa-compatibility/`; none of it is production code. Production workspace files may now land using its pinned-version and client strategy, but actual Rituals token escrow, program economics, security, devnet deployment, native MWA signing, and the two-wallet flow still require separate verification.
-
-Production workspace commands:
-
-```bash
-# SBF build and generated IDL (uses the root Cargo.lock)
-anchor build
-# Production crate compilation without native test dependencies
-cargo build --locked --workspace
-# Host-only ProgramTest harness (uses its independent lock)
-cargo test --manifest-path program-tests/Cargo.toml --locked
-```
-
-The production workspace intentionally excludes `program-tests`: the SBF build uses the older platform Cargo toolchain and its own compatible lock, while native ProgramTest uses host Cargo and the modern Solana 2.3.1 graph. The native harness contains exactly 37 unique tests: create 11, initialize 7, HOST funding 15, and SPLIT funding 4. They cover exact state, signer and validation failures, duplicate initialization, API compilation, paused-protocol rejection, wrong Solana-account owners, locked-fee immutability across simulated configuration replacement, complete HOST/SPLIT rejection snapshots, out-of-range bitmap bits, deterministic split shares, and funding adversarial coverage. `anchor build` generates `target/deploy/rituals.so` and `target/idl/rituals.json` without deploying them; on a clean build it may also generate a disposable ignored `target/deploy/rituals-keypair.json`, which is a build artifact and must be removed. The fixed program ID in `Anchor.toml` and `declare_id!` is a **LOCAL TEST PLACEHOLDER** only. A later explicit credential operation must replace and synchronize it before devnet deployment.
-
-Root lock assertions must remain true: it excludes `solana-program-test`, `block-buffer 0.12.1`, `digest 0.11.3`, and `blake3 >= 1.8`; `program-tests/Cargo.lock` contains the native modern graph. CI uses immutable commit pins for checkout, setup-node, cache, and the Rust toolchain. The Anchor CLI source is installed from the reviewed commit corresponding to tag `v0.31.1`; the Solana `v3.0.13` installer is SHA-256 checked before execution. Remote CI remains unverified.
-
-After verification, remove `target/`, `.anchor/`, test ledgers, and deployment keypairs. Never create or retain a stable devnet authority in this repository.
-
-Run the native harness directly with `cargo test --manifest-path program-tests/Cargo.toml --locked`. Do not use `anchor test` for this scaffold: Anchor's command remains deployment-oriented before invoking any configured script, while the credential-free native harness intentionally registers the fixed placeholder ID in ProgramTest.
-
-## Strict TDD workflow
-
-For every new behavior:
-
-1. write one focused failing test;
-2. run it and confirm it fails because the behavior is missing;
-3. implement only enough to pass;
-4. run the focused test;
-5. run the relevant full suite;
-6. refactor only while green;
-7. commit the coherent slice.
-
-Pure money and lifecycle logic must not be written before its failing test.
-
-## Current test files
-
-Preflight/historical foundation:
-
-- `src/domain/preflight/analyze.test.ts`
-- `src/domain/preflight/inspectTransaction.test.ts`
-- `src/domain/preflight/reviewIdentity.test.ts`
-- `src/domain/solana/decodeTransaction.test.ts`
-- `src/components/preflight/resultViewModel.test.ts`
-
-Planned Rituals tests are listed task-by-task in the rebuild plan.
+For new behavior: write a focused failing test, run it, implement the minimum, run the focused test, run the relevant suite, then refactor while green. Never add secrets, wallet material, keystores, tokens, or unsanitized device logs.
 
 ## Git workflow
 
-- Repository remains private.
-- Create `feat/rituals-rebuild` before production changes.
-- Commit the plan before code.
-- Keep commits small and green.
-- Do not push unless authorized.
-- Do not rewrite or delete the known-good Preflight history.
-- Keep deployment IDs, test-mint facts, and scrubbed acceptance evidence in docs; keep authorities and secrets out of Git.
-
-Never commit:
-
-- seed phrases/private keys;
-- wallet/deployment-authority keypairs;
-- Android keystores;
-- EAS/GitHub/RPC tokens;
-- `.env` files;
-- valuable-wallet data;
-- unsanitized device logs.
-
-## Dependency strategy
-
-The Expo 52 baseline has unresolved advisories. Classify affected direct/transitive paths and shipped-runtime relevance. Test any framework migration in an isolated worktree, one Expo SDK at a time, and merge only after tests, typecheck, Doctor, Android export, APK, and MWA regression checks pass.
-
-Do not mix an Expo upgrade with the first Rituals vertical slice unless the existing stack blocks the required program/MWA integration.
-
-## Acceptance documents
-
-During implementation create and keep current:
-
-- `docs/DEVNET_DEMO.md`
-- `docs/DEVNET_ACCEPTANCE.md`
-- `docs/THREAT_MODEL.md`
-- `docs/PUBLISHER_CHECKLIST.md`
-- `docs/DEMO_SCRIPT.md`
-- `docs/SUBMISSION_CHECKLIST.md`
+Keep the repository private, make coherent commits, do not push without authorization, and use Git history as the rollback boundary for archived product work. Stage only the paths owned by the current change.
