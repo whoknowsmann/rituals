@@ -2,7 +2,7 @@
 
 ## Status boundary
 
-This file distinguishes **current implemented code** from the **approved Rituals target**. Pure Rituals domain contracts, the production ProtocolConfig initializer, and Task12A classic SPL mint validation plus two empty Ritual-PDA-authorized token vaults are implemented; token funding, activation, cancellation, mobile UI, and the remaining Rituals instructions remain target work.
+This file distinguishes **current implemented code** from the **approved Rituals target**. Pure Rituals domain contracts, the production ProtocolConfig initializer, Task12A classic SPL mint validation, and Task12B1 exact HOST-mode member funding are implemented. SPLIT funding is explicitly deferred; activation, cancellation, mobile UI, and the remaining Rituals instructions remain target work.
 
 ## Current implementation
 
@@ -106,7 +106,7 @@ Production mobile should use a thin typed `@solana/web3.js` client generated or 
 
 An Anchor `0.31.1` program is the validated preferred implementation for the onchain target. Production SBF compilation and native ProgramTest are deliberately split into separate Cargo workspaces and lockfiles: the root lock is Rust-1.84/SBF-compatible, while `program-tests/Cargo.lock` is host-only and carries Solana `2.3.1`'s modern dependency graph.
 
-The production workspace currently implements `initialize_protocol_config` and `create_ritual`. The `ProtocolConfig` PDA uses seeds `[b"protocol-config"]` and stores schema version, authority, allowed stake mint, fee recipient/bounds, maximum member stake, member/event caps, pause state, and bump. Its initializer records the fee-recipient address without validating the account; `create_ritual` is the first validation boundary. `create_ritual` accepts only classic SPL `Mint`/`TokenAccount` accounts and creates distinct empty stake/fee vault PDAs whose authority is the Ritual PDA. `Ritual` PDAs use `[b"ritual", creator, nonce.to_le_bytes()]` and store immutable member order, validated schedule, stake allocation, threshold, fee payer mode, locked creation-time fee quote, mint decimals, fee-recipient/vault snapshots, and zeroed funding state. Funding, activation, and cancellation are not implemented. The fixed ID `8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB` is a **LOCAL TEST PLACEHOLDER**, not a deployable identity; no deployment keypair is retained.
+The production workspace implements `initialize_protocol_config`, `create_ritual`, and `fund_member`. The `FundMember` instruction is HOST-only: it finds the signer in ordered member state, rejects duplicate bitmap bits, transfers the exact stake and creator-only locked fee with classic `transfer_checked`, and updates bitmap/count/liability totals only after CPIs. Raw vault balances are not used as funding state, so unsolicited dust remains outside tracked liabilities. SPLIT returns `SplitFundingNotImplemented` before movement. The fixed ID `8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB` is a **LOCAL TEST PLACEHOLDER**, not a deployable identity; no deployment keypair is retained.
 
 Core records:
 

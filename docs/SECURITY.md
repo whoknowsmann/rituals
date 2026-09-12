@@ -2,13 +2,13 @@
 
 ## Honest status
 
-The current source tree still runs the Preflight mobile UI. It now also contains implemented pure Rituals contracts plus a production Anchor ProtocolConfig initializer, classic SPL mint/account validation, two empty Ritual-PDA-authorized vaults, native ProgramTest tests, and an SBF build. It does not yet contain token funding, activation, cancellation, claims/approvals/settlement, or a real devnet/MWA flow.
+The current source tree still runs the Preflight mobile UI. It now also contains implemented pure Rituals contracts plus a production Anchor ProtocolConfig initializer, classic SPL mint/account validation, exact HOST-mode SPL member funding with bitmap/liability accounting, native ProgramTest tests, and an SBF build. SPLIT funding is explicitly deferred; activation, cancellation, claims/approvals/settlement, and a real devnet/MWA flow remain unimplemented.
 
 Rituals P0 is intentionally devnet and valueless-token only. Nothing in the target architecture is a claim that mainnet funds are presently safe.
 
 ## Security claim
 
-The planned Rituals program is intended to verify wallets, signatures, immutable program state, escrow balances, thresholds, and deterministic settlement. The current implementation validates creation inputs and creates empty vaults; funding, activation, cancellation, claims, approvals, and settlement are not implemented.
+The planned Rituals program is intended to verify wallets, signatures, immutable program state, escrow balances, thresholds, and deterministic settlement. The current implementation validates creation inputs, creates program-controlled vaults, and supports HOST-only exact funding; SPLIT funding, activation, cancellation, claims, approvals, and settlement are not implemented.
 
 > A signature proves who attested, not that the underlying claim is true.
 

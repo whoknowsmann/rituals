@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
 // Local-only placeholder identity; no deployed identity is implied.
 declare_id!("8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB");
@@ -164,6 +164,103 @@ pub mod rituals {
         ritual.bump = ctx.bumps.ritual;
         Ok(())
     }
+
+    pub fn fund_member(ctx: Context<FundMember>) -> Result<()> {
+        let config = &ctx.accounts.protocol_config;
+        require!(!config.paused, RitualsError::ProtocolPaused);
+        require!(
+            ctx.accounts.ritual.status == RitualStatus::Funding,
+            RitualsError::InvalidRitualStatus
+        );
+        require!(
+            ctx.accounts.ritual.fee_payer_mode == FeePayerMode::Host,
+            RitualsError::SplitFundingNotImplemented
+        );
+
+        let ritual = &ctx.accounts.ritual;
+        let member_index = ritual
+            .members
+            .iter()
+            .position(|member| *member == ctx.accounts.member.key())
+            .ok_or(RitualsError::MemberNotFound)?;
+        let bit = 1u8
+            .checked_shl(member_index as u32)
+            .ok_or(RitualsError::FundingAccountingOverflow)?;
+        require!(
+            ritual.funded_members_bitmap & bit == 0,
+            RitualsError::AlreadyFunded
+        );
+
+        let stake = ritual.member_total_stake;
+        let fee = if ctx.accounts.member.key() == ritual.creator {
+            ritual.locked_activation_fee
+        } else {
+            0
+        };
+        let total = stake
+            .checked_add(fee)
+            .ok_or(RitualsError::FundingAmountOverflow)?;
+        require!(
+            ctx.accounts.member_source.amount >= total,
+            RitualsError::InsufficientSourceFunds
+        );
+        let next_count = ritual
+            .funded_member_count
+            .checked_add(1)
+            .ok_or(RitualsError::FundingAccountingOverflow)?;
+        let next_stake = ritual
+            .funded_stake_total
+            .checked_add(stake)
+            .ok_or(RitualsError::FundingAccountingOverflow)?;
+        let next_fee = ritual
+            .funded_fee_total
+            .checked_add(fee)
+            .ok_or(RitualsError::FundingAccountingOverflow)?;
+        let next_bitmap = ritual
+            .funded_members_bitmap
+            .checked_add(bit)
+            .ok_or(RitualsError::FundingAccountingOverflow)?;
+        require!(
+            next_count <= ritual.members.len() as u8,
+            RitualsError::FundingAccountingOverflow
+        );
+        require!(
+            next_bitmap & bit != 0,
+            RitualsError::FundingAccountingOverflow
+        );
+
+        let cpi_accounts = token::TransferChecked {
+            from: ctx.accounts.member_source.to_account_info(),
+            mint: ctx.accounts.stake_mint.to_account_info(),
+            to: ctx.accounts.stake_vault.to_account_info(),
+            authority: ctx.accounts.member.to_account_info(),
+        };
+        token::transfer_checked(
+            CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts),
+            stake,
+            ritual.stake_decimals,
+        )?;
+        if fee > 0 {
+            let cpi_accounts = token::TransferChecked {
+                from: ctx.accounts.member_source.to_account_info(),
+                mint: ctx.accounts.stake_mint.to_account_info(),
+                to: ctx.accounts.fee_vault.to_account_info(),
+                authority: ctx.accounts.member.to_account_info(),
+            };
+            token::transfer_checked(
+                CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts),
+                fee,
+                ritual.stake_decimals,
+            )?;
+        }
+
+        let ritual = &mut ctx.accounts.ritual;
+        ritual.funded_members_bitmap = next_bitmap;
+        ritual.funded_member_count = next_count;
+        ritual.funded_stake_total = next_stake;
+        ritual.funded_fee_total = next_fee;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -208,6 +305,24 @@ pub struct CreateRitual<'info> {
     )]
     pub fee_vault: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct FundMember<'info> {
+    #[account(seeds = [b"protocol-config"], bump = protocol_config.bump, address = ritual.protocol_config)]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    pub member: Signer<'info>,
+    #[account(address = ritual.stake_mint, constraint = stake_mint.decimals == ritual.stake_decimals)]
+    pub stake_mint: Account<'info, Mint>,
+    #[account(mut, constraint = member_source.mint == stake_mint.key(), constraint = member_source.owner == member.key())]
+    pub member_source: Account<'info, TokenAccount>,
+    #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, constraint = stake_vault.mint == stake_mint.key(), constraint = stake_vault.owner == ritual.key())]
+    pub stake_vault: Account<'info, TokenAccount>,
+    #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, constraint = fee_vault.mint == stake_mint.key(), constraint = fee_vault.owner == ritual.key())]
+    pub fee_vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -328,4 +443,18 @@ pub enum RitualsError {
     FeeCalculationOverflow,
     #[msg("member public keys must be non-default")]
     DefaultMember,
+    #[msg("ritual status is not funding")]
+    InvalidRitualStatus,
+    #[msg("member is not part of this ritual")]
+    MemberNotFound,
+    #[msg("member has already funded this ritual")]
+    AlreadyFunded,
+    #[msg("split funding is not implemented")]
+    SplitFundingNotImplemented,
+    #[msg("funding amount overflowed")]
+    FundingAmountOverflow,
+    #[msg("member source has insufficient funds")]
+    InsufficientSourceFunds,
+    #[msg("funding accounting overflowed")]
+    FundingAccountingOverflow,
 }
