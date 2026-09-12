@@ -289,24 +289,7 @@ pub mod rituals {
             ritual.status == RitualStatus::Funding,
             RitualsError::InvalidRitualStatus
         );
-        let member_count = ritual.members.len();
-        let member_mask = (1u16
-            .checked_shl(member_count as u32)
-            .ok_or(RitualsError::ActivationStateInconsistent)?
-            .checked_sub(1)
-            .ok_or(RitualsError::ActivationStateInconsistent)?) as u8;
-        let expected_stake = ritual
-            .member_total_stake
-            .checked_mul(member_count as u64)
-            .ok_or(RitualsError::ActivationStateInconsistent)?;
-        require!(
-            member_count > 0
-                && ritual.funded_members_bitmap == member_mask
-                && ritual.funded_member_count as usize == member_count
-                && ritual.funded_stake_total == expected_stake
-                && ritual.funded_fee_total == ritual.locked_activation_fee,
-            RitualsError::ActivationStateInconsistent
-        );
+        ritual.validate_locked_activation_state()?;
         let first_window = ritual
             .schedule
             .first()
@@ -509,6 +492,82 @@ pub struct Ritual {
 }
 
 impl Ritual {
+    fn validate_locked_activation_state(&self) -> Result<()> {
+        let member_count = self.members.len();
+        require!(
+            self.schema_version == 1 && (2..=6).contains(&member_count),
+            RitualsError::ActivationStateInconsistent
+        );
+        require!(
+            self.members
+                .iter()
+                .all(|member| *member != Pubkey::default())
+                && self.members.iter().all(|member| {
+                    self.members.iter().filter(|other| *other == member).count() == 1
+                })
+                && self.members.contains(&self.creator),
+            RitualsError::ActivationStateInconsistent
+        );
+
+        let event_count = self.schedule.len();
+        require!(
+            (1..=16).contains(&event_count),
+            RitualsError::ActivationStateInconsistent
+        );
+        for (index, window) in self.schedule.iter().enumerate() {
+            require!(
+                window.opens >= 0
+                    && window.opens < window.deadline
+                    && window.deadline < window.resolution,
+                RitualsError::ActivationStateInconsistent
+            );
+            if let Some(previous) = index.checked_sub(1).and_then(|i| self.schedule.get(i)) {
+                require!(
+                    previous.resolution < window.opens,
+                    RitualsError::ActivationStateInconsistent
+                );
+            }
+        }
+
+        require!(
+            self.member_total_stake > 0
+                && self.member_total_stake % event_count as u64 == 0
+                && self.per_event_allocation > 0
+                && self.per_event_allocation == self.member_total_stake / event_count as u64,
+            RitualsError::ActivationStateInconsistent
+        );
+        let group_pool = self
+            .member_total_stake
+            .checked_mul(member_count as u64)
+            .ok_or(RitualsError::ActivationStateInconsistent)?;
+        require!(
+            self.additional_confirmation_threshold <= (member_count - 1) as u8
+                && !self.rule_digest.iter().all(|byte| *byte == 0)
+                && self.locked_activation_fee > 0
+                && self.locked_fee_recipient != Pubkey::default(),
+            RitualsError::ActivationStateInconsistent
+        );
+
+        let member_mask = ((1u16 << member_count) - 1)
+            .try_into()
+            .map_err(|_| RitualsError::ActivationStateInconsistent)?;
+        require!(
+            self.funded_members_bitmap == member_mask
+                && self.funded_member_count as usize == member_count
+                && self.funded_member_count == self.funded_members_bitmap.count_ones() as u8
+                && self.funded_stake_total == group_pool,
+            RitualsError::ActivationStateInconsistent
+        );
+        let expected_fee = self
+            .expected_fee_for_bitmap(member_mask)
+            .map_err(|_| RitualsError::ActivationStateInconsistent)?;
+        require!(
+            self.funded_fee_total == expected_fee && self.locked_activation_fee == expected_fee,
+            RitualsError::ActivationStateInconsistent
+        );
+        Ok(())
+    }
+
     fn fee_share_for_member_index(&self, index: usize) -> Result<u64> {
         let member = self
             .members
