@@ -344,6 +344,7 @@ pub mod rituals {
             ritual.status == RitualStatus::Funding,
             RitualsError::InvalidRitualStatus
         );
+        ritual.validate_cancellation_state()?;
         let first_window = ritual
             .schedule
             .first()
@@ -355,7 +356,6 @@ pub mod rituals {
                 RitualsError::InvalidCancellationAuthority
             );
         }
-        ritual.validate_cancellation_state()?;
         require!(
             ctx.remaining_accounts.len() == ritual.members.len(),
             RitualsError::InvalidRefundAccountCount
@@ -740,6 +740,13 @@ impl Ritual {
 
     fn validate_cancellation_state(&self) -> Result<()> {
         let member_count = self.members.len();
+        require!(
+            self.activated_at == 0
+                && self.cancelled_at == 0
+                && self.current_event_index == 0
+                && self.settled_event_count == 0,
+            RitualsError::CancellationStateInconsistent
+        );
         require!(
             self.schema_version == 1 && (2..=6).contains(&member_count),
             RitualsError::CancellationStateInconsistent
