@@ -712,7 +712,8 @@ async fn split_cancellation_n3_remainder_shuffled_full_and_partial_are_exact() {
     submit(&mut context, vec![init, create], &[&members[0]])
         .await
         .unwrap();
-    for index in [2usize, 0, 1] {
+    // Only members 2 and 0 fund, deliberately shuffled; member 1 is untouched.
+    for index in [2usize, 0] {
         submit(
             &mut context,
             vec![fund_ix(
@@ -731,6 +732,23 @@ async fn split_cancellation_n3_remainder_shuffled_full_and_partial_are_exact() {
         Pubkey::new_from_array([41; 32]),
         Pubkey::new_from_array([42; 32]),
     ];
+    assert_eq!(
+        amount(&mut context, vault_pda(b"stake-vault", &ritual)).await,
+        200
+    );
+    // N3 split shares are [2, 2, 1]; only indexes 2 and 0 are funded.
+    assert_eq!(
+        amount(&mut context, vault_pda(b"fee-vault", &ritual)).await,
+        3
+    );
+    let funded = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_eq!(funded.funded_members_bitmap, 0b101);
+    assert_eq!(funded.funded_member_count, 2);
+    assert_eq!(funded.funded_stake_total, 200);
+    assert_eq!(funded.funded_fee_total, 3);
+    assert_eq!(amount(&mut context, destinations[0]).await, 8);
+    assert_eq!(amount(&mut context, destinations[1]).await, 110);
+    assert_eq!(amount(&mut context, destinations[2]).await, 9);
     let before =
         CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await;
     submit(
@@ -1152,5 +1170,278 @@ async fn cancellation_uses_locked_terms_after_protocol_config_mutation() {
     assert_eq!(
         deserialize(&get_account(&mut context, ritual).await.data).status,
         RitualStatus::Cancelled
+    );
+}
+
+#[tokio::test]
+async fn split_cancellation_n2_full_returns_exact_stake_and_fee_shares() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let nonce = 9075;
+    let mut context = setup_host(&creator, &other, nonce, 200, 200).await;
+    let ritual = ritual_pda(&creator.pubkey(), nonce);
+    let destinations = [
+        Pubkey::new_from_array([22; 32]),
+        Pubkey::new_from_array([21; 32]),
+    ];
+    submit(
+        &mut context,
+        vec![
+            fund_ix(creator.pubkey(), nonce, creator.pubkey(), destinations[1]),
+            fund_ix(creator.pubkey(), nonce, other.pubkey(), destinations[0]),
+        ],
+        &[&creator, &other],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        amount(&mut context, vault_pda(b"stake-vault", &ritual)).await,
+        200
+    );
+    assert_eq!(
+        amount(&mut context, vault_pda(b"fee-vault", &ritual)).await,
+        50
+    );
+    let before =
+        CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await;
+    let before_state = deserialize(&before.ritual.data);
+    submit(
+        &mut context,
+        vec![cancel_ix(
+            creator.pubkey(),
+            nonce,
+            creator.pubkey(),
+            &destinations,
+        )],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    assert_eq!(amount(&mut context, destinations[0]).await, 200);
+    assert_eq!(amount(&mut context, destinations[1]).await, 200);
+    assert_eq!(
+        amount(&mut context, RECIPIENT).await,
+        amount_from_snapshot(&before, RECIPIENT)
+    );
+    assert_eq!(
+        amount(&mut context, vault_pda(b"stake-vault", &ritual)).await,
+        0
+    );
+    assert_eq!(
+        amount(&mut context, vault_pda(b"fee-vault", &ritual)).await,
+        0
+    );
+    let after = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_eq!(after.status, RitualStatus::Cancelled);
+    assert_eq!(after.funded_members_bitmap, 0);
+    assert_eq!(after.funded_member_count, 0);
+    assert_eq!(after.funded_stake_total, 0);
+    assert_eq!(after.funded_fee_total, 0);
+    assert!(after.cancelled_at >= before_state.created_at);
+}
+
+#[tokio::test]
+async fn destination_outer_system_owner_is_rejected_atomically() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let nonce = 9076;
+    let mut context = setup_host(&creator, &other, nonce, 200, 200).await;
+    let ritual = ritual_pda(&creator.pubkey(), nonce);
+    let destinations = [
+        Pubkey::new_from_array([22; 32]),
+        Pubkey::new_from_array([21; 32]),
+    ];
+    replace_owner(&mut context, destinations[0], system_program::ID).await;
+    let before =
+        CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await;
+    assert_error(
+        submit(
+            &mut context,
+            vec![cancel_ix(
+                creator.pubkey(),
+                nonce,
+                creator.pubkey(),
+                &destinations,
+            )],
+            &[&creator],
+        )
+        .await,
+        6034,
+    );
+    assert_eq!(
+        CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await,
+        before
+    );
+}
+
+#[tokio::test]
+async fn destination_outer_token_2022_owner_is_rejected_atomically() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let nonce = 9077;
+    let mut context = setup_host(&creator, &other, nonce, 200, 200).await;
+    let ritual = ritual_pda(&creator.pubkey(), nonce);
+    let destinations = [
+        Pubkey::new_from_array([22; 32]),
+        Pubkey::new_from_array([21; 32]),
+    ];
+    replace_owner(
+        &mut context,
+        destinations[0],
+        anchor_spl::token_2022::spl_token_2022::ID,
+    )
+    .await;
+    let before =
+        CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await;
+    assert_error(
+        submit(
+            &mut context,
+            vec![cancel_ix(
+                creator.pubkey(),
+                nonce,
+                creator.pubkey(),
+                &destinations,
+            )],
+            &[&creator],
+        )
+        .await,
+        6034,
+    );
+    assert_eq!(
+        CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await,
+        before
+    );
+}
+
+#[tokio::test]
+async fn read_only_refund_destination_is_rejected_atomically() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let nonce = 9078;
+    let mut context = setup_host(&creator, &other, nonce, 200, 200).await;
+    let ritual = ritual_pda(&creator.pubkey(), nonce);
+    let destinations = [
+        Pubkey::new_from_array([22; 32]),
+        Pubkey::new_from_array([21; 32]),
+    ];
+    let mut ix = cancel_ix(creator.pubkey(), nonce, creator.pubkey(), &destinations);
+    ix.accounts
+        .iter_mut()
+        .find(|meta| meta.pubkey == destinations[0])
+        .unwrap()
+        .is_writable = false;
+    let before =
+        CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await;
+    assert_error(submit(&mut context, vec![ix], &[&creator]).await, 6034);
+    assert_eq!(
+        CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await,
+        before
+    );
+}
+
+#[tokio::test]
+async fn substituted_token_program_is_rejected_atomically() {
+    for (offset, token_program) in [
+        (0u64, anchor_spl::token_2022::spl_token_2022::ID),
+        (1, system_program::ID),
+    ] {
+        let creator = Keypair::new();
+        let other = Keypair::new();
+        let nonce = 9079 + offset;
+        let mut context = setup_host(&creator, &other, nonce, 200, 200).await;
+        let ritual = ritual_pda(&creator.pubkey(), nonce);
+        let destinations = [
+            Pubkey::new_from_array([22; 32]),
+            Pubkey::new_from_array([21; 32]),
+        ];
+        let before =
+            CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await;
+        assert_error(
+            submit(
+                &mut context,
+                vec![cancel_ix_with_accounts(
+                    creator.pubkey(),
+                    nonce,
+                    creator.pubkey(),
+                    MINT,
+                    vault_pda(b"stake-vault", &ritual),
+                    vault_pda(b"fee-vault", &ritual),
+                    token_program,
+                    &destinations,
+                )],
+                &[&creator],
+            )
+            .await,
+            3008,
+        );
+        assert_eq!(
+            CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await,
+            before
+        );
+    }
+}
+
+#[tokio::test]
+async fn mismatched_ritual_vault_is_rejected_without_mutating_either_ritual() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let nonce_a = 9081;
+    let nonce_b = 9082;
+    let mut context = start_with_members(&creator, &other, 200, 200).await;
+    submit(
+        &mut context,
+        vec![
+            initialize_ix(creator.pubkey()),
+            create_ix(
+                creator.pubkey(),
+                other.pubkey(),
+                nonce_a,
+                FeePayerMode::Host,
+            ),
+            create_ix(
+                creator.pubkey(),
+                other.pubkey(),
+                nonce_b,
+                FeePayerMode::Host,
+            ),
+        ],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    let ritual_a = ritual_pda(&creator.pubkey(), nonce_a);
+    let ritual_b = ritual_pda(&creator.pubkey(), nonce_b);
+    let destinations = [
+        Pubkey::new_from_array([22; 32]),
+        Pubkey::new_from_array([21; 32]),
+    ];
+    let before_a =
+        CancellationSnapshot::capture(&mut context, ritual_a, RECIPIENT, &destinations).await;
+    let before_b =
+        CancellationSnapshot::capture(&mut context, ritual_b, RECIPIENT, &destinations).await;
+    assert_error(
+        submit(
+            &mut context,
+            vec![cancel_ix_for_ritual(
+                ritual_a,
+                creator.pubkey(),
+                MINT,
+                vault_pda(b"stake-vault", &ritual_b),
+                vault_pda(b"fee-vault", &ritual_a),
+                spl_token::ID,
+                &destinations,
+            )],
+            &[&creator],
+        )
+        .await,
+        2006,
+    );
+    assert_eq!(
+        CancellationSnapshot::capture(&mut context, ritual_a, RECIPIENT, &destinations).await,
+        before_a
+    );
+    assert_eq!(
+        CancellationSnapshot::capture(&mut context, ritual_b, RECIPIENT, &destinations).await,
+        before_b
     );
 }

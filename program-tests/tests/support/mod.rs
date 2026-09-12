@@ -298,9 +298,8 @@ pub(crate) fn assert_error(result: Result<(), solana_program_test::BanksClientEr
     }
 }
 
-pub(crate) fn cancel_ix_with_accounts(
-    creator: Pubkey,
-    nonce: u64,
+pub(crate) fn cancel_ix_for_ritual(
+    ritual: Pubkey,
     caller: Pubkey,
     stake_mint: Pubkey,
     stake_vault: Pubkey,
@@ -308,7 +307,6 @@ pub(crate) fn cancel_ix_with_accounts(
     token_program: Pubkey,
     destinations: &[Pubkey],
 ) -> Instruction {
-    let ritual = ritual_pda(&creator, nonce);
     let accounts = rituals::accounts::CancelUnactivated {
         ritual,
         caller,
@@ -328,6 +326,26 @@ pub(crate) fn cancel_ix_with_accounts(
         accounts: metas,
         data: rituals::instruction::CancelUnactivated {}.data(),
     }
+}
+pub(crate) fn cancel_ix_with_accounts(
+    creator: Pubkey,
+    nonce: u64,
+    caller: Pubkey,
+    stake_mint: Pubkey,
+    stake_vault: Pubkey,
+    fee_vault: Pubkey,
+    token_program: Pubkey,
+    destinations: &[Pubkey],
+) -> Instruction {
+    cancel_ix_for_ritual(
+        ritual_pda(&creator, nonce),
+        caller,
+        stake_mint,
+        stake_vault,
+        fee_vault,
+        token_program,
+        destinations,
+    )
 }
 pub(crate) async fn amount(context: &mut ProgramTestContext, address: Pubkey) -> u64 {
     let account = context
