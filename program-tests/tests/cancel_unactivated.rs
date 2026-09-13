@@ -1,4 +1,5 @@
 mod support;
+use rituals::Ritual;
 use support::*;
 
 #[tokio::test]
@@ -462,6 +463,7 @@ async fn host_cancellation_refunds_tracked_partial_stake_and_fee_only() {
         amount(&mut context, vault_pda(b"fee-vault", &ritual)).await,
         0
     );
+    let before_state = deserialize(&get_account(&mut context, ritual).await.data);
     submit(
         &mut context,
         vec![cancel_ix(
@@ -485,10 +487,14 @@ async fn host_cancellation_refunds_tracked_partial_stake_and_fee_only() {
         0
     );
     assert_eq!(amount(&mut context, RECIPIENT).await, 0);
-    assert_eq!(
-        deserialize(&get_account(&mut context, ritual).await.data).status,
-        RitualStatus::Cancelled
-    );
+    let after = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_locked_terms_unchanged(&before_state, &after);
+    assert_eq!(after.status, RitualStatus::Cancelled);
+    assert_eq!(after.funded_members_bitmap, 0);
+    assert_eq!(after.funded_member_count, 0);
+    assert_eq!(after.funded_stake_total, 0);
+    assert_eq!(after.funded_fee_total, 0);
+    assert!(after.cancelled_at >= before_state.created_at);
 }
 
 #[tokio::test]
@@ -610,6 +616,35 @@ async fn host_refund_matrix_nonhost_host_and_both_restores_exact_sources() {
     }
 }
 
+fn assert_locked_terms_unchanged(before: &Ritual, after: &Ritual) {
+    assert_eq!(after.schema_version, before.schema_version);
+    assert_eq!(after.protocol_config, before.protocol_config);
+    assert_eq!(after.creator, before.creator);
+    assert_eq!(after.nonce, before.nonce);
+    assert_eq!(after.rule_digest, before.rule_digest);
+    assert_eq!(after.stake_mint, before.stake_mint);
+    assert_eq!(after.members, before.members);
+    assert_eq!(after.member_total_stake, before.member_total_stake);
+    assert_eq!(after.per_event_allocation, before.per_event_allocation);
+    assert_eq!(after.schedule, before.schedule);
+    assert_eq!(
+        after.additional_confirmation_threshold,
+        before.additional_confirmation_threshold
+    );
+    assert_eq!(after.fee_payer_mode, before.fee_payer_mode);
+    assert_eq!(after.locked_activation_fee, before.locked_activation_fee);
+    assert_eq!(after.stake_decimals, before.stake_decimals);
+    assert_eq!(after.locked_fee_recipient, before.locked_fee_recipient);
+    assert_eq!(after.stake_vault, before.stake_vault);
+    assert_eq!(after.fee_vault, before.fee_vault);
+    assert_eq!(after.stake_vault_bump, before.stake_vault_bump);
+    assert_eq!(after.fee_vault_bump, before.fee_vault_bump);
+    assert_eq!(after.created_at, before.created_at);
+    assert_eq!(after.bump, before.bump);
+    assert_eq!(after.current_event_index, before.current_event_index);
+    assert_eq!(after.settled_event_count, before.settled_event_count);
+}
+
 fn amount_from_snapshot(snapshot: &CancellationSnapshot, address: Pubkey) -> u64 {
     if address == RECIPIENT {
         return spl_token::state::Account::unpack(&snapshot.fee_recipient.data)
@@ -629,7 +664,164 @@ fn amount_from_snapshot(snapshot: &CancellationSnapshot, address: Pubkey) -> u64
 }
 
 #[tokio::test]
-async fn split_cancellation_n3_remainder_shuffled_full_and_partial_are_exact() {
+async fn split_cancellation_n3_remainder_shuffled_full_is_exact() {
+    let members: Vec<Keypair> = (0..3).map(|_| Keypair::new()).collect();
+    let keys: Vec<Pubkey> = members.iter().map(Keypair::pubkey).collect();
+    let nonce = 9035;
+    let mut test = ProgramTest::new("rituals", PROGRAM_ID, processor!(process_instruction));
+    test.add_program(
+        "spl_token",
+        spl_token::ID,
+        processor!(spl_token::processor::Processor::process),
+    );
+    test.add_genesis_account(MINT, mint_account(330));
+    test.add_genesis_account(
+        RECIPIENT,
+        token_account(Pubkey::new_from_array([10; 32]), 0),
+    );
+    for (index, member) in members.iter().enumerate() {
+        test.add_genesis_account(
+            Pubkey::new_from_array([40 + index as u8; 32]),
+            token_account_for(MINT, member.pubkey(), 110),
+        );
+    }
+    test.add_genesis_account(
+        keys[0],
+        Account {
+            lamports: 10_000_000_000,
+            data: vec![],
+            owner: system_program::ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+    let mut context = test.start_with_context().await;
+    let accounts = rituals::accounts::InitializeProtocolConfig {
+        protocol_config: config_pda(),
+        authority: keys[0],
+        system_program: system_program::ID,
+    };
+    let init = Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::InitializeProtocolConfig {
+            allowed_stake_mint: MINT,
+            fee_recipient: RECIPIENT,
+            fee_basis_points: 200,
+            minimum_fee: 5,
+            maximum_fee: 5,
+            maximum_member_stake: 1000,
+        }
+        .data(),
+    };
+    let ritual = ritual_pda(&keys[0], nonce);
+    let create_accounts = rituals::accounts::CreateRitual {
+        protocol_config: config_pda(),
+        ritual,
+        creator: keys[0],
+        stake_mint: MINT,
+        fee_recipient_token: RECIPIENT,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        fee_vault: vault_pda(b"fee-vault", &ritual),
+        system_program: system_program::ID,
+        token_program: spl_token::ID,
+    };
+    let create = Instruction {
+        program_id: PROGRAM_ID,
+        accounts: create_accounts.to_account_metas(None),
+        data: rituals::instruction::CreateRitual {
+            nonce,
+            rule_digest: [2; 32],
+            members: keys.clone(),
+            member_total_stake: 100,
+            schedule: vec![EventWindow {
+                opens: 1,
+                deadline: 2,
+                resolution: 3,
+            }],
+            additional_confirmation_threshold: 0,
+            fee_payer_mode: FeePayerMode::Split,
+        }
+        .data(),
+    };
+    submit(&mut context, vec![init, create], &[&members[0]])
+        .await
+        .unwrap();
+    let configured = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_eq!(configured.fee_payer_mode, FeePayerMode::Split);
+    // All members fund in shuffled order.
+    for index in [2usize, 0, 1] {
+        submit(
+            &mut context,
+            vec![fund_ix(
+                keys[0],
+                nonce,
+                keys[index],
+                Pubkey::new_from_array([40 + index as u8; 32]),
+            )],
+            &[&members[index]],
+        )
+        .await
+        .unwrap();
+    }
+    let destinations = [
+        Pubkey::new_from_array([40; 32]),
+        Pubkey::new_from_array([41; 32]),
+        Pubkey::new_from_array([42; 32]),
+    ];
+    assert_eq!(
+        amount(&mut context, vault_pda(b"stake-vault", &ritual)).await,
+        300
+    );
+    // N3 split shares are [2, 2, 1].
+    assert_eq!(
+        amount(&mut context, vault_pda(b"fee-vault", &ritual)).await,
+        5
+    );
+    let funded = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_eq!(funded.funded_members_bitmap, 0b111);
+    assert_eq!(funded.funded_member_count, 3);
+    assert_eq!(funded.funded_stake_total, 300);
+    assert_eq!(funded.funded_fee_total, 5);
+    assert_eq!(amount(&mut context, destinations[0]).await, 8);
+    assert_eq!(amount(&mut context, destinations[1]).await, 8);
+    assert_eq!(amount(&mut context, destinations[2]).await, 9);
+    let before =
+        CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await;
+    let before_state = deserialize(&before.ritual.data);
+    submit(
+        &mut context,
+        vec![cancel_ix(keys[0], nonce, keys[1], &destinations)],
+        &[&members[1]],
+    )
+    .await
+    .unwrap();
+    assert_eq!(amount(&mut context, destinations[0]).await, 110);
+    assert_eq!(amount(&mut context, destinations[1]).await, 110);
+    assert_eq!(amount(&mut context, destinations[2]).await, 110);
+    assert_eq!(
+        amount(&mut context, vault_pda(b"stake-vault", &ritual)).await,
+        0
+    );
+    assert_eq!(
+        amount(&mut context, vault_pda(b"fee-vault", &ritual)).await,
+        0
+    );
+    assert_eq!(
+        amount(&mut context, RECIPIENT).await,
+        amount_from_snapshot(&before, RECIPIENT)
+    );
+    let after = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_locked_terms_unchanged(&before_state, &after);
+    assert_eq!(after.status, RitualStatus::Cancelled);
+    assert_eq!(after.funded_members_bitmap, 0);
+    assert_eq!(after.funded_member_count, 0);
+    assert_eq!(after.funded_stake_total, 0);
+    assert_eq!(after.funded_fee_total, 0);
+    assert!(after.cancelled_at >= before_state.created_at);
+}
+#[tokio::test]
+async fn split_cancellation_n3_remainder_shuffled_partial_is_exact() {
     let members: Vec<Keypair> = (0..3).map(|_| Keypair::new()).collect();
     let keys: Vec<Pubkey> = members.iter().map(Keypair::pubkey).collect();
     let nonce = 9034;
@@ -712,6 +904,8 @@ async fn split_cancellation_n3_remainder_shuffled_full_and_partial_are_exact() {
     submit(&mut context, vec![init, create], &[&members[0]])
         .await
         .unwrap();
+    let configured = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_eq!(configured.fee_payer_mode, FeePayerMode::Split);
     // Only members 2 and 0 fund, deliberately shuffled; member 1 is untouched.
     for index in [2usize, 0] {
         submit(
@@ -751,6 +945,7 @@ async fn split_cancellation_n3_remainder_shuffled_full_and_partial_are_exact() {
     assert_eq!(amount(&mut context, destinations[2]).await, 9);
     let before =
         CancellationSnapshot::capture(&mut context, ritual, RECIPIENT, &destinations).await;
+    let before_state = deserialize(&before.ritual.data);
     submit(
         &mut context,
         vec![cancel_ix(keys[0], nonce, keys[1], &destinations)],
@@ -773,10 +968,14 @@ async fn split_cancellation_n3_remainder_shuffled_full_and_partial_are_exact() {
         amount(&mut context, RECIPIENT).await,
         amount_from_snapshot(&before, RECIPIENT)
     );
-    assert_eq!(
-        deserialize(&get_account(&mut context, ritual).await.data).status,
-        RitualStatus::Cancelled
-    );
+    let after = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_locked_terms_unchanged(&before_state, &after);
+    assert_eq!(after.status, RitualStatus::Cancelled);
+    assert_eq!(after.funded_members_bitmap, 0);
+    assert_eq!(after.funded_member_count, 0);
+    assert_eq!(after.funded_stake_total, 0);
+    assert_eq!(after.funded_fee_total, 0);
+    assert!(after.cancelled_at >= before_state.created_at);
 }
 
 #[tokio::test]
@@ -1178,12 +1377,29 @@ async fn split_cancellation_n2_full_returns_exact_stake_and_fee_shares() {
     let creator = Keypair::new();
     let other = Keypair::new();
     let nonce = 9075;
-    let mut context = setup_host(&creator, &other, nonce, 200, 200).await;
+    let mut context = start_with_members(&creator, &other, 200, 200).await;
     let ritual = ritual_pda(&creator.pubkey(), nonce);
+    submit(
+        &mut context,
+        vec![
+            initialize_ix(creator.pubkey()),
+            create_ix(
+                creator.pubkey(),
+                other.pubkey(),
+                nonce,
+                FeePayerMode::Split,
+            ),
+        ],
+        &[&creator],
+    )
+    .await
+    .unwrap();
     let destinations = [
         Pubkey::new_from_array([22; 32]),
         Pubkey::new_from_array([21; 32]),
     ];
+    let configured = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_eq!(configured.fee_payer_mode, FeePayerMode::Split);
     submit(
         &mut context,
         vec![
@@ -1232,6 +1448,7 @@ async fn split_cancellation_n2_full_returns_exact_stake_and_fee_shares() {
         0
     );
     let after = deserialize(&get_account(&mut context, ritual).await.data);
+    assert_locked_terms_unchanged(&before_state, &after);
     assert_eq!(after.status, RitualStatus::Cancelled);
     assert_eq!(after.funded_members_bitmap, 0);
     assert_eq!(after.funded_member_count, 0);
