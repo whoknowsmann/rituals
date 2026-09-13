@@ -7,6 +7,13 @@ use solana_sdk::pubkey::Pubkey;
 
 const PROGRAM_ID: Pubkey = rituals::ID;
 
+const ACCOUNT_DATA_LENGTHS: [(&str, usize); 4] = [
+    ("ProtocolConfig", 8 + ProtocolConfig::INIT_SPACE),
+    ("Ritual", 8 + Ritual::INIT_SPACE),
+    ("RitualEvent", 8 + RitualEvent::INIT_SPACE),
+    ("CompletionClaim", 8 + CompletionClaim::INIT_SPACE),
+];
+
 fn assert_pda(seeds: &[&[u8]], expected: &str, bump: u8) {
     let (address, actual_bump) = Pubkey::find_program_address(seeds, &PROGRAM_ID);
     assert_eq!(address.to_string(), expected);
@@ -85,6 +92,16 @@ fn account_discriminators_are_the_frozen_anchor_bytes() {
         CompletionClaim::DISCRIMINATOR,
         &[233, 130, 153, 175, 66, 45, 112, 112]
     );
+}
+
+#[test]
+fn account_data_lengths_are_the_frozen_allocations() {
+    assert_eq!(ACCOUNT_DATA_LENGTHS, [
+        ("ProtocolConfig", 135),
+        ("Ritual", 909),
+        ("RitualEvent", 139),
+        ("CompletionClaim", 121),
+    ]);
 }
 
 #[allow(dead_code)]

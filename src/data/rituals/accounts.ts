@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 
-export type AccountEnvelope = { readonly owner: unknown; readonly data: unknown }
+export type AccountEnvelope = unknown
 export type ProtocolConfigAccountView = Readonly<{ schemaVersion: number; authority: PublicKey; allowedStakeMint: PublicKey; feeRecipient: PublicKey; feeBasisPoints: number; minimumFee: bigint; maximumFee: bigint; maximumMemberStake: bigint; maxMembers: number; maxEvents: number; paused: boolean; bump: number }>
 export type EventWindowView = Readonly<{ opens: bigint; deadline: bigint; resolution: bigint }>
 export type RitualEventAccountView = Readonly<{ schemaVersion: number; ritual: PublicKey; eventIndex: number; window: EventWindowView; memberCount: number; status: 'Scheduled' | 'Claiming' | 'Resolving' | 'Settled' | 'Voided'; claimedMembersBitmap: number; confirmedMembersBitmap: number; questionedMembersBitmap: number; initializedAt: bigint; resolvedAt: bigint; settlementVersion: number; voidReason: 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims'; eventPool: bigint; forfeitedTotal: bigint; payoutTotal: bigint; refundedTotal: bigint; confirmedMemberCount: number; remainderUnits: bigint; remainingStakeTotalAfter: bigint; bump: number }>
@@ -12,6 +12,13 @@ export const ACCOUNT_DISCRIMINATORS = {
   Ritual: Uint8Array.from([59, 144, 213, 109, 22, 234, 192, 75]),
   RitualEvent: Uint8Array.from([20, 35, 155, 231, 156, 20, 94, 160]),
   CompletionClaim: Uint8Array.from([233, 130, 153, 175, 66, 45, 112, 112]),
+} as const
+
+export const ACCOUNT_DATA_LENGTHS = {
+  ProtocolConfig: 135,
+  Ritual: 909,
+  RitualEvent: 139,
+  CompletionClaim: 121,
 } as const
 
 export class RitualAccountDecodeError extends Error {
@@ -57,9 +64,14 @@ function begin(input: AccountEnvelope, expectedProgramId: PublicKey, account: ke
   try {
     if (!(expectedProgramId instanceof PublicKey)) throw new RitualAccountDecodeError('input', 'expected program id must be a PublicKey')
     if (input === null || typeof input !== 'object' || Array.isArray(input)) throw new RitualAccountDecodeError('input', 'envelope must be an object')
-    if (!(input.owner instanceof PublicKey) || !input.owner.equals(expectedProgramId)) throw new RitualAccountDecodeError('owner', 'account owner does not match program')
-    if (!(input.data instanceof Uint8Array)) throw new RitualAccountDecodeError('input', 'account data must be Uint8Array')
-    const reader = new Reader(input.data)
+    let owner: unknown
+    try { owner = (input as { readonly owner: unknown }).owner } catch { throw new RitualAccountDecodeError('owner', 'account owner could not be read') }
+    if (!(owner instanceof PublicKey) || !owner.equals(expectedProgramId)) throw new RitualAccountDecodeError('owner', 'account owner does not match program')
+    let data: unknown
+    try { data = (input as { readonly data: unknown }).data } catch { throw new RitualAccountDecodeError('input', 'account data could not be read') }
+    if (!(data instanceof Uint8Array)) throw new RitualAccountDecodeError('input', 'account data must be Uint8Array')
+    if (data.length !== ACCOUNT_DATA_LENGTHS[account]) throw new RitualAccountDecodeError('size', `expected ${ACCOUNT_DATA_LENGTHS[account]} bytes`)
+    const reader = new Reader(data)
     const discriminator = reader.bytesFixed(8)
     const expected = ACCOUNT_DISCRIMINATORS[account]
     if (!expected.every((byte, index) => discriminator[index] === byte)) throw new RitualAccountDecodeError('discriminator', `invalid ${account} discriminator`)
@@ -79,7 +91,8 @@ export function decodeProtocolConfig(input: AccountEnvelope, expectedProgramId: 
   const feeBasisPoints = reader.u16(); const minimumFee = reader.u64(); const maximumFee = reader.u64(); const maximumMemberStake = reader.u64()
   const maxMembers = reader.u8(); const maxEvents = reader.u8(); const paused = reader.bool(); const bump = reader.u8()
   ensureU64(minimumFee, 'minimumFee'); ensureU64(maximumFee, 'maximumFee'); ensureU64(maximumMemberStake, 'maximumMemberStake')
-  if (authority.equals(zero) || allowedStakeMint.equals(zero) || feeRecipient.equals(zero) || feeBasisPoints > 10000 || minimumFee > maximumFee || maximumMemberStake === 0n || maxMembers !== 6 || maxEvents !== 16) throw new RitualAccountDecodeError('invariant', 'ProtocolConfig limits are invalid')
+  if (authority.equals(zero) || allowedStakeMint.equals(zero) || feeRecipient.equals(zero)) throw new RitualAccountDecodeError('unusable', 'ProtocolConfig contains a default public key')
+  if (feeBasisPoints > 10000 || minimumFee > maximumFee || maximumMemberStake === 0n || maxMembers !== 6 || maxEvents !== 16) throw new RitualAccountDecodeError('invariant', 'ProtocolConfig limits are invalid')
   return finish(reader, Object.freeze({ schemaVersion, authority, allowedStakeMint, feeRecipient, feeBasisPoints, minimumFee, maximumFee, maximumMemberStake, maxMembers, maxEvents, paused, bump }))
 }
 
