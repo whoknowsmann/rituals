@@ -1,5 +1,6 @@
 import type {
   Cluster,
+  EventIndex,
   ConfirmationMode,
   RitualId,
   RitualStatus,
@@ -37,6 +38,8 @@ export interface RitualsHomeSnapshot {
   readonly confirmations?: { readonly count: number }
   readonly funding?: { readonly funded: number; readonly total: number }
   readonly completedReceipt?: {
+    readonly ritualId: RitualId
+    readonly eventIndex: EventIndex
     readonly title: string
     readonly amountAtomicUnits: TokenAtomicUnits
     readonly tokenDecimals: number

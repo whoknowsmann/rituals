@@ -51,6 +51,8 @@ describe('FixtureRitualsRepository', () => {
     expect(snapshot.state).toBe('completed')
     expect(snapshot.activeRitual).toBeUndefined()
     expect(snapshot.completedReceipt).toEqual({
+      ritualId: 'ritual-book-club',
+      eventIndex: 0,
       title: 'February book club',
       amountAtomicUnits: 2_000_000_000n,
       tokenDecimals: 6,

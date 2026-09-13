@@ -4,18 +4,45 @@ import type { ClaimStatus, ConfirmationMode, EventStatus, RitualStatus } from '.
 export interface RitualDetailInput { ritualId: string; title: string; status: RitualStatus; requirement: string; nextClaimWindow: string; stakeAtomicUnits: bigint; tokenDecimals: number; tokenSymbol: string; confirmationMode: ConfirmationMode }
 export interface RitualDetailViewModel extends RitualDetailInput { readonly statusLabel: string; readonly stake: string; readonly confirmationLabel: string; readonly ctaLabel: string }
 export interface ClaimCompletionViewModel { readonly walletSignature: string; readonly friendConfirmations: string; readonly ctaLabel: string; readonly canClaim: boolean }
-export interface ConfirmationInboxInput { claimant: string; ritualTitle: string; eventLabel: string; requirement: string; threshold: number; confirmations: number; claimStatus: ClaimStatus; viewer: string; action: 'idle' | 'in-flight' | 'confirmed' | 'questioned' }
-export interface ConfirmationInboxViewModel extends ConfirmationInboxInput { readonly progress: string; readonly statusCopy: string; readonly canConfirm: boolean; readonly canQuestion: boolean; readonly confirmDisabledReason?: string }
+export interface ConfirmationInboxInput { claimant: string; ritualTitle: string; eventLabel: string; requirement: string; threshold: number; confirmations: number; claimStatus: ClaimStatus; viewer: string; action: ConfirmationAction }
+export interface ConfirmationInboxViewModel extends ConfirmationInboxInput { readonly progress: string; readonly statusCopy: string; readonly outcomeCopy?: string; readonly canConfirm: boolean; readonly canQuestion: boolean; readonly confirmDisabledReason?: string }
+export type ConfirmationAction = 'idle' | 'in-flight' | 'confirmed' | 'questioned'
+export type ConfirmationReducerAction = { readonly type: 'CONFIRM' | 'QUESTION' | 'START' }
+export function confirmationInboxReducer(state: Pick<ConfirmationInboxInput, 'action'>, action: ConfirmationReducerAction): Pick<ConfirmationInboxInput, 'action'> {
+  if (state.action !== 'idle') return state
+  if (action.type === 'START') return { action: 'in-flight' }
+  return { action: action.type === 'CONFIRM' ? 'confirmed' : 'questioned' }
+}
 export interface SettlementReceiptInput { status: EventStatus; principal: bigint; bonus: bigint; forfeiture: bigint; futureStake: bigint; activationFee: bigint; tokenDecimals: number; tokenSymbol: string; settlement: { kind: 'SETTLED' } | { kind: 'VOIDED'; reason: string } }
-export interface SettlementReceiptViewModel { readonly status: 'settled' | 'voided'; readonly explanation: string; readonly lines: readonly (readonly [string, string])[] }
+export interface SettlementReceiptViewModel { readonly status: 'settled' | 'voided' | 'invalid'; readonly explanation: string; readonly lines: readonly (readonly [string, string])[] }
 
 const labels: Record<ConfirmationMode, string> = { HONOR: 'Honor system', ONE_FRIEND: 'One friend confirms', MAJORITY: 'Majority confirms', UNANIMOUS: 'Everyone confirms' }
+const invalidReceipt = (explanation = 'This receipt preview is unavailable because its financial data is invalid.'): SettlementReceiptViewModel => ({ status: 'invalid', explanation, lines: [] })
 function format(amount: bigint, decimals: number, symbol: string): string { const base = 10n ** BigInt(decimals); return `${amount / base}.${(amount % base).toString().padStart(decimals, '0')} ${symbol}` }
-function zeroOr(value: bigint, decimals: number, symbol: string, zero: boolean): string { return zero ? `0 ${symbol}` : format(value, decimals, symbol) }
+function validMoney(input: SettlementReceiptInput): boolean { return Number.isInteger(input.tokenDecimals) && input.tokenDecimals >= 0 && input.tokenDecimals <= 255 && /^[A-Z0-9]{1,12}$/.test(input.tokenSymbol) && [input.principal, input.bonus, input.forfeiture, input.futureStake, input.activationFee].every((value) => typeof value === 'bigint' && value >= 0n && value <= 18446744073709551615n) }
 
 export function buildRitualDetailViewModel(input: RitualDetailInput): RitualDetailViewModel { return { ...input, statusLabel: input.status === 'ACTIVE' ? 'Active ritual' : input.status, stake: format(input.stakeAtomicUnits, input.tokenDecimals, input.tokenSymbol), confirmationLabel: labels[input.confirmationMode], ctaLabel: 'I did it · Preview claim' } }
-export function buildClaimCompletionViewModel(input: { claimant: string; friendConfirmations: number; threshold: number }): ClaimCompletionViewModel { return { walletSignature: 'Your wallet signature · not connected (fixture preview)', friendConfirmations: `${input.friendConfirmations} of ${input.threshold} friend confirmations locked`, ctaLabel: 'Preview claim · no signature', canClaim: false } }
-export function buildConfirmationInboxViewModel(input: ConfirmationInboxInput): ConfirmationInboxViewModel { const self = input.viewer === input.claimant; const busy = input.action !== 'idle'; const canConfirm = !self && !busy && input.claimStatus === 'PENDING'; return { ...input, progress: `${Math.min(input.confirmations, input.threshold)} of ${input.threshold} confirmations`, statusCopy: input.claimStatus === 'QUESTIONED' ? 'Questioned · waiting for review. This fixture preview keeps the outcome open.' : input.claimStatus === 'PENDING' ? 'Pending · waiting for the required confirmations.' : 'Confirmation recorded in this fixture preview.', canConfirm, canQuestion: !self && !busy && input.claimStatus === 'PENDING', confirmDisabledReason: self ? 'The claimant cannot confirm their own claim.' : busy ? 'Action already in progress or complete.' : undefined } }
-export function buildSettlementReceiptViewModel(input: SettlementReceiptInput): SettlementReceiptViewModel { const voided = input.settlement.kind === 'VOIDED' || input.status === 'VOIDED'; const zero = zeroOr(0n, input.tokenDecimals, input.tokenSymbol, true); const lines: [string, string][] = [['Principal returned', zeroOr(input.principal, input.tokenDecimals, input.tokenSymbol, voided)], ['Bonus', zeroOr(input.bonus, input.tokenDecimals, input.tokenSymbol, voided)], ['Forfeiture', zeroOr(input.forfeiture, input.tokenDecimals, input.tokenSymbol, voided)], ['Future stake', format(input.futureStake, input.tokenDecimals, input.tokenSymbol)], ['Activation fee', `${format(input.activationFee, input.tokenDecimals, input.tokenSymbol)} · paid separately`], ['Network fee', 'Unknown'], ['Platform share', zero]]; return { status: voided ? 'voided' : 'settled', explanation: voided ? 'Event voided; unresolved claims return principal. No bonus or forfeiture is shown.' : 'Event settled in fixture preview. No transfer or state change occurred.', lines } }
-
+export function buildClaimCompletionViewModel(input: { claimant: string; friendConfirmations: number; threshold: number }): ClaimCompletionViewModel { return { walletSignature: 'No wallet signature · not connected (fixture preview)', friendConfirmations: `${input.friendConfirmations} of ${input.threshold} friend confirmations locked`, ctaLabel: 'Preview claim · no signature', canClaim: true } }
+export function buildConfirmationInboxViewModel(input: ConfirmationInboxInput): ConfirmationInboxViewModel {
+  const self = input.viewer === input.claimant
+  const busy = input.action !== 'idle'
+  const available = !self && !busy && input.claimStatus === 'PENDING'
+  const outcomeCopy = input.action === 'confirmed' ? 'Confirmed locally in this preview. No claim was submitted.' : input.action === 'questioned' ? 'Questioned locally in this preview. The outcome remains neutral for review.' : undefined
+  return { ...input, progress: `${Math.min(input.confirmations, input.threshold)} of ${input.threshold} confirmations`, statusCopy: input.claimStatus === 'QUESTIONED' ? 'Questioned · waiting for review. This preview keeps the outcome open.' : input.claimStatus === 'PENDING' ? 'Pending · waiting for the required confirmations.' : 'Confirmation recorded in this fixture preview.', outcomeCopy, canConfirm: available, canQuestion: available, confirmDisabledReason: self ? 'The claimant cannot confirm their own claim.' : busy ? 'Action already in progress or complete.' : undefined }
+}
+export function buildSettlementReceiptViewModel(input: SettlementReceiptInput): SettlementReceiptViewModel {
+  if (!input || typeof input !== 'object' || !input.settlement || typeof input.settlement !== 'object' || !validMoney(input) || (input.status !== 'SETTLED' && input.status !== 'VOIDED') || input.status !== input.settlement.kind) return invalidReceipt()
+  const voided = input.settlement.kind === 'VOIDED'
+  const reason = input.settlement.kind === 'VOIDED' ? input.settlement.reason : ''
+  const zero = `0 ${input.tokenSymbol}`
+  const lines: [string, string][] = [
+    ['Principal returned', format(input.principal, input.tokenDecimals, input.tokenSymbol)],
+    ['Bonus', voided ? zero : format(input.bonus, input.tokenDecimals, input.tokenSymbol)],
+    ['Forfeiture', voided ? zero : format(input.forfeiture, input.tokenDecimals, input.tokenSymbol)],
+    ['Future stake', format(input.futureStake, input.tokenDecimals, input.tokenSymbol)],
+    ['Activation fee', `${format(input.activationFee, input.tokenDecimals, input.tokenSymbol)} · paid separately`],
+    ['Network fee', 'Unknown'], ['Platform share', zero],
+  ]
+  return { status: voided ? 'voided' : 'settled', explanation: voided ? `Event voided (${reason}); unresolved claims return the exact principal. Bonus and forfeiture are zero.` : 'Event settled in fixture preview. No transfer or state change occurred.', lines }
+}
 export function confirmationThreshold(mode: ConfirmationMode, fundedMembers: number): number { return requiredAdditionalConfirmations(mode, fundedMembers) }

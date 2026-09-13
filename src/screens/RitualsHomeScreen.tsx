@@ -107,7 +107,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
               <Card.Content>
                 <View style={styles.sectionHeading}><Text variant="titleMedium">Confirmations</Text>{view.confirmations.count > 0 && <Text style={[styles.badge, { backgroundColor: theme.colors.primary, color: theme.colors.onPrimary }]}>{view.confirmations.count}</Text>}</View>
                 <Text style={styles.body}>A friend is waiting for your confirmation.</Text>
-                <Button mode="text" onPress={() => { const target = confirmationInboxTarget(view.activeRituals[0]?.id ?? 'ritual-weekly-run', 0); navigation.navigate(target.name, target.params) }} accessibilityLabel="Review confirmations">{view.confirmations.actionLabel}</Button>
+                {view.activeRituals[0]?.id && <Button mode="text" onPress={() => { const target = confirmationInboxTarget(view.activeRituals[0].id, 0); navigation.navigate(target.name, target.params) }} accessibilityLabel="Review confirmations">{view.confirmations.actionLabel}</Button>}
               </Card.Content>
             </Card>
           )}
@@ -115,7 +115,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
             <Card style={styles.card}><Card.Content><Text variant="titleMedium">Keep the group moving</Text><Text style={styles.body}>Funding · {view.funding.progress}</Text><Button mode="contained-tonal" onPress={() => Alert.alert('Funding', 'Funding is not connected yet. No transaction was submitted.')} accessibilityLabel="Fund ritual">Fund ritual</Button></Card.Content></Card>
           )}
           {view.completedReceipt && (
-            <Card style={styles.card}><Card.Content><Text variant="titleMedium">Completed</Text><Text style={styles.body}>{view.completedReceipt.title}</Text><Text variant="titleLarge">{view.completedReceipt.amount}</Text><Text style={styles.muted}>Fixture settlement receipt · no state change</Text><Button mode="outlined" onPress={() => { const target = settlementReceiptTarget('ritual-weekly-run', 0); navigation.navigate(target.name, target.params) }}>Open receipt</Button></Card.Content></Card>
+            <Card style={styles.card}><Card.Content><Text variant="titleMedium">Completed</Text><Text style={styles.body}>{view.completedReceipt.title}</Text><Text variant="titleLarge">{view.completedReceipt.amount}</Text><Text style={styles.muted}>Fixture settlement receipt · no state change</Text><Button mode="outlined" onPress={() => { const target = settlementReceiptTarget(view.completedReceipt!.ritualId, view.completedReceipt!.eventIndex); navigation.navigate(target.name, target.params) }} accessibilityLabel="Open completed receipt">Open receipt</Button></Card.Content></Card>
           )}
         </>
       )}

@@ -87,7 +87,7 @@ describe('buildHomeViewModel', () => {
     const view = buildHomeViewModel(await new FixtureRitualsRepository('completed').getHomeSnapshot())
 
     expect(view.kind).toBe('completed')
-    expect(view.completedReceipt).toEqual({ title: 'February book club', amount: '2,000.000000 TEST' })
+    expect(view.completedReceipt).toEqual({ ritualId: 'ritual-book-club', eventIndex: 0, title: 'February book club', amount: '2,000.000000 TEST' })
     expect(view.activeRituals).toEqual([])
     expect(view.cards).toEqual({ activeRitual: false, funding: false, confirmations: false, completedReceipt: true })
     expect(view.ctas).toEqual({ fundRitual: false, reviewConfirmations: false, createRitual: false })

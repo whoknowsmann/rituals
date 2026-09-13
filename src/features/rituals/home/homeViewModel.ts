@@ -1,5 +1,5 @@
 import type { RitualsHomeSnapshot } from '../../../data/rituals/RitualsRepository'
-import type { ConfirmationMode, RitualId } from '../../../domain/rituals/types'
+import type { ConfirmationMode, EventIndex, RitualId } from '../../../domain/rituals/types'
 
 type LoadingSnapshot = { readonly state: 'loading' }
 export type HomeSnapshotInput = RitualsHomeSnapshot | LoadingSnapshot
@@ -23,7 +23,7 @@ export interface HomeViewModel {
   readonly funding: { readonly progress: string }
   readonly cards: { readonly activeRitual: boolean; readonly funding: boolean; readonly confirmations: boolean; readonly completedReceipt: boolean }
   readonly ctas: { readonly fundRitual: boolean; readonly reviewConfirmations: boolean; readonly createRitual: boolean }
-  readonly completedReceipt?: { readonly title: string; readonly amount: string }
+  readonly completedReceipt?: { readonly ritualId: RitualId; readonly eventIndex: EventIndex; readonly title: string; readonly amount: string }
   readonly errorMessage?: string
 }
 
@@ -73,6 +73,8 @@ export function buildHomeViewModel(snapshot: HomeSnapshotInput): HomeViewModel {
       ...empty('completed'),
       cards: { activeRitual: false, funding: false, confirmations: false, completedReceipt: true },
       completedReceipt: snapshot.completedReceipt && {
+        ritualId: snapshot.completedReceipt.ritualId,
+        eventIndex: snapshot.completedReceipt.eventIndex,
         title: snapshot.completedReceipt.title,
         amount: format(snapshot.completedReceipt.amountAtomicUnits, snapshot.completedReceipt.tokenDecimals, snapshot.completedReceipt.tokenSymbol),
       },

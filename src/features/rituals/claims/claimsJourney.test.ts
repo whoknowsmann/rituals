@@ -37,7 +37,7 @@ describe('fixture-backed claims journey', () => {
       ['Principal returned', '1.250000 TEST'], ['Bonus', '0.250000 TEST'], ['Forfeiture', '0.250000 TEST'],
       ['Future stake', '1.250000 TEST'], ['Activation fee', '0.050000 TEST · paid separately'], ['Network fee', 'Unknown'], ['Platform share', '0 TEST'],
     ]))
-    const voided = buildSettlementReceiptViewModel({ ...receipt, settlement: { kind: 'VOIDED', reason: 'UNRESOLVED_CLAIMS' } })
+    const voided = buildSettlementReceiptViewModel({ ...receipt, status: 'VOIDED', settlement: { kind: 'VOIDED', reason: 'UNRESOLVED_CLAIMS' } })
     expect(voided.lines.find(([label]) => label === 'Bonus')?.[1]).toBe('0 TEST')
     expect(voided.lines.find(([label]) => label === 'Forfeiture')?.[1]).toBe('0 TEST')
   })
