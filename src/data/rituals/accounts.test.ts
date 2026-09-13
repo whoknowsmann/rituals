@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import { sha256 } from '@noble/hashes/sha256'
 import { decodeCompletionClaim, decodeProtocolConfig, decodeRitual, decodeRitualEvent, type AccountEnvelope } from './accounts'
+import { accountVectors, envelope, hexToBytes } from './__fixtures__/accountVectors'
 
 const owner = new PublicKey(new Uint8Array(32).fill(9)); const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
 const env = (data: Uint8Array, accountOwner = owner): AccountEnvelope => ({ owner: accountOwner, data })
@@ -17,5 +18,15 @@ describe('fail-closed Ritual account decoders', () => {
     const valid = new Uint8Array(135); valid.set(data); expect(() => decodeProtocolConfig(env(valid, key(8)), owner)).toThrow(/owner/i)
     expect(() => decodeProtocolConfig(env(valid), owner)).toThrow()
   })
-  it('exports decoders for all current accounts', () => { expect(decodeRitual).toBeTypeOf('function'); expect(decodeRitualEvent).toBeTypeOf('function'); expect(decodeCompletionClaim).toBeTypeOf('function') })
+  it('decodes every field of all four independently serialized Anchor vectors', () => {
+    const protocol = decodeProtocolConfig(envelope(accountVectors.protocolConfig.hex), new PublicKey('8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB'))
+    expect(protocol).toEqual({ ...accountVectors.protocolConfig.expected, authority: new PublicKey(accountVectors.protocolConfig.expected.authority), allowedStakeMint: new PublicKey(accountVectors.protocolConfig.expected.allowedStakeMint), feeRecipient: new PublicKey(accountVectors.protocolConfig.expected.feeRecipient) })
+    const ritual = decodeRitual(envelope(accountVectors.ritual.hex), new PublicKey('8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB'), new PublicKey(accountVectors.ritual.expected.stakeMint))
+    expect(ritual).toMatchObject({ ...accountVectors.ritual.expected, protocolConfig: new PublicKey(accountVectors.ritual.expected.protocolConfig), creator: new PublicKey(accountVectors.ritual.expected.creator), stakeMint: new PublicKey(accountVectors.ritual.expected.stakeMint), lockedFeeRecipient: new PublicKey(accountVectors.ritual.expected.lockedFeeRecipient), stakeVault: new PublicKey(accountVectors.ritual.expected.stakeVault), feeVault: new PublicKey(accountVectors.ritual.expected.feeVault), ruleDigest: hexToBytes(accountVectors.ritual.expected.ruleDigest), members: accountVectors.ritual.expected.members.map(member => new PublicKey(member)) })
+    expect(ritual.schedule).toEqual(accountVectors.ritual.expected.schedule)
+    const event = decodeRitualEvent(envelope(accountVectors.ritualEvent.hex), new PublicKey('8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB'))
+    expect(event).toEqual({ ...accountVectors.ritualEvent.expected, ritual: new PublicKey(accountVectors.ritualEvent.expected.ritual) })
+    const claim = decodeCompletionClaim(envelope(accountVectors.completionClaim.hex), new PublicKey('8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB'))
+    expect(claim).toEqual({ ...accountVectors.completionClaim.expected, ritual: new PublicKey(accountVectors.completionClaim.expected.ritual), event: new PublicKey(accountVectors.completionClaim.expected.event), claimant: new PublicKey(accountVectors.completionClaim.expected.claimant) })
+  })
 })

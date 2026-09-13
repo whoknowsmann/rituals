@@ -109,7 +109,7 @@ export function decodeRitualEvent(input: AccountEnvelope, expectedProgramId: Pub
   if (memberCount < 2 || memberCount > 6 || eventIndex > 15 || (claimedMembersBitmap & ~mask) !== 0 || (confirmedMembersBitmap & ~claimedMembersBitmap) !== 0 || (questionedMembersBitmap & ~claimedMembersBitmap) !== 0 || (confirmedMembersBitmap & questionedMembersBitmap) !== 0 || confirmedMemberCount !== popcount(confirmedMembersBitmap) || settlementVersion > 1) throw new RitualAccountDecodeError('invariant', 'RitualEvent state is inconsistent')
   if (status !== 'Settled' && status !== 'Voided' && settlementVersion !== 0) throw new RitualAccountDecodeError('invariant', 'nonterminal event has settlement version')
   if ((status === 'Settled' || status === 'Voided') && settlementVersion !== 1) throw new RitualAccountDecodeError('invariant', 'terminal event has invalid settlement version')
-  if (initializedAt <= 0n || (status === 'Scheduled' && resolvedAt !== 0n) || (status !== 'Scheduled' && resolvedAt <= 0n)) throw new RitualAccountDecodeError('invariant', 'event timestamps are inconsistent')
+  if (initializedAt <= 0n || ((status === 'Scheduled' || status === 'Claiming' || status === 'Resolving') && resolvedAt !== 0n) || ((status === 'Settled' || status === 'Voided') && resolvedAt <= 0n)) throw new RitualAccountDecodeError('invariant', 'event timestamps are inconsistent')
   const output = Object.freeze({ schemaVersion, ritual, eventIndex, window, memberCount, status, claimedMembersBitmap, confirmedMembersBitmap, questionedMembersBitmap, initializedAt, resolvedAt, settlementVersion, voidReason, eventPool, forfeitedTotal, payoutTotal, refundedTotal, confirmedMemberCount, remainderUnits, remainingStakeTotalAfter, bump }); return finish(reader, output)
 }
 
