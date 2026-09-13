@@ -1978,6 +1978,7 @@ impl Ritual {
         );
         let count = self.members.len() as u8;
         let mask = ((1u16 << count) - 1) as u8;
+        require!(self.created_at > 0, RitualsError::TerminalStateInconsistent);
         match self.status {
             RitualStatus::Completed => require!(
                 self.current_event_index == self.settled_event_count
@@ -1987,6 +1988,8 @@ impl Ritual {
                     && self.funded_member_count == count
                     && self.funded_member_count == self.funded_members_bitmap.count_ones() as u8
                     && self.funded_fee_total == self.locked_activation_fee
+                    && self.activated_at > 0
+                    && self.completed_at > 0
                     && self.activated_at >= self.created_at
                     && self.completed_at >= self.activated_at
                     && self.cancelled_at == 0,
@@ -2001,6 +2004,7 @@ impl Ritual {
                     && self.funded_fee_total == 0
                     && self.activated_at == 0
                     && self.completed_at == 0
+                    && self.cancelled_at > 0
                     && self.cancelled_at >= self.created_at,
                 RitualsError::TerminalStateInconsistent
             ),

@@ -374,6 +374,155 @@ async fn malformed_completed_and_cancelled_terminal_states_fail_closed_as_a_tabl
 }
 
 #[tokio::test]
+async fn terminal_timestamps_must_be_positive_and_preserve_failed_close_state() {
+    for (nonce, mutation) in [
+        (9120, 0u8),
+        (9121, 1),
+        (9122, 2),
+        (9123, 3),
+        (9124, 4),
+        (9125, 5),
+    ] {
+        let (mut c, creator, _other, ritual, _event) = valid_completed(nonce).await;
+        replace_ritual(&mut c, ritual, |r| match mutation {
+            0 => r.created_at = 0,
+            1 => r.created_at = -1,
+            2 => r.activated_at = 0,
+            3 => r.activated_at = -1,
+            4 => r.completed_at = 0,
+            _ => r.completed_at = -1,
+        })
+        .await;
+        let stake = vault_pda(b"stake-vault", &ritual);
+        let fee = vault_pda(b"fee-vault", &ritual);
+        let before = (
+            get_account(&mut c, ritual).await,
+            get_account(&mut c, stake).await,
+            get_account(&mut c, fee).await,
+            lamports(&mut c, creator.pubkey()).await,
+        );
+        assert_error(
+            submit(
+                &mut c,
+                vec![close_terminal_vaults_ix(ritual, creator.pubkey())],
+                &[],
+            )
+            .await,
+            TERMINAL_STATE,
+        );
+        assert_eq!(get_account(&mut c, ritual).await, before.0);
+        assert_eq!(get_account(&mut c, stake).await, before.1);
+        assert_eq!(get_account(&mut c, fee).await, before.2);
+        assert_eq!(lamports(&mut c, creator.pubkey()).await, before.3);
+    }
+
+    for (nonce, mutation) in [(9126, 0i8), (9127, -1)] {
+        let (mut c, creator, _other, ritual) = valid_cancelled(nonce).await;
+        replace_ritual(&mut c, ritual, |r| r.created_at = i64::from(mutation)).await;
+        let stake = vault_pda(b"stake-vault", &ritual);
+        let fee = vault_pda(b"fee-vault", &ritual);
+        let before = (
+            get_account(&mut c, ritual).await,
+            get_account(&mut c, stake).await,
+            get_account(&mut c, fee).await,
+            lamports(&mut c, creator.pubkey()).await,
+        );
+        assert_error(
+            submit(
+                &mut c,
+                vec![close_terminal_vaults_ix(ritual, creator.pubkey())],
+                &[],
+            )
+            .await,
+            TERMINAL_STATE,
+        );
+        assert_eq!(get_account(&mut c, ritual).await, before.0);
+        assert_eq!(get_account(&mut c, stake).await, before.1);
+        assert_eq!(get_account(&mut c, fee).await, before.2);
+        assert_eq!(lamports(&mut c, creator.pubkey()).await, before.3);
+    }
+
+    for (nonce, mutation) in [(9128, 0i8), (9129, -1)] {
+        let (mut c, creator, _other, ritual) = valid_cancelled(nonce).await;
+        replace_ritual(&mut c, ritual, |r| r.cancelled_at = i64::from(mutation)).await;
+        let stake = vault_pda(b"stake-vault", &ritual);
+        let fee = vault_pda(b"fee-vault", &ritual);
+        let before = (
+            get_account(&mut c, ritual).await,
+            get_account(&mut c, stake).await,
+            get_account(&mut c, fee).await,
+            lamports(&mut c, creator.pubkey()).await,
+        );
+        assert_error(
+            submit(
+                &mut c,
+                vec![close_terminal_vaults_ix(ritual, creator.pubkey())],
+                &[],
+            )
+            .await,
+            TERMINAL_STATE,
+        );
+        assert_eq!(get_account(&mut c, ritual).await, before.0);
+        assert_eq!(get_account(&mut c, stake).await, before.1);
+        assert_eq!(get_account(&mut c, fee).await, before.2);
+        assert_eq!(lamports(&mut c, creator.pubkey()).await, before.3);
+    }
+}
+
+// These ordering cases are already rejected by the existing comparisons;
+// they are regression coverage, not RED cases for the positivity fix.
+#[tokio::test]
+async fn terminal_timestamp_ordering_is_rejected() {
+    let (mut c, creator, _other, ritual, _event) = valid_completed(9130).await;
+    replace_ritual(&mut c, ritual, |r| r.completed_at = r.activated_at - 1).await;
+    let before = get_account(&mut c, ritual).await;
+    assert_error(
+        submit(
+            &mut c,
+            vec![close_terminal_vaults_ix(ritual, creator.pubkey())],
+            &[],
+        )
+        .await,
+        TERMINAL_STATE,
+    );
+    assert_eq!(get_account(&mut c, ritual).await, before);
+
+    let (mut c, creator, _other, ritual) = valid_cancelled(9131).await;
+    replace_ritual(&mut c, ritual, |r| r.cancelled_at = r.created_at - 1).await;
+    let before = get_account(&mut c, ritual).await;
+    assert_error(
+        submit(
+            &mut c,
+            vec![close_terminal_vaults_ix(ritual, creator.pubkey())],
+            &[],
+        )
+        .await,
+        TERMINAL_STATE,
+    );
+    assert_eq!(get_account(&mut c, ritual).await, before);
+}
+
+#[tokio::test]
+async fn completed_close_preserves_historical_activation_fee_accounting() {
+    let (mut c, creator, _other, ritual, _event) = valid_completed(9132).await;
+    let fee = vault_pda(b"fee-vault", &ritual);
+    let ritual_before = deserialize(&get_account(&mut c, ritual).await.data);
+    assert_eq!(amount(&mut c, fee).await, 0);
+    assert!(ritual_before.funded_fee_total == ritual_before.locked_activation_fee);
+    assert!(ritual_before.funded_fee_total > 0);
+    replace_ritual(&mut c, ritual, |r| r.funded_fee_total = 0).await;
+    assert_error(
+        submit(
+            &mut c,
+            vec![close_terminal_vaults_ix(ritual, creator.pubkey())],
+            &[],
+        )
+        .await,
+        TERMINAL_STATE,
+    );
+}
+
+#[tokio::test]
 async fn creator_destination_is_immutable_and_wrong_destination_is_rejected() {
     let (mut c, creator, other, ritual) = valid_cancelled(9111).await;
     let before = lamports(&mut c, other.pubkey()).await;
