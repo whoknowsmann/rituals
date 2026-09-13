@@ -1,0 +1,1988 @@
+{
+  "address": "8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB",
+  "metadata": {
+    "name": "rituals",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Rituals protocol program"
+  },
+  "instructions": [
+    {
+      "name": "activate_ritual",
+      "discriminator": [
+        188,
+        109,
+        197,
+        57,
+        117,
+        119,
+        89,
+        251
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "stake_mint"
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_recipient_token",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "approve_claim",
+      "discriminator": [
+        74,
+        228,
+        211,
+        63,
+        140,
+        255,
+        69,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "event",
+          "writable": true
+        },
+        {
+          "name": "claim",
+          "writable": true
+        },
+        {
+          "name": "approver",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "claim_version",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "cancel_unactivated",
+      "discriminator": [
+        173,
+        217,
+        226,
+        113,
+        114,
+        199,
+        239,
+        82
+      ],
+      "accounts": [
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "caller",
+          "signer": true
+        },
+        {
+          "name": "stake_mint"
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_completion",
+      "discriminator": [
+        89,
+        9,
+        83,
+        69,
+        176,
+        3,
+        122,
+        36
+      ],
+      "accounts": [
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "event",
+          "writable": true
+        },
+        {
+          "name": "claim",
+          "writable": true
+        },
+        {
+          "name": "claimant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "event_index",
+          "type": "u8"
+        },
+        {
+          "name": "claim_version",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "close_terminal_vaults",
+      "discriminator": [
+        229,
+        10,
+        164,
+        81,
+        199,
+        123,
+        219,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator_rent_destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_ritual",
+      "discriminator": [
+        97,
+        52,
+        34,
+        171,
+        25,
+        170,
+        16,
+        58
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "nonce"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stake_mint"
+        },
+        {
+          "name": "fee_recipient_token"
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "nonce",
+          "type": "u64"
+        },
+        {
+          "name": "rule_digest",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "members",
+          "type": {
+            "vec": "pubkey"
+          }
+        },
+        {
+          "name": "member_total_stake",
+          "type": "u64"
+        },
+        {
+          "name": "schedule",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "EventWindow"
+              }
+            }
+          }
+        },
+        {
+          "name": "additional_confirmation_threshold",
+          "type": "u8"
+        },
+        {
+          "name": "fee_payer_mode",
+          "type": {
+            "defined": {
+              "name": "FeePayerMode"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "finalize_event",
+      "discriminator": [
+        88,
+        246,
+        123,
+        105,
+        100,
+        148,
+        170,
+        236
+      ],
+      "accounts": [
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "event",
+          "writable": true
+        },
+        {
+          "name": "stake_mint"
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "event_index",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "fund_member",
+      "discriminator": [
+        234,
+        156,
+        207,
+        252,
+        148,
+        24,
+        162,
+        238
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member",
+          "signer": true
+        },
+        {
+          "name": "stake_mint"
+        },
+        {
+          "name": "member_source",
+          "writable": true
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_current_event",
+      "discriminator": [
+        49,
+        56,
+        188,
+        11,
+        11,
+        14,
+        253,
+        143
+      ],
+      "accounts": [
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "event",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "event_index",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "initialize_protocol_config",
+      "discriminator": [
+        28,
+        50,
+        43,
+        233,
+        244,
+        98,
+        123,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "allowed_stake_mint",
+          "type": "pubkey"
+        },
+        {
+          "name": "fee_recipient",
+          "type": "pubkey"
+        },
+        {
+          "name": "fee_basis_points",
+          "type": "u16"
+        },
+        {
+          "name": "minimum_fee",
+          "type": "u64"
+        },
+        {
+          "name": "maximum_fee",
+          "type": "u64"
+        },
+        {
+          "name": "maximum_member_stake",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "question_claim",
+      "discriminator": [
+        50,
+        41,
+        214,
+        168,
+        245,
+        45,
+        251,
+        152
+      ],
+      "accounts": [
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "event",
+          "writable": true
+        },
+        {
+          "name": "claim",
+          "writable": true
+        },
+        {
+          "name": "questioner",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "claim_version",
+          "type": "u8"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "CompletionClaim",
+      "discriminator": [
+        233,
+        130,
+        153,
+        175,
+        66,
+        45,
+        112,
+        112
+      ]
+    },
+    {
+      "name": "ProtocolConfig",
+      "discriminator": [
+        207,
+        91,
+        250,
+        28,
+        152,
+        179,
+        215,
+        209
+      ]
+    },
+    {
+      "name": "Ritual",
+      "discriminator": [
+        59,
+        144,
+        213,
+        109,
+        22,
+        234,
+        192,
+        75
+      ]
+    },
+    {
+      "name": "RitualEvent",
+      "discriminator": [
+        20,
+        35,
+        155,
+        231,
+        156,
+        20,
+        94,
+        160
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidFeeBasisPoints",
+      "msg": "fee basis points must be between 1 and 10,000"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidMinimumFee",
+      "msg": "minimum fee must be positive"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidMaximumFee",
+      "msg": "maximum fee must be positive"
+    },
+    {
+      "code": 6003,
+      "name": "FeeBoundsReversed",
+      "msg": "minimum fee must not exceed maximum fee"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidMaximumMemberStake",
+      "msg": "maximum member stake must be positive"
+    },
+    {
+      "code": 6005,
+      "name": "ProtocolPaused",
+      "msg": "protocol is paused"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidMemberCount",
+      "msg": "member count must be between 2 and the configured maximum"
+    },
+    {
+      "code": 6007,
+      "name": "DuplicateMember",
+      "msg": "members must be unique"
+    },
+    {
+      "code": 6008,
+      "name": "CreatorNotMember",
+      "msg": "creator must be a member"
+    },
+    {
+      "code": 6009,
+      "name": "ZeroRuleDigest",
+      "msg": "rule digest must be nonzero"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidScheduleCount",
+      "msg": "schedule count is outside the configured bounds"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidEventWindow",
+      "msg": "event window timestamps are invalid"
+    },
+    {
+      "code": 6012,
+      "name": "ScheduleNotChronological",
+      "msg": "schedule windows must be strictly chronological"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidMemberStake",
+      "msg": "member stake is outside the configured bounds"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidConfirmationThreshold",
+      "msg": "confirmation threshold exceeds the member count"
+    },
+    {
+      "code": 6015,
+      "name": "StakePoolOverflow",
+      "msg": "member stake pool overflowed"
+    },
+    {
+      "code": 6016,
+      "name": "StakeNotDivisible",
+      "msg": "member stake is not divisible by the event count"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidPerEventAllocation",
+      "msg": "per-event allocation must be positive"
+    },
+    {
+      "code": 6018,
+      "name": "FeeCalculationOverflow",
+      "msg": "fee calculation overflowed"
+    },
+    {
+      "code": 6019,
+      "name": "DefaultMember",
+      "msg": "member public keys must be non-default"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidRitualStatus",
+      "msg": "ritual status is not funding"
+    },
+    {
+      "code": 6021,
+      "name": "MemberNotFound",
+      "msg": "member is not part of this ritual"
+    },
+    {
+      "code": 6022,
+      "name": "AlreadyFunded",
+      "msg": "member has already funded this ritual"
+    },
+    {
+      "code": 6023,
+      "name": "SplitFundingNotImplemented",
+      "msg": "split funding is not implemented"
+    },
+    {
+      "code": 6024,
+      "name": "FundingAmountOverflow",
+      "msg": "funding amount overflowed"
+    },
+    {
+      "code": 6025,
+      "name": "InsufficientSourceFunds",
+      "msg": "member source has insufficient funds"
+    },
+    {
+      "code": 6026,
+      "name": "FundingAccountingOverflow",
+      "msg": "funding accounting overflowed"
+    },
+    {
+      "code": 6027,
+      "name": "FundingStateInconsistent",
+      "msg": "funding state is inconsistent"
+    },
+    {
+      "code": 6028,
+      "name": "ActivationStateInconsistent",
+      "msg": "activation funding state is inconsistent"
+    },
+    {
+      "code": 6029,
+      "name": "ActivationWindowClosed",
+      "msg": "the first event has opened"
+    },
+    {
+      "code": 6030,
+      "name": "ActivationStakeVaultShort",
+      "msg": "stake vault is short of its tracked liability"
+    },
+    {
+      "code": 6031,
+      "name": "ActivationFeeVaultShort",
+      "msg": "fee vault is short of its locked activation fee"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidCancellationAuthority",
+      "msg": "caller cannot cancel before the first event opens"
+    },
+    {
+      "code": 6033,
+      "name": "InvalidRefundAccountCount",
+      "msg": "refund account count must equal the member count"
+    },
+    {
+      "code": 6034,
+      "name": "InvalidRefundDestination",
+      "msg": "refund destination is invalid"
+    },
+    {
+      "code": 6035,
+      "name": "CancellationStateInconsistent",
+      "msg": "cancellation funding state is inconsistent"
+    },
+    {
+      "code": 6036,
+      "name": "CancellationStakeVaultShort",
+      "msg": "stake vault is short of tracked cancellation liabilities"
+    },
+    {
+      "code": 6037,
+      "name": "CancellationFeeVaultShort",
+      "msg": "fee vault is short of tracked cancellation liabilities"
+    },
+    {
+      "code": 6038,
+      "name": "InvalidCurrentEvent",
+      "msg": "event index is not the current event"
+    },
+    {
+      "code": 6039,
+      "name": "EventStateInconsistent",
+      "msg": "event state is inconsistent"
+    },
+    {
+      "code": 6040,
+      "name": "EventBitmapInconsistent",
+      "msg": "event bitmaps are inconsistent"
+    },
+    {
+      "code": 6041,
+      "name": "MemberNotFunded",
+      "msg": "member has not funded this ritual"
+    },
+    {
+      "code": 6042,
+      "name": "AlreadyClaimed",
+      "msg": "member has already claimed this event"
+    },
+    {
+      "code": 6043,
+      "name": "ClaimWindowClosed",
+      "msg": "completion claim window is closed"
+    },
+    {
+      "code": 6044,
+      "name": "UnsupportedClaimVersion",
+      "msg": "claim version is unsupported"
+    },
+    {
+      "code": 6045,
+      "name": "ActiveStateInconsistent",
+      "msg": "active ritual state is inconsistent"
+    },
+    {
+      "code": 6046,
+      "name": "InvalidClaimState",
+      "msg": "claim state is invalid for this action"
+    },
+    {
+      "code": 6047,
+      "name": "ApprovalNotEligible",
+      "msg": "signer is not an eligible funded member"
+    },
+    {
+      "code": 6048,
+      "name": "SelfApproval",
+      "msg": "claimant cannot approve or question their own claim"
+    },
+    {
+      "code": 6049,
+      "name": "DuplicateApproval",
+      "msg": "member has already approved this claim"
+    },
+    {
+      "code": 6050,
+      "name": "ApprovalWindowClosed",
+      "msg": "approval or question window is closed"
+    },
+    {
+      "code": 6051,
+      "name": "ClaimStateInconsistent",
+      "msg": "claim state is inconsistent"
+    },
+    {
+      "code": 6052,
+      "name": "ConflictingAttestation",
+      "msg": "member has already approved this claim and cannot question it"
+    },
+    {
+      "code": 6053,
+      "name": "SettlementAccountingOverflow",
+      "msg": "settlement accounting overflowed"
+    },
+    {
+      "code": 6054,
+      "name": "ResolutionNotReached",
+      "msg": "event resolution has not passed"
+    },
+    {
+      "code": 6055,
+      "name": "InvalidFinalizeDestinationCount",
+      "msg": "finalize destination count is invalid"
+    },
+    {
+      "code": 6056,
+      "name": "InvalidFinalizeDestination",
+      "msg": "finalize destination is invalid"
+    },
+    {
+      "code": 6057,
+      "name": "FinalizeStakeVaultShort",
+      "msg": "stake vault is short of tracked settlement liability"
+    },
+    {
+      "code": 6058,
+      "name": "TerminalVaultNotEmpty",
+      "msg": "stake or fee vault is not empty"
+    },
+    {
+      "code": 6059,
+      "name": "TerminalVaultStateInconsistent",
+      "msg": "terminal vault state is inconsistent"
+    },
+    {
+      "code": 6060,
+      "name": "InvalidTerminalStatus",
+      "msg": "ritual is not in a terminal status"
+    },
+    {
+      "code": 6061,
+      "name": "TerminalStateInconsistent",
+      "msg": "terminal state is inconsistent"
+    },
+    {
+      "code": 6062,
+      "name": "TerminalVaultsAlreadyClosed",
+      "msg": "terminal vaults have already been closed"
+    }
+  ],
+  "types": [
+    {
+      "name": "ClaimStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Confirmed"
+          },
+          {
+            "name": "Questioned"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompletionClaim",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "schema_version",
+            "type": "u8"
+          },
+          {
+            "name": "ritual",
+            "type": "pubkey"
+          },
+          {
+            "name": "event",
+            "type": "pubkey"
+          },
+          {
+            "name": "event_index",
+            "type": "u8"
+          },
+          {
+            "name": "claimant",
+            "type": "pubkey"
+          },
+          {
+            "name": "member_index",
+            "type": "u8"
+          },
+          {
+            "name": "claim_version",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ClaimStatus"
+              }
+            }
+          },
+          {
+            "name": "required_additional_confirmations",
+            "type": "u8"
+          },
+          {
+            "name": "approvals_bitmap",
+            "type": "u8"
+          },
+          {
+            "name": "approval_count",
+            "type": "u8"
+          },
+          {
+            "name": "claimed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Scheduled"
+          },
+          {
+            "name": "Claiming"
+          },
+          {
+            "name": "Resolving"
+          },
+          {
+            "name": "Settled"
+          },
+          {
+            "name": "Voided"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventWindow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "opens",
+            "type": "i64"
+          },
+          {
+            "name": "deadline",
+            "type": "i64"
+          },
+          {
+            "name": "resolution",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeePayerMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Host"
+          },
+          {
+            "name": "Split"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "schema_version",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "allowed_stake_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_recipient",
+            "docs": [
+              "The address is recorded without account validation; CreateRitual validates it."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_basis_points",
+            "type": "u16"
+          },
+          {
+            "name": "minimum_fee",
+            "type": "u64"
+          },
+          {
+            "name": "maximum_fee",
+            "type": "u64"
+          },
+          {
+            "name": "maximum_member_stake",
+            "type": "u64"
+          },
+          {
+            "name": "max_members",
+            "type": "u8"
+          },
+          {
+            "name": "max_events",
+            "type": "u8"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Ritual",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "schema_version",
+            "type": "u8"
+          },
+          {
+            "name": "protocol_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
+          },
+          {
+            "name": "rule_digest",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "stake_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "members",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "member_total_stake",
+            "type": "u64"
+          },
+          {
+            "name": "per_event_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "schedule",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "EventWindow"
+                }
+              }
+            }
+          },
+          {
+            "name": "additional_confirmation_threshold",
+            "type": "u8"
+          },
+          {
+            "name": "fee_payer_mode",
+            "type": {
+              "defined": {
+                "name": "FeePayerMode"
+              }
+            }
+          },
+          {
+            "name": "locked_activation_fee",
+            "type": "u64"
+          },
+          {
+            "name": "stake_decimals",
+            "type": "u8"
+          },
+          {
+            "name": "locked_fee_recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "fee_vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "funded_members_bitmap",
+            "type": "u8"
+          },
+          {
+            "name": "funded_member_count",
+            "type": "u8"
+          },
+          {
+            "name": "funded_stake_total",
+            "type": "u64"
+          },
+          {
+            "name": "funded_fee_total",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "RitualStatus"
+              }
+            }
+          },
+          {
+            "name": "current_event_index",
+            "type": "u8"
+          },
+          {
+            "name": "settled_event_count",
+            "type": "u8"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "activated_at",
+            "type": "i64"
+          },
+          {
+            "name": "cancelled_at",
+            "type": "i64"
+          },
+          {
+            "name": "completed_at",
+            "type": "i64"
+          },
+          {
+            "name": "vaults_closed",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RitualEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "schema_version",
+            "type": "u8"
+          },
+          {
+            "name": "ritual",
+            "type": "pubkey"
+          },
+          {
+            "name": "event_index",
+            "type": "u8"
+          },
+          {
+            "name": "window",
+            "type": {
+              "defined": {
+                "name": "EventWindow"
+              }
+            }
+          },
+          {
+            "name": "member_count",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "EventStatus"
+              }
+            }
+          },
+          {
+            "name": "claimed_members_bitmap",
+            "type": "u8"
+          },
+          {
+            "name": "confirmed_members_bitmap",
+            "type": "u8"
+          },
+          {
+            "name": "questioned_members_bitmap",
+            "type": "u8"
+          },
+          {
+            "name": "initialized_at",
+            "type": "i64"
+          },
+          {
+            "name": "resolved_at",
+            "type": "i64"
+          },
+          {
+            "name": "settlement_version",
+            "type": "u8"
+          },
+          {
+            "name": "void_reason",
+            "type": {
+              "defined": {
+                "name": "VoidReason"
+              }
+            }
+          },
+          {
+            "name": "event_pool",
+            "type": "u64"
+          },
+          {
+            "name": "forfeited_total",
+            "type": "u64"
+          },
+          {
+            "name": "payout_total",
+            "type": "u64"
+          },
+          {
+            "name": "refunded_total",
+            "type": "u64"
+          },
+          {
+            "name": "confirmed_member_count",
+            "type": "u8"
+          },
+          {
+            "name": "remainder_units",
+            "type": "u64"
+          },
+          {
+            "name": "remaining_stake_total_after",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RitualStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Funding"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VoidReason",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "NoConfirmedMembers"
+          },
+          {
+            "name": "UnresolvedClaims"
+          }
+        ]
+      }
+    }
+  ]
+}
