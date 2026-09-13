@@ -696,6 +696,7 @@ pub mod rituals {
                     EventStatus::Scheduled | EventStatus::Claiming | EventStatus::Resolving
                 )
                 && event.settlement_version == 0
+                && event.resolved_at == 0
                 && event.void_reason == VoidReason::None
                 && event.event_pool == 0
                 && event.forfeited_total == 0
@@ -707,6 +708,10 @@ pub mod rituals {
             RitualsError::EventStateInconsistent
         );
         let now = Clock::get()?.unix_timestamp;
+        require!(
+            event.initialized_at <= now,
+            RitualsError::EventStateInconsistent
+        );
         require!(
             now > event.window.resolution,
             RitualsError::ResolutionNotReached
