@@ -9,19 +9,20 @@ export type RitualEventAccountView = Readonly<{ schemaVersion: number; ritual: P
 export type CompletionClaimAccountView = Readonly<{ schemaVersion: number; ritual: PublicKey; event: PublicKey; eventIndex: number; claimant: PublicKey; memberIndex: number; claimVersion: number; status: 'Pending' | 'Confirmed' | 'Questioned'; requiredAdditionalConfirmations: number; approvalsBitmap: number; approvalCount: number; claimedAt: bigint; bump: number }>
 export type RitualAccountView = Readonly<{ schemaVersion: number; protocolConfig: PublicKey; creator: PublicKey; nonce: bigint; ruleDigest: RuleDigest; stakeMint: PublicKey; members: readonly PublicKey[]; memberTotalStake: bigint; perEventAllocation: bigint; schedule: readonly EventWindowView[]; additionalConfirmationThreshold: number; feePayerMode: 'Host' | 'Split'; lockedActivationFee: bigint; stakeDecimals: number; lockedFeeRecipient: PublicKey; stakeVault: PublicKey; feeVault: PublicKey; stakeVaultBump: number; feeVaultBump: number; fundedMembersBitmap: number; fundedMemberCount: number; fundedStakeTotal: bigint; fundedFeeTotal: bigint; status: 'Funding' | 'Active' | 'Completed' | 'Cancelled'; currentEventIndex: number; settledEventCount: number; createdAt: bigint; activatedAt: bigint; cancelledAt: bigint; completedAt: bigint; vaultsClosed: boolean; bump: number }>
 
-export const ACCOUNT_DISCRIMINATORS = {
-  ProtocolConfig: Uint8Array.from([207, 91, 250, 28, 152, 179, 215, 209]),
-  Ritual: Uint8Array.from([59, 144, 213, 109, 22, 234, 192, 75]),
-  RitualEvent: Uint8Array.from([20, 35, 155, 231, 156, 20, 94, 160]),
-  CompletionClaim: Uint8Array.from([233, 130, 153, 175, 66, 45, 112, 112]),
-} as const
+const frozenDiscriminator = <const T extends readonly number[]>(value: T): Readonly<T> => Object.freeze(value)
+export const ACCOUNT_DISCRIMINATORS = Object.freeze({
+  ProtocolConfig: frozenDiscriminator([207, 91, 250, 28, 152, 179, 215, 209]),
+  Ritual: frozenDiscriminator([59, 144, 213, 109, 22, 234, 192, 75]),
+  RitualEvent: frozenDiscriminator([20, 35, 155, 231, 156, 20, 94, 160]),
+  CompletionClaim: frozenDiscriminator([233, 130, 153, 175, 66, 45, 112, 112]),
+})
 
-export const ACCOUNT_DATA_LENGTHS = {
+export const ACCOUNT_DATA_LENGTHS = Object.freeze({
   ProtocolConfig: 135,
   Ritual: 909,
   RitualEvent: 139,
   CompletionClaim: 121,
-} as const
+})
 
 const CURRENT_CLAIM_VERSION = 0
 

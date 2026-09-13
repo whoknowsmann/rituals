@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { PublicKey } from '@solana/web3.js'
 import { RITUAL_INSTRUCTION_RUST_VECTORS as V } from './instructionData.fixture'
 import {
@@ -14,7 +16,9 @@ import {
   encodeFinalizeEventData,
   encodeCloseTerminalVaultsData,
   RitualInstructionDataError,
+  INSTRUCTION_DISCRIMINATORS,
 } from './instructionData'
+import { CURRENT_CLAIM_VERSION } from './pdas'
 
 describe('Ritual instruction data encoders', () => {
   it('encodes empty instructions as fresh discriminators', () => {
@@ -27,6 +31,36 @@ describe('Ritual instruction data encoders', () => {
     expect(encodeActivateRitualData()).toHaveLength(8)
     expect(encodeCancelUnactivatedData()).toHaveLength(8)
     expect(encodeCloseTerminalVaultsData()).toHaveLength(8)
+  })
+
+  it('keeps discriminator constants deeply immutable and independent of encoder output', () => {
+    expect(Object.isFrozen(INSTRUCTION_DISCRIMINATORS)).toBe(true)
+    for (const discriminator of Object.values(INSTRUCTION_DISCRIMINATORS)) {
+      expect(Object.isFrozen(discriminator)).toBe(true)
+      expect(Reflect.set(discriminator, 0, 0)).toBe(false)
+    }
+    const before = encodeFundMemberData()
+    expect(Reflect.set(INSTRUCTION_DISCRIMINATORS, 'fund_member', [0, 0, 0, 0, 0, 0, 0, 0])).toBe(false)
+    expect(encodeFundMemberData()).toEqual(before)
+  })
+
+  it('rejects group stake pool overflow rather than only per-event overflow', () => {
+    const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
+    expect(() => encodeCreateRitualData({ nonce: 1n, ruleDigest: ('1f'.repeat(32)) as never, members: [key(1), key(2)], memberTotalStake: 0x8000000000000000n, schedule: [{ opens: 1n, deadline: 2n, resolution: 3n }, { opens: 4n, deadline: 5n, resolution: 6n }], additionalConfirmationThreshold: 0, feePayerMode: 'HOST' })).toThrowError(/overflow: group stake pool exceeds u64/)
+    expect(() => encodeCreateRitualData({ nonce: 1n, ruleDigest: ('1f'.repeat(32)) as never, members: [key(1), key(2)], memberTotalStake: 0x7ffffffffffffffen, schedule: [{ opens: 1n, deadline: 2n, resolution: 3n }], additionalConfirmationThreshold: 0, feePayerMode: 'HOST' })).not.toThrow()
+  })
+
+  it('uses the shared current claim version and writes large i64 values in little endian', () => {
+    const data = encodeClaimCompletionData(3)
+    expect(data[9]).toBe(CURRENT_CLAIM_VERSION)
+    const value = 0x123456789abcden
+    const encoded = encodeCreateRitualData({ nonce: 1n, ruleDigest: ('1f'.repeat(32)) as never, members: [new PublicKey(new Uint8Array(32).fill(1)), new PublicKey(new Uint8Array(32).fill(2))], memberTotalStake: 2n, schedule: [{ opens: value, deadline: value + 1n, resolution: value + 2n }], additionalConfirmationThreshold: 0, feePayerMode: 'HOST' })
+    expect(Array.from(encoded.slice(-26, -18))).toEqual([0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12, 0])
+    const maxI64 = 0x7fffffffffffffffn
+    const maxEncoded = encodeCreateRitualData({ nonce: 1n, ruleDigest: ('1f'.repeat(32)) as never, members: [new PublicKey(new Uint8Array(32).fill(1)), new PublicKey(new Uint8Array(32).fill(2))], memberTotalStake: 2n, schedule: [{ opens: 0n, deadline: maxI64 - 1n, resolution: maxI64 }], additionalConfirmationThreshold: 0, feePayerMode: 'HOST' })
+    expect(Array.from(maxEncoded.slice(-10, -2))).toEqual([255, 255, 255, 255, 255, 255, 255, 127])
+    expect(() => encodeCreateRitualData({ nonce: 1n, ruleDigest: ('1f'.repeat(32)) as never, members: [new PublicKey(new Uint8Array(32).fill(1)), new PublicKey(new Uint8Array(32).fill(2))], memberTotalStake: 2n, schedule: [{ opens: -0x8000000000000000n, deadline: 0n, resolution: 1n }], additionalConfirmationThreshold: 0, feePayerMode: 'HOST' })).toThrowError(/invariant/)
+    expect(fs.readFileSync(path.resolve(__dirname, 'instructionData.ts'), 'utf8')).not.toMatch(/setBig(?:U|)Int64|setBigUint64/)
   })
 
   it('matches the frozen Rust vectors for all eleven instructions', () => {

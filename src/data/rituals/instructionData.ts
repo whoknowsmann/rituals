@@ -1,20 +1,21 @@
 import { PublicKey } from '@solana/web3.js'
 import type { RuleDigest } from '../../domain/rituals/types'
+import { CURRENT_CLAIM_VERSION } from './pdas'
 
-const CURRENT_CLAIM_VERSION = 0 as const
-export const INSTRUCTION_DISCRIMINATORS = {
-  activate_ritual: Uint8Array.from([188, 109, 197, 57, 117, 119, 89, 251]),
-  approve_claim: Uint8Array.from([74, 228, 211, 63, 140, 255, 69, 210]),
-  cancel_unactivated: Uint8Array.from([173, 217, 226, 113, 114, 199, 239, 82]),
-  claim_completion: Uint8Array.from([89, 9, 83, 69, 176, 3, 122, 36]),
-  close_terminal_vaults: Uint8Array.from([229, 10, 164, 81, 199, 123, 219, 21]),
-  create_ritual: Uint8Array.from([97, 52, 34, 171, 25, 170, 16, 58]),
-  finalize_event: Uint8Array.from([88, 246, 123, 105, 100, 148, 170, 236]),
-  fund_member: Uint8Array.from([234, 156, 207, 252, 148, 24, 162, 238]),
-  initialize_current_event: Uint8Array.from([49, 56, 188, 11, 11, 14, 253, 143]),
-  initialize_protocol_config: Uint8Array.from([28, 50, 43, 233, 244, 98, 123, 118]),
-  question_claim: Uint8Array.from([50, 41, 214, 168, 245, 45, 251, 152]),
-} as const
+const frozenDiscriminator = <const T extends readonly number[]>(value: T): Readonly<T> => Object.freeze(value)
+export const INSTRUCTION_DISCRIMINATORS = Object.freeze({
+  activate_ritual: frozenDiscriminator([188, 109, 197, 57, 117, 119, 89, 251]),
+  approve_claim: frozenDiscriminator([74, 228, 211, 63, 140, 255, 69, 210]),
+  cancel_unactivated: frozenDiscriminator([173, 217, 226, 113, 114, 199, 239, 82]),
+  claim_completion: frozenDiscriminator([89, 9, 83, 69, 176, 3, 122, 36]),
+  close_terminal_vaults: frozenDiscriminator([229, 10, 164, 81, 199, 123, 219, 21]),
+  create_ritual: frozenDiscriminator([97, 52, 34, 171, 25, 170, 16, 58]),
+  finalize_event: frozenDiscriminator([88, 246, 123, 105, 100, 148, 170, 236]),
+  fund_member: frozenDiscriminator([234, 156, 207, 252, 148, 24, 162, 238]),
+  initialize_current_event: frozenDiscriminator([49, 56, 188, 11, 11, 14, 253, 143]),
+  initialize_protocol_config: frozenDiscriminator([28, 50, 43, 233, 244, 98, 123, 118]),
+  question_claim: frozenDiscriminator([50, 41, 214, 168, 245, 45, 251, 152]),
+})
 
 export class RitualInstructionDataError extends Error {
   readonly category: 'input' | 'overflow' | 'invariant' | 'encoding'
@@ -80,18 +81,17 @@ function digestBytes(value: unknown): Uint8Array {
 
 class Writer {
   private readonly data: Uint8Array
-  private readonly view: DataView
   private offset = 0
   constructor(size: number) {
     if (!Number.isSafeInteger(size) || size < 0 || size > MAX_ALLOC) throw new RitualInstructionDataError('overflow', 'encoded instruction is too large')
-    this.data = new Uint8Array(size); this.view = new DataView(this.data.buffer)
+    this.data = new Uint8Array(size)
   }
-  u8(v: number): void { this.view.setUint8(this.offset++, v) }
-  u16(v: number): void { this.view.setUint16(this.offset, v, true); this.offset += 2 }
-  u32(v: number): void { this.view.setUint32(this.offset, v, true); this.offset += 4 }
-  u64(v: bigint): void { this.view.setBigUint64(this.offset, v, true); this.offset += 8 }
-  i64(v: bigint): void { this.view.setBigInt64(this.offset, v, true); this.offset += 8 }
-  bytes(v: Uint8Array): void { this.data.set(v, this.offset); this.offset += v.length }
+  u8(v: number): void { this.data[this.offset++] = v }
+  u16(v: number): void { this.data[this.offset++] = v & 0xff; this.data[this.offset++] = (v >>> 8) & 0xff }
+  u32(v: number): void { for (let i = 0; i < 4; i += 1) this.data[this.offset++] = (v >>> (i * 8)) & 0xff }
+  u64(v: bigint): void { for (let i = 0; i < 8; i += 1) this.data[this.offset++] = Number((v >> BigInt(i * 8)) & 0xffn) }
+  i64(v: bigint): void { this.u64(v < 0n ? v + (MAX_U64 + 1n) : v) }
+  bytes(v: readonly number[] | Uint8Array): void { this.data.set(v, this.offset); this.offset += v.length }
   vec(v: readonly Uint8Array[]): void { this.u32(v.length); for (const item of v) this.bytes(item) }
   finish(): Uint8Array { if (this.offset !== this.data.length) throw new RitualInstructionDataError('encoding', 'internal size mismatch'); return this.data }
 }
@@ -132,7 +132,7 @@ export function encodeCreateRitualData(input: CreateRitualInput): Uint8Array {
     const schedule = rawSchedule.map((x, i) => { const q = record(x); const opens = bigintValue(prop(q, 'opens'), `schedule[${i}].opens`, true); const deadline = bigintValue(prop(q, 'deadline'), `schedule[${i}].deadline`, true); const resolution = bigintValue(prop(q, 'resolution'), `schedule[${i}].resolution`, true); if (opens < 0n || !(opens < deadline && deadline < resolution)) throw new RitualInstructionDataError('invariant', 'event window ordering is invalid'); return { opens, deadline, resolution } })
     for (let i = 1; i < schedule.length; i++) if (schedule[i - 1].resolution >= schedule[i].opens) throw new RitualInstructionDataError('invariant', 'schedule windows overlap')
     if (stake % BigInt(schedule.length) !== 0n || stake / BigInt(schedule.length) === 0n) throw new RitualInstructionDataError('invariant', 'stake must divide evenly across events')
-    const perEvent = stake / BigInt(schedule.length); if (perEvent * BigInt(members.length) > MAX_U64) throw new RitualInstructionDataError('overflow', 'group event pool exceeds u64')
+    if (stake * BigInt(members.length) > MAX_U64) throw new RitualInstructionDataError('overflow', 'group stake pool exceeds u64')
     const threshold = numberValue(prop(o, 'additionalConfirmationThreshold'), 'additionalConfirmationThreshold', members.length - 1); const mode = prop(o, 'feePayerMode'); if (mode !== 'HOST' && mode !== 'SPLIT') throw new RitualInstructionDataError('input', 'feePayerMode must be HOST or SPLIT')
     const size = 8 + 8 + 32 + 4 + members.length * 32 + 8 + 4 + schedule.length * 24 + 1 + 1; const w = new Writer(size); w.bytes(INSTRUCTION_DISCRIMINATORS.create_ritual); w.u64(nonce); w.bytes(digest); w.vec(members); w.u64(stake); w.u32(schedule.length); for (const s of schedule) { w.i64(s.opens); w.i64(s.deadline); w.i64(s.resolution) } w.u8(threshold); w.u8(mode === 'HOST' ? 0 : 1); return w.finish()
   } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode ritual') }
