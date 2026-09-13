@@ -2,13 +2,13 @@
 
 ## Status
 
-The active product is Rituals. The visible home and template/create/review preview are approved fixture-backed slices. The onchain program is approved through activation, cancellation, current-event initialization, signed completion claims, threshold approvals, and safe questioning. Settlement and real-wallet flows are not presented as complete.
+The active product is Rituals. Approved fixture-backed mobile slices cover home, template/create/review, detail, claim, confirmation, and settled/voided receipt previews. The onchain program is approved through activation, cancellation, current events, signed claims, threshold approvals, safe questioning, and conservation-safe settlement. Terminal vault closure and real-wallet flows are not presented as complete.
 
 ## Active mobile path
 
 ```text
 Rituals React Native app
-    -> AppNavigator (RitualsHome, TemplatePicker, CreateRitual, ReviewRitual, Settings)
+    -> AppNavigator (home, create/review, detail, claim, confirmation, receipt, settings)
     -> RitualsHomeScreen
     -> typed RitualsRepository
         -> deterministic FixtureRitualsRepository
@@ -21,8 +21,8 @@ Active modules:
 
 - `src/domain/rituals/` — typed draft, invite, lifecycle, money, settlement, threshold contracts;
 - `src/data/rituals/` — repository interface and deterministic fixture implementation;
-- `src/features/rituals/home/` and `src/features/rituals/create/` — home, exact form validation, fee math, route safety, and review view models;
-- `src/screens/` — Rituals home, template, create, review, and settings screens;
+- `src/features/rituals/home/`, `create/`, and `claims/` — home, form validation, fee math, route safety, attestations, and receipt view models;
+- `src/screens/` — Rituals home, template, create, review, detail, claim, confirmation, receipt, and settings screens;
 - `src/navigators/` — Rituals home and settings routes;
 - `src/utils/` — connection and wallet authorization plumbing;
 - `src/components/cluster/` and `top-bar/` — generic active shell components.
@@ -31,7 +31,7 @@ Pure domain code does not fetch, render, sign, submit, or mutate wallets. Token 
 
 ## On-chain boundary
 
-The Anchor workspace and native ProgramTest coverage are separate from the mobile slice. Approved program work covers protocol initialization, ritual creation, exact HOST/SPLIT funding, activation, safe pre-activation cancellation, current-event accounts, signed completion claims, exact friend-approval thresholds, and safe questioning. Complete settlement, devnet deployment, and native MWA signing are not release-proven here. Do not treat local placeholder program IDs, generated IDLs, or fixtures as production identities.
+The Anchor workspace and native ProgramTest coverage are separate from the mobile slice. Approved program work covers protocol initialization, creation, exact HOST/SPLIT funding, activation, cancellation, current-event accounts, claims, friend attestations, questioning, and atomic event settlement. Settlement conserves each event pool, routes pending/questioned events to full principal refunds, redistributes only clearly unclaimed allocations, preserves future-event principal, and never pays the protocol. Terminal zero-balance vault closure, devnet deployment, and native MWA signing are not release-proven here.
 
 ## Identity and build boundary
 

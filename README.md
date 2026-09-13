@@ -4,7 +4,7 @@ Rituals is a Solana Mobile accountability app for private groups: friends commit
 
 ## Current status
 
-The active app is a visible, fixture-backed Rituals home screen. It loads populated, funding, pending-confirmation, completed, empty, and error states from a deterministic repository and labels the data `DEVNET` / `NO REAL VALUE`. Rituals domain contracts cover draft, invite, lifecycle, money, settlement, and threshold behavior. Activation is implemented and approved. Cancellation is implemented but remains in review; it is not an approved/complete release feature.
+The active app is a fixture-backed Rituals experience covering home, template/create/review, detail, claim, confirmation, and settled/voided receipt previews. It labels fixture data `DEVNET` / `NO REAL VALUE` and submits no transaction. The local Anchor program is approved through creation, exact funding, activation, cancellation/refunds, signed claims, friend attestations, safe questioning, and conservation-safe event settlement. Real devnet, MWA writes, and terminal vault closure remain unverified.
 
 The app uses hosted-model-compatible architecture but no hosted model is active in the current home slice. Wallet authorization is configured for Solana devnet through Mobile Wallet Adapter. No real transaction is submitted by the fixture home actions.
 

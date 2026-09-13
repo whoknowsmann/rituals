@@ -2,7 +2,7 @@
 
 ## Honest status
 
-Rituals currently ships approved fixture-backed home and create/review slices with explicit devnet, preview-only, and no-real-value labeling. The program is approved through activation, cancellation, signed completion claims, exact friend thresholds, and safe questioning. Fixture actions do not submit real transactions. Complete settlement, real devnet deployment, and native MWA signing are not release-proven.
+Rituals currently ships approved fixture-backed home, create/review, claim/confirmation, and receipt previews with explicit devnet, preview-only, and no-real-value labeling. The program is approved through activation, cancellation, claims, friend attestations, safe questioning, and conservation-safe event settlement. Fixture actions do not submit real transactions. Terminal vault closure, real devnet deployment, and native MWA signing are not release-proven.
 
 Nothing here claims that mainnet funds or stablecoins are safe. P0 is devnet with valueless test assets.
 
@@ -25,7 +25,7 @@ A wallet signature proves who attested, not that the underlying real-world activ
 
 ## Program and money limits
 
-The program boundary is separate from this fixture UI. Approved native coverage includes protocol initialization, ritual creation, exact HOST/SPLIT funding, activation, pre-activation cancellation, event/claim PDAs, threshold approvals, and questioning. Attestations are signer-derived, event/version bound, replay resistant, and have no token accounts; a questioned claim routes the event toward the future safe-void path. Full settlement, deployment, and independent review remain gates. Local program IDs, generated artifacts, and fixtures are not production identities.
+The program boundary is separate from this fixture UI. Approved native coverage includes protocol initialization, creation, funding, activation, cancellation, event/claim PDAs, attestations, questioning, and settlement. Pending/questioned or zero-confirmed events refund the whole current event pool; terminal confirmed/unclaimed events redistribute only unclaimed allocations to confirmed members. Destination accounts are immutable-member ordered, CPIs are atomic, future principal remains tracked, dust is excluded, and the protocol receives no forfeiture share. Terminal cleanup, deployment, and independent review remain gates.
 
 All future escrow and settlement logic must use checked token atomic-unit arithmetic, deterministic remainder handling, conservation tests, program-controlled authority, and read-after-write verification. The app must not claim that real value is protected until those paths are independently exercised.
 
