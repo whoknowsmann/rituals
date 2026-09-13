@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
+import type { RuleDigest } from '../../domain/rituals/types'
 import { decodeRitual, RitualAccountDecodeError } from './accounts'
 import { ACCOUNT_VECTOR_OWNER, accountVectors, envelope, hexToBytes } from './__fixtures__/accountVectors'
 import { feeVaultPda, protocolConfigPda, ritualPda, stakeVaultPda } from './pdas'
@@ -40,7 +41,15 @@ describe('Ritual lifecycle decoder mutation matrix', () => {
     expect(value.status).toBe('Active'); expect(value.members).toHaveLength(3); expect(value.schedule).toHaveLength(2)
     expect(offsets.windows).toBeGreaterThan(offsets.members); expect(offsets.closed + 2).toBeLessThanOrEqual(bytes.length)
     expect(Object.isFrozen(value)).toBe(true); expect(Object.isFrozen(value.members)).toBe(true); expect(Object.isFrozen(value.schedule)).toBe(true)
-    const digestBefore = value.ruleDigest[0]; bytes[offsets.digest] ^= 255; expect(value.ruleDigest[0]).toBe(digestBefore)
+    const digestBefore = value.ruleDigest
+    const domainDigest: RuleDigest = value.ruleDigest
+    expect(domainDigest).toBe(digestBefore)
+    expect(digestBefore).toBe(accountVectors.ritual.expected.ruleDigest)
+    expect(digestBefore).toMatch(/^[0-9a-f]{64}$/)
+    bytes[offsets.digest] ^= 255
+    expect(value.ruleDigest).toBe(digestBefore)
+    expect(Reflect.set(value, 'ruleDigest', 'f'.repeat(64))).toBe(false)
+    expect(value.ruleDigest).toBe(digestBefore)
   })
 
   it.each([

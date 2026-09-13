@@ -1,4 +1,5 @@
 import { PublicKey } from '@solana/web3.js'
+import type { RuleDigest } from '../../domain/rituals/types'
 import { feeVaultPda, protocolConfigPda, ritualPda, stakeVaultPda } from './pdas'
 
 export type AccountEnvelope = unknown
@@ -6,7 +7,7 @@ export type ProtocolConfigAccountView = Readonly<{ schemaVersion: number; author
 export type EventWindowView = Readonly<{ opens: bigint; deadline: bigint; resolution: bigint }>
 export type RitualEventAccountView = Readonly<{ schemaVersion: number; ritual: PublicKey; eventIndex: number; window: EventWindowView; memberCount: number; status: 'Scheduled' | 'Claiming' | 'Resolving' | 'Settled' | 'Voided'; claimedMembersBitmap: number; confirmedMembersBitmap: number; questionedMembersBitmap: number; initializedAt: bigint; resolvedAt: bigint; settlementVersion: number; voidReason: 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims'; eventPool: bigint; forfeitedTotal: bigint; payoutTotal: bigint; refundedTotal: bigint; confirmedMemberCount: number; remainderUnits: bigint; remainingStakeTotalAfter: bigint; bump: number }>
 export type CompletionClaimAccountView = Readonly<{ schemaVersion: number; ritual: PublicKey; event: PublicKey; eventIndex: number; claimant: PublicKey; memberIndex: number; claimVersion: number; status: 'Pending' | 'Confirmed' | 'Questioned'; requiredAdditionalConfirmations: number; approvalsBitmap: number; approvalCount: number; claimedAt: bigint; bump: number }>
-export type RitualAccountView = Readonly<{ schemaVersion: number; protocolConfig: PublicKey; creator: PublicKey; nonce: bigint; ruleDigest: Uint8Array; stakeMint: PublicKey; members: readonly PublicKey[]; memberTotalStake: bigint; perEventAllocation: bigint; schedule: readonly EventWindowView[]; additionalConfirmationThreshold: number; feePayerMode: 'Host' | 'Split'; lockedActivationFee: bigint; stakeDecimals: number; lockedFeeRecipient: PublicKey; stakeVault: PublicKey; feeVault: PublicKey; stakeVaultBump: number; feeVaultBump: number; fundedMembersBitmap: number; fundedMemberCount: number; fundedStakeTotal: bigint; fundedFeeTotal: bigint; status: 'Funding' | 'Active' | 'Completed' | 'Cancelled'; currentEventIndex: number; settledEventCount: number; createdAt: bigint; activatedAt: bigint; cancelledAt: bigint; completedAt: bigint; vaultsClosed: boolean; bump: number }>
+export type RitualAccountView = Readonly<{ schemaVersion: number; protocolConfig: PublicKey; creator: PublicKey; nonce: bigint; ruleDigest: RuleDigest; stakeMint: PublicKey; members: readonly PublicKey[]; memberTotalStake: bigint; perEventAllocation: bigint; schedule: readonly EventWindowView[]; additionalConfirmationThreshold: number; feePayerMode: 'Host' | 'Split'; lockedActivationFee: bigint; stakeDecimals: number; lockedFeeRecipient: PublicKey; stakeVault: PublicKey; feeVault: PublicKey; stakeVaultBump: number; feeVaultBump: number; fundedMembersBitmap: number; fundedMemberCount: number; fundedStakeTotal: bigint; fundedFeeTotal: bigint; status: 'Funding' | 'Active' | 'Completed' | 'Cancelled'; currentEventIndex: number; settledEventCount: number; createdAt: bigint; activatedAt: bigint; cancelledAt: bigint; completedAt: bigint; vaultsClosed: boolean; bump: number }>
 
 export const ACCOUNT_DISCRIMINATORS = {
   ProtocolConfig: Uint8Array.from([207, 91, 250, 28, 152, 179, 215, 209]),
@@ -60,6 +61,12 @@ class Reader {
 function popcount(value: number): number { let count = 0; for (let bits = value; bits !== 0; bits &= bits - 1) count += 1; return count }
 function maskFor(count: number): number { return (1 << count) - 1 }
 function ensureU64(value: bigint, name: string): void { if (value < 0n || value > MAX_U64) throw new RitualAccountDecodeError('overflow', `${name} is outside u64`) }
+function toRuleDigest(bytes: Uint8Array): RuleDigest {
+  if (bytes.length !== 32) throw new RitualAccountDecodeError('invariant', 'rule digest must contain exactly 32 bytes')
+  let hex = ''
+  for (const byte of bytes) hex += byte.toString(16).padStart(2, '0')
+  return hex as RuleDigest
+}
 function ensureWindow(window: EventWindowView): void {
   if (window.opens < 0n || !(window.opens < window.deadline && window.deadline < window.resolution)) throw new RitualAccountDecodeError('invariant', 'event window ordering is invalid')
 }
@@ -130,7 +137,7 @@ export function decodeRitual(input: AccountEnvelope, expectedProgramId: PublicKe
   if (status === 'Active' && (fundedMembersBitmap !== memberMask || fundedMemberCount !== memberLength || fundedFeeTotal !== expectedFee(memberMask) || currentEventIndex === scheduleLength || settledEventCount !== currentEventIndex || activatedAt < createdAt || activatedAt <= 0n || cancelledAt !== 0n || completedAt !== 0n || vaultsClosed || fundedStakeTotal !== expectedActiveStake)) throw new RitualAccountDecodeError('invariant', 'Active state is inconsistent')
   if (status === 'Completed' && (fundedMembersBitmap !== memberMask || fundedMemberCount !== memberLength || fundedFeeTotal !== lockedActivationFee || currentEventIndex !== scheduleLength || settledEventCount !== scheduleLength || fundedStakeTotal !== 0n || cancelledAt !== 0n || activatedAt <= 0n || activatedAt < createdAt || completedAt < activatedAt || completedAt <= 0n)) throw new RitualAccountDecodeError('invariant', 'Completed state is inconsistent')
   if (status === 'Cancelled' && (currentEventIndex !== 0 || settledEventCount !== 0 || fundedMembersBitmap !== 0 || fundedMemberCount !== 0 || fundedStakeTotal !== 0n || fundedFeeTotal !== 0n || activatedAt !== 0n || completedAt !== 0n || cancelledAt <= 0n || cancelledAt < createdAt)) throw new RitualAccountDecodeError('invariant', 'Cancelled state is inconsistent')
-  const output = Object.freeze({ schemaVersion, protocolConfig, creator, nonce, ruleDigest, stakeMint, members: Object.freeze(members), memberTotalStake, perEventAllocation, schedule: Object.freeze(schedule), additionalConfirmationThreshold, feePayerMode, lockedActivationFee, stakeDecimals, lockedFeeRecipient, stakeVault, feeVault, stakeVaultBump, feeVaultBump, fundedMembersBitmap, fundedMemberCount, fundedStakeTotal, fundedFeeTotal, status, currentEventIndex, settledEventCount, createdAt, activatedAt, cancelledAt, completedAt, vaultsClosed, bump })
+  const output = Object.freeze({ schemaVersion, protocolConfig, creator, nonce, ruleDigest: toRuleDigest(ruleDigest), stakeMint, members: Object.freeze(members), memberTotalStake, perEventAllocation, schedule: Object.freeze(schedule), additionalConfirmationThreshold, feePayerMode, lockedActivationFee, stakeDecimals, lockedFeeRecipient, stakeVault, feeVault, stakeVaultBump, feeVaultBump, fundedMembersBitmap, fundedMemberCount, fundedStakeTotal, fundedFeeTotal, status, currentEventIndex, settledEventCount, createdAt, activatedAt, cancelledAt, completedAt, vaultsClosed, bump })
   return finish(reader, output)
 }
 
