@@ -730,27 +730,14 @@ fn validate_claim_action(
             );
         }
     }
-    match claim.status {
-        ClaimStatus::Pending => require!(
-            claim.required_additional_confirmations > 0
-                && claim.approval_count < claim.required_additional_confirmations
-                && event.confirmed_members_bitmap & claimant_bit == 0
-                && event.questioned_members_bitmap & claimant_bit == 0,
-            RitualsError::ClaimStateInconsistent
-        ),
-        ClaimStatus::Confirmed => require!(
-            (claim.required_additional_confirmations == 0
-                || claim.approval_count >= claim.required_additional_confirmations)
-                && event.confirmed_members_bitmap & claimant_bit != 0
-                && event.questioned_members_bitmap & claimant_bit == 0,
-            RitualsError::ClaimStateInconsistent
-        ),
-        ClaimStatus::Questioned => require!(
-            event.questioned_members_bitmap & claimant_bit != 0
-                && event.confirmed_members_bitmap & claimant_bit == 0,
-            RitualsError::ClaimStateInconsistent
-        ),
-    };
+    validate_claim_status_invariants(
+        claim.status.clone(),
+        claim.required_additional_confirmations,
+        claim.approval_count,
+        claim.approvals_bitmap,
+        event.confirmed_members_bitmap & claimant_bit != 0,
+        event.questioned_members_bitmap & claimant_bit != 0,
+    )?;
     let now = Clock::get()?.unix_timestamp;
     require!(
         claim.claimed_at >= event.window.opens
@@ -760,6 +747,34 @@ fn validate_claim_action(
         RitualsError::ApprovalWindowClosed
     );
     Ok(now)
+}
+
+fn validate_claim_status_invariants(
+    status: ClaimStatus,
+    threshold: u8,
+    approval_count: u8,
+    approvals_bitmap: u8,
+    confirmed: bool,
+    questioned: bool,
+) -> Result<()> {
+    match status {
+        ClaimStatus::Pending => require!(
+            threshold > 0 && approval_count < threshold && !confirmed && !questioned,
+            RitualsError::ClaimStateInconsistent
+        ),
+        ClaimStatus::Confirmed => require!(
+            ((threshold == 0 && approval_count == 0 && approvals_bitmap == 0)
+                || (threshold > 0 && approval_count == threshold))
+                && confirmed
+                && !questioned,
+            RitualsError::ClaimStateInconsistent
+        ),
+        ClaimStatus::Questioned => require!(
+            threshold > 0 && approval_count < threshold && questioned && !confirmed,
+            RitualsError::ClaimStateInconsistent
+        ),
+    }
+    Ok(())
 }
 
 fn event_member_mask(member_count: usize) -> Result<u8> {
@@ -778,6 +793,34 @@ mod tests {
     fn event_member_mask_rejects_member_counts_above_six() {
         assert!(event_member_mask(7).is_err());
         assert!(event_member_mask(8).is_err());
+    }
+
+    #[test]
+    fn terminal_claim_states_require_exact_approval_counts() {
+        let cases = [
+            (ClaimStatus::Confirmed, 0, 0, 0, true, false, true),
+            (ClaimStatus::Confirmed, 0, 1, 1, true, false, false),
+            (ClaimStatus::Confirmed, 2, 2, 3, true, false, true),
+            (ClaimStatus::Confirmed, 2, 3, 7, true, false, false),
+            (ClaimStatus::Questioned, 2, 1, 1, false, true, true),
+            (ClaimStatus::Questioned, 2, 2, 3, false, true, false),
+            (ClaimStatus::Questioned, 0, 0, 0, false, true, false),
+        ];
+        for (status, threshold, count, bitmap, confirmed, questioned, expected) in cases {
+            let result = validate_claim_status_invariants(
+                status.clone(),
+                threshold,
+                count,
+                bitmap,
+                confirmed,
+                questioned,
+            );
+            assert_eq!(
+                result.is_ok(),
+                expected,
+                "case: {status:?} {threshold} {count}"
+            );
+        }
     }
 }
 
