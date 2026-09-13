@@ -664,6 +664,184 @@ pub mod rituals {
         ctx.accounts.event.status = EventStatus::Resolving;
         Ok(())
     }
+
+    pub fn finalize_event<'a>(
+        ctx: Context<'_, '_, '_, 'a, FinalizeEvent<'a>>,
+        event_index: u8,
+    ) -> Result<()> {
+        let ritual_key = ctx.accounts.ritual.key();
+        let ritual = &ctx.accounts.ritual;
+        require!(
+            ritual.status == RitualStatus::Active,
+            RitualsError::InvalidRitualStatus
+        );
+        require!(
+            ritual.current_event_index == event_index,
+            RitualsError::InvalidCurrentEvent
+        );
+        ritual.validate_active_state(ritual_key)?;
+        let window = ritual
+            .schedule
+            .get(event_index as usize)
+            .ok_or(RitualsError::InvalidCurrentEvent)?;
+        let event = &ctx.accounts.event;
+        require!(
+            event.schema_version == 1
+                && event.ritual == ritual_key
+                && event.event_index == event_index
+                && event.member_count == ritual.members.len() as u8
+                && event.window == *window
+                && matches!(
+                    event.status,
+                    EventStatus::Scheduled | EventStatus::Claiming | EventStatus::Resolving
+                )
+                && event.settlement_version == 0
+                && event.void_reason == VoidReason::None
+                && event.event_pool == 0
+                && event.forfeited_total == 0
+                && event.payout_total == 0
+                && event.refunded_total == 0
+                && event.confirmed_member_count == 0
+                && event.remainder_units == 0
+                && event.remaining_stake_total_after == 0,
+            RitualsError::EventStateInconsistent
+        );
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            now > event.window.resolution,
+            RitualsError::ResolutionNotReached
+        );
+        let mask = event_member_mask(ritual.members.len())?;
+        require!(
+            event.claimed_members_bitmap & !mask == 0
+                && event.confirmed_members_bitmap & !mask == 0
+                && event.questioned_members_bitmap & !mask == 0
+                && event.confirmed_members_bitmap & !event.claimed_members_bitmap == 0
+                && event.questioned_members_bitmap & !event.claimed_members_bitmap == 0
+                && event.confirmed_members_bitmap & event.questioned_members_bitmap == 0,
+            RitualsError::EventBitmapInconsistent
+        );
+        let plan = derive_event_settlement_plan(
+            event.member_count,
+            ritual.per_event_allocation,
+            event.claimed_members_bitmap,
+            event.confirmed_members_bitmap,
+            event.questioned_members_bitmap,
+        )?;
+        require!(
+            ctx.accounts.stake_vault.amount >= ritual.funded_stake_total,
+            RitualsError::FinalizeStakeVaultShort
+        );
+        require!(
+            ctx.remaining_accounts.len() == ritual.members.len(),
+            RitualsError::InvalidFinalizeDestinationCount
+        );
+        let mut destinations = Vec::with_capacity(ritual.members.len());
+        for (index, destination) in ctx.remaining_accounts.iter().enumerate() {
+            require!(
+                destination.is_writable
+                    && destination.owner == &spl_token::ID
+                    && !ctx.remaining_accounts[..index]
+                        .iter()
+                        .any(|previous| previous.key == destination.key),
+                RitualsError::InvalidFinalizeDestination
+            );
+            let mut raw_data: &[u8] = &destination.data.borrow();
+            let parsed = TokenAccount::try_deserialize(&mut raw_data)
+                .map_err(|_| error!(RitualsError::InvalidFinalizeDestination))?;
+            require!(
+                parsed.state != spl_token::state::AccountState::Uninitialized
+                    && parsed.mint == ritual.stake_mint
+                    && parsed.owner == ritual.members[index],
+                RitualsError::InvalidFinalizeDestination
+            );
+            destinations.push(destination.clone());
+        }
+        let event_pool = plan.event_pool;
+        let next_remaining = ritual
+            .funded_stake_total
+            .checked_sub(event_pool)
+            .ok_or(RitualsError::SettlementAccountingOverflow)?;
+        let next_settled_count = ritual
+            .settled_event_count
+            .checked_add(1)
+            .ok_or(RitualsError::SettlementAccountingOverflow)?;
+        let next_index = ritual
+            .current_event_index
+            .checked_add(1)
+            .ok_or(RitualsError::SettlementAccountingOverflow)?;
+        let transfer_sum = if plan.status == EventStatus::Voided {
+            ritual
+                .per_event_allocation
+                .checked_mul(ritual.members.len() as u64)
+                .ok_or(RitualsError::SettlementAccountingOverflow)?
+        } else {
+            plan.payouts
+                .iter()
+                .try_fold(0u64, |sum, amount| sum.checked_add(*amount))
+                .ok_or(RitualsError::SettlementAccountingOverflow)?
+        };
+        require!(
+            transfer_sum == event_pool,
+            RitualsError::SettlementAccountingOverflow
+        );
+        if next_index as usize == ritual.schedule.len() {
+            require!(
+                next_remaining == 0,
+                RitualsError::SettlementAccountingOverflow
+            );
+        }
+        let creator = ritual.creator;
+        let nonce = ritual.nonce.to_le_bytes();
+        let bump = [ritual.bump];
+        let signer_seeds: &[&[u8]] = &[b"ritual", creator.as_ref(), nonce.as_ref(), bump.as_ref()];
+        for (index, destination) in destinations.iter().enumerate() {
+            let amount = if plan.status == EventStatus::Voided {
+                ritual.per_event_allocation
+            } else {
+                plan.payouts[index]
+            };
+            if amount == 0 {
+                continue;
+            }
+            let cpi_accounts = token::TransferChecked {
+                from: ctx.accounts.stake_vault.to_account_info(),
+                mint: ctx.accounts.stake_mint.to_account_info(),
+                to: destination.clone(),
+                authority: ctx.accounts.ritual.to_account_info(),
+            };
+            token::transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    cpi_accounts,
+                    &[signer_seeds],
+                ),
+                amount,
+                ritual.stake_decimals,
+            )?;
+        }
+        let ritual = &mut ctx.accounts.ritual;
+        let event = &mut ctx.accounts.event;
+        event.status = plan.status;
+        event.settlement_version = 1;
+        event.void_reason = plan.void_reason;
+        event.event_pool = event_pool;
+        event.forfeited_total = plan.forfeited_total;
+        event.payout_total = plan.payout_total;
+        event.refunded_total = plan.refunded_total;
+        event.confirmed_member_count = plan.confirmed_member_count;
+        event.remainder_units = plan.remainder_units;
+        event.remaining_stake_total_after = next_remaining;
+        event.resolved_at = now;
+        ritual.current_event_index = next_index;
+        ritual.settled_event_count = next_settled_count;
+        ritual.funded_stake_total = next_remaining;
+        if next_index as usize == ritual.schedule.len() {
+            ritual.status = RitualStatus::Completed;
+            ritual.completed_at = now;
+        }
+        Ok(())
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
@@ -1229,6 +1407,20 @@ pub struct CancelUnactivated<'info> {
     pub stake_vault: Account<'info, TokenAccount>,
     #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, token::mint = stake_mint, token::authority = ritual)]
     pub fee_vault: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(event_index: u8)]
+pub struct FinalizeEvent<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    #[account(mut, seeds = [b"event", ritual.key().as_ref(), &[event_index]], bump = event.bump)]
+    pub event: Account<'info, RitualEvent>,
+    #[account(address = ritual.stake_mint, constraint = stake_mint.decimals == ritual.stake_decimals)]
+    pub stake_mint: Account<'info, Mint>,
+    #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, token::mint = stake_mint, token::authority = ritual)]
+    pub stake_vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -1807,4 +1999,12 @@ pub enum RitualsError {
     ConflictingAttestation,
     #[msg("settlement accounting overflowed")]
     SettlementAccountingOverflow,
+    #[msg("event resolution has not passed")]
+    ResolutionNotReached,
+    #[msg("finalize destination count is invalid")]
+    InvalidFinalizeDestinationCount,
+    #[msg("finalize destination is invalid")]
+    InvalidFinalizeDestination,
+    #[msg("stake vault is short of tracked settlement liability")]
+    FinalizeStakeVaultShort,
 }

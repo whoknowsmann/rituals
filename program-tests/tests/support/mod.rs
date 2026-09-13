@@ -49,9 +49,30 @@ pub(crate) fn claim_pda(event: &Pubkey, claimant: &Pubkey, version: u8) -> Pubke
     )
     .0
 }
-pub(crate) fn initialize_event_ix(ritual: Pubkey, payer: Pubkey, event_index: u8) -> Instruction {
-    let accounts = rituals::accounts::InitializeCurrentEvent {
+pub(crate) fn finalize_event_ix(
+    ritual: Pubkey,
+    event_index: u8,
+    destinations: &[Pubkey],
+) -> Instruction {
+    let accounts = rituals::accounts::FinalizeEvent {
         ritual,
+        event: event_pda(&ritual, event_index),
+        stake_mint: MINT,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        token_program: spl_token::ID,
+    };
+    let mut metas = accounts.to_account_metas(None);
+    metas.extend(destinations.iter().map(|destination| {
+        solana_sdk::instruction::AccountMeta::new(*destination, false)
+    }));
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: metas,
+        data: rituals::instruction::FinalizeEvent { event_index }.data(),
+    }
+}
+pub(crate) fn initialize_event_ix(ritual: Pubkey, payer: Pubkey, event_index: u8) -> Instruction {
+    let accounts = rituals::accounts::InitializeCurrentEvent {        ritual,
         event: event_pda(&ritual, event_index),
         payer,
         system_program: system_program::ID,
