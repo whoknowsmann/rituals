@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, ScrollView, StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Button, Card, Divider, Text, useTheme, type MD3Theme } from 'react-native-paper'
+import { useNavigation } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import type { RootStackParamList } from '../navigators/AppNavigator'
 import { FixtureRitualsRepository } from '../data/rituals/FixtureRitualsRepository'
 import type { RitualsRepository } from '../data/rituals/RitualsRepository'
 import { buildHomeViewModel, safeErrorMessage, type HomeViewModel } from '../features/rituals/home/homeViewModel'
@@ -8,6 +11,7 @@ import { buildHomeViewModel, safeErrorMessage, type HomeViewModel } from '../fea
 const repository = new FixtureRitualsRepository()
 
 export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly ritualsRepository?: RitualsRepository }) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const theme = useTheme()
   const styles = useMemo(() => makeStyles(theme), [theme])
   const [view, setView] = useState<HomeViewModel>(() => buildHomeViewModel({ state: 'loading' }))
@@ -77,7 +81,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
           <Card.Content>
             <Text variant="titleLarge">Start your first ritual</Text>
             <Text style={styles.body}>Invite a few friends and make showing up easier together.</Text>
-            <Button mode="contained" onPress={() => Alert.alert('Create Ritual', 'Creation is not connected yet. No transaction was submitted.')} accessibilityLabel="Create Ritual">Create Ritual</Button>
+            <Button mode="contained" onPress={() => navigation.navigate('TemplatePicker')} accessibilityLabel="Create Ritual">Create Ritual</Button>
           </Card.Content>
         </Card>
       ) : (
@@ -113,6 +117,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
           )}
         </>
       )}
+      {view.kind !== 'empty' && <Button mode="contained-tonal" onPress={() => navigation.navigate('TemplatePicker')} accessibilityLabel="Create a new Ritual">Create a new Ritual</Button>}
       <Text style={styles.disclosure}>{view.disclosure}</Text>
     </ScrollView>
   )

@@ -18,6 +18,9 @@ import {
   MD3LightTheme,
   adaptNavigationTheme,
 } from "react-native-paper";
+import type { ConfirmationMode } from "../domain/rituals/types";
+import type { FeePayerMode } from "../features/rituals/create/draftForm";
+import type { RitualTemplateCategory } from "../features/rituals/create/templates";
 
 /**
  * This type allows TypeScript to know what routes are defined in this navigator
@@ -32,9 +35,20 @@ import {
  *
  */
 
-type RootStackParamList = {
+export type RootStackParamList = {
   RitualsHome: undefined;
   Settings: undefined;
+  TemplatePicker: undefined;
+  CreateRitual: { templateCategory: RitualTemplateCategory };
+  ReviewRitual: {
+    title: string;
+    requirement: string;
+    memberCount: string;
+    eventCount: string;
+    memberTotalStake: string;
+    confirmationMode: ConfirmationMode;
+    feePayerMode: FeePayerMode;
+  };
 };
 
 declare global {
@@ -44,7 +58,7 @@ declare global {
 }
 
 // Documentation: https://reactnavigation.org/docs/stack-navigator/
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppStack = () => {
   return (
@@ -55,7 +69,9 @@ const AppStack = () => {
         options={{ headerShown: false }}
       />
       <Stack.Screen name="Settings" component={Screens.SettingsScreen} />
-      {/** 🔥 Your screens go here */}
+      <Stack.Screen name="TemplatePicker" component={Screens.TemplatePickerScreen} options={{ title: 'Choose a template' }} />
+      <Stack.Screen name="CreateRitual" component={Screens.CreateRitualScreen} options={{ title: 'Create Ritual' }} />
+      <Stack.Screen name="ReviewRitual" component={Screens.ReviewRitualScreen} options={{ title: 'Review Ritual' }} />
     </Stack.Navigator>
   );
 };
