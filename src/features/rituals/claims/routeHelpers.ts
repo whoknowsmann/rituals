@@ -1,0 +1,9 @@
+import type { RootStackParamList } from '../../../navigators/AppNavigator'
+
+export type ClaimsRouteName = 'RitualDetail' | 'ClaimCompletion' | 'ConfirmationInbox' | 'SettlementReceipt'
+export type ClaimsRouteParams = RootStackParamList[ClaimsRouteName]
+export function ritualDetailTarget(ritualId: string): { readonly name: 'RitualDetail'; readonly params: { readonly ritualId: string } } { return { name: 'RitualDetail', params: { ritualId } } }
+export function claimCompletionTarget(ritualId: string, eventIndex: number): { readonly name: 'ClaimCompletion'; readonly params: { readonly ritualId: string; readonly eventIndex: number } } { return { name: 'ClaimCompletion', params: { ritualId, eventIndex } } }
+export function confirmationInboxTarget(ritualId: string, eventIndex: number): { readonly name: 'ConfirmationInbox'; readonly params: { readonly ritualId: string; readonly eventIndex: number } } { return { name: 'ConfirmationInbox', params: { ritualId, eventIndex } } }
+export function settlementReceiptTarget(ritualId: string, eventIndex: number): { readonly name: 'SettlementReceipt'; readonly params: { readonly ritualId: string; readonly eventIndex: number } } { return { name: 'SettlementReceipt', params: { ritualId, eventIndex } } }
+export function parseRitualRouteParams(value: unknown): { ritualId: string; eventIndex?: number } | null { if (!value || typeof value !== 'object') return null; const record = value as Record<string, unknown>; if (typeof record.ritualId !== 'string' || record.ritualId.length === 0) return null; if (record.eventIndex === undefined) return { ritualId: record.ritualId }; return typeof record.eventIndex === 'number' && Number.isSafeInteger(record.eventIndex) && record.eventIndex >= 0 ? { ritualId: record.ritualId, eventIndex: record.eventIndex } : null }

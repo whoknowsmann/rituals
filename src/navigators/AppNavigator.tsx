@@ -49,6 +49,10 @@ export type RootStackParamList = {
     confirmationMode: ConfirmationMode;
     feePayerMode: FeePayerMode;
   };
+  RitualDetail: { ritualId: string };
+  ClaimCompletion: { ritualId: string; eventIndex: number };
+  ConfirmationInbox: { ritualId: string; eventIndex: number };
+  SettlementReceipt: { ritualId: string; eventIndex: number };
 };
 
 declare global {
@@ -72,6 +76,10 @@ const AppStack = () => {
       <Stack.Screen name="TemplatePicker" component={Screens.TemplatePickerScreen} options={{ title: 'Choose a template' }} />
       <Stack.Screen name="CreateRitual" component={Screens.CreateRitualScreen} options={{ title: 'Create Ritual' }} />
       <Stack.Screen name="ReviewRitual" component={Screens.ReviewRitualScreen} options={{ title: 'Review Ritual' }} />
+      <Stack.Screen name="RitualDetail" component={Screens.RitualDetailScreen} options={{ title: 'Ritual detail' }} />
+      <Stack.Screen name="ClaimCompletion" component={Screens.ClaimCompletionScreen} options={{ title: 'Claim preview' }} />
+      <Stack.Screen name="ConfirmationInbox" component={Screens.ConfirmationInboxScreen} options={{ title: 'Confirmations' }} />
+      <Stack.Screen name="SettlementReceipt" component={Screens.SettlementReceiptScreen} options={{ title: 'Settlement receipt' }} />
     </Stack.Navigator>
   );
 };

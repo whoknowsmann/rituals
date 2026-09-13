@@ -1,0 +1,7 @@
+import { ScrollView, StyleSheet } from 'react-native'
+import { Button, Card, Text } from 'react-native-paper'
+import { useRoute, type RouteProp } from '@react-navigation/native'
+import type { RootStackParamList } from '../navigators/AppNavigator'
+import { buildConfirmationInboxViewModel } from '../features/rituals/claims/viewModels'
+export function ConfirmationInboxScreen() { const route = useRoute<RouteProp<RootStackParamList, 'ConfirmationInbox'>>(); const view = buildConfirmationInboxViewModel({ claimant: 'bob', ritualTitle: 'Saturday morning miles', eventLabel: `Event ${route.params.eventIndex + 1}`, requirement: 'Run or walk 5 km together.', threshold: 1, confirmations: 0, claimStatus: 'PENDING', viewer: 'friend', action: 'idle' }); return <ScrollView contentContainerStyle={styles.content}><Text variant="headlineSmall">Confirmation inbox</Text><Text style={styles.disclosure}>FIXTURE PREVIEW · CONFIRM/QUESTION DO NOT CHANGE STATE</Text><Card><Card.Content><Text variant="titleMedium">{view.ritualTitle}</Text><Text>Claimant · {view.claimant}</Text><Text>{view.eventLabel} · {view.requirement}</Text><Text>Progress · {view.progress}</Text><Text style={styles.body}>{view.statusCopy}</Text><Button mode="contained" disabled={!view.canConfirm}>Confirm · Preview</Button><Button mode="outlined" disabled={!view.canQuestion}>Question · Preview</Button></Card.Content></Card></ScrollView> }
+const styles = StyleSheet.create({ content: { padding: 20, gap: 14 }, body: { marginVertical: 12, lineHeight: 21 }, disclosure: { fontSize: 11, letterSpacing: 0.7 } })

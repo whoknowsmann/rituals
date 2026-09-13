@@ -8,6 +8,7 @@ import { FixtureRitualsRepository } from '../data/rituals/FixtureRitualsReposito
 import type { RitualsRepository } from '../data/rituals/RitualsRepository'
 import { buildHomeViewModel, safeErrorMessage, type HomeViewModel } from '../features/rituals/home/homeViewModel'
 import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
+import { ritualDetailTarget, confirmationInboxTarget, settlementReceiptTarget } from '../features/rituals/claims/routeHelpers'
 
 const repository = new FixtureRitualsRepository()
 
@@ -97,7 +98,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
                 <Divider style={styles.divider} />
                 <Text style={styles.next}>Next up · {ritual.nextEvent}</Text>
                 <Text style={styles.muted}>{ritual.confirmationMode}</Text>
-                <Button mode="outlined" onPress={() => Alert.alert('Group', 'Group details are not connected yet.')} accessibilityLabel={`Open ${ritual.title}`}>Open group</Button>
+                <Button mode="outlined" onPress={() => { const target = ritualDetailTarget(ritual.id); navigation.navigate(target.name, target.params) }} accessibilityLabel={`Open ${ritual.title}`}>Open group</Button>
               </Card.Content>
             </Card>
           ))}
@@ -106,7 +107,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
               <Card.Content>
                 <View style={styles.sectionHeading}><Text variant="titleMedium">Confirmations</Text>{view.confirmations.count > 0 && <Text style={[styles.badge, { backgroundColor: theme.colors.primary, color: theme.colors.onPrimary }]}>{view.confirmations.count}</Text>}</View>
                 <Text style={styles.body}>A friend is waiting for your confirmation.</Text>
-                <Button mode="text" onPress={() => Alert.alert('Confirmations', 'Confirmation inbox is not connected yet.')} accessibilityLabel="Review confirmations">{view.confirmations.actionLabel}</Button>
+                <Button mode="text" onPress={() => { const target = confirmationInboxTarget(view.activeRituals[0]?.id ?? 'ritual-weekly-run', 0); navigation.navigate(target.name, target.params) }} accessibilityLabel="Review confirmations">{view.confirmations.actionLabel}</Button>
               </Card.Content>
             </Card>
           )}
@@ -114,7 +115,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
             <Card style={styles.card}><Card.Content><Text variant="titleMedium">Keep the group moving</Text><Text style={styles.body}>Funding · {view.funding.progress}</Text><Button mode="contained-tonal" onPress={() => Alert.alert('Funding', 'Funding is not connected yet. No transaction was submitted.')} accessibilityLabel="Fund ritual">Fund ritual</Button></Card.Content></Card>
           )}
           {view.completedReceipt && (
-            <Card style={styles.card}><Card.Content><Text variant="titleMedium">Completed</Text><Text style={styles.body}>{view.completedReceipt.title}</Text><Text variant="titleLarge">{view.completedReceipt.amount}</Text><Text style={styles.muted}>Receipt available in fixture mode</Text></Card.Content></Card>
+            <Card style={styles.card}><Card.Content><Text variant="titleMedium">Completed</Text><Text style={styles.body}>{view.completedReceipt.title}</Text><Text variant="titleLarge">{view.completedReceipt.amount}</Text><Text style={styles.muted}>Fixture settlement receipt · no state change</Text><Button mode="outlined" onPress={() => { const target = settlementReceiptTarget('ritual-weekly-run', 0); navigation.navigate(target.name, target.params) }}>Open receipt</Button></Card.Content></Card>
           )}
         </>
       )}
