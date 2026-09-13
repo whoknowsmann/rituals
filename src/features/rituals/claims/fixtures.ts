@@ -5,6 +5,17 @@ const ritualId = (value: string) => value as RitualId
 const eventIndex = (value: number) => value as EventIndex
 const units = (value: bigint) => value as TokenAtomicUnits
 
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const key of Reflect.ownKeys(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+      if (descriptor && 'value' in descriptor) deepFreeze(descriptor.value)
+    }
+    Object.freeze(value)
+  }
+  return value
+}
+
 export interface ClaimFixture {
   readonly ritualId: RitualId
   readonly eventIndex: EventIndex
@@ -25,7 +36,7 @@ const activeDetail: RitualDetailInput = {
   stakeAtomicUnits: units(1_250_000_000n), ...money, confirmationMode: 'ONE_FRIEND',
 }
 
-export const claimFixtures: readonly ClaimFixture[] = Object.freeze([
+export const claimFixtures: readonly ClaimFixture[] = deepFreeze([
   {
     ritualId: ritualId('ritual-weekly-run'), eventIndex: eventIndex(0), detail: activeDetail, claimant: 'bob', eventLabel: 'Event 1',
     claimStatus: 'PENDING', confirmations: 1, threshold: 2, viewer: 'friend',

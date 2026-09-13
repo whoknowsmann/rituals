@@ -8,11 +8,16 @@ export type EventRoute = { readonly ritualId: RitualId; readonly eventIndex: Eve
 
 const isRecord = (value: unknown): value is object => value !== null && typeof value === 'object'
 function dataDescriptors(value: object, keys: readonly string[]): Record<string, PropertyDescriptor> | null {
-  const descriptors = Object.getOwnPropertyDescriptors(value)
-  const ownKeys = Reflect.ownKeys(value)
-  if (ownKeys.length !== keys.length || ownKeys.some((key) => typeof key !== 'string' || !keys.includes(key))) return null
-  if (keys.some((key) => !descriptors[key] || 'get' in descriptors[key] || 'set' in descriptors[key])) return null
-  return descriptors
+  try {
+    if (Object.getPrototypeOf(value) !== Object.prototype) return null
+    const descriptors = Object.getOwnPropertyDescriptors(value)
+    const ownKeys = Reflect.ownKeys(descriptors)
+    if (ownKeys.length !== keys.length || ownKeys.some((key) => typeof key !== 'string' || !keys.includes(key))) return null
+    if (keys.some((key) => !descriptors[key] || 'get' in descriptors[key] || 'set' in descriptors[key])) return null
+    return descriptors
+  } catch {
+    return null
+  }
 }
 
 export function parseRitualRouteParams(value: unknown): RitualRoute | null {

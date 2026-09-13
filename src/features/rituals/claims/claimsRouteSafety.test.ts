@@ -34,6 +34,45 @@ describe('canonical claims fixtures and route safety', () => {
     expect(getClaimFixture('unknown', 0)).toBeUndefined()
   })
 
+  it('uses one own-key snapshot when a proxy changes its route shape', () => {
+    const makeHostile = (route: Record<string, unknown>) => {
+      let ownKeysCalls = 0
+      let getCalls = 0
+      const proxy = new Proxy(route, {
+        get: () => { getCalls += 1; throw new Error('get') },
+        ownKeys: () => {
+          ownKeysCalls += 1
+          return ownKeysCalls === 1 ? [...Object.keys(route), 'extra'] : Object.keys(route)
+        },
+        getOwnPropertyDescriptor: (_target, key) => typeof key === 'string' && key in route
+          ? { value: route[key], enumerable: true, configurable: true, writable: true }
+          : { value: true, enumerable: true, configurable: true, writable: true },
+      })
+      return { proxy, calls: () => ({ ownKeysCalls, getCalls }) }
+    }
+    const ritual = makeHostile({ ritualId: 'ritual-weekly-run' })
+    const event = makeHostile({ ritualId: 'ritual-weekly-run', eventIndex: 0 })
+
+    expect(parseRitualRouteParams(ritual.proxy)).toBeNull()
+    expect(parseEventRouteParams(event.proxy)).toBeNull()
+    expect(ritual.calls()).toEqual({ ownKeysCalls: 1, getCalls: 0 })
+    expect(event.calls()).toEqual({ ownKeysCalls: 1, getCalls: 0 })
+  })
+
+  it('deep-freezes canonical fixture lookup data', () => {
+    const fixture = getClaimFixture('ritual-book-club', 0) as ClaimFixture
+
+    expect(Object.isFrozen(claimFixtures)).toBe(true)
+    expect(Object.isFrozen(fixture)).toBe(true)
+    expect(Object.isFrozen(fixture.detail)).toBe(true)
+    expect(Object.isFrozen(fixture.receipt)).toBe(true)
+    expect(Object.isFrozen(fixture.receipt.settlement)).toBe(true)
+    expect(Reflect.set(fixture.detail as object, 'title', 'tampered')).toBe(false)
+    expect(Reflect.set(fixture.receipt.settlement as object, 'kind', 'VOIDED')).toBe(false)
+    expect(getClaimFixture('ritual-book-club', 0)?.detail.title).toBe('February book club')
+    expect(getClaimFixture('ritual-book-club', 0)?.receipt.settlement.kind).toBe('SETTLED')
+  })
+
   it('enables claim preview without wallet signing', () => {
     expect(buildClaimCompletionViewModel({ claimant: 'You', friendConfirmations: 0, threshold: 1 }).canClaim).toBe(true)
   })
