@@ -86,6 +86,18 @@ pub(crate) fn claim_completion_ix(
         .data(),
     }
 }
+pub(crate) fn approve_claim_ix(ritual: Pubkey, claimant: Pubkey, approver: Pubkey, version: u8) -> Instruction {
+    let event = event_pda(&ritual, 0);
+    let claim = claim_pda(&event, &claimant, version);
+    let accounts = rituals::accounts::ApproveClaim { ritual, event, claim, approver };
+    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::ApproveClaim { claim_version: version }.data() }
+}
+pub(crate) fn question_claim_ix(ritual: Pubkey, claimant: Pubkey, questioner: Pubkey, version: u8) -> Instruction {
+    let event = event_pda(&ritual, 0);
+    let claim = claim_pda(&event, &claimant, version);
+    let accounts = rituals::accounts::QuestionClaim { ritual, event, claim, questioner };
+    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::QuestionClaim { claim_version: version }.data() }
+}
 pub(crate) fn deserialize_event(data: &[u8]) -> RitualEvent {
     let mut data = data;
     RitualEvent::try_deserialize(&mut data).unwrap()

@@ -578,6 +578,188 @@ pub mod rituals {
         event.status = EventStatus::Claiming;
         Ok(())
     }
+
+    pub fn approve_claim(ctx: Context<ApproveClaim>, claim_version: u8) -> Result<()> {
+        let now = validate_claim_action(
+            &ctx.accounts.ritual,
+            &ctx.accounts.event,
+            &ctx.accounts.claim,
+            ctx.accounts.ritual.key(),
+            ctx.accounts.event.key(),
+            claim_version,
+        )?;
+        require!(
+            ctx.accounts.claim.status == ClaimStatus::Pending,
+            RitualsError::InvalidClaimState
+        );
+        let approver_index =
+            eligible_member_index(&ctx.accounts.ritual, ctx.accounts.approver.key())?;
+        require!(
+            approver_index != ctx.accounts.claim.member_index as usize,
+            RitualsError::SelfApproval
+        );
+        let bit = 1u8 << approver_index;
+        require!(
+            ctx.accounts.claim.approvals_bitmap & bit == 0,
+            RitualsError::DuplicateApproval
+        );
+        let next_count = ctx
+            .accounts
+            .claim
+            .approval_count
+            .checked_add(1)
+            .ok_or(RitualsError::ClaimStateInconsistent)?;
+        require!(
+            next_count <= ctx.accounts.claim.required_additional_confirmations,
+            RitualsError::ClaimStateInconsistent
+        );
+        ctx.accounts.claim.approvals_bitmap |= bit;
+        ctx.accounts.claim.approval_count = next_count;
+        if now > ctx.accounts.event.window.deadline {
+            ctx.accounts.event.status = EventStatus::Resolving;
+        }
+        if next_count == ctx.accounts.claim.required_additional_confirmations {
+            ctx.accounts.claim.status = ClaimStatus::Confirmed;
+            ctx.accounts.event.confirmed_members_bitmap |= 1u8 << ctx.accounts.claim.member_index;
+        }
+        Ok(())
+    }
+
+    pub fn question_claim(ctx: Context<QuestionClaim>, claim_version: u8) -> Result<()> {
+        validate_claim_action(
+            &ctx.accounts.ritual,
+            &ctx.accounts.event,
+            &ctx.accounts.claim,
+            ctx.accounts.ritual.key(),
+            ctx.accounts.event.key(),
+            claim_version,
+        )?;
+        require!(
+            ctx.accounts.claim.status == ClaimStatus::Pending,
+            RitualsError::InvalidClaimState
+        );
+        let questioner_index =
+            eligible_member_index(&ctx.accounts.ritual, ctx.accounts.questioner.key())?;
+        require!(
+            questioner_index != ctx.accounts.claim.member_index as usize,
+            RitualsError::SelfApproval
+        );
+        ctx.accounts.claim.status = ClaimStatus::Questioned;
+        ctx.accounts.event.questioned_members_bitmap |= 1u8 << ctx.accounts.claim.member_index;
+        ctx.accounts.event.status = EventStatus::Resolving;
+        Ok(())
+    }
+}
+
+fn eligible_member_index(ritual: &Ritual, signer: Pubkey) -> Result<usize> {
+    let index = ritual
+        .members
+        .iter()
+        .position(|member| *member == signer)
+        .ok_or(RitualsError::ApprovalNotEligible)?;
+    require!(
+        ritual.funded_members_bitmap & (1u8 << index) != 0,
+        RitualsError::ApprovalNotEligible
+    );
+    Ok(index)
+}
+
+fn validate_claim_action(
+    ritual: &Ritual,
+    event: &RitualEvent,
+    claim: &CompletionClaim,
+    ritual_key: Pubkey,
+    event_key: Pubkey,
+    claim_version: u8,
+) -> Result<i64> {
+    require!(claim_version == 0, RitualsError::UnsupportedClaimVersion);
+    require!(
+        ritual.current_event_index == event.event_index,
+        RitualsError::InvalidCurrentEvent
+    );
+    ritual.validate_active_state(ritual_key)?;
+    let window = ritual
+        .schedule
+        .get(event.event_index as usize)
+        .ok_or(RitualsError::InvalidClaimState)?;
+    let mask = event_member_mask(ritual.members.len())?;
+    require!(
+        event.schema_version == 1
+            && event.ritual == ritual_key
+            && event.member_count == ritual.members.len() as u8
+            && event.window == *window
+            && matches!(event.status, EventStatus::Claiming | EventStatus::Resolving),
+        RitualsError::InvalidClaimState
+    );
+    require!(
+        event.claimed_members_bitmap & !mask == 0
+            && event.confirmed_members_bitmap & !mask == 0
+            && event.questioned_members_bitmap & !mask == 0
+            && event.confirmed_members_bitmap & !event.claimed_members_bitmap == 0
+            && event.questioned_members_bitmap & !event.claimed_members_bitmap == 0
+            && event.confirmed_members_bitmap & event.questioned_members_bitmap == 0,
+        RitualsError::ClaimStateInconsistent
+    );
+    require!(
+        claim.schema_version == 1
+            && claim.ritual == ritual_key
+            && claim.event == event_key
+            && claim.event_index == event.event_index
+            && claim.claim_version == claim_version
+            && (claim.member_index as usize) < ritual.members.len()
+            && ritual.members[claim.member_index as usize] == claim.claimant
+            && claim.required_additional_confirmations == ritual.additional_confirmation_threshold,
+        RitualsError::ClaimStateInconsistent
+    );
+    let claimant_bit = 1u8 << claim.member_index;
+    require!(
+        event.claimed_members_bitmap & claimant_bit != 0,
+        RitualsError::ClaimStateInconsistent
+    );
+    require!(
+        claim.approvals_bitmap & !mask == 0
+            && claim.approvals_bitmap & claimant_bit == 0
+            && claim.approval_count == claim.approvals_bitmap.count_ones() as u8,
+        RitualsError::ClaimStateInconsistent
+    );
+    for index in 0..ritual.members.len() {
+        if claim.approvals_bitmap & (1u8 << index) != 0 {
+            require!(
+                ritual.funded_members_bitmap & (1u8 << index) != 0,
+                RitualsError::ClaimStateInconsistent
+            );
+        }
+    }
+    match claim.status {
+        ClaimStatus::Pending => require!(
+            claim.required_additional_confirmations > 0
+                && claim.approval_count < claim.required_additional_confirmations
+                && event.confirmed_members_bitmap & claimant_bit == 0
+                && event.questioned_members_bitmap & claimant_bit == 0,
+            RitualsError::ClaimStateInconsistent
+        ),
+        ClaimStatus::Confirmed => require!(
+            (claim.required_additional_confirmations == 0
+                || claim.approval_count >= claim.required_additional_confirmations)
+                && event.confirmed_members_bitmap & claimant_bit != 0
+                && event.questioned_members_bitmap & claimant_bit == 0,
+            RitualsError::ClaimStateInconsistent
+        ),
+        ClaimStatus::Questioned => require!(
+            event.questioned_members_bitmap & claimant_bit != 0
+                && event.confirmed_members_bitmap & claimant_bit == 0,
+            RitualsError::ClaimStateInconsistent
+        ),
+    };
+    let now = Clock::get()?.unix_timestamp;
+    require!(
+        claim.claimed_at >= event.window.opens
+            && claim.claimed_at <= event.window.deadline
+            && now >= claim.claimed_at
+            && now <= event.window.resolution,
+        RitualsError::ApprovalWindowClosed
+    );
+    Ok(now)
 }
 
 fn event_member_mask(member_count: usize) -> Result<u8> {
@@ -717,6 +899,30 @@ pub struct ClaimCompletion<'info> {
     #[account(mut)]
     pub claimant: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(claim_version: u8)]
+pub struct ApproveClaim<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    #[account(mut, seeds = [b"event", ritual.key().as_ref(), &[event.event_index]], bump = event.bump)]
+    pub event: Account<'info, RitualEvent>,
+    #[account(mut, seeds = [b"claim", event.key().as_ref(), claim.claimant.as_ref(), &[claim_version]], bump = claim.bump)]
+    pub claim: Account<'info, CompletionClaim>,
+    pub approver: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(claim_version: u8)]
+pub struct QuestionClaim<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    #[account(mut, seeds = [b"event", ritual.key().as_ref(), &[event.event_index]], bump = event.bump)]
+    pub event: Account<'info, RitualEvent>,
+    #[account(mut, seeds = [b"claim", event.key().as_ref(), claim.claimant.as_ref(), &[claim_version]], bump = claim.bump)]
+    pub claim: Account<'info, CompletionClaim>,
+    pub questioner: Signer<'info>,
 }
 
 #[account]
@@ -1172,4 +1378,16 @@ pub enum RitualsError {
     UnsupportedClaimVersion,
     #[msg("active ritual state is inconsistent")]
     ActiveStateInconsistent,
+    #[msg("claim state is invalid for this action")]
+    InvalidClaimState,
+    #[msg("signer is not an eligible funded member")]
+    ApprovalNotEligible,
+    #[msg("claimant cannot approve or question their own claim")]
+    SelfApproval,
+    #[msg("member has already approved this claim")]
+    DuplicateApproval,
+    #[msg("approval or question window is closed")]
+    ApprovalWindowClosed,
+    #[msg("claim state is inconsistent")]
+    ClaimStateInconsistent,
 }
