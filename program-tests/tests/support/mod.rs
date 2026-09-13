@@ -100,6 +100,21 @@ pub(crate) fn finalize_event_ix_with_accounts(
         data: rituals::instruction::FinalizeEvent { event_index }.data(),
     }
 }
+pub(crate) fn close_terminal_vaults_ix(ritual: Pubkey, creator: Pubkey) -> Instruction {
+    let accounts = rituals::accounts::CloseTerminalVaults {
+        ritual,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        fee_vault: vault_pda(b"fee-vault", &ritual),
+        creator_rent_destination: creator,
+        token_program: spl_token::ID,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::CloseTerminalVaults {}.data(),
+    }
+}
+
 pub(crate) fn initialize_event_ix(ritual: Pubkey, payer: Pubkey, event_index: u8) -> Instruction {
     let accounts = rituals::accounts::InitializeCurrentEvent {
         ritual,

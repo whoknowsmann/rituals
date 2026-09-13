@@ -166,6 +166,7 @@ pub mod rituals {
         ritual.activated_at = 0;
         ritual.cancelled_at = 0;
         ritual.completed_at = 0;
+        ritual.vaults_closed = false;
         ritual.bump = ctx.bumps.ritual;
         Ok(())
     }
@@ -847,6 +848,64 @@ pub mod rituals {
         }
         Ok(())
     }
+
+    pub fn close_terminal_vaults(ctx: Context<CloseTerminalVaults>) -> Result<()> {
+        let ritual = &ctx.accounts.ritual;
+        require!(
+            !ritual.vaults_closed,
+            RitualsError::TerminalVaultsAlreadyClosed
+        );
+        ritual.validate_terminal_state(ritual.key())?;
+        require!(
+            ctx.accounts.stake_vault.amount == 0 && ctx.accounts.fee_vault.amount == 0,
+            RitualsError::TerminalVaultNotEmpty
+        );
+        require!(
+            ctx.accounts.stake_vault.close_authority.is_none()
+                || ctx.accounts.stake_vault.close_authority == Some(ritual.key()).into(),
+            RitualsError::TerminalVaultStateInconsistent
+        );
+        require!(
+            ctx.accounts.fee_vault.close_authority.is_none()
+                || ctx.accounts.fee_vault.close_authority == Some(ritual.key()).into(),
+            RitualsError::TerminalVaultStateInconsistent
+        );
+        let creator = ritual.creator;
+        let nonce = ritual.nonce.to_le_bytes();
+        let bump = [ritual.bump];
+        let signer_seeds: &[&[u8]] = &[b"ritual", creator.as_ref(), nonce.as_ref(), bump.as_ref()];
+        for vault in [
+            ctx.accounts.stake_vault.to_account_info(),
+            ctx.accounts.fee_vault.to_account_info(),
+        ] {
+            let close = token::CloseAccount {
+                account: vault,
+                destination: ctx.accounts.creator_rent_destination.to_account_info(),
+                authority: ctx.accounts.ritual.to_account_info(),
+            };
+            token::close_account(CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                close,
+                &[signer_seeds],
+            ))?;
+        }
+        ctx.accounts.ritual.vaults_closed = true;
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct CloseTerminalVaults<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, constraint = stake_vault.mint == ritual.stake_mint, constraint = stake_vault.owner == ritual.key())]
+    pub stake_vault: Account<'info, TokenAccount>,
+    #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, constraint = fee_vault.mint == ritual.stake_mint, constraint = fee_vault.owner == ritual.key())]
+    pub fee_vault: Account<'info, TokenAccount>,
+    /// CHECK: constrained to the immutable creator stored in the Ritual.
+    #[account(mut, address = ritual.creator)]
+    pub creator_rent_destination: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
@@ -1288,6 +1347,7 @@ mod tests {
             activated_at: 2,
             cancelled_at: 0,
             completed_at: 0,
+            vaults_closed: false,
             bump: 1,
         }
     }
@@ -1613,6 +1673,7 @@ pub struct Ritual {
     pub activated_at: i64,
     pub cancelled_at: i64,
     pub completed_at: i64,
+    pub vaults_closed: bool,
     pub bump: u8,
 }
 
@@ -1892,6 +1953,61 @@ impl Ritual {
         );
         Ok(())
     }
+
+    fn validate_terminal_state(&self, ritual_key: Pubkey) -> Result<()> {
+        require!(
+            self.protocol_config != Pubkey::default()
+                && self.creator != Pubkey::default()
+                && self.stake_mint != Pubkey::default()
+                && self.locked_fee_recipient != Pubkey::default(),
+            RitualsError::TerminalStateInconsistent
+        );
+        self.validate_common_state()
+            .map_err(|_| error!(RitualsError::TerminalStateInconsistent))?;
+        let (stake_vault, stake_bump) =
+            Pubkey::find_program_address(&[b"stake-vault", ritual_key.as_ref()], &crate::ID);
+        let (fee_vault, fee_bump) =
+            Pubkey::find_program_address(&[b"fee-vault", ritual_key.as_ref()], &crate::ID);
+        require!(
+            !self.vaults_closed
+                && self.stake_vault == stake_vault
+                && self.fee_vault == fee_vault
+                && self.stake_vault_bump == stake_bump
+                && self.fee_vault_bump == fee_bump,
+            RitualsError::TerminalStateInconsistent
+        );
+        let count = self.members.len() as u8;
+        let mask = ((1u16 << count) - 1) as u8;
+        match self.status {
+            RitualStatus::Completed => require!(
+                self.current_event_index == self.settled_event_count
+                    && self.current_event_index as usize == self.schedule.len()
+                    && self.funded_stake_total == 0
+                    && self.funded_members_bitmap == mask
+                    && self.funded_member_count == count
+                    && self.funded_member_count == self.funded_members_bitmap.count_ones() as u8
+                    && self.funded_fee_total == self.locked_activation_fee
+                    && self.activated_at >= self.created_at
+                    && self.completed_at >= self.activated_at
+                    && self.cancelled_at == 0,
+                RitualsError::TerminalStateInconsistent
+            ),
+            RitualStatus::Cancelled => require!(
+                self.current_event_index == 0
+                    && self.settled_event_count == 0
+                    && self.funded_members_bitmap == 0
+                    && self.funded_member_count == 0
+                    && self.funded_stake_total == 0
+                    && self.funded_fee_total == 0
+                    && self.activated_at == 0
+                    && self.completed_at == 0
+                    && self.cancelled_at >= self.created_at,
+                RitualsError::TerminalStateInconsistent
+            ),
+            _ => return err!(RitualsError::InvalidTerminalStatus),
+        }
+        Ok(())
+    }
 }
 
 #[error_code]
@@ -2012,4 +2128,14 @@ pub enum RitualsError {
     InvalidFinalizeDestination,
     #[msg("stake vault is short of tracked settlement liability")]
     FinalizeStakeVaultShort,
+    #[msg("stake or fee vault is not empty")]
+    TerminalVaultNotEmpty,
+    #[msg("terminal vault state is inconsistent")]
+    TerminalVaultStateInconsistent,
+    #[msg("ritual is not in a terminal status")]
+    InvalidTerminalStatus,
+    #[msg("terminal state is inconsistent")]
+    TerminalStateInconsistent,
+    #[msg("terminal vaults have already been closed")]
+    TerminalVaultsAlreadyClosed,
 }
