@@ -1383,12 +1383,7 @@ async fn split_cancellation_n2_full_returns_exact_stake_and_fee_shares() {
         &mut context,
         vec![
             initialize_ix(creator.pubkey()),
-            create_ix(
-                creator.pubkey(),
-                other.pubkey(),
-                nonce,
-                FeePayerMode::Split,
-            ),
+            create_ix(creator.pubkey(), other.pubkey(), nonce, FeePayerMode::Split),
         ],
         &[&creator],
     )

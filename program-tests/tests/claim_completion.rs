@@ -1,7 +1,7 @@
 mod support;
+use rituals::VoidReason;
 use solana_sdk::clock::Clock;
 use support::*;
-use rituals::VoidReason;
 
 async fn active_context(
     creator: &Keypair,

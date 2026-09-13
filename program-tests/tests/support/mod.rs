@@ -62,9 +62,11 @@ pub(crate) fn finalize_event_ix(
         token_program: spl_token::ID,
     };
     let mut metas = accounts.to_account_metas(None);
-    metas.extend(destinations.iter().map(|destination| {
-        solana_sdk::instruction::AccountMeta::new(*destination, false)
-    }));
+    metas.extend(
+        destinations
+            .iter()
+            .map(|destination| solana_sdk::instruction::AccountMeta::new(*destination, false)),
+    );
     Instruction {
         program_id: PROGRAM_ID,
         accounts: metas,
@@ -87,9 +89,11 @@ pub(crate) fn finalize_event_ix_with_accounts(
         token_program,
     };
     let mut metas = accounts.to_account_metas(None);
-    metas.extend(destinations.iter().map(|destination| {
-        solana_sdk::instruction::AccountMeta::new(*destination, false)
-    }));
+    metas.extend(
+        destinations
+            .iter()
+            .map(|destination| solana_sdk::instruction::AccountMeta::new(*destination, false)),
+    );
     Instruction {
         program_id: PROGRAM_ID,
         accounts: metas,
@@ -97,7 +101,8 @@ pub(crate) fn finalize_event_ix_with_accounts(
     }
 }
 pub(crate) fn initialize_event_ix(ritual: Pubkey, payer: Pubkey, event_index: u8) -> Instruction {
-    let accounts = rituals::accounts::InitializeCurrentEvent {        ritual,
+    let accounts = rituals::accounts::InitializeCurrentEvent {
+        ritual,
         event: event_pda(&ritual, event_index),
         payer,
         system_program: system_program::ID,
@@ -132,28 +137,97 @@ pub(crate) fn claim_completion_ix(
         .data(),
     }
 }
-pub(crate) fn approve_claim_ix(ritual: Pubkey, claimant: Pubkey, approver: Pubkey, version: u8) -> Instruction {
+pub(crate) fn approve_claim_ix(
+    ritual: Pubkey,
+    claimant: Pubkey,
+    approver: Pubkey,
+    version: u8,
+) -> Instruction {
     let event = event_pda(&ritual, 0);
     let claim = claim_pda(&event, &claimant, version);
-    let accounts = rituals::accounts::ApproveClaim { ritual, event, claim, approver };
-    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::ApproveClaim { claim_version: version }.data() }
+    let accounts = rituals::accounts::ApproveClaim {
+        ritual,
+        event,
+        claim,
+        approver,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::ApproveClaim {
+            claim_version: version,
+        }
+        .data(),
+    }
 }
-pub(crate) fn question_claim_ix(ritual: Pubkey, claimant: Pubkey, questioner: Pubkey, version: u8) -> Instruction {
+pub(crate) fn question_claim_ix(
+    ritual: Pubkey,
+    claimant: Pubkey,
+    questioner: Pubkey,
+    version: u8,
+) -> Instruction {
     let event = event_pda(&ritual, 0);
     let claim = claim_pda(&event, &claimant, version);
-    let accounts = rituals::accounts::QuestionClaim { ritual, event, claim, questioner };
-    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::QuestionClaim { claim_version: version }.data() }
+    let accounts = rituals::accounts::QuestionClaim {
+        ritual,
+        event,
+        claim,
+        questioner,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::QuestionClaim {
+            claim_version: version,
+        }
+        .data(),
+    }
 }
-pub(crate) fn approve_claim_ix_with_accounts(ritual: Pubkey, event: Pubkey, claim: Pubkey, approver: Pubkey, version: u8) -> Instruction {
-    let accounts = rituals::accounts::ApproveClaim { ritual, event, claim, approver };
-    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::ApproveClaim { claim_version: version }.data() }
+pub(crate) fn approve_claim_ix_with_accounts(
+    ritual: Pubkey,
+    event: Pubkey,
+    claim: Pubkey,
+    approver: Pubkey,
+    version: u8,
+) -> Instruction {
+    let accounts = rituals::accounts::ApproveClaim {
+        ritual,
+        event,
+        claim,
+        approver,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::ApproveClaim {
+            claim_version: version,
+        }
+        .data(),
+    }
 }
 
-pub(crate) fn question_claim_ix_with_accounts(ritual: Pubkey, event: Pubkey, claim: Pubkey, questioner: Pubkey, version: u8) -> Instruction {
-    let accounts = rituals::accounts::QuestionClaim { ritual, event, claim, questioner };
-    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::QuestionClaim { claim_version: version }.data() }
+pub(crate) fn question_claim_ix_with_accounts(
+    ritual: Pubkey,
+    event: Pubkey,
+    claim: Pubkey,
+    questioner: Pubkey,
+    version: u8,
+) -> Instruction {
+    let accounts = rituals::accounts::QuestionClaim {
+        ritual,
+        event,
+        claim,
+        questioner,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::QuestionClaim {
+            claim_version: version,
+        }
+        .data(),
+    }
 }
-
 
 pub(crate) fn deserialize_event(data: &[u8]) -> RitualEvent {
     let mut data = data;
@@ -290,19 +364,56 @@ pub(crate) fn source_for_member(index: usize) -> Pubkey {
     Pubkey::new_from_array([30 + index as u8; 32])
 }
 
-pub(crate) async fn start_with_member_set(members: &[&Keypair], amounts: &[u64]) -> ProgramTestContext {
+pub(crate) async fn start_with_member_set(
+    members: &[&Keypair],
+    amounts: &[u64],
+) -> ProgramTestContext {
     assert_eq!(members.len(), amounts.len());
     let mut test = ProgramTest::new("rituals", PROGRAM_ID, processor!(process_instruction));
-    test.add_program("spl_token", spl_token::ID, processor!(spl_token::processor::Processor::process));
+    test.add_program(
+        "spl_token",
+        spl_token::ID,
+        processor!(spl_token::processor::Processor::process),
+    );
     test.add_genesis_account(MINT, mint_account(1_000_000));
     test.add_genesis_account(WRONG_MINT, mint_account(0));
-    let recipient = spl_token::state::Account { mint: MINT, owner: Pubkey::new_from_array([10; 32]), amount: 0, delegate: None.into(), state: spl_token::state::AccountState::Initialized, is_native: None.into(), delegated_amount: 0, close_authority: None.into() };
+    let recipient = spl_token::state::Account {
+        mint: MINT,
+        owner: Pubkey::new_from_array([10; 32]),
+        amount: 0,
+        delegate: None.into(),
+        state: spl_token::state::AccountState::Initialized,
+        is_native: None.into(),
+        delegated_amount: 0,
+        close_authority: None.into(),
+    };
     let mut recipient_data = vec![0; spl_token::state::Account::LEN];
     spl_token::state::Account::pack_into_slice(&recipient, &mut recipient_data);
-    test.add_genesis_account(RECIPIENT, Account { lamports: Rent::default().minimum_balance(recipient_data.len()), data: recipient_data, owner: spl_token::ID, executable: false, rent_epoch: 0 });
+    test.add_genesis_account(
+        RECIPIENT,
+        Account {
+            lamports: Rent::default().minimum_balance(recipient_data.len()),
+            data: recipient_data,
+            owner: spl_token::ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
     for (index, (member, amount)) in members.iter().zip(amounts).enumerate() {
-        test.add_genesis_account(source_for_member(index), token_account(member.pubkey(), *amount));
-        test.add_genesis_account(member.pubkey(), Account { lamports: 10_000_000_000, data: vec![], owner: system_program::ID, executable: false, rent_epoch: 0 });
+        test.add_genesis_account(
+            source_for_member(index),
+            token_account(member.pubkey(), *amount),
+        );
+        test.add_genesis_account(
+            member.pubkey(),
+            Account {
+                lamports: 10_000_000_000,
+                data: vec![],
+                owner: system_program::ID,
+                executable: false,
+                rent_epoch: 0,
+            },
+        );
     }
     test.start_with_context().await
 }
@@ -376,13 +487,51 @@ pub(crate) fn create_ix(
         .data(),
     }
 }
-pub(crate) fn create_ix_with_members(creator: Pubkey, members: Vec<Pubkey>, nonce: u64, threshold: u8) -> Instruction {
+pub(crate) fn create_ix_with_members(
+    creator: Pubkey,
+    members: Vec<Pubkey>,
+    nonce: u64,
+    threshold: u8,
+) -> Instruction {
     create_ix_with_members_and_stake(creator, members, nonce, threshold, 100)
 }
-pub(crate) fn create_ix_with_members_and_stake(creator: Pubkey, members: Vec<Pubkey>, nonce: u64, threshold: u8, member_total_stake: u64) -> Instruction {
+pub(crate) fn create_ix_with_members_and_stake(
+    creator: Pubkey,
+    members: Vec<Pubkey>,
+    nonce: u64,
+    threshold: u8,
+    member_total_stake: u64,
+) -> Instruction {
     let ritual = ritual_pda(&creator, nonce);
-    let accounts = rituals::accounts::CreateRitual { protocol_config: config_pda(), ritual, creator, stake_mint: MINT, fee_recipient_token: RECIPIENT, stake_vault: vault_pda(b"stake-vault", &ritual), fee_vault: vault_pda(b"fee-vault", &ritual), system_program: system_program::ID, token_program: spl_token::ID };
-    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::CreateRitual { nonce, rule_digest: [1; 32], members, member_total_stake, schedule: vec![EventWindow { opens: 1, deadline: 2, resolution: 3 }], additional_confirmation_threshold: threshold, fee_payer_mode: FeePayerMode::Host }.data() }
+    let accounts = rituals::accounts::CreateRitual {
+        protocol_config: config_pda(),
+        ritual,
+        creator,
+        stake_mint: MINT,
+        fee_recipient_token: RECIPIENT,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        fee_vault: vault_pda(b"fee-vault", &ritual),
+        system_program: system_program::ID,
+        token_program: spl_token::ID,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::CreateRitual {
+            nonce,
+            rule_digest: [1; 32],
+            members,
+            member_total_stake,
+            schedule: vec![EventWindow {
+                opens: 1,
+                deadline: 2,
+                resolution: 3,
+            }],
+            additional_confirmation_threshold: threshold,
+            fee_payer_mode: FeePayerMode::Host,
+        }
+        .data(),
+    }
 }
 
 pub(crate) fn fund_ix(creator: Pubkey, nonce: u64, member: Pubkey, source: Pubkey) -> Instruction {
@@ -559,24 +708,50 @@ pub(crate) async fn replace_ritual<F: FnOnce(&mut rituals::Ritual)>(
         }),
     );
 }
-pub(crate) async fn replace_claim<F: FnOnce(&mut CompletionClaim)>(context: &mut ProgramTestContext, address: Pubkey, mutate: F) {
+pub(crate) async fn replace_claim<F: FnOnce(&mut CompletionClaim)>(
+    context: &mut ProgramTestContext,
+    address: Pubkey,
+    mutate: F,
+) {
     let original = get_account(context, address).await;
     let mut value = deserialize_claim(&original.data);
     mutate(&mut value);
     let mut data = Vec::with_capacity(original.data.len());
     value.try_serialize(&mut data).unwrap();
     data.resize(original.data.len(), 0);
-    context.set_account(&address, &AccountSharedData::from(Account { lamports: original.lamports, data, owner: original.owner, executable: original.executable, rent_epoch: original.rent_epoch }));
+    context.set_account(
+        &address,
+        &AccountSharedData::from(Account {
+            lamports: original.lamports,
+            data,
+            owner: original.owner,
+            executable: original.executable,
+            rent_epoch: original.rent_epoch,
+        }),
+    );
 }
 
-pub(crate) async fn replace_event<F: FnOnce(&mut RitualEvent)>(context: &mut ProgramTestContext, address: Pubkey, mutate: F) {
+pub(crate) async fn replace_event<F: FnOnce(&mut RitualEvent)>(
+    context: &mut ProgramTestContext,
+    address: Pubkey,
+    mutate: F,
+) {
     let original = get_account(context, address).await;
     let mut value = deserialize_event(&original.data);
     mutate(&mut value);
     let mut data = Vec::with_capacity(original.data.len());
     value.try_serialize(&mut data).unwrap();
     data.resize(original.data.len(), 0);
-    context.set_account(&address, &AccountSharedData::from(Account { lamports: original.lamports, data, owner: original.owner, executable: original.executable, rent_epoch: original.rent_epoch }));
+    context.set_account(
+        &address,
+        &AccountSharedData::from(Account {
+            lamports: original.lamports,
+            data,
+            owner: original.owner,
+            executable: original.executable,
+            rent_epoch: original.rent_epoch,
+        }),
+    );
 }
 
 pub(crate) async fn replace_config<F: FnOnce(&mut rituals::ProtocolConfig)>(
@@ -619,9 +794,15 @@ pub(crate) async fn replace_token_destination_fields(
 ) {
     let original = get_account(context, address).await;
     let mut token = spl_token::state::Account::unpack(&original.data).unwrap();
-    if let Some(mint) = mint { token.mint = mint; }
-    if let Some(owner) = owner { token.owner = owner; }
-    if let Some(amount) = amount { token.amount = amount; }
+    if let Some(mint) = mint {
+        token.mint = mint;
+    }
+    if let Some(owner) = owner {
+        token.owner = owner;
+    }
+    if let Some(amount) = amount {
+        token.amount = amount;
+    }
     let mut data = vec![0; spl_token::state::Account::LEN];
     spl_token::state::Account::pack_into_slice(&token, &mut data);
     context.set_account(
