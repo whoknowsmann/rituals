@@ -28,7 +28,15 @@ export interface HomeViewModel {
 }
 
 function format(amount: bigint, decimals: number, symbol: string): string {
-  if (typeof amount !== 'bigint' || amount < 0n || !Number.isInteger(decimals) || decimals < 0 || decimals > 255) return 'Invalid amount'
+  if (
+    typeof amount !== 'bigint'
+    || amount < 0n
+    || !Number.isInteger(decimals)
+    || decimals < 0
+    || decimals > 255
+    || typeof symbol !== 'string'
+    || !/^[A-Z0-9]{1,12}$/.test(symbol)
+  ) return 'Invalid amount'
 
   const base = 10n ** BigInt(decimals)
   const whole = amount / base

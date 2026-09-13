@@ -79,10 +79,12 @@ describe('canonical claims fixtures and route safety', () => {
 
   it('runs local confirmation actions and prevents duplicate actions', () => {
     const idle = { action: 'idle' as const }
-    expect(confirmationInboxReducer(idle, { type: 'CONFIRM' }).action).toBe('confirmed')
-    expect(confirmationInboxReducer(idle, { type: 'QUESTION' }).action).toBe('questioned')
-    expect(confirmationInboxReducer({ action: 'idle' }, { type: 'START' }).action).toBe('in-flight')
+    expect(confirmationInboxReducer(idle, { type: 'CONFIRM' }).action).toBe('idle')
+    expect(confirmationInboxReducer(idle, { type: 'QUESTION' }).action).toBe('idle')
+    expect(confirmationInboxReducer(idle, { type: 'START' }).action).toBe('in-flight')
     expect(confirmationInboxReducer({ action: 'in-flight' }, { type: 'CONFIRM' }).action).toBe('confirmed')
+    expect(confirmationInboxReducer({ action: 'in-flight' }, { type: 'QUESTION' }).action).toBe('questioned')
+    expect(confirmationInboxReducer({ action: 'confirmed' }, { type: 'START' }).action).toBe('confirmed')
   })
 
   it('returns exact principal for voided receipts and zeroes bonus and forfeiture', () => {

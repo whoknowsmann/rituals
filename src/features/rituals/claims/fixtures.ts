@@ -56,6 +56,9 @@ export const claimFixtures: readonly ClaimFixture[] = deepFreeze([
   },
 ])
 
+export const bookClubTotalReceived =
+  claimFixtures[1].receipt.principal + claimFixtures[1].receipt.bonus
+
 const byKey = new Map(claimFixtures.map((fixture) => [`${fixture.ritualId}:${fixture.eventIndex}`, fixture]))
 export function getClaimFixture(id: string, index: number): ClaimFixture | undefined { return byKey.get(`${id}:${index}`) }
 export function getRitualFixture(id: string): ClaimFixture | undefined { return claimFixtures.find((fixture) => fixture.ritualId === id) }
