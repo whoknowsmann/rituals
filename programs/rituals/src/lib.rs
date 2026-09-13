@@ -5,7 +5,10 @@ use anchor_spl::token::{self, spl_token, Mint, Token, TokenAccount};
 declare_id!("8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB");
 
 pub mod state {
-    pub use super::{EventWindow, FeePayerMode, ProtocolConfig, Ritual, RitualStatus};
+    pub use super::{
+        ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, ProtocolConfig,
+        Ritual, RitualEvent, RitualStatus,
+    };
 }
 
 #[program]
@@ -444,6 +447,145 @@ pub mod rituals {
         ritual.funded_fee_total = 0;
         Ok(())
     }
+
+    pub fn initialize_current_event(
+        ctx: Context<InitializeCurrentEvent>,
+        event_index: u8,
+    ) -> Result<()> {
+        let ritual = &ctx.accounts.ritual;
+        require!(
+            ritual.status == RitualStatus::Active,
+            RitualsError::InvalidRitualStatus
+        );
+        require!(
+            ritual.current_event_index == event_index,
+            RitualsError::InvalidCurrentEvent
+        );
+        let window = ritual
+            .schedule
+            .get(event_index as usize)
+            .ok_or(RitualsError::InvalidCurrentEvent)?;
+        ritual.validate_locked_activation_state()?;
+        let now = Clock::get()?.unix_timestamp;
+        let status = if now < window.opens {
+            EventStatus::Scheduled
+        } else if now <= window.deadline {
+            EventStatus::Claiming
+        } else {
+            EventStatus::Resolving
+        };
+        let event = &mut ctx.accounts.event;
+        event.schema_version = 1;
+        event.ritual = ritual.key();
+        event.event_index = event_index;
+        event.window = window.clone();
+        event.member_count = ritual.members.len() as u8;
+        event.status = status;
+        event.claimed_members_bitmap = 0;
+        event.confirmed_members_bitmap = 0;
+        event.questioned_members_bitmap = 0;
+        event.initialized_at = now;
+        event.resolved_at = 0;
+        event.bump = ctx.bumps.event;
+        Ok(())
+    }
+
+    pub fn claim_completion(
+        ctx: Context<ClaimCompletion>,
+        event_index: u8,
+        claim_version: u8,
+    ) -> Result<()> {
+        require!(claim_version == 0, RitualsError::UnsupportedClaimVersion);
+        let ritual = &ctx.accounts.ritual;
+        require!(
+            ritual.status == RitualStatus::Active,
+            RitualsError::InvalidRitualStatus
+        );
+        require!(
+            ritual.current_event_index == event_index,
+            RitualsError::InvalidCurrentEvent
+        );
+        ritual.validate_locked_activation_state()?;
+        let event = &ctx.accounts.event;
+        let window = ritual
+            .schedule
+            .get(event_index as usize)
+            .ok_or(RitualsError::InvalidCurrentEvent)?;
+        require!(
+            event.schema_version == 1
+                && event.ritual == ritual.key()
+                && event.event_index == event_index
+                && event.member_count == ritual.members.len() as u8
+                && event.window == *window
+                && matches!(event.status, EventStatus::Scheduled | EventStatus::Claiming),
+            RitualsError::EventStateInconsistent
+        );
+        let member_index = ritual
+            .members
+            .iter()
+            .position(|member| *member == ctx.accounts.claimant.key())
+            .ok_or(RitualsError::MemberNotFound)?;
+        let mask = event_member_mask(ritual.members.len())?;
+        require!(
+            event.claimed_members_bitmap & !mask == 0
+                && event.confirmed_members_bitmap & !mask == 0
+                && event.questioned_members_bitmap & !mask == 0
+                && event.confirmed_members_bitmap & !event.claimed_members_bitmap == 0
+                && event.questioned_members_bitmap & !event.claimed_members_bitmap == 0
+                && event.confirmed_members_bitmap & event.questioned_members_bitmap == 0,
+            RitualsError::EventBitmapInconsistent
+        );
+        let bit = 1u8
+            .checked_shl(member_index as u32)
+            .ok_or(RitualsError::EventBitmapInconsistent)?;
+        require!(
+            ritual.funded_members_bitmap & bit != 0,
+            RitualsError::MemberNotFunded
+        );
+        require!(
+            event.claimed_members_bitmap & bit == 0,
+            RitualsError::AlreadyClaimed
+        );
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            now >= event.window.opens && now <= event.window.deadline,
+            RitualsError::ClaimWindowClosed
+        );
+        let confirmed = ritual.additional_confirmation_threshold == 0;
+        let claim = &mut ctx.accounts.claim;
+        claim.schema_version = 1;
+        claim.ritual = ritual.key();
+        claim.event = event.key();
+        claim.event_index = event_index;
+        claim.claimant = ctx.accounts.claimant.key();
+        claim.member_index = member_index as u8;
+        claim.claim_version = claim_version;
+        claim.status = if confirmed {
+            ClaimStatus::Confirmed
+        } else {
+            ClaimStatus::Pending
+        };
+        claim.required_additional_confirmations = ritual.additional_confirmation_threshold;
+        claim.approvals_bitmap = 0;
+        claim.approval_count = 0;
+        claim.claimed_at = now;
+        claim.bump = ctx.bumps.claim;
+        let event = &mut ctx.accounts.event;
+        event.claimed_members_bitmap |= bit;
+        if confirmed {
+            event.confirmed_members_bitmap |= bit;
+        }
+        event.status = EventStatus::Claiming;
+        Ok(())
+    }
+}
+
+fn event_member_mask(member_count: usize) -> Result<u8> {
+    require!(
+        (2..=8).contains(&member_count),
+        RitualsError::EventBitmapInconsistent
+    );
+    Ok(((1u16 << member_count) - 1) as u8)
 }
 
 #[derive(Accounts)]
@@ -540,6 +682,32 @@ pub struct CancelUnactivated<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+#[instruction(event_index: u8)]
+pub struct InitializeCurrentEvent<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    #[account(init, payer = payer, space = 8 + RitualEvent::INIT_SPACE, seeds = [b"event", ritual.key().as_ref(), &[event_index]], bump)]
+    pub event: Account<'info, RitualEvent>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(event_index: u8, claim_version: u8)]
+pub struct ClaimCompletion<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    #[account(mut, seeds = [b"event", ritual.key().as_ref(), &[event_index]], bump = event.bump)]
+    pub event: Account<'info, RitualEvent>,
+    #[account(init, payer = claimant, space = 8 + CompletionClaim::INIT_SPACE, seeds = [b"claim", event.key().as_ref(), claimant.key().as_ref(), &[claim_version]], bump)]
+    pub claim: Account<'info, CompletionClaim>,
+    #[account(mut)]
+    pub claimant: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct ProtocolConfig {
@@ -577,6 +745,57 @@ pub enum RitualStatus {
     Active,
     Completed,
     Cancelled,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
+pub enum EventStatus {
+    Scheduled,
+    Claiming,
+    Resolving,
+    Settled,
+    Voided,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
+pub enum ClaimStatus {
+    Pending,
+    Confirmed,
+    Questioned,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct RitualEvent {
+    pub schema_version: u8,
+    pub ritual: Pubkey,
+    pub event_index: u8,
+    pub window: EventWindow,
+    pub member_count: u8,
+    pub status: EventStatus,
+    pub claimed_members_bitmap: u8,
+    pub confirmed_members_bitmap: u8,
+    pub questioned_members_bitmap: u8,
+    pub initialized_at: i64,
+    pub resolved_at: i64,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct CompletionClaim {
+    pub schema_version: u8,
+    pub ritual: Pubkey,
+    pub event: Pubkey,
+    pub event_index: u8,
+    pub claimant: Pubkey,
+    pub member_index: u8,
+    pub claim_version: u8,
+    pub status: ClaimStatus,
+    pub required_additional_confirmations: u8,
+    pub approvals_bitmap: u8,
+    pub approval_count: u8,
+    pub claimed_at: i64,
+    pub bump: u8,
 }
 
 #[account]
@@ -897,4 +1116,18 @@ pub enum RitualsError {
     CancellationStakeVaultShort,
     #[msg("fee vault is short of tracked cancellation liabilities")]
     CancellationFeeVaultShort,
+    #[msg("event index is not the current event")]
+    InvalidCurrentEvent,
+    #[msg("event state is inconsistent")]
+    EventStateInconsistent,
+    #[msg("event bitmaps are inconsistent")]
+    EventBitmapInconsistent,
+    #[msg("member has not funded this ritual")]
+    MemberNotFunded,
+    #[msg("member has already claimed this event")]
+    AlreadyClaimed,
+    #[msg("completion claim window is closed")]
+    ClaimWindowClosed,
+    #[msg("claim version is unsupported")]
+    UnsupportedClaimVersion,
 }

@@ -2,10 +2,12 @@ pub(crate) use anchor_lang::solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult,
 };
 pub(crate) use anchor_lang::{
-    AccountDeserialize, AccountSerialize, InstructionData, ToAccountMetas,
+    AccountDeserialize, AccountSerialize, InstructionData, Space, ToAccountMetas,
 };
 pub(crate) use anchor_spl::token::spl_token;
-pub(crate) use rituals::{EventWindow, FeePayerMode, RitualStatus};
+pub(crate) use rituals::{
+    ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, RitualEvent, RitualStatus,
+};
 pub(crate) use solana_program_test::{processor, ProgramTest, ProgramTestContext};
 pub(crate) use solana_sdk::program_pack::Pack;
 pub(crate) use solana_sdk::{
@@ -36,6 +38,61 @@ pub(crate) fn process_instruction(
 }
 pub(crate) fn config_pda() -> Pubkey {
     Pubkey::find_program_address(&[b"protocol-config"], &PROGRAM_ID).0
+}
+pub(crate) fn event_pda(ritual: &Pubkey, event_index: u8) -> Pubkey {
+    Pubkey::find_program_address(&[b"event", ritual.as_ref(), &[event_index]], &PROGRAM_ID).0
+}
+pub(crate) fn claim_pda(event: &Pubkey, claimant: &Pubkey, version: u8) -> Pubkey {
+    Pubkey::find_program_address(
+        &[b"claim", event.as_ref(), claimant.as_ref(), &[version]],
+        &PROGRAM_ID,
+    )
+    .0
+}
+pub(crate) fn initialize_event_ix(ritual: Pubkey, payer: Pubkey, event_index: u8) -> Instruction {
+    let accounts = rituals::accounts::InitializeCurrentEvent {
+        ritual,
+        event: event_pda(&ritual, event_index),
+        payer,
+        system_program: system_program::ID,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::InitializeCurrentEvent { event_index }.data(),
+    }
+}
+pub(crate) fn claim_completion_ix(
+    ritual: Pubkey,
+    claimant: Pubkey,
+    event_index: u8,
+    claim_version: u8,
+) -> Instruction {
+    let event = event_pda(&ritual, event_index);
+    let accounts = rituals::accounts::ClaimCompletion {
+        ritual,
+        event,
+        claim: claim_pda(&event, &claimant, claim_version),
+        claimant,
+        system_program: system_program::ID,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::ClaimCompletion {
+            event_index,
+            claim_version,
+        }
+        .data(),
+    }
+}
+pub(crate) fn deserialize_event(data: &[u8]) -> RitualEvent {
+    let mut data = data;
+    RitualEvent::try_deserialize(&mut data).unwrap()
+}
+pub(crate) fn deserialize_claim(data: &[u8]) -> CompletionClaim {
+    let mut data = data;
+    CompletionClaim::try_deserialize(&mut data).unwrap()
 }
 pub(crate) fn ritual_pda(creator: &Pubkey, nonce: u64) -> Pubkey {
     Pubkey::find_program_address(
@@ -140,6 +197,16 @@ pub(crate) async fn start_with_members(
     );
     test.add_genesis_account(
         creator.pubkey(),
+        Account {
+            lamports: 10_000_000_000,
+            data: vec![],
+            owner: system_program::ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+    test.add_genesis_account(
+        other.pubkey(),
         Account {
             lamports: 10_000_000_000,
             data: vec![],
