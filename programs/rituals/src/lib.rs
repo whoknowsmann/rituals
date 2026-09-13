@@ -465,7 +465,7 @@ pub mod rituals {
             .schedule
             .get(event_index as usize)
             .ok_or(RitualsError::InvalidCurrentEvent)?;
-        ritual.validate_locked_activation_state()?;
+        ritual.validate_active_state(ritual.key())?;
         let now = Clock::get()?.unix_timestamp;
         let status = if now < window.opens {
             EventStatus::Scheduled
@@ -505,7 +505,7 @@ pub mod rituals {
             ritual.current_event_index == event_index,
             RitualsError::InvalidCurrentEvent
         );
-        ritual.validate_locked_activation_state()?;
+        ritual.validate_active_state(ritual.key())?;
         let event = &ctx.accounts.event;
         let window = ritual
             .schedule
@@ -582,10 +582,21 @@ pub mod rituals {
 
 fn event_member_mask(member_count: usize) -> Result<u8> {
     require!(
-        (2..=8).contains(&member_count),
+        (2..=6).contains(&member_count),
         RitualsError::EventBitmapInconsistent
     );
     Ok(((1u16 << member_count) - 1) as u8)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn event_member_mask_rejects_member_counts_above_six() {
+        assert!(event_member_mask(7).is_err());
+        assert!(event_member_mask(8).is_err());
+    }
 }
 
 #[derive(Accounts)]
@@ -836,6 +847,35 @@ pub struct Ritual {
 }
 
 impl Ritual {
+    /// Validate the immutable funding and identity invariants required by
+    /// operations that read or mutate the current event.
+    fn validate_active_state(&self, ritual_key: Pubkey) -> Result<()> {
+        require!(
+            self.status == RitualStatus::Active
+                && self.cancelled_at == 0
+                && self.activated_at >= self.created_at
+                && self.settled_event_count == self.current_event_index
+                && (self.current_event_index as usize) < self.schedule.len()
+                && self.stake_mint != Pubkey::default()
+                && self.stake_vault != Pubkey::default()
+                && self.fee_vault != Pubkey::default(),
+            RitualsError::ActiveStateInconsistent
+        );
+        let (canonical_stake_vault, stake_vault_bump) =
+            Pubkey::find_program_address(&[b"stake-vault", ritual_key.as_ref()], &crate::ID);
+        let (canonical_fee_vault, fee_vault_bump) =
+            Pubkey::find_program_address(&[b"fee-vault", ritual_key.as_ref()], &crate::ID);
+        require!(
+            self.stake_vault == canonical_stake_vault
+                && self.fee_vault == canonical_fee_vault
+                && self.stake_vault_bump == stake_vault_bump
+                && self.fee_vault_bump == fee_vault_bump,
+            RitualsError::ActiveStateInconsistent
+        );
+        self.validate_locked_activation_state()
+            .map_err(|_| error!(RitualsError::ActiveStateInconsistent))
+    }
+
     fn validate_locked_activation_state(&self) -> Result<()> {
         let member_count = self.members.len();
         require!(
@@ -1130,4 +1170,6 @@ pub enum RitualsError {
     ClaimWindowClosed,
     #[msg("claim version is unsupported")]
     UnsupportedClaimVersion,
+    #[msg("active ritual state is inconsistent")]
+    ActiveStateInconsistent,
 }
