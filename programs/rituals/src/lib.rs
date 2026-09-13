@@ -644,6 +644,11 @@ pub mod rituals {
             questioner_index != ctx.accounts.claim.member_index as usize,
             RitualsError::SelfApproval
         );
+        let questioner_bit = 1u8 << questioner_index;
+        require!(
+            ctx.accounts.claim.approvals_bitmap & questioner_bit == 0,
+            RitualsError::ConflictingAttestation
+        );
         ctx.accounts.claim.status = ClaimStatus::Questioned;
         ctx.accounts.event.questioned_members_bitmap |= 1u8 << ctx.accounts.claim.member_index;
         ctx.accounts.event.status = EventStatus::Resolving;
@@ -1433,4 +1438,6 @@ pub enum RitualsError {
     ApprovalWindowClosed,
     #[msg("claim state is inconsistent")]
     ClaimStateInconsistent,
+    #[msg("member has already approved this claim and cannot question it")]
+    ConflictingAttestation,
 }
