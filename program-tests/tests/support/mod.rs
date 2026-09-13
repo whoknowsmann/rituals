@@ -800,6 +800,19 @@ pub(crate) async fn replace_token_amount(
     replace_token_destination_fields(context, address, None, None, Some(new_amount)).await;
 }
 
+pub(crate) async fn replace_token_close_authority(
+    context: &mut ProgramTestContext,
+    address: Pubkey,
+    authority: Option<Pubkey>,
+) {
+    let original = get_account(context, address).await;
+    let mut token = spl_token::state::Account::unpack(&original.data).unwrap();
+    token.close_authority = authority.into();
+    let mut data = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack_into_slice(&token, &mut data);
+    replace_account(context, address, Account { data, ..original }).await;
+}
+
 pub(crate) async fn replace_token_destination_fields(
     context: &mut ProgramTestContext,
     address: Pubkey,
