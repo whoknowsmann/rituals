@@ -4,6 +4,16 @@ import path from 'node:path'
 import idl from './idl/rituals.json'
 import { ACCOUNT_DISCRIMINATORS } from './accounts'
 import { RITUALS_LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
+import { INSTRUCTION_DISCRIMINATORS } from './instructionData'
+
+const idlType = (type: unknown): string => {
+  if (typeof type === 'string') return type === 'pubkey' ? 'Pubkey' : type
+  const t = type as { vec?: unknown; array?: unknown; defined?: unknown }
+  if (t.vec !== undefined) return `Vec<${idlType(t.vec) === 'pubkey' ? 'Pubkey' : idlType(t.vec)}>`
+  if (t.array !== undefined) return '[u8;32]'
+  if (t.defined !== undefined) return typeof t.defined === 'string' ? t.defined : (t.defined as { name: string }).name
+  return 'unknown'
+}
 
 describe('frozen Rituals IDL', () => {
   it('contains the exact current instruction and account/type surface', () => {
@@ -15,6 +25,17 @@ describe('frozen Rituals IDL', () => {
     expect(ritual && 'type' in ritual && ritual.type.kind === 'struct' && ritual.type.fields?.some((f: { name: string }) => f.name === 'vaults_closed')).toBe(true)
   })
 
+  it('keeps instruction discriminators and ordered argument types synchronized', () => {
+    const manifest: Record<string, readonly [string, string][]> = {
+      activate_ritual: [], approve_claim: [['claim_version', 'u8']], cancel_unactivated: [], claim_completion: [['event_index', 'u8'], ['claim_version', 'u8']], close_terminal_vaults: [],
+      create_ritual: [['nonce', 'u64'], ['rule_digest', '[u8;32]'], ['members', 'Vec<Pubkey>'], ['member_total_stake', 'u64'], ['schedule', 'Vec<EventWindow>'], ['additional_confirmation_threshold', 'u8'], ['fee_payer_mode', 'FeePayerMode']],
+      finalize_event: [['event_index', 'u8']], fund_member: [], initialize_current_event: [['event_index', 'u8']], initialize_protocol_config: [['allowed_stake_mint', 'Pubkey'], ['fee_recipient', 'Pubkey'], ['fee_basis_points', 'u16'], ['minimum_fee', 'u64'], ['maximum_fee', 'u64'], ['maximum_member_stake', 'u64']], question_claim: [['claim_version', 'u8']],
+    }
+    for (const instruction of idl.instructions) {
+      expect(Array.from(instruction.discriminator)).toEqual(Array.from(INSTRUCTION_DISCRIMINATORS[instruction.name as keyof typeof INSTRUCTION_DISCRIMINATORS]))
+      expect(instruction.args.map(arg => [arg.name, idlType(arg.type)])).toEqual(manifest[instruction.name])
+    }
+  })
   it('keeps decoder discriminators and ordered account fields synchronized with IDL', () => {
     for (const account of idl.accounts) {
       const key = account.name as keyof typeof ACCOUNT_DISCRIMINATORS

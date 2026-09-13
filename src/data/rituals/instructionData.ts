@@ -1,0 +1,139 @@
+import { PublicKey } from '@solana/web3.js'
+import type { RuleDigest } from '../../domain/rituals/types'
+
+const CURRENT_CLAIM_VERSION = 0 as const
+export const INSTRUCTION_DISCRIMINATORS = {
+  activate_ritual: Uint8Array.from([188, 109, 197, 57, 117, 119, 89, 251]),
+  approve_claim: Uint8Array.from([74, 228, 211, 63, 140, 255, 69, 210]),
+  cancel_unactivated: Uint8Array.from([173, 217, 226, 113, 114, 199, 239, 82]),
+  claim_completion: Uint8Array.from([89, 9, 83, 69, 176, 3, 122, 36]),
+  close_terminal_vaults: Uint8Array.from([229, 10, 164, 81, 199, 123, 219, 21]),
+  create_ritual: Uint8Array.from([97, 52, 34, 171, 25, 170, 16, 58]),
+  finalize_event: Uint8Array.from([88, 246, 123, 105, 100, 148, 170, 236]),
+  fund_member: Uint8Array.from([234, 156, 207, 252, 148, 24, 162, 238]),
+  initialize_current_event: Uint8Array.from([49, 56, 188, 11, 11, 14, 253, 143]),
+  initialize_protocol_config: Uint8Array.from([28, 50, 43, 233, 244, 98, 123, 118]),
+  question_claim: Uint8Array.from([50, 41, 214, 168, 245, 45, 251, 152]),
+} as const
+
+export class RitualInstructionDataError extends Error {
+  readonly category: 'input' | 'overflow' | 'invariant' | 'encoding'
+  constructor(category: RitualInstructionDataError['category'], message: string) {
+    super(`${category}: ${message}`)
+    this.name = 'RitualInstructionDataError'
+    this.category = category
+  }
+}
+
+export type InitializeProtocolConfigInput = Readonly<{
+  allowedStakeMint: PublicKey
+  feeRecipient: PublicKey
+  feeBasisPoints: number
+  minimumFee: bigint
+  maximumFee: bigint
+  maximumMemberStake: bigint
+}>
+export type EventWindowInput = Readonly<{ opens: bigint; deadline: bigint; resolution: bigint }>
+export type CreateRitualInput = Readonly<{
+  nonce: bigint
+  ruleDigest: RuleDigest
+  members: readonly PublicKey[]
+  memberTotalStake: bigint
+  schedule: readonly EventWindowInput[]
+  additionalConfirmationThreshold: number
+  feePayerMode: 'HOST' | 'SPLIT'
+}>
+
+const MAX_U64 = 0xffffffffffffffffn
+const MAX_I64 = 0x7fffffffffffffffn
+const MIN_I64 = -0x8000000000000000n
+const MAX_ALLOC = 8192
+const ZERO = PublicKey.default
+
+type AnyRecord = Record<string, unknown>
+function record(value: unknown): AnyRecord {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new RitualInstructionDataError('input', 'expected an object')
+  return value as AnyRecord
+}
+function prop<T>(obj: AnyRecord, name: string): T {
+  try { return obj[name] as T } catch { throw new RitualInstructionDataError('input', `could not read ${name}`) }
+}
+function bigintValue(value: unknown, name: string, signed = false): bigint {
+  if (typeof value !== 'bigint' || (!signed && (value < 0n || value > MAX_U64)) || (signed && (value < BigInt(MIN_I64) || value > BigInt(MAX_I64))))
+    throw new RitualInstructionDataError('overflow', `${name} is outside ${signed ? 'i64' : 'u64'}`)
+  return value
+}
+function numberValue(value: unknown, name: string, max: number): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > max) throw new RitualInstructionDataError('input', `${name} must be an integer in 0..${max}`)
+  return value
+}
+function keyBytes(value: unknown, name: string): Uint8Array {
+  if (!(value instanceof PublicKey)) throw new RitualInstructionDataError('input', `${name} must be a PublicKey`)
+  try { return Uint8Array.from(value.toBytes()) } catch { throw new RitualInstructionDataError('input', `${name} is unreadable`) }
+}
+function digestBytes(value: unknown): Uint8Array {
+  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw new RitualInstructionDataError('input', 'ruleDigest must be lowercase 64-character hex')
+  const bytes = Uint8Array.from({ length: 32 }, (_, i) => Number.parseInt(value.slice(i * 2, i * 2 + 2), 16))
+  if (bytes.every(x => x === 0)) throw new RitualInstructionDataError('invariant', 'ruleDigest must not be all zero')
+  return bytes
+}
+
+class Writer {
+  private readonly data: Uint8Array
+  private readonly view: DataView
+  private offset = 0
+  constructor(size: number) {
+    if (!Number.isSafeInteger(size) || size < 0 || size > MAX_ALLOC) throw new RitualInstructionDataError('overflow', 'encoded instruction is too large')
+    this.data = new Uint8Array(size); this.view = new DataView(this.data.buffer)
+  }
+  u8(v: number): void { this.view.setUint8(this.offset++, v) }
+  u16(v: number): void { this.view.setUint16(this.offset, v, true); this.offset += 2 }
+  u32(v: number): void { this.view.setUint32(this.offset, v, true); this.offset += 4 }
+  u64(v: bigint): void { this.view.setBigUint64(this.offset, v, true); this.offset += 8 }
+  i64(v: bigint): void { this.view.setBigInt64(this.offset, v, true); this.offset += 8 }
+  bytes(v: Uint8Array): void { this.data.set(v, this.offset); this.offset += v.length }
+  vec(v: readonly Uint8Array[]): void { this.u32(v.length); for (const item of v) this.bytes(item) }
+  finish(): Uint8Array { if (this.offset !== this.data.length) throw new RitualInstructionDataError('encoding', 'internal size mismatch'); return this.data }
+}
+function empty(name: keyof typeof INSTRUCTION_DISCRIMINATORS): Uint8Array { const w = new Writer(8); w.bytes(INSTRUCTION_DISCRIMINATORS[name]); return w.finish() }
+function event(name: 'initialize_current_event' | 'finalize_event' | 'claim_completion', index: unknown): Uint8Array {
+  const i = numberValue(index, 'eventIndex', 15); const w = new Writer(name === 'claim_completion' ? 10 : 9); w.bytes(INSTRUCTION_DISCRIMINATORS[name]); w.u8(i); if (name === 'claim_completion') w.u8(CURRENT_CLAIM_VERSION); return w.finish()
+}
+
+export function encodeFundMemberData(): Uint8Array { return empty('fund_member') }
+export function encodeActivateRitualData(): Uint8Array { return empty('activate_ritual') }
+export function encodeCancelUnactivatedData(): Uint8Array { return empty('cancel_unactivated') }
+export function encodeCloseTerminalVaultsData(): Uint8Array { return empty('close_terminal_vaults') }
+export function encodeInitializeCurrentEventData(eventIndex: number): Uint8Array { return event('initialize_current_event', eventIndex) }
+export function encodeFinalizeEventData(eventIndex: number): Uint8Array { return event('finalize_event', eventIndex) }
+export function encodeClaimCompletionData(eventIndex: number): Uint8Array { return event('claim_completion', eventIndex) }
+export function encodeApproveClaimData(): Uint8Array { const w = new Writer(9); w.bytes(INSTRUCTION_DISCRIMINATORS.approve_claim); w.u8(CURRENT_CLAIM_VERSION); return w.finish() }
+export function encodeQuestionClaimData(): Uint8Array { const w = new Writer(9); w.bytes(INSTRUCTION_DISCRIMINATORS.question_claim); w.u8(CURRENT_CLAIM_VERSION); return w.finish() }
+
+export function encodeInitializeProtocolConfigData(input: InitializeProtocolConfigInput): Uint8Array {
+  try {
+    const o = record(input); const mint = keyBytes(prop(o, 'allowedStakeMint'), 'allowedStakeMint'); const recipient = keyBytes(prop(o, 'feeRecipient'), 'feeRecipient')
+    if (Uint8Array.from(mint).every(x => x === 0) || Uint8Array.from(recipient).every(x => x === 0)) throw new RitualInstructionDataError('invariant', 'public keys must not be default')
+    const bps = prop<number>(o, 'feeBasisPoints'); if (typeof bps !== 'number' || !Number.isInteger(bps) || bps < 1 || bps > 10000) throw new RitualInstructionDataError('input', 'feeBasisPoints must be 1..10000')
+    const min = bigintValue(prop(o, 'minimumFee'), 'minimumFee'); const max = bigintValue(prop(o, 'maximumFee'), 'maximumFee'); const stake = bigintValue(prop(o, 'maximumMemberStake'), 'maximumMemberStake')
+    if (min === 0n || max === 0n || stake === 0n || min > max) throw new RitualInstructionDataError('invariant', 'fee and stake bounds are invalid')
+    const w = new Writer(8 + 32 + 32 + 2 + 8 + 8 + 8); w.bytes(INSTRUCTION_DISCRIMINATORS.initialize_protocol_config); w.bytes(mint); w.bytes(recipient); w.u16(bps); w.u64(min); w.u64(max); w.u64(stake); return w.finish()
+  } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode protocol config') }
+}
+
+export function encodeCreateRitualData(input: CreateRitualInput): Uint8Array {
+  try {
+    const o = record(input); const nonce = bigintValue(prop(o, 'nonce'), 'nonce'); const digest = digestBytes(prop(o, 'ruleDigest')); const rawMembers = prop<unknown>(o, 'members')
+    if (!Array.isArray(rawMembers)) throw new RitualInstructionDataError('input', 'members must be an array')
+    const members = rawMembers.map((m, i) => keyBytes(m, `members[${i}]`)); if (members.length < 2 || members.length > 6) throw new RitualInstructionDataError('invariant', 'members must contain 2..6 keys')
+    if (members.some(m => m.every(x => x === 0)) || new Set(members.map(m => Array.from(m).join(','))).size !== members.length) throw new RitualInstructionDataError('invariant', 'members must be unique and non-default')
+    const stake = bigintValue(prop(o, 'memberTotalStake'), 'memberTotalStake'); if (stake === 0n) throw new RitualInstructionDataError('invariant', 'memberTotalStake must be positive')
+    const rawSchedule = prop<unknown>(o, 'schedule'); if (!Array.isArray(rawSchedule) || rawSchedule.length < 1 || rawSchedule.length > 16) throw new RitualInstructionDataError('invariant', 'schedule must contain 1..16 windows')
+    const schedule = rawSchedule.map((x, i) => { const q = record(x); const opens = bigintValue(prop(q, 'opens'), `schedule[${i}].opens`, true); const deadline = bigintValue(prop(q, 'deadline'), `schedule[${i}].deadline`, true); const resolution = bigintValue(prop(q, 'resolution'), `schedule[${i}].resolution`, true); if (opens < 0n || !(opens < deadline && deadline < resolution)) throw new RitualInstructionDataError('invariant', 'event window ordering is invalid'); return { opens, deadline, resolution } })
+    for (let i = 1; i < schedule.length; i++) if (schedule[i - 1].resolution >= schedule[i].opens) throw new RitualInstructionDataError('invariant', 'schedule windows overlap')
+    if (stake % BigInt(schedule.length) !== 0n || stake / BigInt(schedule.length) === 0n) throw new RitualInstructionDataError('invariant', 'stake must divide evenly across events')
+    const perEvent = stake / BigInt(schedule.length); if (perEvent * BigInt(members.length) > MAX_U64) throw new RitualInstructionDataError('overflow', 'group event pool exceeds u64')
+    const threshold = numberValue(prop(o, 'additionalConfirmationThreshold'), 'additionalConfirmationThreshold', members.length - 1); const mode = prop(o, 'feePayerMode'); if (mode !== 'HOST' && mode !== 'SPLIT') throw new RitualInstructionDataError('input', 'feePayerMode must be HOST or SPLIT')
+    const size = 8 + 8 + 32 + 4 + members.length * 32 + 8 + 4 + schedule.length * 24 + 1 + 1; const w = new Writer(size); w.bytes(INSTRUCTION_DISCRIMINATORS.create_ritual); w.u64(nonce); w.bytes(digest); w.vec(members); w.u64(stake); w.u32(schedule.length); for (const s of schedule) { w.i64(s.opens); w.i64(s.deadline); w.i64(s.resolution) } w.u8(threshold); w.u8(mode === 'HOST' ? 0 : 1); return w.finish()
+  } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode ritual') }
+}
