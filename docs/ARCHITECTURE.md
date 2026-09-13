@@ -31,7 +31,7 @@ Pure domain code does not fetch, render, sign, submit, or mutate wallets. Token 
 
 ## On-chain boundary
 
-The Anchor workspace and native ProgramTest coverage are separate from the mobile slice. Existing program work covers protocol initialization, ritual creation, and member funding. Activation is implemented and approved; cancellation remains in review. Claims, approvals, complete settlement, devnet deployment, and native MWA signing are not release-proven here. Do not treat local placeholder program IDs, generated IDLs, or fixtures as production identities.
+The Anchor workspace and native ProgramTest coverage are separate from the mobile slice. Existing approved program work covers protocol initialization, ritual creation, exact HOST/SPLIT funding, activation, and safe pre-activation cancellation with tracked refunds. Claims, approvals, complete settlement, devnet deployment, and native MWA signing are not release-proven here. Do not treat local placeholder program IDs, generated IDLs, or fixtures as production identities.
 
 ## Identity and build boundary
 

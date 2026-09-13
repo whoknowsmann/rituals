@@ -25,7 +25,7 @@ A wallet signature proves who attested, not that the underlying real-world activ
 
 ## Program and money limits
 
-The program boundary is separate from this fixture UI. Existing native coverage includes protocol initialization, ritual creation, and member funding. Activation is implemented and approved; cancellation is in review. Claims, approvals, unresolved-event handling, full settlement, deployment, and independent review remain gates. Local program IDs, generated artifacts, and fixtures are not production identities.
+The program boundary is separate from this fixture UI. Approved native coverage includes protocol initialization, ritual creation, exact HOST/SPLIT funding, activation, and pre-activation cancellation. Cancellation refunds only tracked stake and fee liabilities to immutable member-ordered token owners, leaves unsolicited dust untouched, moves no protocol revenue, and is transaction-atomic. Claims, approvals, unresolved-event handling, full settlement, deployment, and independent review remain gates. Local program IDs, generated artifacts, and fixtures are not production identities.
 
 All future escrow and settlement logic must use checked token atomic-unit arithmetic, deterministic remainder handling, conservation tests, program-controlled authority, and read-after-write verification. The app must not claim that real value is protected until those paths are independently exercised.
 

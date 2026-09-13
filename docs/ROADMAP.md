@@ -10,12 +10,9 @@ Status labels describe observed implementation, not aspiration.
 - [x] Deterministic fixture-backed Rituals home with loading, populated, funding, confirmation, completed, empty, and error states
 - [x] Explicit devnet / no-real-value disclosures and safe fixture actions
 - [x] Activation implementation and approval
+- [x] Safe pre-activation cancellation and exact tracked refunds
 - [x] Focused JavaScript tests, TypeScript, Expo Doctor, and Android bundle gates
 - [x] Consumer Rituals sketch and screenshot
-
-## In review
-
-- [ ] Cancellation implementation approval and release acceptance
 
 ## Remaining protocol work
 
