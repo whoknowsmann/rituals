@@ -71,6 +71,31 @@ pub(crate) fn finalize_event_ix(
         data: rituals::instruction::FinalizeEvent { event_index }.data(),
     }
 }
+pub(crate) fn finalize_event_ix_with_accounts(
+    ritual: Pubkey,
+    event_index: u8,
+    stake_mint: Pubkey,
+    stake_vault: Pubkey,
+    token_program: Pubkey,
+    destinations: &[Pubkey],
+) -> Instruction {
+    let accounts = rituals::accounts::FinalizeEvent {
+        ritual,
+        event: event_pda(&ritual, event_index),
+        stake_mint,
+        stake_vault,
+        token_program,
+    };
+    let mut metas = accounts.to_account_metas(None);
+    metas.extend(destinations.iter().map(|destination| {
+        solana_sdk::instruction::AccountMeta::new(*destination, false)
+    }));
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: metas,
+        data: rituals::instruction::FinalizeEvent { event_index }.data(),
+    }
+}
 pub(crate) fn initialize_event_ix(ritual: Pubkey, payer: Pubkey, event_index: u8) -> Instruction {
     let accounts = rituals::accounts::InitializeCurrentEvent {        ritual,
         event: event_pda(&ritual, event_index),
@@ -352,9 +377,12 @@ pub(crate) fn create_ix(
     }
 }
 pub(crate) fn create_ix_with_members(creator: Pubkey, members: Vec<Pubkey>, nonce: u64, threshold: u8) -> Instruction {
+    create_ix_with_members_and_stake(creator, members, nonce, threshold, 100)
+}
+pub(crate) fn create_ix_with_members_and_stake(creator: Pubkey, members: Vec<Pubkey>, nonce: u64, threshold: u8, member_total_stake: u64) -> Instruction {
     let ritual = ritual_pda(&creator, nonce);
     let accounts = rituals::accounts::CreateRitual { protocol_config: config_pda(), ritual, creator, stake_mint: MINT, fee_recipient_token: RECIPIENT, stake_vault: vault_pda(b"stake-vault", &ritual), fee_vault: vault_pda(b"fee-vault", &ritual), system_program: system_program::ID, token_program: spl_token::ID };
-    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::CreateRitual { nonce, rule_digest: [1; 32], members, member_total_stake: 100, schedule: vec![EventWindow { opens: 1, deadline: 2, resolution: 3 }], additional_confirmation_threshold: threshold, fee_payer_mode: FeePayerMode::Host }.data() }
+    Instruction { program_id: PROGRAM_ID, accounts: accounts.to_account_metas(None), data: rituals::instruction::CreateRitual { nonce, rule_digest: [1; 32], members, member_total_stake, schedule: vec![EventWindow { opens: 1, deadline: 2, resolution: 3 }], additional_confirmation_threshold: threshold, fee_payer_mode: FeePayerMode::Host }.data() }
 }
 
 pub(crate) fn fund_ix(creator: Pubkey, nonce: u64, member: Pubkey, source: Pubkey) -> Instruction {
@@ -791,6 +819,39 @@ impl ClaimFlowSnapshot {
             stake_vault: get_account(context, vault_pda(b"stake-vault", &ritual)).await,
             fee_vault: get_account(context, vault_pda(b"fee-vault", &ritual)).await,
             recipient: get_account(context, recipient).await,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SettlementSnapshot {
+    pub ritual: Account,
+    pub event: Account,
+    pub stake_vault: Account,
+    pub fee_vault: Account,
+    pub recipient: Account,
+    pub destinations: Vec<(Pubkey, Account)>,
+}
+
+impl SettlementSnapshot {
+    pub(crate) async fn capture(
+        context: &mut ProgramTestContext,
+        ritual: Pubkey,
+        event: Pubkey,
+        recipient: Pubkey,
+        destinations: &[Pubkey],
+    ) -> Self {
+        let mut captured = Vec::with_capacity(destinations.len());
+        for address in destinations {
+            captured.push((*address, get_account(context, *address).await));
+        }
+        Self {
+            ritual: get_account(context, ritual).await,
+            event: get_account(context, event).await,
+            stake_vault: get_account(context, vault_pda(b"stake-vault", &ritual)).await,
+            fee_vault: get_account(context, vault_pda(b"fee-vault", &ritual)).await,
+            recipient: get_account(context, recipient).await,
+            destinations: captured,
         }
     }
 }
