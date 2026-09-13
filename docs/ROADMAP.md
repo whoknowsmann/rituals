@@ -11,12 +11,15 @@ Status labels describe observed implementation, not aspiration.
 - [x] Explicit devnet / no-real-value disclosures and safe fixture actions
 - [x] Activation implementation and approval
 - [x] Safe pre-activation cancellation and exact tracked refunds
+- [x] Current-event accounts and signed completion claims
+- [x] Exact friend-approval thresholds and safe questioning
+- [x] Fixture-backed template, create, and review preview
 - [x] Focused JavaScript tests, TypeScript, Expo Doctor, and Android bundle gates
 - [x] Consumer Rituals sketch and screenshot
 
 ## Remaining protocol work
 
-- [ ] Claim, confirmation, question, and complete settlement flow
+- [ ] Conservation-safe event settlement and terminal vault cleanup
 - [ ] Typed mobile adapter from a frozen IDL
 - [ ] Real devnet deployment with valueless test assets
 - [ ] Native MWA signing and confirmed read-after-write flow
@@ -25,7 +28,7 @@ Status labels describe observed implementation, not aspiration.
 
 ## Remaining consumer and release work
 
-- [ ] Create/review/invite/funding/activation screens beyond the fixture home
+- [ ] Invite/join/funding/activation screens beyond the approved fixture home and create/review preview
 - [ ] Ritual detail, claim, confirmation inbox, and settlement receipt screens
 - [ ] Loading, stale, rejected, and transaction error behavior for real repositories
 - [ ] Standalone Seeker APK and offline/native acceptance
