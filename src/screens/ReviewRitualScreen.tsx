@@ -5,7 +5,8 @@ import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { buildReviewViewModel } from '../features/rituals/create/reviewViewModel'
-import { reviewCompleteTarget } from '../features/rituals/create/routeHelpers'
+import { homeCreateTarget, reviewCompleteTarget } from '../features/rituals/create/routeHelpers'
+import { validateRitualDraft } from '../features/rituals/create/draftForm'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReviewRitual'>
 type ReviewRow = readonly [label: string, value: string]
@@ -13,7 +14,28 @@ type ReviewRow = readonly [label: string, value: string]
 export function ReviewRitualScreen({ route }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const styles = makeStyles(useTheme())
-  const review = buildReviewViewModel(route.params)
+  const validation = validateRitualDraft(route.params)
+  const review = validation.ok ? buildReviewViewModel(validation.value) : null
+
+  if (review === null) {
+    return (
+      <ScrollView contentContainerStyle={styles.content}>
+        <Card style={styles.notice} accessibilityLabel="Invalid ritual link">
+          <Card.Content>
+            <Text variant="headlineSmall">This ritual link is invalid</Text>
+            <Text style={styles.body}>The review details could not be verified. Nothing was saved and no transaction was submitted.</Text>
+          </Card.Content>
+        </Card>
+        <Button mode="contained" onPress={() => navigation.navigate(homeCreateTarget().name)}>
+          Return to create/templates
+        </Button>
+        <Button mode="outlined" onPress={() => navigation.navigate(reviewCompleteTarget().name)}>
+          Home
+        </Button>
+      </ScrollView>
+    )
+  }
+
   const rows: readonly ReviewRow[] = [
     ['Members', review.members],
     ['Events', review.events],
@@ -54,11 +76,11 @@ export function ReviewRitualScreen({ route }: Props) {
       <Button
         mode="contained"
         onPress={() => navigation.navigate(reviewCompleteTarget().name)}
-        accessibilityLabel="Save fixture ritual"
+        accessibilityLabel="Preview complete"
       >
-        Save fixture ritual
+        Preview complete
       </Button>
-      <Text style={styles.footer}>Continue in fixture mode · no wallet · no transaction submitted</Text>
+      <Text style={styles.footer}>Preview only · not saved · no transaction will be submitted</Text>
     </ScrollView>
   )
 }
@@ -68,15 +90,9 @@ const makeStyles = (theme: MD3Theme) => StyleSheet.create({
   card: { borderRadius: 18 },
   notice: { borderRadius: 18 },
   body: { marginVertical: 12, lineHeight: 21 },
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingTop: 12,
-  },
-  label: { color: theme.colors.onSurfaceVariant, flex: 1, minWidth: 100 },
-  value: { fontWeight: '700', flex: 1, minWidth: 140, textAlign: 'right' },
+  row: { paddingTop: 12, alignItems: 'flex-start' },
+  label: { color: theme.colors.onSurfaceVariant },
+  value: { fontWeight: '700', marginTop: 3, textAlign: 'left' },
   disclosure: { marginTop: 10, lineHeight: 20, color: theme.colors.onSurface },
   footer: { textAlign: 'center', color: theme.colors.onSurfaceVariant, fontSize: 12 },
 })

@@ -125,17 +125,17 @@ describe('Ritual creation journey', () => {
     expect(review.confirmationThreshold).toBe('1 friend confirmation beyond the claimant')
     expect(review.feePayer).toBe('Host pays activation fee')
     expect(review.disclosures).toEqual(expect.arrayContaining([
-      'Refundable stake',
-      'Nonrefundable activation fee',
-      'Network fee: unknown until a wallet is connected',
-      'TEST on devnet is a fixture with no real value',
-      'Terms are locked for review',
+      'Stake remains refundable before activation; after activation each event allocation follows completion/settlement rules.',
+      'Activation fee is nonrefundable.',
+      'Network fee: Not estimated in fixture mode; no transaction will be submitted.',
+      'TEST on devnet is a fixture with no real value.',
+      'Terms are locked for review.',
     ]))
     expect(review.disclosures.join(' ')).not.toMatch(/platform share|forfeit/i)
   })
 
   it.each([
-    ['HONOR', 'Honor system', '0 friend confirmations beyond the claimant'],
+    ['HONOR', 'Honor system', 'No friend confirmation required'],
     ['ONE_FRIEND', 'One friend', '1 friend confirmation beyond the claimant'],
     ['MAJORITY', 'Majority', '2 friend confirmations beyond the claimant'],
     ['UNANIMOUS', 'Unanimous', '3 friend confirmations beyond the claimant'],
@@ -147,7 +147,7 @@ describe('Ritual creation journey', () => {
 
   it('discloses split activation fee payer', () => {
     expect(buildReviewViewModel({ ...validDraft, feePayerMode: 'SPLIT' }).feePayer)
-      .toBe('Split activation fee')
+      .toContain('Activation fee split deterministically across members')
   })
 
   it('creates serializable review params only for valid drafts', () => {
