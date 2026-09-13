@@ -607,9 +607,21 @@ pub(crate) async fn replace_token_amount(
     address: Pubkey,
     new_amount: u64,
 ) {
+    replace_token_destination_fields(context, address, None, None, Some(new_amount)).await;
+}
+
+pub(crate) async fn replace_token_destination_fields(
+    context: &mut ProgramTestContext,
+    address: Pubkey,
+    mint: Option<Pubkey>,
+    owner: Option<Pubkey>,
+    amount: Option<u64>,
+) {
     let original = get_account(context, address).await;
     let mut token = spl_token::state::Account::unpack(&original.data).unwrap();
-    token.amount = new_amount;
+    if let Some(mint) = mint { token.mint = mint; }
+    if let Some(owner) = owner { token.owner = owner; }
+    if let Some(amount) = amount { token.amount = amount; }
     let mut data = vec![0; spl_token::state::Account::LEN];
     spl_token::state::Account::pack_into_slice(&token, &mut data);
     context.set_account(

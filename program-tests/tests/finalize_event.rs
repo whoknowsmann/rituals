@@ -299,23 +299,42 @@ async fn max_six_member_settlement_executes_all_destination_cpis_and_completes()
 
 #[tokio::test]
 async fn finalize_rejects_wrong_owner_mint_uninitialized_duplicate_and_read_only_destinations() {
-    for invalid in ["owner", "mint", "duplicate", "readonly"] {
-        let (mut c, _creator, _other, ritual, event) = one_event_fixture(0, 7430 + invalid.len() as u64).await;
+    for (case_index, invalid) in [
+        "owner",
+        "internal-owner",
+        "token-2022",
+        "mint",
+        "uninitialized",
+        "duplicate",
+        "readonly",
+        "wrong-order",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let (mut c, _creator, _other, ritual, event) = one_event_fixture(0, 7430 + case_index as u64).await;
         resolve_window(&mut c, ritual, event).await;
         let valid = [Pubkey::new_from_array([22; 32]), Pubkey::new_from_array([21; 32])];
         let mut destinations = valid.to_vec();
         match invalid {
             "owner" => replace_owner(&mut c, destinations[1], system_program::ID).await,
-            "mint" => destinations[1] = Pubkey::new_from_array([23; 32]),
-            "uninitialized" => { replace_account(&mut c, destinations[1], Account { lamports: 1, data: vec![0; spl_token::state::Account::LEN], owner: spl_token::ID, executable: false, rent_epoch: 0 }).await; },
+            "internal-owner" => replace_token_destination_fields(&mut c, destinations[1], None, Some(OUTSIDER), None).await,
+            "token-2022" => replace_owner(&mut c, destinations[1], anchor_spl::token_2022::spl_token_2022::ID).await,
+            "mint" => replace_token_destination_fields(&mut c, destinations[1], Some(WRONG_MINT), None, None).await,
+            "uninitialized" => replace_account(&mut c, destinations[1], Account { lamports: 1, data: vec![0; spl_token::state::Account::LEN], owner: spl_token::ID, executable: false, rent_epoch: 0 }).await,
             "duplicate" => destinations[1] = destinations[0],
-            "readonly" => {},
-            _ => unreachable!(),
+            "readonly" | "wrong-order" => {},
+            _ => unreachable!("unhandled destination validation case: {invalid}"),
         }
+        if invalid == "wrong-order" { destinations.reverse(); }
+        let before = SettlementSnapshot::capture(&mut c, ritual, event, RECIPIENT, &valid).await;
         let mut ix = finalize_event_ix(ritual, 0, &destinations);
-        if invalid == "readonly" { let last = ix.accounts.len() - 1; ix.accounts[last].is_writable = false; }
-        let result = submit(&mut c, vec![ix], &[]).await;
-        assert_error(result, 6056);
+        if invalid == "readonly" {
+            let last = ix.accounts.len() - 1;
+            ix.accounts[last].is_writable = false;
+        }
+        assert_error(submit(&mut c, vec![ix], &[]).await, 6056);
+        assert_eq!(before, SettlementSnapshot::capture(&mut c, ritual, event, RECIPIENT, &valid).await, "{invalid}");
     }
 }
 
