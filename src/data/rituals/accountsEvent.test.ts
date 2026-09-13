@@ -85,7 +85,7 @@ describe('RitualEvent exact reachable-state decoder matrix', () => {
   }
 
   it.each([
-    ['resolved at boundary', (b: Uint8Array) => putI64(b, O.resolved, 100n)], ['resolved before resolution', (b: Uint8Array) => putI64(b, O.resolved, 99n)],
+    ['resolved at boundary', (b: Uint8Array) => putI64(b, O.resolved, 300n)], ['resolved before resolution', (b: Uint8Array) => putI64(b, O.resolved, 99n)],
     ['initialized after resolved', (b: Uint8Array) => putI64(b, O.initialized, 302n)], ['event pool zero', (b: Uint8Array) => putI64(b, O.pool, 0n)],
     ['claimed differs from confirmed', (b: Uint8Array) => putU8(b, O.claimed, 1)], ['questioned nonzero', (b: Uint8Array) => putU8(b, O.questioned, 1)],
     ['confirmed count zero', (b: Uint8Array) => putU8(b, O.count, 0)], ['confirmed count mismatch', (b: Uint8Array) => putU8(b, O.count, 1)],
