@@ -770,3 +770,209 @@ async fn failed_initialization_and_claim_do_not_mutate_ritual_or_tokens() {
     .await;
     assert_eq!(before, after);
 }
+
+#[tokio::test]
+async fn prefunded_event_and_claim_pdas_remain_initializable() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let nonce = 1461;
+    let mut c = active_context(&creator, &other, nonce, 0).await;
+    let ritual = ritual_pda(&creator.pubkey(), nonce);
+    let event = event_pda(&ritual, 0);
+    let prefund = Rent::default().minimum_balance(0) + 7;
+    submit(
+        &mut c,
+        vec![solana_sdk::system_instruction::transfer(
+            &creator.pubkey(),
+            &event,
+            prefund,
+        )],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    let raw = get_account(&mut c, event).await;
+    assert_eq!(raw.owner, system_program::ID);
+    assert!(raw.data.is_empty());
+    init_event(&mut c, &creator, nonce).await;
+    let initialized = get_account(&mut c, event).await;
+    assert_eq!(initialized.owner, PROGRAM_ID);
+    assert_eq!(initialized.data.len(), 8 + RitualEvent::INIT_SPACE);
+    assert_eq!(
+        initialized.lamports,
+        Rent::default().minimum_balance(initialized.data.len())
+    );
+    let claim = claim_pda(&event, &other.pubkey(), 0);
+    submit(
+        &mut c,
+        vec![solana_sdk::system_instruction::transfer(
+            &other.pubkey(),
+            &claim,
+            prefund,
+        )],
+        &[&other],
+    )
+    .await
+    .unwrap();
+    let raw = get_account(&mut c, claim).await;
+    assert_eq!(raw.owner, system_program::ID);
+    assert!(raw.data.is_empty());
+    submit(
+        &mut c,
+        vec![claim_completion_ix(ritual, other.pubkey(), 0, 0)],
+        &[&other],
+    )
+    .await
+    .unwrap();
+    let initialized = get_account(&mut c, claim).await;
+    assert_eq!(initialized.owner, PROGRAM_ID);
+    assert_eq!(initialized.data.len(), 8 + CompletionClaim::INIT_SPACE);
+    assert_eq!(
+        initialized.lamports,
+        Rent::default().minimum_balance(initialized.data.len())
+    );
+}
+
+#[tokio::test]
+async fn exact_open_and_deadline_boundaries_are_claiming_and_claimable() {
+    for (nonce, deadline) in [(1462, false), (1463, true)] {
+        let creator = Keypair::new();
+        let other = Keypair::new();
+        let mut c = active_context(&creator, &other, nonce, 0).await;
+        let ritual = ritual_pda(&creator.pubkey(), nonce);
+        let now = c
+            .banks_client
+            .get_sysvar::<Clock>()
+            .await
+            .unwrap()
+            .unix_timestamp;
+        let window = if deadline {
+            EventWindow {
+                opens: now - 10,
+                deadline: now,
+                resolution: now + 10,
+            }
+        } else {
+            EventWindow {
+                opens: now,
+                deadline: now + 10,
+                resolution: now + 20,
+            }
+        };
+        replace_ritual(&mut c, ritual, |r| r.schedule[0] = window).await;
+        init_event(&mut c, &creator, nonce).await;
+        let event = event_pda(&ritual, 0);
+        assert_eq!(
+            deserialize_event(&get_account(&mut c, event).await.data).status,
+            EventStatus::Claiming
+        );
+        submit(
+            &mut c,
+            vec![claim_completion_ix(ritual, other.pubkey(), 0, 0)],
+            &[&other],
+        )
+        .await
+        .unwrap();
+    }
+}
+
+#[tokio::test]
+async fn authorization_and_rent_rollback_errors_are_exact() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let outsider = Keypair::new();
+    let nonce = 1464;
+    let mut c = active_context(&creator, &other, nonce, 0).await;
+    c.set_account(
+        &outsider.pubkey(),
+        &AccountSharedData::from(Account {
+            lamports: 1_000_000_000,
+            data: vec![],
+            owner: system_program::ID,
+            executable: false,
+            rent_epoch: 0,
+        }),
+    );
+    let ritual = ritual_pda(&creator.pubkey(), nonce);
+    init_event(&mut c, &creator, nonce).await;
+    let event = event_pda(&ritual, 0);
+    let before = ClaimFlowSnapshot::capture(
+        &mut c,
+        ritual,
+        event,
+        claim_pda(&event, &outsider.pubkey(), 0),
+        RECIPIENT,
+    )
+    .await;
+    assert_error(
+        submit(
+            &mut c,
+            vec![claim_completion_ix(ritual, outsider.pubkey(), 0, 0)],
+            &[&outsider],
+        )
+        .await,
+        6021,
+    );
+    assert_eq!(
+        before,
+        ClaimFlowSnapshot::capture(
+            &mut c,
+            ritual,
+            event,
+            claim_pda(&event, &outsider.pubkey(), 0),
+            RECIPIENT
+        )
+        .await
+    );
+    replace_account_event(&mut c, event, |e| e.status = EventStatus::Resolving).await;
+    let claimant = get_account(&mut c, other.pubkey()).await;
+    let claim = claim_pda(&event, &other.pubkey(), 0);
+    assert_error(
+        submit(
+            &mut c,
+            vec![claim_completion_ix(ritual, other.pubkey(), 0, 0)],
+            &[&other],
+        )
+        .await,
+        6039,
+    );
+    assert_eq!(claimant, get_account(&mut c, other.pubkey()).await);
+    assert_absent(&mut c, claim).await;
+}
+
+#[tokio::test]
+async fn valid_state_rejects_unsigned_claimant_exactly() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let mut c = active_context(&creator, &other, 1465, 0).await;
+    let ritual = ritual_pda(&creator.pubkey(), 1465);
+    init_event(&mut c, &creator, 1465).await;
+    assert_error(
+        submit(
+            &mut c,
+            vec![claim_ix_with_signer(ritual, other.pubkey(), 0, 0, false)],
+            &[],
+        )
+        .await,
+        3010,
+    );
+}
+
+#[tokio::test]
+async fn synthetic_nonfunding_corruption_is_active_state_inconsistent() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let mut c = active_context(&creator, &other, 1466, 0).await;
+    let ritual = ritual_pda(&creator.pubkey(), 1466);
+    init_event(&mut c, &creator, 1466).await;
+    replace_ritual(&mut c, ritual, |r| r.funded_members_bitmap = 1).await;
+    assert_error(
+        submit(
+            &mut c,
+            vec![claim_completion_ix(ritual, other.pubkey(), 0, 0)],
+            &[&other],
+        )
+        .await,
+        6045,
+    );
+}
