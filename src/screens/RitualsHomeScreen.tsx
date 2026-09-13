@@ -7,6 +7,7 @@ import type { RootStackParamList } from '../navigators/AppNavigator'
 import { FixtureRitualsRepository } from '../data/rituals/FixtureRitualsRepository'
 import type { RitualsRepository } from '../data/rituals/RitualsRepository'
 import { buildHomeViewModel, safeErrorMessage, type HomeViewModel } from '../features/rituals/home/homeViewModel'
+import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
 
 const repository = new FixtureRitualsRepository()
 
@@ -81,7 +82,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
           <Card.Content>
             <Text variant="titleLarge">Start your first ritual</Text>
             <Text style={styles.body}>Invite a few friends and make showing up easier together.</Text>
-            <Button mode="contained" onPress={() => navigation.navigate('TemplatePicker')} accessibilityLabel="Create Ritual">Create Ritual</Button>
+            <Button mode="contained" onPress={() => navigation.navigate(homeCreateTarget().name)} accessibilityLabel="Create Ritual">Create Ritual</Button>
           </Card.Content>
         </Card>
       ) : (
@@ -117,7 +118,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
           )}
         </>
       )}
-      {view.kind !== 'empty' && <Button mode="contained-tonal" onPress={() => navigation.navigate('TemplatePicker')} accessibilityLabel="Create a new Ritual">Create a new Ritual</Button>}
+      {view.kind !== 'empty' && <Button mode="contained-tonal" onPress={() => navigation.navigate(homeCreateTarget().name)} accessibilityLabel="Create a new Ritual">Create a new Ritual</Button>}
       <Text style={styles.disclosure}>{view.disclosure}</Text>
     </ScrollView>
   )

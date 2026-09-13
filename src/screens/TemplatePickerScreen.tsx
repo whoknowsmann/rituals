@@ -4,7 +4,7 @@ import { Button, Card, Text, useTheme } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
-import { RITUAL_TEMPLATES } from '../features/rituals/create/templates'
+import { RITUAL_TEMPLATES, templateSelectionTarget } from '../features/rituals/create/templates'
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'TemplatePicker'>
 export function TemplatePickerScreen() {
@@ -15,7 +15,7 @@ export function TemplatePickerScreen() {
     <Text style={{ color: theme.colors.onSurfaceVariant }}>Make it yours. Every field stays editable.</Text>
     {RITUAL_TEMPLATES.map((template) => <Card key={template.category} style={styles.card}>
       <Card.Content><Text variant="titleLarge">{template.label}</Text><Text style={styles.body}>{template.requirement}</Text>
-        <Button mode="contained-tonal" onPress={() => navigation.navigate('CreateRitual', { templateCategory: template.category })} accessibilityLabel={`Use ${template.label} template`}>Use template</Button>
+        <Button mode="contained-tonal" onPress={() => navigation.navigate(templateSelectionTarget(template.category).name, templateSelectionTarget(template.category).params)} accessibilityLabel={`Use ${template.label} template`}>Use template</Button>
       </Card.Content>
     </Card>)}
   </ScrollView>

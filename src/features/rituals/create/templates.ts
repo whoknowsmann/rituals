@@ -1,3 +1,5 @@
+import type { RitualDraft } from './draftForm'
+
 export const RITUAL_TEMPLATES = Object.freeze([
   Object.freeze({ category: 'reading', label: 'Read together', title: 'A reading ritual', requirement: 'Read a few pages and share what stood out.' }),
   Object.freeze({ category: 'study', label: 'Study session', title: 'A study ritual', requirement: 'Complete a focused study session and check in.' }),
@@ -9,3 +11,16 @@ export const RITUAL_TEMPLATES = Object.freeze([
 
 export type RitualTemplate = (typeof RITUAL_TEMPLATES)[number]
 export type RitualTemplateCategory = RitualTemplate['category']
+
+export function draftFromTemplate(template: RitualTemplate): RitualDraft {
+  return {
+    title: template.title,
+    requirement: template.requirement,
+    memberCount: '2', eventCount: '4', memberTotalStake: '20',
+    confirmationMode: 'ONE_FRIEND', feePayerMode: 'HOST',
+  }
+}
+
+export function templateSelectionTarget(category: RitualTemplateCategory) {
+  return { name: 'CreateRitual' as const, params: { templateCategory: category } }
+}
