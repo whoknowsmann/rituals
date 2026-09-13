@@ -30,8 +30,8 @@ export type SettlementPreview =
   | { readonly kind: 'VOIDED'; readonly refunds: readonly MemberRefund[]; readonly reason: VoidReason }
 
 function assertAllocation(value: bigint): void {
-  if (typeof value !== 'bigint' || value < 0n || value > MAX_U64) {
-    throw new RangeError('perEventAllocation must be an unsigned u64 atomic-unit amount')
+  if (typeof value !== 'bigint' || value <= 0n || value > MAX_U64) {
+    throw new RangeError('perEventAllocation must be a positive unsigned u64 atomic-unit amount')
   }
 }
 
@@ -68,6 +68,10 @@ function assertMembers(members: readonly MemberEventSettlementInput[]): void {
   }
 }
 
+/**
+ * Preview a funded P0 settlement. Future nonfinancial Rituals use a separate
+ * no-token lifecycle rather than a zero-token settlement.
+ */
 export function previewEventSettlement(
   perEventAllocation: bigint,
   members: readonly MemberEventSettlementInput[],

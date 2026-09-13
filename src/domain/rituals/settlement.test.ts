@@ -174,16 +174,11 @@ describe('previewEventSettlement', () => {
     expect(() => previewEventSettlement(1n, [member(key(0), 0, 'BOGUS'), member(key(1), 1, 'CONFIRMED')])).toThrow(RangeError)
   })
 
-  it('allows a zero allocation and does not mutate input', () => {
+  it('rejects a zero allocation before planning a settlement', () => {
     const input = [member(key(1), 1, 'CONFIRMED'), member(key(0), 0, 'UNCLAIMED')]
-    const before = input.map((entry) => ({ ...entry }))
-    const result = previewEventSettlement(0n, input)
-    expect(result).toEqual({
-      kind: 'SETTLED',
-      payouts: [{ member: key(1), memberIndex: 1, principal: 0n, bonus: 0n, total: 0n }],
-      forfeited: 0n,
-    })
-    expect(input).toEqual(before)
+    expect(() => previewEventSettlement(0n, input)).toThrow(
+      new RangeError('perEventAllocation must be a positive unsigned u64 atomic-unit amount'),
+    )
   })
 
   it('exports the preview API from the rituals barrel', () => {
