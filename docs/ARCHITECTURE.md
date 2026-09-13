@@ -2,7 +2,7 @@
 
 ## Status
 
-The active product is Rituals. Approved fixture-backed mobile slices cover home, template/create/review, detail, claim, confirmation, and settled/voided receipt previews. The onchain program is approved through activation, cancellation, current events, signed claims, threshold approvals, safe questioning, and conservation-safe settlement. Terminal vault closure and real-wallet flows are not presented as complete.
+The active product is Rituals. Approved fixture-backed mobile slices cover home, template/create/review, detail, claim, confirmation, and settled/voided receipt previews. The local onchain program is approved through terminal zero-balance vault closure. Real-wallet and public-cluster flows are not presented as complete.
 
 ## Active mobile path
 
@@ -31,7 +31,11 @@ Pure domain code does not fetch, render, sign, submit, or mutate wallets. Token 
 
 ## On-chain boundary
 
-The Anchor workspace and native ProgramTest coverage are separate from the mobile slice. Approved program work covers protocol initialization, creation, exact HOST/SPLIT funding, activation, cancellation, current-event accounts, claims, friend attestations, questioning, and atomic event settlement. Settlement conserves each event pool, routes pending/questioned events to full principal refunds, redistributes only clearly unclaimed allocations, preserves future-event principal, and never pays the protocol. Terminal zero-balance vault closure, devnet deployment, and native MWA signing are not release-proven here.
+The Anchor workspace and native ProgramTest coverage are separate from the mobile slice. Approved program work covers protocol initialization, creation, exact HOST/SPLIT funding, activation, cancellation, current-event accounts, claims, friend attestations, questioning, atomic event settlement, and terminal cleanup. Settlement conserves each event pool, routes pending/questioned events to full principal refunds, redistributes only clearly unclaimed allocations, preserves future-event principal, and never pays the protocol.
+
+`funded_fee_total` is historical cumulative activation-fee funding, not an outstanding post-activation liability. Successful activation transfers that exact amount from the fee vault while retaining the value for invariant/readback checks; live fee custody is represented by the actual fee-vault balance. Terminal closure requires coherent Completed or Cancelled state and both actual vault balances to be zero, fails closed on unsolicited dust, and can return token-account rent only to the immutable Ritual creator. Ritual and event receipts remain.
+
+Generated deployment keypairs, validator ledgers, generated IDLs, and `target/` artifacts are local and disposable. They are intentionally absent from Git. A reviewed IDL snapshot will be frozen into the typed mobile adapter in the integration phase rather than copied from incidental build output.
 
 ## Identity and build boundary
 

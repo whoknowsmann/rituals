@@ -16,12 +16,12 @@ Status labels describe observed implementation, not aspiration.
 - [x] Fixture-backed template, create, and review preview
 - [x] Fixture-backed detail, claim, confirmation, and receipt previews
 - [x] Conservation-safe atomic event settlement and durable receipts
+- [x] Fail-closed terminal zero-balance vault closure with creator-only rent return
 - [x] Focused JavaScript tests, TypeScript, Expo Doctor, and Android bundle gates
 - [x] Consumer Rituals sketch and screenshot
 
 ## Remaining protocol work
 
-- [ ] Fail-closed terminal zero-balance vault closure
 - [ ] Typed mobile adapter from a frozen IDL
 - [ ] Real devnet deployment with valueless test assets
 - [ ] Native MWA signing and confirmed read-after-write flow

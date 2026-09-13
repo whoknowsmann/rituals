@@ -2,7 +2,7 @@
 
 ## Honest status
 
-Rituals currently ships approved fixture-backed home, create/review, claim/confirmation, and receipt previews with explicit devnet, preview-only, and no-real-value labeling. The program is approved through activation, cancellation, claims, friend attestations, safe questioning, and conservation-safe event settlement. Fixture actions do not submit real transactions. Terminal vault closure, real devnet deployment, and native MWA signing are not release-proven.
+Rituals currently ships approved fixture-backed home, create/review, claim/confirmation, and receipt previews with explicit devnet, preview-only, and no-real-value labeling. The local program is approved through terminal zero-balance vault closure. Fixture actions do not submit real transactions. Real devnet deployment and native MWA signing are not release-proven.
 
 Nothing here claims that mainnet funds or stablecoins are safe. P0 is devnet with valueless test assets.
 
@@ -25,7 +25,11 @@ A wallet signature proves who attested, not that the underlying real-world activ
 
 ## Program and money limits
 
-The program boundary is separate from this fixture UI. Approved native coverage includes protocol initialization, creation, funding, activation, cancellation, event/claim PDAs, attestations, questioning, and settlement. Pending/questioned or zero-confirmed events refund the whole current event pool; terminal confirmed/unclaimed events redistribute only unclaimed allocations to confirmed members. Destination accounts are immutable-member ordered, CPIs are atomic, future principal remains tracked, dust is excluded, and the protocol receives no forfeiture share. Terminal cleanup, deployment, and independent review remain gates.
+The program boundary is separate from this fixture UI. Approved native coverage includes protocol initialization, creation, funding, activation, cancellation, event/claim PDAs, attestations, questioning, settlement, and terminal cleanup. Pending/questioned or zero-confirmed events refund the whole current event pool; terminal confirmed/unclaimed events redistribute only unclaimed allocations to confirmed members. Destination accounts are immutable-member ordered, CPIs are atomic, future principal remains tracked, dust is excluded, and the protocol receives no forfeiture share.
+
+`funded_fee_total` records how much activation fee was historically funded and paid. It intentionally remains equal to the locked activation fee after successful activation so later state validation can detect corruption; it is not a claim on remaining vault tokens. Live fee custody is the actual fee-vault balance.
+
+Terminal closure never sweeps or burns token dust. It requires coherent Completed or Cancelled state and exact zero balances in both canonical classic-SPL vaults, closes both atomically under the Ritual PDA, and returns token-account rent only to the immutable creator. Ritual and event receipt accounts are preserved for readback.
 
 All future escrow and settlement logic must use checked token atomic-unit arithmetic, deterministic remainder handling, conservation tests, program-controlled authority, and read-after-write verification. The app must not claim that real value is protected until those paths are independently exercised.
 
