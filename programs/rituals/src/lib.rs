@@ -7,7 +7,7 @@ declare_id!("8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB");
 pub mod state {
     pub use super::{
         ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, ProtocolConfig,
-        Ritual, RitualEvent, RitualStatus,
+        Ritual, RitualEvent, RitualStatus, SettlementPlan, VoidReason,
     };
 }
 
@@ -165,6 +165,7 @@ pub mod rituals {
         ritual.created_at = clock.unix_timestamp;
         ritual.activated_at = 0;
         ritual.cancelled_at = 0;
+        ritual.completed_at = 0;
         ritual.bump = ctx.bumps.ritual;
         Ok(())
     }
@@ -486,6 +487,15 @@ pub mod rituals {
         event.questioned_members_bitmap = 0;
         event.initialized_at = now;
         event.resolved_at = 0;
+        event.settlement_version = 0;
+        event.void_reason = VoidReason::None;
+        event.event_pool = 0;
+        event.forfeited_total = 0;
+        event.payout_total = 0;
+        event.refunded_total = 0;
+        event.confirmed_member_count = 0;
+        event.remainder_units = 0;
+        event.remaining_stake_total_after = 0;
         event.bump = ctx.bumps.event;
         Ok(())
     }
@@ -656,6 +666,115 @@ pub mod rituals {
     }
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
+pub enum VoidReason {
+    None,
+    NoConfirmedMembers,
+    UnresolvedClaims,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct SettlementPlan {
+    pub payouts: [u64; 6],
+    pub status: EventStatus,
+    pub void_reason: VoidReason,
+    pub event_pool: u64,
+    pub forfeited_total: u64,
+    pub payout_total: u64,
+    pub refunded_total: u64,
+    pub confirmed_member_count: u8,
+    pub remainder_units: u64,
+}
+
+pub fn derive_event_settlement_plan(
+    member_count: u8,
+    allocation: u64,
+    claimed: u8,
+    confirmed: u8,
+    questioned: u8,
+) -> Result<SettlementPlan> {
+    let mask = event_member_mask(member_count as usize)?;
+    require!(allocation > 0, RitualsError::InvalidPerEventAllocation);
+    require!(claimed & !mask == 0, RitualsError::EventBitmapInconsistent);
+    require!(
+        confirmed & !mask == 0 && questioned & !mask == 0,
+        RitualsError::EventBitmapInconsistent
+    );
+    require!(
+        confirmed & !claimed == 0 && questioned & !claimed == 0,
+        RitualsError::EventBitmapInconsistent
+    );
+    require!(
+        confirmed & questioned == 0,
+        RitualsError::EventBitmapInconsistent
+    );
+
+    let event_pool = allocation
+        .checked_mul(u64::from(member_count))
+        .ok_or(RitualsError::SettlementAccountingOverflow)?;
+    let confirmed_count = confirmed.count_ones() as u8;
+    let pending = claimed & !(confirmed | questioned);
+    let unclaimed = mask & !claimed;
+    let mut payouts = [0u64; 6];
+    if pending != 0 || questioned != 0 || confirmed_count == 0 {
+        for index in 0..member_count as usize {
+            payouts[index] = allocation;
+        }
+        let reason = if pending != 0 || questioned != 0 {
+            VoidReason::UnresolvedClaims
+        } else {
+            VoidReason::NoConfirmedMembers
+        };
+        return Ok(SettlementPlan {
+            payouts,
+            status: EventStatus::Voided,
+            void_reason: reason,
+            event_pool,
+            forfeited_total: 0,
+            payout_total: event_pool,
+            refunded_total: event_pool,
+            confirmed_member_count: 0,
+            remainder_units: 0,
+        });
+    }
+
+    let forfeited_total = u64::from(unclaimed.count_ones())
+        .checked_mul(allocation)
+        .ok_or(RitualsError::SettlementAccountingOverflow)?;
+    let base_bonus = forfeited_total
+        .checked_div(u64::from(confirmed_count))
+        .ok_or(RitualsError::SettlementAccountingOverflow)?;
+    let remainder_units = forfeited_total % u64::from(confirmed_count);
+    let mut remaining_remainder = remainder_units;
+    for index in 0..member_count as usize {
+        if confirmed & (1u8 << index) != 0 {
+            payouts[index] = allocation
+                .checked_add(base_bonus)
+                .and_then(|value| value.checked_add(u64::from(remaining_remainder > 0)))
+                .ok_or(RitualsError::SettlementAccountingOverflow)?;
+            remaining_remainder = remaining_remainder.saturating_sub(1);
+        }
+    }
+    require!(
+        payouts
+            .iter()
+            .try_fold(0u64, |sum, payout| sum.checked_add(*payout))
+            == Some(event_pool),
+        RitualsError::SettlementAccountingOverflow
+    );
+    Ok(SettlementPlan {
+        payouts,
+        status: EventStatus::Settled,
+        void_reason: VoidReason::None,
+        event_pool,
+        forfeited_total,
+        payout_total: event_pool,
+        refunded_total: 0,
+        confirmed_member_count: confirmed_count,
+        remainder_units,
+    })
+}
+
 fn eligible_member_index(ritual: &Ritual, signer: Pubkey) -> Result<usize> {
     let index = ritual
         .members
@@ -798,6 +917,140 @@ mod tests {
     fn event_member_mask_rejects_member_counts_above_six() {
         assert!(event_member_mask(7).is_err());
         assert!(event_member_mask(8).is_err());
+    }
+
+    #[test]
+    fn settlement_exhaustively_conserves_all_member_subsets() {
+        let mut cases = 0usize;
+        for member_count in 2..=6u8 {
+            let mask = (1u8 << member_count) - 1;
+            for confirmed in 0..=mask {
+                let plan = derive_event_settlement_plan(member_count, 11, confirmed, confirmed, 0)
+                    .unwrap();
+                cases += 1;
+                assert_eq!(plan.event_pool, u64::from(member_count) * 11);
+                assert_eq!(plan.payout_total, plan.event_pool);
+                if confirmed == 0 {
+                    assert_eq!(plan.status, EventStatus::Voided);
+                    assert_eq!(plan.void_reason, VoidReason::NoConfirmedMembers);
+                    assert_eq!(plan.refunded_total, plan.event_pool);
+                    assert_eq!(plan.forfeited_total, 0);
+                } else {
+                    assert_eq!(plan.status, EventStatus::Settled);
+                    assert_eq!(plan.void_reason, VoidReason::None);
+                    assert_eq!(plan.payouts.iter().sum::<u64>(), plan.event_pool);
+                    assert_eq!(
+                        plan.forfeited_total,
+                        u64::from(mask.count_ones() - confirmed.count_ones()) * 11
+                    );
+                    assert_eq!(plan.refunded_total, 0);
+                }
+            }
+        }
+        assert_eq!(cases, 124);
+    }
+
+    #[test]
+    fn settlement_voids_unresolved_before_no_confirmed_reason() {
+        let pending = derive_event_settlement_plan(3, 7, 1, 0, 0).unwrap();
+        assert_eq!(pending.status, EventStatus::Voided);
+        assert_eq!(pending.void_reason, VoidReason::UnresolvedClaims);
+        let questioned = derive_event_settlement_plan(3, 7, 3, 1, 2).unwrap();
+        assert_eq!(questioned.void_reason, VoidReason::UnresolvedClaims);
+    }
+
+    #[test]
+    fn settlement_rejects_invalid_inputs_and_overflow() {
+        for count in [0, 1, 7, 8] {
+            assert!(derive_event_settlement_plan(count, 1, 0, 0, 0).is_err());
+        }
+        assert!(derive_event_settlement_plan(2, 0, 0, 0, 0).is_err());
+        assert!(derive_event_settlement_plan(2, 1, 4, 0, 0).is_err());
+        assert!(derive_event_settlement_plan(2, 1, 1, 2, 0).is_err());
+        assert!(derive_event_settlement_plan(2, 1, 1, 1, 1).is_err());
+        assert!(derive_event_settlement_plan(2, u64::MAX, 0, 0, 0).is_err());
+        assert!(derive_event_settlement_plan(2, u64::MAX, 3, 3, 0).is_err());
+    }
+
+    #[test]
+    fn settlement_assigns_remainder_to_earliest_confirmed_indices() {
+        let plan = derive_event_settlement_plan(3, 5, 0b101, 0b101, 0).unwrap();
+        assert_eq!(plan.payouts, [8, 0, 7, 0, 0, 0]);
+        assert_eq!(plan.remainder_units, 1);
+        let voided = derive_event_settlement_plan(2, 9, 0, 0, 0).unwrap();
+        assert_eq!(voided.payouts, [9, 9, 0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn active_state_tracks_remaining_principal_after_settled_events() {
+        let mut ritual = active_test_ritual(2, 3);
+        assert!(ritual.validate_active_state(ritual_key()).is_ok());
+        ritual.current_event_index = 1;
+        ritual.settled_event_count = 1;
+        ritual.funded_stake_total = 20;
+        assert!(ritual.validate_active_state(ritual_key()).is_ok());
+        ritual.funded_stake_total = 19;
+        assert!(ritual.validate_active_state(ritual_key()).is_err());
+        ritual.funded_stake_total = 20;
+        ritual.current_event_index = 0;
+        assert!(ritual.validate_active_state(ritual_key()).is_err());
+        ritual.current_event_index = 1;
+        ritual.completed_at = 1;
+        assert!(ritual.validate_active_state(ritual_key()).is_err());
+    }
+
+    fn ritual_key() -> Pubkey {
+        Pubkey::new_from_array([9; 32])
+    }
+
+    fn active_test_ritual(member_count: usize, event_count: usize) -> Ritual {
+        let members = (0..member_count)
+            .map(|i| Pubkey::new_from_array([i as u8 + 1; 32]))
+            .collect::<Vec<_>>();
+        let schedule = (0..event_count)
+            .map(|i| EventWindow {
+                opens: i as i64 * 10,
+                deadline: i as i64 * 10 + 1,
+                resolution: i as i64 * 10 + 2,
+            })
+            .collect::<Vec<_>>();
+        let (stake_vault, stake_vault_bump) =
+            Pubkey::find_program_address(&[b"stake-vault", ritual_key().as_ref()], &crate::ID);
+        let (fee_vault, fee_vault_bump) =
+            Pubkey::find_program_address(&[b"fee-vault", ritual_key().as_ref()], &crate::ID);
+        Ritual {
+            schema_version: 1,
+            protocol_config: Pubkey::new_unique(),
+            creator: members[0],
+            nonce: 1,
+            rule_digest: [1; 32],
+            stake_mint: Pubkey::new_unique(),
+            members,
+            member_total_stake: 15,
+            per_event_allocation: 5,
+            schedule,
+            additional_confirmation_threshold: 0,
+            fee_payer_mode: FeePayerMode::Host,
+            locked_activation_fee: 1,
+            stake_decimals: 0,
+            locked_fee_recipient: Pubkey::new_unique(),
+            stake_vault,
+            fee_vault,
+            stake_vault_bump,
+            fee_vault_bump,
+            funded_members_bitmap: (1u8 << member_count) - 1,
+            funded_member_count: member_count as u8,
+            funded_stake_total: 30,
+            funded_fee_total: 1,
+            status: RitualStatus::Active,
+            current_event_index: 0,
+            settled_event_count: 0,
+            created_at: 1,
+            activated_at: 2,
+            cancelled_at: 0,
+            completed_at: 0,
+            bump: 1,
+        }
     }
 
     #[test]
@@ -1042,6 +1295,15 @@ pub struct RitualEvent {
     pub questioned_members_bitmap: u8,
     pub initialized_at: i64,
     pub resolved_at: i64,
+    pub settlement_version: u8,
+    pub void_reason: VoidReason,
+    pub event_pool: u64,
+    pub forfeited_total: u64,
+    pub payout_total: u64,
+    pub refunded_total: u64,
+    pub confirmed_member_count: u8,
+    pub remainder_units: u64,
+    pub remaining_stake_total_after: u64,
     pub bump: u8,
 }
 
@@ -1097,6 +1359,7 @@ pub struct Ritual {
     pub created_at: i64,
     pub activated_at: i64,
     pub cancelled_at: i64,
+    pub completed_at: i64,
     pub bump: u8,
 }
 
@@ -1126,11 +1389,70 @@ impl Ritual {
                 && self.fee_vault_bump == fee_vault_bump,
             RitualsError::ActiveStateInconsistent
         );
-        self.validate_locked_activation_state()
-            .map_err(|_| error!(RitualsError::ActiveStateInconsistent))
+        self.validate_common_state()
+            .map_err(|_| error!(RitualsError::ActiveStateInconsistent))?;
+        let member_count = self.members.len() as u64;
+        let event_count = self.schedule.len() as u64;
+        let group_pool = self
+            .member_total_stake
+            .checked_mul(member_count)
+            .ok_or(RitualsError::ActiveStateInconsistent)?;
+        let member_mask = ((1u16 << member_count) - 1) as u8;
+        let expected_fee = self
+            .expected_fee_for_bitmap(member_mask)
+            .map_err(|_| error!(RitualsError::ActiveStateInconsistent))?;
+        require!(
+            self.funded_members_bitmap == member_mask
+                && self.funded_member_count == member_count as u8
+                && self.funded_member_count == self.funded_members_bitmap.count_ones() as u8
+                && self.funded_fee_total == expected_fee,
+            RitualsError::ActiveStateInconsistent
+        );
+        let event_pool = self
+            .per_event_allocation
+            .checked_mul(member_count)
+            .ok_or(RitualsError::ActiveStateInconsistent)?;
+        let processed = u64::from(self.settled_event_count)
+            .checked_mul(event_pool)
+            .ok_or(RitualsError::ActiveStateInconsistent)?;
+        let expected_remaining = group_pool
+            .checked_sub(processed)
+            .ok_or(RitualsError::ActiveStateInconsistent)?;
+        require!(
+            u64::from(self.current_event_index) < event_count
+                && self.completed_at == 0
+                && self.funded_stake_total == expected_remaining,
+            RitualsError::ActiveStateInconsistent
+        );
+        Ok(())
     }
 
     fn validate_locked_activation_state(&self) -> Result<()> {
+        self.validate_common_state()?;
+        let member_count = self.members.len();
+        let group_pool = self
+            .member_total_stake
+            .checked_mul(member_count as u64)
+            .ok_or(RitualsError::ActivationStateInconsistent)?;
+        let member_mask = ((1u16 << member_count) - 1) as u8;
+        require!(
+            self.funded_members_bitmap == member_mask
+                && self.funded_member_count as usize == member_count
+                && self.funded_member_count == self.funded_members_bitmap.count_ones() as u8
+                && self.funded_stake_total == group_pool,
+            RitualsError::ActivationStateInconsistent
+        );
+        let expected_fee = self
+            .expected_fee_for_bitmap(member_mask)
+            .map_err(|_| error!(RitualsError::ActivationStateInconsistent))?;
+        require!(
+            self.funded_fee_total == expected_fee && self.locked_activation_fee == expected_fee,
+            RitualsError::ActivationStateInconsistent
+        );
+        Ok(())
+    }
+
+    fn validate_common_state(&self) -> Result<()> {
         let member_count = self.members.len();
         require!(
             self.schema_version == 1 && (2..=6).contains(&member_count),
@@ -1174,10 +1496,6 @@ impl Ritual {
                 && self.per_event_allocation == self.member_total_stake / event_count as u64,
             RitualsError::ActivationStateInconsistent
         );
-        let group_pool = self
-            .member_total_stake
-            .checked_mul(member_count as u64)
-            .ok_or(RitualsError::ActivationStateInconsistent)?;
         require!(
             self.additional_confirmation_threshold <= (member_count - 1) as u8
                 && !self.rule_digest.iter().all(|byte| *byte == 0)
@@ -1186,21 +1504,12 @@ impl Ritual {
             RitualsError::ActivationStateInconsistent
         );
 
-        let member_mask = ((1u16 << member_count) - 1)
-            .try_into()
-            .map_err(|_| RitualsError::ActivationStateInconsistent)?;
-        require!(
-            self.funded_members_bitmap == member_mask
-                && self.funded_member_count as usize == member_count
-                && self.funded_member_count == self.funded_members_bitmap.count_ones() as u8
-                && self.funded_stake_total == group_pool,
-            RitualsError::ActivationStateInconsistent
-        );
+        let member_mask = ((1u16 << member_count) - 1) as u8;
         let expected_fee = self
             .expected_fee_for_bitmap(member_mask)
             .map_err(|_| RitualsError::ActivationStateInconsistent)?;
         require!(
-            self.funded_fee_total == expected_fee && self.locked_activation_fee == expected_fee,
+            self.locked_activation_fee == expected_fee,
             RitualsError::ActivationStateInconsistent
         );
         Ok(())
@@ -1440,4 +1749,6 @@ pub enum RitualsError {
     ClaimStateInconsistent,
     #[msg("member has already approved this claim and cannot question it")]
     ConflictingAttestation,
+    #[msg("settlement accounting overflowed")]
+    SettlementAccountingOverflow,
 }
