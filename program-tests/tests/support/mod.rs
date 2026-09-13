@@ -674,3 +674,32 @@ pub(crate) async fn setup_host(
     .unwrap();
     context
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ClaimFlowSnapshot {
+    pub ritual: Account,
+    pub event: Option<Account>,
+    pub claim: Option<Account>,
+    pub stake_vault: Account,
+    pub fee_vault: Account,
+    pub recipient: Account,
+}
+
+impl ClaimFlowSnapshot {
+    pub(crate) async fn capture(
+        context: &mut ProgramTestContext,
+        ritual: Pubkey,
+        event: Pubkey,
+        claim: Pubkey,
+        recipient: Pubkey,
+    ) -> Self {
+        Self {
+            ritual: get_account(context, ritual).await,
+            event: context.banks_client.get_account(event).await.unwrap(),
+            claim: context.banks_client.get_account(claim).await.unwrap(),
+            stake_vault: get_account(context, vault_pda(b"stake-vault", &ritual)).await,
+            fee_vault: get_account(context, vault_pda(b"fee-vault", &ritual)).await,
+            recipient: get_account(context, recipient).await,
+        }
+    }
+}
