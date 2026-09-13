@@ -1,6 +1,7 @@
 mod support;
 use solana_sdk::clock::Clock;
 use support::*;
+use rituals::VoidReason;
 
 async fn active_context(
     creator: &Keypair,
@@ -193,6 +194,15 @@ async fn initialize_event_status_window_table_fresh_fixtures() {
         assert_eq!(state.confirmed_members_bitmap, 0);
         assert_eq!(state.questioned_members_bitmap, 0);
         assert_eq!(state.resolved_at, 0);
+        assert_eq!(state.settlement_version, 0);
+        assert_eq!(state.void_reason, VoidReason::None);
+        assert_eq!(state.event_pool, 0);
+        assert_eq!(state.forfeited_total, 0);
+        assert_eq!(state.payout_total, 0);
+        assert_eq!(state.refunded_total, 0);
+        assert_eq!(state.confirmed_member_count, 0);
+        assert_eq!(state.remainder_units, 0);
+        assert_eq!(state.remaining_stake_total_after, 0);
         assert_ne!(state.bump, 0);
         assert!(state.initialized_at != 0);
         let after = ClaimFlowSnapshot::capture(

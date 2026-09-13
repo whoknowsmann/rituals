@@ -717,9 +717,6 @@ pub fn derive_event_settlement_plan(
     let unclaimed = mask & !claimed;
     let mut payouts = [0u64; 6];
     if pending != 0 || questioned != 0 || confirmed_count == 0 {
-        for index in 0..member_count as usize {
-            payouts[index] = allocation;
-        }
         let reason = if pending != 0 || questioned != 0 {
             VoidReason::UnresolvedClaims
         } else {
@@ -731,9 +728,9 @@ pub fn derive_event_settlement_plan(
             void_reason: reason,
             event_pool,
             forfeited_total: 0,
-            payout_total: event_pool,
+            payout_total: 0,
             refunded_total: event_pool,
-            confirmed_member_count: 0,
+            confirmed_member_count: confirmed_count,
             remainder_units: 0,
         });
     }
@@ -920,34 +917,74 @@ mod tests {
     }
 
     #[test]
-    fn settlement_exhaustively_conserves_all_member_subsets() {
+    fn settlement_exhaustively_partitions_every_member_state() {
         let mut cases = 0usize;
         for member_count in 2..=6u8 {
             let mask = (1u8 << member_count) - 1;
-            for confirmed in 0..=mask {
-                let plan = derive_event_settlement_plan(member_count, 11, confirmed, confirmed, 0)
-                    .unwrap();
+            for states in 0..4usize.pow(member_count as u32) {
+                let mut encoded = states;
+                let mut claimed = 0;
+                let mut confirmed = 0;
+                let mut questioned = 0;
+                let mut confirmed_count = 0;
+                let mut has_unresolved = false;
+                for index in 0..member_count {
+                    let bit = 1u8 << index;
+                    match encoded % 4 {
+                        0 => {}
+                        1 => {
+                            claimed |= bit;
+                            confirmed |= bit;
+                            confirmed_count += 1;
+                        }
+                        2 => {
+                            claimed |= bit;
+                            has_unresolved = true;
+                        }
+                        3 => {
+                            claimed |= bit;
+                            questioned |= bit;
+                            has_unresolved = true;
+                        }
+                        _ => unreachable!(),
+                    }
+                    encoded /= 4;
+                }
+                let plan =
+                    derive_event_settlement_plan(member_count, 11, claimed, confirmed, questioned)
+                        .unwrap();
                 cases += 1;
                 assert_eq!(plan.event_pool, u64::from(member_count) * 11);
-                assert_eq!(plan.payout_total, plan.event_pool);
-                if confirmed == 0 {
+                assert_eq!(plan.confirmed_member_count, confirmed_count);
+                if has_unresolved || confirmed_count == 0 {
                     assert_eq!(plan.status, EventStatus::Voided);
-                    assert_eq!(plan.void_reason, VoidReason::NoConfirmedMembers);
+                    assert_eq!(
+                        plan.void_reason,
+                        if has_unresolved {
+                            VoidReason::UnresolvedClaims
+                        } else {
+                            VoidReason::NoConfirmedMembers
+                        }
+                    );
+                    assert_eq!(plan.payouts, [0; 6]);
+                    assert_eq!(plan.payout_total, 0);
                     assert_eq!(plan.refunded_total, plan.event_pool);
                     assert_eq!(plan.forfeited_total, 0);
+                    assert_eq!(plan.remainder_units, 0);
                 } else {
                     assert_eq!(plan.status, EventStatus::Settled);
                     assert_eq!(plan.void_reason, VoidReason::None);
+                    assert_eq!(plan.payout_total, plan.event_pool);
                     assert_eq!(plan.payouts.iter().sum::<u64>(), plan.event_pool);
                     assert_eq!(
                         plan.forfeited_total,
-                        u64::from(mask.count_ones() - confirmed.count_ones()) * 11
+                        u64::from(mask.count_ones() - confirmed_count as u32) * 11
                     );
                     assert_eq!(plan.refunded_total, 0);
                 }
             }
         }
-        assert_eq!(cases, 124);
+        assert_eq!(cases, (2..=6).map(|n| 4usize.pow(n)).sum::<usize>());
     }
 
     #[test]
@@ -957,6 +994,10 @@ mod tests {
         assert_eq!(pending.void_reason, VoidReason::UnresolvedClaims);
         let questioned = derive_event_settlement_plan(3, 7, 3, 1, 2).unwrap();
         assert_eq!(questioned.void_reason, VoidReason::UnresolvedClaims);
+        assert_eq!(questioned.confirmed_member_count, 1);
+        assert_eq!(questioned.payouts, [0; 6]);
+        assert_eq!(questioned.payout_total, 0);
+        assert_eq!(questioned.refunded_total, questioned.event_pool);
     }
 
     #[test]
@@ -978,25 +1019,40 @@ mod tests {
         assert_eq!(plan.payouts, [8, 0, 7, 0, 0, 0]);
         assert_eq!(plan.remainder_units, 1);
         let voided = derive_event_settlement_plan(2, 9, 0, 0, 0).unwrap();
-        assert_eq!(voided.payouts, [9, 9, 0, 0, 0, 0]);
+        assert_eq!(voided.payouts, [0; 6]);
+        assert_eq!(voided.payout_total, 0);
+        assert_eq!(voided.refunded_total, voided.event_pool);
     }
 
     #[test]
-    fn active_state_tracks_remaining_principal_after_settled_events() {
-        let mut ritual = active_test_ritual(2, 3);
-        assert!(ritual.validate_active_state(ritual_key()).is_ok());
-        ritual.current_event_index = 1;
-        ritual.settled_event_count = 1;
-        ritual.funded_stake_total = 20;
-        assert!(ritual.validate_active_state(ritual_key()).is_ok());
-        ritual.funded_stake_total = 19;
-        assert!(ritual.validate_active_state(ritual_key()).is_err());
-        ritual.funded_stake_total = 20;
-        ritual.current_event_index = 0;
-        assert!(ritual.validate_active_state(ritual_key()).is_err());
-        ritual.current_event_index = 1;
-        ritual.completed_at = 1;
-        assert!(ritual.validate_active_state(ritual_key()).is_err());
+    fn active_state_tracks_sequential_liabilities_for_all_supported_sizes() {
+        for member_count in 2..=6 {
+            for event_count in [1, 2, 16] {
+                let mut ritual = active_test_ritual(member_count, event_count);
+                let event_pool = ritual.per_event_allocation * member_count as u64;
+                let group_pool = ritual.member_total_stake * member_count as u64;
+                for settled in 0..event_count {
+                    ritual.current_event_index = settled as u8;
+                    ritual.settled_event_count = settled as u8;
+                    ritual.funded_stake_total = (event_count - settled) as u64 * event_pool;
+                    assert!(ritual.validate_active_state(ritual_key()).is_ok());
+
+                    let mut wrong = ritual.clone();
+                    wrong.funded_stake_total += 1;
+                    assert!(wrong.validate_active_state(ritual_key()).is_err());
+                    let mut wrong = ritual.clone();
+                    wrong.settled_event_count += 1;
+                    assert!(wrong.validate_active_state(ritual_key()).is_err());
+                    let mut wrong = ritual.clone();
+                    wrong.current_event_index = wrong.current_event_index.saturating_add(1);
+                    assert!(wrong.validate_active_state(ritual_key()).is_err());
+                    let mut wrong = ritual.clone();
+                    wrong.completed_at = 1;
+                    assert!(wrong.validate_active_state(ritual_key()).is_err());
+                }
+                assert_eq!(group_pool, event_count as u64 * event_pool);
+            }
+        }
     }
 
     fn ritual_key() -> Pubkey {
@@ -1026,8 +1082,8 @@ mod tests {
             rule_digest: [1; 32],
             stake_mint: Pubkey::new_unique(),
             members,
-            member_total_stake: 15,
-            per_event_allocation: 5,
+            member_total_stake: 7 * event_count as u64,
+            per_event_allocation: 7,
             schedule,
             additional_confirmation_threshold: 0,
             fee_payer_mode: FeePayerMode::Host,
@@ -1040,7 +1096,7 @@ mod tests {
             fee_vault_bump,
             funded_members_bitmap: (1u8 << member_count) - 1,
             funded_member_count: member_count as u8,
-            funded_stake_total: 30,
+            funded_stake_total: 7 * event_count as u64 * member_count as u64,
             funded_fee_total: 1,
             status: RitualStatus::Active,
             current_event_index: 0,
