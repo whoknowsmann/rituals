@@ -54,7 +54,7 @@ describe('FixtureRitualsRepository', () => {
       ritualId: 'ritual-book-club',
       eventIndex: 0,
       title: 'February book club',
-      amountAtomicUnits: 2_000_000_000n,
+      amountAtomicUnits: 1_500_000_000n,
       tokenDecimals: 6,
       tokenSymbol: 'TEST',
     })

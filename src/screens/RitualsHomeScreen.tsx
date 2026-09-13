@@ -93,8 +93,8 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
               <Card.Content>
                 <Text variant="titleLarge">{ritual.title}</Text>
                 <Text style={styles.body}>{ritual.requirement}</Text>
-                <View style={styles.row}><Text style={styles.label}>MEMBERS</Text><Text>{ritual.memberProgress}</Text></View>
-                <View style={styles.row}><Text style={styles.label}>STAKE AT RISK</Text><Text>{ritual.stakeAtRisk}</Text></View>
+                <View style={styles.row}><Text style={styles.label}>MEMBERS</Text><Text style={styles.rowValue}>{ritual.memberProgress}</Text></View>
+                <View style={styles.row}><Text style={styles.label}>STAKE AT RISK</Text><Text style={styles.rowValue}>{ritual.stakeAtRisk}</Text></View>
                 <Divider style={styles.divider} />
                 <Text style={styles.next}>Next up · {ritual.nextEvent}</Text>
                 <Text style={styles.muted}>{ritual.confirmationMode}</Text>
@@ -132,7 +132,8 @@ const makeStyles = (theme: MD3Theme) => StyleSheet.create({
   subtitle: { color: theme.colors.onSurfaceVariant },
   card: { borderRadius: 18 },
   body: { marginTop: 8, marginBottom: 14, lineHeight: 21 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginTop: 10, flexWrap: 'wrap' },
+  rowValue: { flexShrink: 1, minWidth: 0, textAlign: 'right' },
   label: { color: theme.colors.onSurfaceVariant, fontSize: 11, letterSpacing: 1, fontWeight: '700' },
   divider: { marginVertical: 14 },
   next: { fontWeight: '700', marginBottom: 4 },

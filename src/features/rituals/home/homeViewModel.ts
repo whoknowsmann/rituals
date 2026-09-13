@@ -28,16 +28,14 @@ export interface HomeViewModel {
 }
 
 function format(amount: bigint, decimals: number, symbol: string): string {
-  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 255) return 'Invalid amount'
+  if (typeof amount !== 'bigint' || amount < 0n || !Number.isInteger(decimals) || decimals < 0 || decimals > 255) return 'Invalid amount'
 
-  const negative = amount < 0n
-  const absolute = negative ? -amount : amount
   const base = 10n ** BigInt(decimals)
-  const whole = absolute / base
-  const fraction = absolute % base
+  const whole = amount / base
+  const fraction = amount % base
   const grouped = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
-  return `${negative ? '-' : ''}${grouped}${decimals === 0 ? '' : `.${fraction.toString().padStart(decimals, '0')}`} ${symbol}`
+  return `${grouped}${decimals === 0 ? '' : `.${fraction.toString().padStart(decimals, '0')}`} ${symbol}`
 }
 
 export const safeErrorMessage = (_error: unknown): string => 'Unable to load rituals right now.'

@@ -81,7 +81,8 @@ describe('canonical claims fixtures and route safety', () => {
     const idle = { action: 'idle' as const }
     expect(confirmationInboxReducer(idle, { type: 'CONFIRM' }).action).toBe('confirmed')
     expect(confirmationInboxReducer(idle, { type: 'QUESTION' }).action).toBe('questioned')
-    expect(confirmationInboxReducer({ action: 'in-flight' }, { type: 'CONFIRM' }).action).toBe('in-flight')
+    expect(confirmationInboxReducer({ action: 'idle' }, { type: 'START' }).action).toBe('in-flight')
+    expect(confirmationInboxReducer({ action: 'in-flight' }, { type: 'CONFIRM' }).action).toBe('confirmed')
   })
 
   it('returns exact principal for voided receipts and zeroes bonus and forfeiture', () => {
@@ -99,5 +100,20 @@ describe('canonical claims fixtures and route safety', () => {
       ...claimFixtures[1].receipt,
       principal: -1n,
     }).status).toBe('invalid')
+  })
+
+  it.each([
+    { memberOutcome: 'CONFIRMED' as const, principal: 0n, bonus: 1n, forfeiture: 3n },
+    { memberOutcome: 'UNCLAIMED' as const, principal: 3n, bonus: 1n, forfeiture: 0n },
+    { memberOutcome: 'CONFIRMED' as const, principal: 3n, bonus: 1n, forfeiture: 1n },
+  ])('rejects contradictory settled member accounting', (change) => {
+    const fixture = getClaimFixture('ritual-book-club', 0) as ClaimFixture
+    expect(buildSettlementReceiptViewModel({ ...fixture.receipt, ...change }).status).toBe('invalid')
+  })
+
+  it('formats zero-decimal receipt totals without a decimal point', () => {
+    const fixture = getClaimFixture('ritual-book-club', 0) as ClaimFixture
+    const view = buildSettlementReceiptViewModel({ ...fixture.receipt, tokenDecimals: 0, eventAllocation: 3n as never, principal: 3n, bonus: 1n })
+    expect(view.lines.find(([label]) => label === 'Total received')?.[1]).toBe('4 TEST')
   })
 })

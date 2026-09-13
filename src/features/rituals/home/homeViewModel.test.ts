@@ -87,7 +87,7 @@ describe('buildHomeViewModel', () => {
     const view = buildHomeViewModel(await new FixtureRitualsRepository('completed').getHomeSnapshot())
 
     expect(view.kind).toBe('completed')
-    expect(view.completedReceipt).toEqual({ ritualId: 'ritual-book-club', eventIndex: 0, title: 'February book club', amount: '2,000.000000 TEST' })
+    expect(view.completedReceipt).toEqual({ ritualId: 'ritual-book-club', eventIndex: 0, title: 'February book club', amount: '1,500.000000 TEST' })
     expect(view.activeRituals).toEqual([])
     expect(view.cards).toEqual({ activeRitual: false, funding: false, confirmations: false, completedReceipt: true })
     expect(view.ctas).toEqual({ fundRitual: false, reviewConfirmations: false, createRitual: false })
@@ -140,12 +140,11 @@ describe('buildHomeViewModel', () => {
     expect(buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk).toBe('Invalid amount')
   })
 
-  it('accepts 255 decimals and formats negative values safely', () => {
+  it('rejects negative values before formatting, including at 255 decimals', () => {
     const snapshot = snapshotWith({ activeRitual: { ...activeRitual, stakeAtomicUnits: -123n as TokenAtomicUnits, tokenDecimals: 255 } })
 
     const amount = buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk
-    expect(amount).not.toBe('Invalid amount')
-    expect(amount).toContain('-')
+    expect(amount).toBe('Invalid amount')
   })
 
   it('preserves the stable ritual id in the active item', async () => {

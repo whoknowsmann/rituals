@@ -40,23 +40,24 @@ export const claimFixtures: readonly ClaimFixture[] = deepFreeze([
   {
     ritualId: ritualId('ritual-weekly-run'), eventIndex: eventIndex(0), detail: activeDetail, claimant: 'bob', eventLabel: 'Event 1',
     claimStatus: 'PENDING', confirmations: 1, threshold: 2, viewer: 'friend',
-    receipt: { status: 'CLAIMING', principal: units(1_250_000n), bonus: units(0n), forfeiture: units(0n), futureStake: units(1_250_000n), activationFee: units(50_000n), ...money, settlement: { kind: 'SETTLED' } },
+    receipt: { status: 'CLAIMING', eventAllocation: units(1_250_000n), memberOutcome: 'CONFIRMED', principal: units(1_250_000n), bonus: units(0n), forfeiture: units(0n), futureStake: units(1_250_000n), activationFee: units(50_000n), ...money, settlement: { kind: 'SETTLED' } },
   },
   {
     ritualId: ritualId('ritual-book-club'), eventIndex: eventIndex(0),
     detail: { ...activeDetail, ritualId: ritualId('ritual-book-club'), title: 'February book club', status: 'COMPLETED' as RitualStatus, requirement: 'Read and discuss one book together.', confirmationMode: 'MAJORITY' },
     claimant: 'alice', eventLabel: 'Event 1', claimStatus: 'CONFIRMED', confirmations: 2, threshold: 2, viewer: 'friend',
-    receipt: { status: 'SETTLED', principal: units(1_250_000_000n), bonus: units(250_000_000n), forfeiture: units(250_000_000n), futureStake: units(1_250_000_000n), activationFee: units(50_000n), ...money, settlement: { kind: 'SETTLED' } },
+    receipt: { status: 'SETTLED', eventAllocation: units(1_250_000_000n), memberOutcome: 'CONFIRMED', principal: units(1_250_000_000n), bonus: units(250_000_000n), forfeiture: units(0n), futureStake: units(1_250_000_000n), activationFee: units(50_000n), ...money, settlement: { kind: 'SETTLED' } },
   },
   {
     ritualId: ritualId('ritual-unresolved'), eventIndex: eventIndex(0),
     detail: { ...activeDetail, ritualId: ritualId('ritual-unresolved'), title: 'Unresolved check-in', status: 'COMPLETED' as RitualStatus, requirement: 'Check in with the group.', confirmationMode: 'ONE_FRIEND' },
     claimant: 'casey', eventLabel: 'Event 1', claimStatus: 'QUESTIONED', confirmations: 0, threshold: 1, viewer: 'friend',
-    receipt: { status: 'VOIDED', principal: units(3_000_000n), bonus: units(9_000_000n), forfeiture: units(4_000_000n), futureStake: units(0n), activationFee: units(50_000n), ...money, settlement: { kind: 'VOIDED', reason: 'UNRESOLVED_CLAIMS' } },
+    receipt: { status: 'VOIDED', eventAllocation: units(3_000_000n), memberOutcome: 'UNCLAIMED', principal: units(3_000_000n), bonus: units(0n), forfeiture: units(0n), futureStake: units(0n), activationFee: units(50_000n), ...money, settlement: { kind: 'VOIDED', reason: 'UNRESOLVED_CLAIMS' } },
   },
 ])
 
 const byKey = new Map(claimFixtures.map((fixture) => [`${fixture.ritualId}:${fixture.eventIndex}`, fixture]))
 export function getClaimFixture(id: string, index: number): ClaimFixture | undefined { return byKey.get(`${id}:${index}`) }
 export function getRitualFixture(id: string): ClaimFixture | undefined { return claimFixtures.find((fixture) => fixture.ritualId === id) }
+export function getCanonicalCompletedReceipt(): ClaimFixture['receipt'] { return claimFixtures[1].receipt }
 export function fixtureReceiptStatus(status: EventStatus): boolean { return status === 'SETTLED' || status === 'VOIDED' }
