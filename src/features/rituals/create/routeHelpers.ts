@@ -10,3 +10,7 @@ export function reviewNavigationParams(draft: RitualDraft): RootStackParamList['
 export function homeCreateTarget(): { readonly name: 'TemplatePicker' } {
   return { name: 'TemplatePicker' }
 }
+
+export function reviewCompleteTarget(): { readonly name: 'RitualsHome' } {
+  return { name: 'RitualsHome' }
+}
