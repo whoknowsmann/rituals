@@ -23,7 +23,7 @@ describe('CompletionClaim exact reachable-state decoder matrix', () => {
   })
 
   it.each([
-    ['Pending threshold 2/count 1', 0, 2, 1, 1], ['Pending threshold 0/no approvals', 0, 0, 0, 0],
+    ['Pending threshold 2/count 1', 0, 2, 1, 1],
     ['Confirmed threshold 0', 1, 0, 0, 0], ['Confirmed exact threshold', 1, 2, 5, 2],
     ['Questioned no approvals', 2, 2, 0, 0], ['Questioned partial approvals', 2, 3, 1, 1],
   ])('%s is accepted', (_name, status, threshold, approvals, count) => {
@@ -43,7 +43,7 @@ describe('CompletionClaim exact reachable-state decoder matrix', () => {
   it('rejects a negative claimedAt', () => { const bytes = source(); putI64(bytes, O.claimedAt, -1n); expectCategory(() => decode(bytes), 'invariant') })
 
   it.each([
-    ['approval count mismatch', (b: Uint8Array) => putU8(b, O.count, 2)], ['pending threshold met', (b: Uint8Array) => { putU8(b, O.threshold, 1); putU8(b, O.approvals, 1); putU8(b, O.count, 1) }],
+    ['approval count mismatch', (b: Uint8Array) => putU8(b, O.count, 2)], ['pending threshold zero', (b: Uint8Array) => { putU8(b, O.status, 0); putU8(b, O.threshold, 0); putU8(b, O.approvals, 0); putU8(b, O.count, 0) }], ['pending threshold met', (b: Uint8Array) => { putU8(b, O.threshold, 1); putU8(b, O.approvals, 1); putU8(b, O.count, 1) }],
     ['confirmed below threshold', (b: Uint8Array) => { putU8(b, O.status, 1); putU8(b, O.threshold, 2); putU8(b, O.approvals, 1); putU8(b, O.count, 1) }],
     ['confirmed above threshold', (b: Uint8Array) => { putU8(b, O.status, 1); putU8(b, O.threshold, 1); putU8(b, O.approvals, 3); putU8(b, O.count, 2) }],
     ['questioned threshold zero', (b: Uint8Array) => { putU8(b, O.status, 2); putU8(b, O.threshold, 0); putU8(b, O.approvals, 0); putU8(b, O.count, 0) }],

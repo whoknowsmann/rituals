@@ -140,14 +140,14 @@ export function decodeRitualEvent(input: AccountEnvelope, expectedProgramId: Pub
   const zeroReceipt = eventPool === 0n && forfeitedTotal === 0n && payoutTotal === 0n && refundedTotal === 0n && confirmedMemberCount === 0 && remainderUnits === 0n && remainingStakeTotalAfter === 0n
   const structuralInvalid = ritual.equals(zero) || memberCount < 2 || memberCount > 6 || eventIndex > 15 || (claimedMembersBitmap & ~mask) !== 0 || (confirmedMembersBitmap & ~claimedMembersBitmap) !== 0 || (questionedMembersBitmap & ~claimedMembersBitmap) !== 0 || (confirmedMembersBitmap & questionedMembersBitmap) !== 0 || (terminal && confirmedMemberCount !== popcount(confirmedMembersBitmap)) || settlementVersion > 1 || initializedAt <= 0n
   if (structuralInvalid) throw new RitualAccountDecodeError('invariant', 'RitualEvent state is inconsistent')
-  const invalidLifecycle = !terminal && (!zeroReceipt || settlementVersion !== 0 || resolvedAt !== 0n)
+  const invalidLifecycle = !terminal && (!zeroReceipt || settlementVersion !== 0 || resolvedAt !== 0n || voidReason !== 'None')
   const invalidStage = (status === 'Scheduled' && (claimedMembersBitmap !== 0 || confirmedMembersBitmap !== 0 || questionedMembersBitmap !== 0)) || (status === 'Claiming' && questionedMembersBitmap !== 0)
   if (invalidLifecycle || invalidStage) throw new RitualAccountDecodeError('invariant', 'RitualEvent lifecycle state is inconsistent')
   if (terminal && (settlementVersion !== 1 || resolvedAt <= window.resolution || resolvedAt < initializedAt || eventPool === 0n)) throw new RitualAccountDecodeError('invariant', 'RitualEvent terminal state is inconsistent')
   const invalidSettlement = claimedMembersBitmap !== confirmedMembersBitmap || questionedMembersBitmap !== 0 || confirmedMemberCount === 0 || voidReason !== 'None' || payoutTotal !== eventPool || refundedTotal !== 0n || forfeitedTotal > eventPool || remainderUnits >= BigInt(confirmedMemberCount) || (confirmedMemberCount === memberCount && (forfeitedTotal !== 0n || remainderUnits !== 0n)) || (confirmedMemberCount < memberCount && forfeitedTotal === 0n)
   if (status === 'Settled' && invalidSettlement) throw new RitualAccountDecodeError('invariant', 'Settled receipt is inconsistent')
   const pending = claimedMembersBitmap & ~(confirmedMembersBitmap | questionedMembersBitmap)
-  const invalidVoid = payoutTotal !== 0n || refundedTotal !== eventPool || forfeitedTotal !== 0n || remainderUnits !== 0n || (voidReason === 'UnresolvedClaims' && pending === 0 && questionedMembersBitmap === 0) || (voidReason === 'NoConfirmedMembers' && (confirmedMemberCount !== 0 || pending !== 0 || questionedMembersBitmap !== 0))
+  const invalidVoid = payoutTotal !== 0n || refundedTotal !== eventPool || forfeitedTotal !== 0n || remainderUnits !== 0n || (pending !== 0 || questionedMembersBitmap !== 0 ? voidReason !== 'UnresolvedClaims' : voidReason !== 'NoConfirmedMembers' || confirmedMemberCount !== 0)
   if (status === 'Voided' && invalidVoid) throw new RitualAccountDecodeError('invariant', 'Voided receipt is inconsistent')
   const output = Object.freeze({ schemaVersion, ritual, eventIndex, window, memberCount, status, claimedMembersBitmap, confirmedMembersBitmap, questionedMembersBitmap, initializedAt, resolvedAt, settlementVersion, voidReason, eventPool, forfeitedTotal, payoutTotal, refundedTotal, confirmedMemberCount, remainderUnits, remainingStakeTotalAfter, bump })
   return finish(reader, output)
@@ -159,7 +159,7 @@ export function decodeCompletionClaim(input: AccountEnvelope, expectedProgramId:
   const ritual = reader.pubkey(); const event = reader.pubkey(); const eventIndex = reader.u8(); const claimant = reader.pubkey(); const memberIndex = reader.u8(); const claimVersion = reader.u8(); const status = reader.enum(['Pending', 'Confirmed', 'Questioned'] as const)
   const requiredAdditionalConfirmations = reader.u8(); const approvalsBitmap = reader.u8(); const approvalCount = reader.u8(); const claimedAt = reader.i64(); const bump = reader.u8()
   const claimantBit = 1 << memberIndex
-  const validPending = requiredAdditionalConfirmations === 0 ? approvalCount === 0 : approvalCount < requiredAdditionalConfirmations
+  const validPending = requiredAdditionalConfirmations > 0 && approvalCount < requiredAdditionalConfirmations
   const validConfirmed = requiredAdditionalConfirmations === 0 ? approvalCount === 0 : approvalCount === requiredAdditionalConfirmations
   const validQuestioned = requiredAdditionalConfirmations > 0 && approvalCount < requiredAdditionalConfirmations
   const invalidClaim = ritual.equals(zero) || event.equals(zero) || claimant.equals(zero) || eventIndex > 15 || memberIndex > 5 || claimVersion !== CURRENT_CLAIM_VERSION || requiredAdditionalConfirmations > 5 || (approvalsBitmap & ~0x3f) !== 0 || (approvalsBitmap & claimantBit) !== 0 || approvalCount !== popcount(approvalsBitmap) || (status === 'Pending' && !validPending) || (status === 'Confirmed' && !validConfirmed) || (status === 'Questioned' && !validQuestioned) || claimedAt <= 0n

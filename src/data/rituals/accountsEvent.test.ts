@@ -67,13 +67,51 @@ describe('RitualEvent exact reachable-state decoder matrix', () => {
 
  it('rejects confirmed/questioned overlap', () => { const bytes = source(); putU8(bytes, O.confirmed, 2); putU8(bytes, O.questioned, 2); expectCategory(() => decode(bytes), 'invariant') })
 
-  it('rejects each terminal and nonterminal receipt contradiction', () => {
+  it('rejects every nonterminal receipt field when nonzero', () => {
     const cases: Array<[string, (b: Uint8Array) => void]> = [
-      ['nonterminal settlement version', b => putU8(b, O.settlementVersion, 1)], ['nonterminal resolved time', b => putI64(b, O.resolved, 301n)],
-      ['scheduled bitmap', b => { putU8(b, O.status, 0); putU8(b, O.claimed, 2) }], ['nonterminal pool', b => putI64(b, O.pool, 1n)],
-      ['settled pending claim', b => { putU8(b, O.status, 3); putU8(b, O.settlementVersion, 1); putI64(b, O.resolved, 301n) }],
-      ['settled questioned', b => { putU8(b, O.status, 3); putU8(b, O.settlementVersion, 1); putU8(b, O.claimed, 2); putU8(b, O.questioned, 2); putI64(b, O.resolved, 301n); putI64(b, O.pool, 200n); putI64(b, O.payout, 200n); putU8(b, O.confirmed, 2); putU8(b, O.count, 1); putI64(b, O.forfeited, 100n) }],
+      ['event pool', b => putI64(b, O.pool, 1n)], ['forfeited', b => putI64(b, O.forfeited, 1n)], ['payout', b => putI64(b, O.payout, 1n)],
+      ['refunded', b => putI64(b, O.refunded, 1n)], ['confirmed member count', b => putU8(b, O.count, 1)], ['remainder', b => putI64(b, O.remainder, 1n)],
+      ['remaining after', b => putI64(b, O.remaining, 1n)], ['settlement version', b => putU8(b, O.settlementVersion, 1)], ['resolved at', b => putI64(b, O.resolved, 301n)],
+      ['void reason', b => putU8(b, O.voidReason, 1)],
     ]
     for (const [_name, mutate] of cases) expectCategory(() => { const b = source(); mutate(b); decode(b) }, 'invariant')
   })
+
+  const settledBase = () => {
+    const b = source(); putU8(b, O.members, 2); putU8(b, O.status, 3); putU8(b, O.claimed, 3); putU8(b, O.confirmed, 3); putU8(b, O.questioned, 0); putU8(b, O.count, 2); putU8(b, O.settlementVersion, 1); putI64(b, O.resolved, 301n); putI64(b, O.pool, 200n); putI64(b, O.forfeited, 0n); putI64(b, O.payout, 200n); return b
+  }
+  const voidedBase = () => {
+    const b = source(); putU8(b, O.status, 4); putU8(b, O.claimed, 2); putU8(b, O.confirmed, 0); putU8(b, O.questioned, 0); putU8(b, O.count, 0); putU8(b, O.settlementVersion, 1); putU8(b, O.voidReason, 2); putI64(b, O.resolved, 301n); putI64(b, O.pool, 200n); putI64(b, O.refunded, 200n); return b
+  }
+
+  it.each([
+    ['resolved at boundary', (b: Uint8Array) => putI64(b, O.resolved, 100n)], ['resolved before resolution', (b: Uint8Array) => putI64(b, O.resolved, 99n)],
+    ['initialized after resolved', (b: Uint8Array) => putI64(b, O.initialized, 302n)], ['event pool zero', (b: Uint8Array) => putI64(b, O.pool, 0n)],
+    ['claimed differs from confirmed', (b: Uint8Array) => putU8(b, O.claimed, 1)], ['questioned nonzero', (b: Uint8Array) => putU8(b, O.questioned, 1)],
+    ['confirmed count zero', (b: Uint8Array) => putU8(b, O.count, 0)], ['confirmed count mismatch', (b: Uint8Array) => putU8(b, O.count, 1)],
+    ['void reason nonzero', (b: Uint8Array) => putU8(b, O.voidReason, 1)], ['payout differs from pool', (b: Uint8Array) => putI64(b, O.payout, 199n)],
+    ['refund nonzero', (b: Uint8Array) => putI64(b, O.refunded, 1n)], ['forfeited exceeds pool', (b: Uint8Array) => putI64(b, O.forfeited, 201n)],
+    ['remainder reaches count', (b: Uint8Array) => putI64(b, O.remainder, 2n)], ['all confirmed with forfeiture', (b: Uint8Array) => putI64(b, O.forfeited, 1n)],
+    ['all confirmed with remainder', (b: Uint8Array) => putI64(b, O.remainder, 1n)], ['partial confirmed without forfeiture', (b: Uint8Array) => { putU8(b, O.claimed, 3); putU8(b, O.confirmed, 1); putU8(b, O.count, 1) }],
+  ])('settled %s is rejected', (_name, mutate) => expectCategory(() => { const b = settledBase(); mutate(b); decode(b) }, 'invariant'))
+
+  it.each([
+    ['payout', (b: Uint8Array) => putI64(b, O.payout, 1n)], ['refund mismatch', (b: Uint8Array) => putI64(b, O.refunded, 199n)],
+    ['forfeited', (b: Uint8Array) => putI64(b, O.forfeited, 1n)], ['remainder', (b: Uint8Array) => putI64(b, O.remainder, 1n)],
+    ['reason mismatch', (b: Uint8Array) => putU8(b, O.voidReason, 1)], ['count mismatch', (b: Uint8Array) => putU8(b, O.count, 1)],
+    ['bitmap mismatch', (b: Uint8Array) => putU8(b, O.confirmed, 1)],
+  ])('voided %s is rejected', (_name, mutate) => expectCategory(() => { const b = voidedBase(); mutate(b); decode(b) }, 'invariant'))
+
+  it.each([
+    ['Claiming', 1], ['Scheduled', 0], ['Resolving', 2],
+  ])('%s rejects every terminal void reason', (_name, status) => {
+    for (const reason of [1, 2]) expectCategory(() => { const b = source(); putU8(b, O.status, status); putU8(b, O.claimed, 0); putU8(b, O.confirmed, 0); putU8(b, O.questioned, 0); putU8(b, O.voidReason, reason); decode(b) }, 'invariant')
+  })
+
+  it.each([
+    ['voided None with unresolved claims', (b: Uint8Array) => putU8(b, O.voidReason, 0)],
+    ['voided NoConfirmedMembers with unresolved claims', (b: Uint8Array) => putU8(b, O.voidReason, 1)],
+    ['voided UnresolvedClaims without unresolved claims', (b: Uint8Array) => { putU8(b, O.claimed, 0); putU8(b, O.voidReason, 2) }],
+    ['voided None without unresolved claims', (b: Uint8Array) => { putU8(b, O.claimed, 0); putU8(b, O.voidReason, 0) }],
+  ])('%s is rejected', (_name, mutate) => expectCategory(() => { const b = voidedBase(); mutate(b); decode(b) }, 'invariant'))
 })
