@@ -50,7 +50,7 @@ const fundingBase = (mode: 'Host' | 'Split' = 'Host') => {
 const completedBase = (closed: boolean) => {
   const b = source(); expect(decode(b).status).toBe('Active')
   b[offsets.status] = 2; b[offsets.bitmap] = 7; b[offsets.count] = 3; b[offsets.current] = 2; b[offsets.settled] = 2; b[offsets.closed] = closed ? 1 : 0
-  putU64(b, offsets.stake, 0n); putU64(b, offsets.fundedFee, 777n); putI64(b, offsets.activated, 20n); putI64(b, offsets.cancelled, 0n); putI64(b, offsets.completed, 20n)
+  putU64(b, offsets.stake, 0n); putU64(b, offsets.fundedFee, 777n); putI64(b, offsets.activated, 99n); putI64(b, offsets.cancelled, 0n); putI64(b, offsets.completed, 601n)
   expect(() => decode(b)).not.toThrow()
   return b
 }
@@ -63,7 +63,7 @@ const cancelledBase = (closed: boolean) => {
 }
 const mutate = (builder: () => Uint8Array, change: (b: Uint8Array) => void) => { const b = builder(); change(b); return b }
 
-// Every row starts from a freshly decoded, discriminating baseline. The offsets are parsed from the vector.
+// Every row starts from a freshly decoded, discriminating baseline. Completed rows use activation 99 and completion 601: same-slot completion is unreachable because the final schedule resolution is 600.
 describe('Ritual exact lifecycle decoder matrices', () => {
   it.each([
     ['correct mint', new PublicKey(accountVectors.ritual.expected.stakeMint), undefined, undefined],
@@ -129,10 +129,17 @@ describe('Ritual exact lifecycle decoder matrices', () => {
     ['partial bitmap', (b: Uint8Array) => { b[offsets.bitmap] = 3 }], ['count2', (b: Uint8Array) => { b[offsets.count] = 2 }], ['fundedFee776', (b: Uint8Array) => putU64(b, offsets.fundedFee, 776n)], ['stake599', (b: Uint8Array) => putU64(b, offsets.stake, 599n)], ['stake601', (b: Uint8Array) => putU64(b, offsets.stake, 601n)], ['current1 settled0', (b: Uint8Array) => { b[offsets.current] = 1; b[offsets.settled] = 0 }], ['current2 end', (b: Uint8Array) => { b[offsets.current] = 2; b[offsets.settled] = 2 }], ['settled1 current0', (b: Uint8Array) => { b[offsets.settled] = 1 }], ['activated0', (b: Uint8Array) => putI64(b, offsets.activated, 0n)], ['activated9', (b: Uint8Array) => putI64(b, offsets.activated, 9n)], ['cancelled1', (b: Uint8Array) => putI64(b, offsets.cancelled, 1n)], ['completed1', (b: Uint8Array) => putI64(b, offsets.completed, 1n)], ['vaultClosed1', (b: Uint8Array) => { b[offsets.closed] = 1 }],
   ])('Active independently rejects %s', (_name, change) => { const b = activeBase(); change(b); expectReject(() => decode(b)) })
 
+  it.each([
+    ['before first opening', 99n, true], ['at first opening', 100n, false], ['after first opening', 101n, false],
+  ])('Active activation boundary %s', (_name, activatedAt, accepted) => { const b = activeBase(); putI64(b, offsets.activated, activatedAt); if (accepted) expect(decode(b).status).toBe('Active'); else expectReject(() => decode(b)) })
+
   it.each([false, true])('Completed accepts vaultClosed=%s', closed => expect(decode(completedBase(closed)).status).toBe('Completed'))
   it.each([
-    ['partial bitmap', (b: Uint8Array) => { b[offsets.bitmap] = 3 }], ['count2', (b: Uint8Array) => { b[offsets.count] = 2 }], ['fee776', (b: Uint8Array) => putU64(b, offsets.fundedFee, 776n)], ['current1', (b: Uint8Array) => { b[offsets.current] = 1 }], ['settled1', (b: Uint8Array) => { b[offsets.settled] = 1 }], ['stake1', (b: Uint8Array) => putU64(b, offsets.stake, 1n)], ['cancelled1', (b: Uint8Array) => putI64(b, offsets.cancelled, 1n)], ['activated0', (b: Uint8Array) => putI64(b, offsets.activated, 0n)], ['activated9', (b: Uint8Array) => putI64(b, offsets.activated, 9n)], ['completed0', (b: Uint8Array) => putI64(b, offsets.completed, 0n)], ['completed19', (b: Uint8Array) => putI64(b, offsets.completed, 19n)],
+    ['partial bitmap', (b: Uint8Array) => { b[offsets.bitmap] = 3 }], ['count2', (b: Uint8Array) => { b[offsets.count] = 2 }], ['fee776', (b: Uint8Array) => putU64(b, offsets.fundedFee, 776n)], ['current1', (b: Uint8Array) => { b[offsets.current] = 1 }], ['settled1', (b: Uint8Array) => { b[offsets.settled] = 1 }], ['stake1', (b: Uint8Array) => putU64(b, offsets.stake, 1n)], ['cancelled1', (b: Uint8Array) => putI64(b, offsets.cancelled, 1n)], ['activated0', (b: Uint8Array) => putI64(b, offsets.activated, 0n)], ['activated9', (b: Uint8Array) => putI64(b, offsets.activated, 9n)], ['completed0', (b: Uint8Array) => putI64(b, offsets.completed, 0n)], ['completed<activated', (b: Uint8Array) => putI64(b, offsets.completed, 98n)], ['completed at final resolution', (b: Uint8Array) => putI64(b, offsets.completed, 600n)],
   ])('Completed independently rejects %s', (_name, change) => { const b = completedBase(false); change(b); expectReject(() => decode(b)) })
+  it.each([
+    ['after activation and after final resolution', 99n, 601n, true], ['same as activation', 99n, 99n, false], ['at final resolution', 99n, 600n, false], ['before final resolution', 99n, 599n, false],
+  ])('Completed reachability boundary %s', (_name, activatedAt, completedAt, accepted) => { const b = completedBase(false); putI64(b, offsets.activated, activatedAt); putI64(b, offsets.completed, completedAt); if (accepted) expect(decode(b).status).toBe('Completed'); else expectReject(() => decode(b)) })
 
   it.each([false, true])('Cancelled accepts vaultClosed=%s', closed => expect(decode(cancelledBase(closed)).status).toBe('Cancelled'))
   it.each([
