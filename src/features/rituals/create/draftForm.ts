@@ -76,11 +76,11 @@ export function parseRitualDraft(value: unknown): DraftParseResult {
     if (value === null || typeof value !== 'object' || Object.getPrototypeOf(value) !== Object.prototype) {
       return { ok: false, error: 'Invalid ritual draft.' }
     }
-    const keys = Reflect.ownKeys(value)
+    const descriptors = Object.getOwnPropertyDescriptors(value)
+    const keys = Reflect.ownKeys(descriptors)
     if (keys.length !== DRAFT_KEYS.length || DRAFT_KEYS.some((key) => !keys.includes(key))) {
       return { ok: false, error: 'Invalid ritual draft.' }
     }
-    const descriptors = Object.getOwnPropertyDescriptors(value)
     const values: Record<string, string> = {}
     for (const key of DRAFT_KEYS) {
       const descriptor = descriptors[key]

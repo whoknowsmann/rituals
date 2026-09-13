@@ -75,7 +75,7 @@ export function CreateRitualScreen({ route }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text variant="headlineMedium">Create your ritual</Text>
+      <Text variant="headlineMedium" accessibilityRole="header">Create your ritual</Text>
       <Text style={styles.muted}>Start with a template, then edit every term.</Text>
       {field('title', 'Title')}
       {field('requirement', 'What will members do?', true)}
@@ -84,7 +84,7 @@ export function CreateRitualScreen({ route }: Props) {
         {field('eventCount', 'Events (1–16)')}
       </View>
       {field('memberTotalStake', 'Per-member total stake (TEST)')}
-      <View accessible accessibilityLabel="Confirmation mode">
+      <View>
         <Text variant="labelLarge">Confirmation mode</Text>
         <SegmentedButtons
           value={draft.confirmationMode}
@@ -102,7 +102,7 @@ export function CreateRitualScreen({ route }: Props) {
           </Text>
         )}
       </View>
-      <View accessible accessibilityLabel="Activation fee payer">
+      <View>
         <Text variant="labelLarge">Activation fee payer</Text>
         <SegmentedButtons
           value={draft.feePayerMode}
@@ -122,7 +122,7 @@ export function CreateRitualScreen({ route }: Props) {
         )}
       </View>
       <Button mode="contained" onPress={submit} accessibilityLabel="Review ritual terms">
-        Review locked terms
+        Review terms
       </Button>
       <Text style={styles.disclosure}>Fixture mode only · TEST on devnet has no real value · no wallet or transaction</Text>
     </ScrollView>

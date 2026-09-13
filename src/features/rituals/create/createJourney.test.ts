@@ -129,7 +129,7 @@ describe('Ritual creation journey', () => {
       'Activation fee is nonrefundable.',
       'Network fee: Not estimated in fixture mode; no transaction will be submitted.',
       'TEST on devnet is a fixture with no real value.',
-      'Terms are locked for review.',
+      'Nothing is locked or saved in fixture preview.',
     ]))
     expect(review.disclosures.join(' ')).not.toMatch(/platform share|forfeit/i)
   })
@@ -182,6 +182,16 @@ describe('Ritual creation journey', () => {
     expect(review).toContain('Threshold')
     expect(review).toContain('reviewCompleteTarget')
     expect(review).toContain("navigation.navigate(reviewCompleteTarget().name)")
+    expect(create).toContain('Review terms')
+    expect(review).toContain('Ritual terms preview')
+    expect(review).toContain('This is a preview. Go back to edit any term before creating it.')
+    expect(review).toContain('not saved')
+    for (const stale of ['cannot be changed after review', 'Review locked', 'Locked ritual', 'Terms are locked for review']) {
+      expect(create).not.toContain(stale)
+      expect(review).not.toContain(stale)
+    }
+    expect(create).not.toMatch(/<View[^>]*\baccessible\b[^>]*>[\s\S]*<SegmentedButtons/)
+    expect(review).toContain('accessibilityRole="header"')
     expect(home).not.toContain("Alert.alert('Create Ritual'")
     for (const screen of [home, templatePicker, create, review]) {
       expect(screen).not.toMatch(/sendTransaction|transact\s*\(|Connection|MWA|mobile-wallet|rpc/i)

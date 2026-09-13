@@ -35,6 +35,57 @@ describe('Ritual draft boundaries', () => {
     expect(parseRitualDraft(proxy).ok).toBe(false)
   })
 
+  it('uses one proxy descriptor snapshot without invoking property reads', () => {
+    let reads = 0
+    const proxy = new Proxy({}, {
+      get: () => {
+        reads += 1
+        throw new Error('property read should not happen')
+      },
+      ownKeys: () => [...Object.keys(DEFAULT_RITUAL_DRAFT)],
+      getOwnPropertyDescriptor: (_target, key) => ({
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: DEFAULT_RITUAL_DRAFT[key as keyof typeof DEFAULT_RITUAL_DRAFT],
+      }),
+    })
+
+    expect(parseRitualDraft(proxy)).toEqual({ ok: true, value: DEFAULT_RITUAL_DRAFT })
+    expect(reads).toBe(0)
+  })
+
+  it('detaches accepted values from later proxy reads', () => {
+    let descriptorValue = 'descriptor title'
+    const proxy = new Proxy({}, {
+      get: () => 'different property value',
+      ownKeys: () => [...Object.keys(DEFAULT_RITUAL_DRAFT)],
+      getOwnPropertyDescriptor: (_target, key) => ({
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: key === 'title'
+          ? descriptorValue
+          : DEFAULT_RITUAL_DRAFT[key as keyof typeof DEFAULT_RITUAL_DRAFT],
+      }),
+    })
+
+    const result = parseRitualDraft(proxy)
+    descriptorValue = 'changed after snapshot'
+    expect(result).toEqual({
+      ok: true,
+      value: { ...DEFAULT_RITUAL_DRAFT, title: 'descriptor title' },
+    })
+  })
+
+  it('fails closed when descriptor snapshots throw', () => {
+    const descriptorProxy = new Proxy(DEFAULT_RITUAL_DRAFT, {
+      getOwnPropertyDescriptor: () => { throw new Error('boom') },
+    })
+    expect(() => parseRitualDraft(descriptorProxy)).not.toThrow()
+    expect(parseRitualDraft(descriptorProxy).ok).toBe(false)
+  })
+
   it('shares one frozen fee configuration everywhere', () => {
     expect(Object.isFrozen(RITUAL_FEE_CONFIG)).toBe(true)
     const validation = validateRitualDraft(DEFAULT_RITUAL_DRAFT)

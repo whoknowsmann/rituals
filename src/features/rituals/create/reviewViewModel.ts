@@ -56,7 +56,7 @@ export function buildReviewViewModel(input: unknown): ReviewViewModel | null {
       'Activation fee is nonrefundable.',
       'Network fee: Not estimated in fixture mode; no transaction will be submitted.',
       'TEST on devnet is a fixture with no real value.',
-      'Terms are locked for review.',
+      'Nothing is locked or saved in fixture preview.',
     ],
   }
 }

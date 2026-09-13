@@ -50,8 +50,8 @@ export function ReviewRitualScreen({ route }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Text variant="headlineMedium">Review locked terms</Text>
-      <Card style={styles.card} accessibilityLabel="Locked ritual terms">
+      <Text variant="headlineMedium" accessibilityRole="header">Review ritual terms</Text>
+      <Card style={styles.card} accessibilityLabel="Ritual terms preview">
         <Card.Content>
           <Text variant="titleLarge">{review.title}</Text>
           <Text style={styles.body}>{review.requirement}</Text>
@@ -70,7 +70,7 @@ export function ReviewRitualScreen({ route }: Props) {
           {review.disclosures.map((text) => (
             <Text key={text} style={styles.disclosure}>• {text}</Text>
           ))}
-          <Text style={styles.disclosure}>Terms cannot be changed after review.</Text>
+          <Text style={styles.disclosure}>This is a preview. Go back to edit any term before creating it.</Text>
         </Card.Content>
       </Card>
       <Button
