@@ -96,12 +96,15 @@ fn account_discriminators_are_the_frozen_anchor_bytes() {
 
 #[test]
 fn account_data_lengths_are_the_frozen_allocations() {
-    assert_eq!(ACCOUNT_DATA_LENGTHS, [
-        ("ProtocolConfig", 135),
-        ("Ritual", 909),
-        ("RitualEvent", 139),
-        ("CompletionClaim", 121),
-    ]);
+    assert_eq!(
+        ACCOUNT_DATA_LENGTHS,
+        [
+            ("ProtocolConfig", 135),
+            ("Ritual", 909),
+            ("RitualEvent", 139),
+            ("CompletionClaim", 121),
+        ]
+    );
 }
 
 #[allow(dead_code)]
