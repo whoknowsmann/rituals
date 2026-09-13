@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import idl from './idl/rituals.json'
+import { ACCOUNT_DISCRIMINATORS } from './accounts'
 import { RITUALS_LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
 
 describe('frozen Rituals IDL', () => {
@@ -11,8 +12,24 @@ describe('frozen Rituals IDL', () => {
     expect(idl.accounts.map(x => x.name).sort()).toEqual(['CompletionClaim','ProtocolConfig','Ritual','RitualEvent'].sort())
     expect(idl.types.map(x => x.name)).toEqual(expect.arrayContaining(['EventWindow','FeePayerMode','RitualStatus','EventStatus','ClaimStatus','VoidReason']))
     const ritual = idl.types.find(x => x.name === 'Ritual')
-    expect(ritual && 'type' in ritual && ritual.type.kind === 'struct' && ritual.type.fields?.some((f: {name:string}) => f.name === 'vaults_closed')).toBe(true)
+    expect(ritual && 'type' in ritual && ritual.type.kind === 'struct' && ritual.type.fields?.some((f: { name: string }) => f.name === 'vaults_closed')).toBe(true)
   })
+
+  it('keeps decoder discriminators and ordered account fields synchronized with IDL', () => {
+    for (const account of idl.accounts) {
+      const key = account.name as keyof typeof ACCOUNT_DISCRIMINATORS
+      expect(Array.from(account.discriminator)).toEqual(Array.from(ACCOUNT_DISCRIMINATORS[key]))
+    }
+    const fields = (name: string) => {
+      const item = idl.types.find(type => type.name === name)
+      return item && 'type' in item && item.type.kind === 'struct' && item.type.fields ? item.type.fields.map(field => field.name) : []
+    }
+    expect(fields('ProtocolConfig')).toEqual(['schema_version','authority','allowed_stake_mint','fee_recipient','fee_basis_points','minimum_fee','maximum_fee','maximum_member_stake','max_members','max_events','paused','bump'])
+    expect(fields('Ritual')).toContain('vaults_closed')
+    expect(fields('CompletionClaim')).toContain('claim_version')
+    expect(idl.instructions.find(instruction => instruction.name === 'claim_completion')?.args.map(arg => arg.name)).toContain('claim_version')
+  })
+
   it('proves the frozen address matches declare_id without a second identity', () => {
     const rust = fs.readFileSync(path.resolve(__dirname, '../../../programs/rituals/src/lib.rs'), 'utf8')
     const match = rust.match(/declare_id!\("([^"]+)"\)/)

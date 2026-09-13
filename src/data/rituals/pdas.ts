@@ -1,12 +1,62 @@
+import { Buffer } from 'buffer'
 import { PublicKey } from '@solana/web3.js'
 import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
-const seed = (s: string) => Buffer.from(s)
-function key(value: PublicKey, name: string): Uint8Array { if (!(value instanceof PublicKey)) throw new Error(`${name} must be a PublicKey`); return value.toBytes() }
-function program(value = LOCAL_PLACEHOLDER_PROGRAM_ID): PublicKey { return key(value, 'programId') && value }
-function nonceBytes(nonce: bigint): Uint8Array { if (typeof nonce !== 'bigint' || nonce < 0n || nonce > 0xffffffffffffffffn) throw new Error('nonce must be a u64 bigint'); const b=Buffer.alloc(8); b.writeBigUInt64LE(nonce); return b }
-export const protocolConfigPda = (programId = LOCAL_PLACEHOLDER_PROGRAM_ID) => PublicKey.findProgramAddressSync([seed('protocol-config')], program(programId))
-export const ritualPda = (creator: PublicKey, nonce: bigint, programId = LOCAL_PLACEHOLDER_PROGRAM_ID) => PublicKey.findProgramAddressSync([seed('ritual'), key(creator,'creator'), nonceBytes(nonce)], program(programId))
-export const stakeVaultPda = (ritual: PublicKey, programId = LOCAL_PLACEHOLDER_PROGRAM_ID) => PublicKey.findProgramAddressSync([seed('stake-vault'), key(ritual,'ritual')], program(programId))
-export const feeVaultPda = (ritual: PublicKey, programId = LOCAL_PLACEHOLDER_PROGRAM_ID) => PublicKey.findProgramAddressSync([seed('fee-vault'), key(ritual,'ritual')], program(programId))
-export const eventPda = (ritual: PublicKey, eventIndex: number, programId = LOCAL_PLACEHOLDER_PROGRAM_ID) => { if (!Number.isInteger(eventIndex)||eventIndex<0||eventIndex>15) throw new Error('eventIndex must be 0..15'); return PublicKey.findProgramAddressSync([seed('event'),key(ritual,'ritual'),Buffer.from([eventIndex])],program(programId)) }
-export const claimPda = (event: PublicKey, claimant: PublicKey, settlementVersion: number, programId = LOCAL_PLACEHOLDER_PROGRAM_ID) => { if (settlementVersion !== 1) throw new Error('settlement version must be exactly 1'); return PublicKey.findProgramAddressSync([seed('claim'),key(event,'event'),key(claimant,'claimant'),Buffer.from([settlementVersion])],program(programId)) }
+
+export const CURRENT_CLAIM_VERSION = 0 as const
+const MAX_U64 = 0xffffffffffffffffn
+const seed = (value: string): Buffer => Buffer.from(value, 'utf8')
+
+function requireKey(value: PublicKey, name: string): Uint8Array {
+  if (!(value instanceof PublicKey)) {
+    throw new TypeError(`${name} must be a PublicKey`)
+  }
+  return value.toBytes()
+}
+
+function requireProgram(value: PublicKey): PublicKey {
+  requireKey(value, 'programId')
+  return value
+}
+
+function requireU64(value: bigint, name: string): Buffer {
+  if (typeof value !== 'bigint' || value < 0n || value > MAX_U64) {
+    throw new RangeError(`${name} must be a u64 bigint`)
+  }
+  const result = Buffer.alloc(8)
+  result.writeBigUInt64LE(value)
+  return result
+}
+
+function requireIndex(value: number, name: string): Buffer {
+  if (!Number.isInteger(value) || value < 0 || value > 15) {
+    throw new RangeError(`${name} must be an integer in 0..15`)
+  }
+  return Buffer.from([value])
+}
+
+export function protocolConfigPda(programId: PublicKey = LOCAL_PLACEHOLDER_PROGRAM_ID) {
+  return PublicKey.findProgramAddressSync([seed('protocol-config')], requireProgram(programId))
+}
+
+export function ritualPda(creator: PublicKey, nonce: bigint, programId: PublicKey = LOCAL_PLACEHOLDER_PROGRAM_ID) {
+  return PublicKey.findProgramAddressSync([seed('ritual'), requireKey(creator, 'creator'), requireU64(nonce, 'nonce')], requireProgram(programId))
+}
+
+export function stakeVaultPda(ritual: PublicKey, programId: PublicKey = LOCAL_PLACEHOLDER_PROGRAM_ID) {
+  return PublicKey.findProgramAddressSync([seed('stake-vault'), requireKey(ritual, 'ritual')], requireProgram(programId))
+}
+
+export function feeVaultPda(ritual: PublicKey, programId: PublicKey = LOCAL_PLACEHOLDER_PROGRAM_ID) {
+  return PublicKey.findProgramAddressSync([seed('fee-vault'), requireKey(ritual, 'ritual')], requireProgram(programId))
+}
+
+export function eventPda(ritual: PublicKey, eventIndex: number, programId: PublicKey = LOCAL_PLACEHOLDER_PROGRAM_ID) {
+  return PublicKey.findProgramAddressSync([seed('event'), requireKey(ritual, 'ritual'), requireIndex(eventIndex, 'eventIndex')], requireProgram(programId))
+}
+
+export function claimPda(event: PublicKey, claimant: PublicKey, claimVersion: number, programId: PublicKey = LOCAL_PLACEHOLDER_PROGRAM_ID) {
+  if (!Number.isInteger(claimVersion) || claimVersion !== CURRENT_CLAIM_VERSION) {
+    throw new RangeError('claim version must be exactly 0')
+  }
+  return PublicKey.findProgramAddressSync([seed('claim'), requireKey(event, 'event'), requireKey(claimant, 'claimant'), Buffer.from([CURRENT_CLAIM_VERSION])], requireProgram(programId))
+}
