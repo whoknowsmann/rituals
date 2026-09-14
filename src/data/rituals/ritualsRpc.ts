@@ -55,6 +55,10 @@ export type ClaimRead = Readonly<{
 }>
 
 const isSafeSlot = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+function maxMin(...values: number[]): number {
+  if (values.length === 0 || values.some((value) => !isSafeSlot(value))) throw failure('input', 'minimum context slots must be safe nonnegative integers')
+  return Math.max(...values)
+}
 const key = (value: unknown, name: string): PublicKey => {
   if (!(value instanceof PublicKey) || value.equals(PublicKey.default)) throw new RitualRpcError('input', `${name} must be a non-default PublicKey`)
   return new PublicKey(value.toBytes())
@@ -112,6 +116,7 @@ export class RitualsRpcReader {
       if (context === null || typeof context !== 'object' || !isSafeSlot(slot)) throw failure('rpc', 'Rituals RPC context is malformed')
       if (!Array.isArray(values) || values.length !== requestKeys.length) throw failure('rpc', 'Rituals RPC returned an unexpected account count')
       if (readOptions.minContextSlot !== undefined && slot < readOptions.minContextSlot) throw failure('stale', 'Rituals RPC context is older than requested')
+      for (let index = 0; index < values.length; index += 1) if (!Object.hasOwn(values, index)) throw failure('rpc', 'Rituals RPC account value is missing')
       const accounts = values.map((raw): RitualRpcAccountInfo | null => {
         if (raw === null) return null
         if (typeof raw !== 'object') throw failure('rpc', 'Rituals RPC account is malformed')
@@ -154,14 +159,15 @@ export class RitualsRpcReader {
     this.#checkRitual(ritual)
     try {
       if (value === null || typeof value !== 'object' || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.ritualAddress instanceof PublicKey) || !value.ritualAddress.equals(ritual.address) || !(value.protocolConfigAddress instanceof PublicKey) || !value.protocolConfigAddress.equals(ritual.protocolConfigAddress) || value.protocolConfig !== ritual.protocolConfig || !(value.account && Object.isFrozen(value.account)) || value.ritual !== ritual || !value.account.ritual.equals(ritual.address)) throw failure('input', 'event read context is invalid')
+      if (value.slot < ritual.slot) throw failure('stale', 'event read context is older than ritual read')
     } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'event read context is invalid', error) }
   }
 
   async getEvent(ritual: RitualRead, eventIndex: number, readOptions?: ReadOptions): Promise<EventRead> {
     this.#checkRitual(ritual)
     if (!Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15) throw failure('input', 'eventIndex must be a safe integer in 0..15')
-    const opts = options(readOptions); const address = eventPda(ritual.address, eventIndex, this.#programId)[0]
-    const fetched = await this.#fetch([address], opts)
+    const opts = options(readOptions); const effectiveOpts = Object.freeze({ minContextSlot: maxMin(opts.minContextSlot ?? 0, ritual.slot) }); const address = eventPda(ritual.address, eventIndex, this.#programId)[0]
+    const fetched = await this.#fetch([address], effectiveOpts)
     const account = this.#decode(fetched.accounts[0], () => decodeRitualEvent(fetched.accounts[0], this.#programId)) as RitualEventAccountView
     if (!account.ritual.equals(ritual.address) || account.eventIndex !== eventIndex || account.memberCount !== ritual.account.members.length) throw failure('canonical', 'Ritual event is not bound to its ritual')
     const expected = ritual.account.schedule[eventIndex]
@@ -170,14 +176,14 @@ export class RitualsRpcReader {
   }
 
   async getClaim(ritual: RitualRead, event: EventRead, claimant: PublicKey, readOptions?: ReadOptions): Promise<ClaimRead> {
-    this.#checkEvent(event, ritual); const target = key(claimant, 'claimant'); const opts = options(readOptions)
+    this.#checkEvent(event, ritual); const target = key(claimant, 'claimant'); const opts = options(readOptions); const effectiveOpts = Object.freeze({ minContextSlot: maxMin(opts.minContextSlot ?? 0, ritual.slot, event.slot) })
     const memberIndex = ritual.account.members.findIndex((member) => member.equals(target))
     if (memberIndex < 0) throw failure('input', 'claimant is not a Ritual member')
     if (event.account.eventIndex >= ritual.account.schedule.length || !event.account.ritual.equals(ritual.address)) throw failure('canonical', 'event is not bound to ritual')
-    const address = claimPda(event.address, target, 0, this.#programId)[0]; const fetched = await this.#fetch([address], opts)
+    const address = claimPda(event.address, target, 0, this.#programId)[0]; const fetched = await this.#fetch([address], effectiveOpts)
     const account = this.#decode(fetched.accounts[0], () => decodeCompletionClaim(fetched.accounts[0], this.#programId)) as CompletionClaimAccountView
     const expectedBump = claimPda(event.address, target, 0, this.#programId)[1]
-    if (!account.ritual.equals(ritual.address) || !account.event.equals(event.address) || account.eventIndex !== event.account.eventIndex || !account.claimant.equals(target) || account.memberIndex !== memberIndex || account.claimVersion !== 0 || account.requiredAdditionalConfirmations !== ritual.account.additionalConfirmationThreshold || account.bump !== expectedBump || !address.equals(claimPda(event.address, target, 0, this.#programId)[0]) || account.claimedAt < event.account.window.opens || account.claimedAt > event.account.window.resolution) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
+    if (!account.ritual.equals(ritual.address) || !account.event.equals(event.address) || account.eventIndex !== event.account.eventIndex || !account.claimant.equals(target) || account.memberIndex !== memberIndex || account.claimVersion !== 0 || account.requiredAdditionalConfirmations !== ritual.account.additionalConfirmationThreshold || account.bump !== expectedBump || !address.equals(claimPda(event.address, target, 0, this.#programId)[0]) || account.claimedAt < event.account.window.opens || account.claimedAt > event.account.window.deadline) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
     return Object.freeze({ slot: fetched.slot, address, ritualAddress: ritual.address, eventAddress: event.address, claimant: target, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, event, account })
   }
 }

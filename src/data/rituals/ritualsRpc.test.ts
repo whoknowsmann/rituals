@@ -19,6 +19,7 @@ const claim = { owner: programId, data: hexToBytes(accountVectors.completionClai
 
 class FakeConnection {
   calls: Array<{ keys: string[]; config: unknown }> = []
+  constructor(private readonly claimData = claim.data, private readonly slots = [42], private readonly sparse: false | 'hole' | 'undefined' = false) {}
   async getMultipleAccountsInfoAndContext(keys: PublicKey[], requestConfig: unknown) {
     this.calls.push({ keys: keys.map(key => key.toBase58()), config: requestConfig })
     const values = keys.map(key => {
@@ -26,11 +27,20 @@ class FakeConnection {
       if (address === protocolConfigAddress.toBase58()) return config
       if (address === ritualAddress.toBase58()) return { owner: programId, data: ritualBytes, executable: false }
       if (address === eventAddress.toBase58()) return event
-      if (address === claimAddress.toBase58()) return claim
+      if (address === claimAddress.toBase58()) return { owner: programId, data: this.claimData, executable: false }
       return null
     })
-    return { context: { slot: 42 }, value: values }
+    const value = this.sparse ? Object.assign([], values, { length: values.length }) as typeof values : values
+    if (this.sparse === 'hole') delete (value as unknown as Record<number, unknown>)[0]
+    if (this.sparse === 'undefined') (value as unknown as Record<number, unknown>)[0] = undefined
+    return { context: { slot: this.slots[Math.min(this.calls.length - 1, this.slots.length - 1)] }, value }
   }
+}
+
+const claimAt = (claimedAt: bigint): Uint8Array => {
+  const bytes = new Uint8Array(claim.data)
+  new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setBigInt64(112, claimedAt, true)
+  return bytes
 }
 
 describe('confirmed read-only Rituals RPC reader', () => {
@@ -46,7 +56,12 @@ describe('confirmed read-only Rituals RPC reader', () => {
     expect(eventRead.address.equals(eventAddress)).toBe(true)
     expect(claimRead.address.equals(claimAddress)).toBe(true)
     expect(connection.calls).toHaveLength(4)
-    for (const call of connection.calls) expect(call.config).toEqual({ commitment: 'confirmed', minContextSlot: 40 })
+    expect(connection.calls.map(call => call.config)).toEqual([
+      { commitment: 'confirmed', minContextSlot: 40 },
+      { commitment: 'confirmed', minContextSlot: 40 },
+      { commitment: 'confirmed', minContextSlot: 42 },
+      { commitment: 'confirmed', minContextSlot: 42 },
+    ])
     expect(Object.isFrozen(protocol)).toBe(true)
     expect(Object.isFrozen(ritual)).toBe(true)
     expect(Object.isFrozen(eventRead)).toBe(true)
@@ -64,5 +79,71 @@ describe('confirmed read-only Rituals RPC reader', () => {
   it('does not expose signing or transaction methods', () => {
     const reader = createRitualsRpcReader(new FakeConnection(), programId) as unknown as Record<string, unknown>
     expect(Object.keys(reader).some(key => /sign|send|transaction/i.test(key))).toBe(false)
+  })
+
+  it.each([
+    ['at opens', 100n, false],
+    ['at deadline', 200n, false],
+    ['before opens', 99n, true],
+    ['after deadline', 201n, true],
+  ])('accepts only claim timestamps in the canonical claim window: %s', async (_name, claimedAt, rejects) => {
+    const reader = createRitualsRpcReader(new FakeConnection(claimAt(claimedAt)), programId)
+    const ritual = await reader.getRitual(ritualAddress)
+    const eventRead = await reader.getEvent(ritual, 0)
+    const result = reader.getClaim(ritual, eventRead, new PublicKey(accountVectors.completionClaim.expected.claimant))
+    if (rejects) await expect(result).rejects.toMatchObject({ category: 'canonical', message: 'Completion claim does not match canonical Ritual, event, member, or window' })
+    else await expect(result).resolves.toBeDefined()
+  })
+
+  it('carries the confirmed snapshot slot monotonically into event and claim reads', async () => {
+    const connection = new FakeConnection(claim.data, [42, 50, 50])
+    const reader = createRitualsRpcReader(connection, programId)
+    const ritual = await reader.getRitual(ritualAddress)
+    const eventRead = await reader.getEvent(ritual, 0)
+    await reader.getClaim(ritual, eventRead, new PublicKey(accountVectors.completionClaim.expected.claimant), { minContextSlot: 10 })
+    expect(connection.calls.map(call => call.config)).toEqual([
+      { commitment: 'confirmed' },
+      { commitment: 'confirmed', minContextSlot: 42 },
+      { commitment: 'confirmed', minContextSlot: 50 },
+    ])
+  })
+
+  it('rejects an event snapshot below the ritual snapshot', async () => {
+    const connection = new FakeConnection(claim.data, [42, 41])
+    const reader = createRitualsRpcReader(connection, programId)
+    const ritual = await reader.getRitual(ritualAddress)
+    await expect(reader.getEvent(ritual, 0)).rejects.toMatchObject({ category: 'stale', message: 'Rituals RPC context is older than requested' })
+  })
+
+  it('rejects a supplied event context below its ritual snapshot', async () => {
+    const connection = new FakeConnection()
+    const reader = createRitualsRpcReader(connection, programId)
+    const ritual = await reader.getRitual(ritualAddress)
+    const eventRead = await reader.getEvent(ritual, 0)
+    const staleEvent = Object.freeze({ ...eventRead, slot: 41 })
+    await expect(reader.getClaim(ritual, staleEvent, new PublicKey(accountVectors.completionClaim.expected.claimant))).rejects.toMatchObject({ category: 'stale', message: 'event read context is older than ritual read' })
+  })
+
+  it('lets a higher user minimum override every snapshot slot', async () => {
+    const connection = new FakeConnection(claim.data, [42, 60, 60])
+    const reader = createRitualsRpcReader(connection, programId)
+    const ritual = await reader.getRitual(ritualAddress)
+    const eventRead = await reader.getEvent(ritual, 0, { minContextSlot: 60 })
+    await reader.getClaim(ritual, eventRead, new PublicKey(accountVectors.completionClaim.expected.claimant), { minContextSlot: 60 })
+    expect(connection.calls.map(call => call.config)).toEqual([
+      { commitment: 'confirmed' },
+      { commitment: 'confirmed', minContextSlot: 60 },
+      { commitment: 'confirmed', minContextSlot: 60 },
+    ])
+  })
+
+  it('rejects a confirmed RPC response with a sparse account value array', async () => {
+    const reader = createRitualsRpcReader(new FakeConnection(claim.data, [42], 'hole'), programId)
+    await expect(reader.getProtocolConfig()).rejects.toMatchObject({ category: 'rpc', message: 'Rituals RPC account value is missing' })
+  })
+
+  it('rejects an explicit undefined account value before decoding', async () => {
+    const reader = createRitualsRpcReader(new FakeConnection(claim.data, [42], 'undefined'), programId)
+    await expect(reader.getProtocolConfig()).rejects.toMatchObject({ category: 'rpc', message: 'Rituals RPC account is malformed' })
   })
 })
