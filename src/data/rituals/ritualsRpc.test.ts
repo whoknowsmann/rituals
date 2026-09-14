@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js'
 import { decodeProtocolConfig, decodeRitual } from './accounts'
 import { accountVectors, hexToBytes, ACCOUNT_VECTOR_OWNER } from './__fixtures__/accountVectors'
 import { claimPda, eventPda, protocolConfigPda, ritualPda } from './pdas'
-import { createCurrentRitualsRpcReader, createRitualsRpcReader, RitualRpcError } from './ritualsRpc'
+import { createCurrentRitualsRpcReader, createRitualsRpcReader, RitualRpcError, type EventRead } from './ritualsRpc'
 
 const programId = new PublicKey(ACCOUNT_VECTOR_OWNER)
 const config = { owner: programId, data: hexToBytes(accountVectors.protocolConfig.hex), executable: false }
@@ -122,6 +122,24 @@ describe('confirmed read-only Rituals RPC reader', () => {
     const eventRead = await reader.getEvent(ritual, 0)
     const staleEvent = Object.freeze({ ...eventRead, slot: 41 })
     await expect(reader.getClaim(ritual, staleEvent, new PublicKey(accountVectors.completionClaim.expected.claimant))).rejects.toMatchObject({ category: 'stale', message: 'event read context is older than ritual read' })
+  })
+
+  it.each([
+    ['member count', (event: EventRead) => Object.freeze({ ...event, account: Object.freeze({ ...event.account, memberCount: event.account.memberCount + 1 }) })],
+    ['window', (event: EventRead) => Object.freeze({ ...event, account: Object.freeze({ ...event.account, window: Object.freeze({ ...event.account.window, opens: event.account.window.opens + 1n }) }) })],
+    ['bump', (event: EventRead) => Object.freeze({ ...event, account: Object.freeze({ ...event.account, bump: event.account.bump ^ 1 }) })],
+    ['event index', (event: EventRead) => Object.freeze({ ...event, account: Object.freeze({ ...event.account, eventIndex: 1 }) })],
+    ['account ritual', (event: EventRead) => Object.freeze({ ...event, account: Object.freeze({ ...event.account, ritual: PublicKey.unique() }) })],
+    ['wrapper address', (event: EventRead) => Object.freeze({ ...event, address: PublicKey.unique() })],
+  ])('rejects a frozen supplied event with a non-canonical %s before fetching a claim', async (_name, forge) => {
+    const connection = new FakeConnection()
+    const reader = createRitualsRpcReader(connection, programId)
+    const ritual = await reader.getRitual(ritualAddress)
+    const eventRead = await reader.getEvent(ritual, 0)
+    const forgedEvent = forge(eventRead)
+
+    await expect(reader.getClaim(ritual, forgedEvent, new PublicKey(accountVectors.completionClaim.expected.claimant))).rejects.toMatchObject({ category: 'canonical' })
+    expect(connection.calls).toHaveLength(2)
   })
 
   it('lets a higher user minimum override every snapshot slot', async () => {

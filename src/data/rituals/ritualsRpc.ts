@@ -172,10 +172,16 @@ export class RitualsRpcReader {
   #checkEvent(value: EventRead, ritual: RitualRead): void {
     this.#checkRitual(ritual)
     try {
-      if (value === null || typeof value !== 'object' || Array.isArray(value) || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.ritualAddress instanceof PublicKey) || !value.ritualAddress.equals(ritual.address) || !(value.protocolConfigAddress instanceof PublicKey) || !value.protocolConfigAddress.equals(ritual.protocolConfigAddress) || value.protocolConfig !== ritual.protocolConfig || !(value.account && Object.isFrozen(value.account)) || value.ritual !== ritual || !value.account.ritual.equals(ritual.address)) throw failure('input', 'event read context is invalid')
+      if (value === null || typeof value !== 'object' || Array.isArray(value) || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.ritualAddress instanceof PublicKey) || !(value.protocolConfigAddress instanceof PublicKey) || !(value.account && Object.isFrozen(value.account)) || value.ritual !== ritual || value.protocolConfig !== ritual.protocolConfig) throw failure('input', 'event read context is invalid')
       if (value.slot < ritual.slot) throw failure('stale', 'event read context is older than ritual read')
-      const [canonicalAddress] = eventPda(ritual.address, value.account.eventIndex, this.#programId)
-      if (!value.address.equals(canonicalAddress)) throw failure('canonical', 'event read address is not canonical')
+      if (!value.ritualAddress.equals(ritual.address) || !value.protocolConfigAddress.equals(ritual.protocolConfigAddress)) throw failure('canonical', 'event read is bound to another ritual or protocol config')
+
+      const account = value.account
+      if (!Number.isSafeInteger(account.eventIndex) || account.eventIndex < 0 || account.eventIndex > 15) throw failure('input', 'event read context is invalid')
+      if (!account.ritual.equals(ritual.address) || account.eventIndex !== ritual.account.currentEventIndex || account.eventIndex >= ritual.account.schedule.length || account.memberCount !== ritual.account.members.length) throw failure('canonical', 'Ritual event is not bound to its ritual')
+      const expected = ritual.account.schedule[account.eventIndex]
+      const [canonicalAddress, canonicalBump] = eventPda(ritual.address, account.eventIndex, this.#programId)
+      if (account.window.opens !== expected.opens || account.window.deadline !== expected.deadline || account.window.resolution !== expected.resolution || account.bump !== canonicalBump || !value.address.equals(canonicalAddress)) throw failure('canonical', 'Ritual event does not match canonical schedule or PDA')
     } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'event read context is invalid', error) }
   }
 
@@ -185,10 +191,9 @@ export class RitualsRpcReader {
     const opts = options(readOptions); const effectiveOpts = Object.freeze({ minContextSlot: maxMin(opts.minContextSlot ?? 0, ritual.slot) }); const address = eventPda(ritual.address, eventIndex, this.#programId)[0]
     const fetched = await this.#fetch([address], effectiveOpts)
     const account = this.#decode(fetched.accounts[0], () => decodeRitualEvent(fetched.accounts[0], this.#programId)) as RitualEventAccountView
-    if (!account.ritual.equals(ritual.address) || account.eventIndex !== eventIndex || account.memberCount !== ritual.account.members.length) throw failure('canonical', 'Ritual event is not bound to its ritual')
-    const expected = ritual.account.schedule[eventIndex]
-    if (!expected || account.window.opens !== expected.opens || account.window.deadline !== expected.deadline || account.window.resolution !== expected.resolution || account.bump !== eventPda(ritual.address, eventIndex, this.#programId)[1] || !address.equals(eventPda(ritual.address, eventIndex, this.#programId)[0])) throw failure('canonical', 'Ritual event does not match canonical schedule or PDA')
-    return Object.freeze({ slot: fetched.slot, address, ritualAddress: ritual.address, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, account })
+    const candidate = Object.freeze({ slot: fetched.slot, address, ritualAddress: ritual.address, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, account })
+    this.#checkEvent(candidate, ritual)
+    return candidate
   }
 
   async getClaim(ritual: RitualRead, event: EventRead, claimant: PublicKey, readOptions?: ReadOptions): Promise<ClaimRead> {
