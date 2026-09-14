@@ -1,5 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import { RitualRpcError, RitualsRpcReader, type RitualBundleRead } from './ritualsRpc'
+import { RITUALS_CURRENT_CONFIG } from './programIds'
 
 export type RitualConfirmationErrorCategory = 'deployment' | 'input' | 'confirmation' | 'expired' | 'readback' | 'rpc'
 
@@ -40,6 +41,7 @@ export type ConfirmedRitualAction = Readonly<{
 }>
 
 const MAX_U64 = 0xffffffffffffffffn
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const BASE58 = /^[1-9A-HJ-NP-Za-km-z]+$/
 const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
 const safeSlot = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
@@ -67,6 +69,28 @@ function canonicalKey(value: unknown, name: string): string {
     return value as string
   } catch { return fail('input', `${name} is invalid`) }
 }
+function canonicalSignature(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 90 || !BASE58.test(value)) fail('input', 'transaction signature is invalid')
+  const signature = value as string
+  const bytes: number[] = [0]
+  for (const character of signature) {
+    const digit = BASE58_ALPHABET.indexOf(character)
+    if (digit < 0) fail('input', 'transaction signature is invalid')
+    let carry = digit
+    for (let index = 0; index < bytes.length; index += 1) {
+      const product = bytes[index] * 58 + carry
+      bytes[index] = product & 0xff
+      carry = product >>> 8
+    }
+    while (carry > 0) { bytes.push(carry & 0xff); carry >>>= 8 }
+  }
+  let leadingZeros = 0
+  while (leadingZeros < signature.length && signature[leadingZeros] === '1') leadingZeros += 1
+  const allZero = bytes.length === 1 && bytes[0] === 0
+  const decodedLength = allZero ? leadingZeros : bytes.length + leadingZeros
+  if (decodedLength !== 64) fail('input', 'transaction signature must decode to exactly 64 bytes')
+  return signature
+}
 function snapshotExpectation(value: unknown): RitualActionExpectation {
   if (!isRecord(value)) fail('input', 'Ritual expectation is invalid')
   const kind = read<unknown>(value as object, 'kind')
@@ -79,7 +103,7 @@ function snapshotExpectation(value: unknown): RitualActionExpectation {
   if (kind === 'funded') {
     const member = cloneKey(read<unknown>(value as object, 'member'), 'member')
     const count = read<unknown>(value as object, 'expectedFundedMemberCount'); const stake = read<unknown>(value as object, 'expectedFundedStakeTotal'); const fee = read<unknown>(value as object, 'expectedFundedFeeTotal')
-    if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 1 || count > 6 || !safeU64(stake) || !safeU64(fee)) fail('input', 'funding expectation is invalid')
+    if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 1 || count > 6 || !safeU64(stake) || stake === 0n || !safeU64(fee)) fail('input', 'funding expectation is invalid')
     return Object.freeze({ kind: 'funded' as const, member, expectedFundedMemberCount: count as number, expectedFundedStakeTotal: stake as bigint, expectedFundedFeeTotal: fee as bigint })
   }
   return fail('input', 'Ritual expectation kind is invalid')
@@ -87,12 +111,12 @@ function snapshotExpectation(value: unknown): RitualActionExpectation {
 function snapshotAction(value: unknown): Readonly<{ strategy: Readonly<{ signature: string; blockhash: string; lastValidBlockHeight: number }>; submittedContextSlot: number; ritualAddress: PublicKey; expectation: RitualActionExpectation }> {
   if (!isRecord(value)) fail('input', 'Submitted Ritual action is invalid')
   const signature = read<unknown>(value as object, 'signature'); const blockhash = read<unknown>(value as object, 'blockhash'); const height = read<unknown>(value as object, 'lastValidBlockHeight'); const submitted = read<unknown>(value as object, 'submittedContextSlot')
-  if (typeof signature !== 'string' || signature.length < 64 || signature.length > 90 || !BASE58.test(signature)) fail('input', 'transaction signature is invalid')
+  const canonicalSignatureValue = canonicalSignature(signature)
   const canonicalBlockhash = canonicalKey(blockhash, 'blockhash')
   if (!safeSlot(height) || !safeSlot(submitted)) fail('input', 'transaction heights are invalid')
   const ritualAddress = cloneKey(read<unknown>(value as object, 'ritualAddress'), 'ritualAddress')
   const expectation = snapshotExpectation(read<unknown>(value as object, 'expectation'))
-  return Object.freeze({ strategy: Object.freeze({ signature: signature as string, blockhash: canonicalBlockhash, lastValidBlockHeight: height as number }), submittedContextSlot: submitted as number, ritualAddress, expectation })
+  return Object.freeze({ strategy: Object.freeze({ signature: canonicalSignatureValue, blockhash: canonicalBlockhash, lastValidBlockHeight: height as number }), submittedContextSlot: submitted as number, ritualAddress, expectation })
 }
 function expired(error: unknown): boolean {
   if (!isRecord(error)) return false
@@ -157,4 +181,13 @@ export class RitualConfirmationVerifier {
 export function confirmAndReadRitual(reader: RitualsRpcReader, transport: RitualConfirmationTransport, action: SubmittedRitualAction): Promise<ConfirmedRitualAction> {
   return new RitualConfirmationVerifier(reader, transport).confirmAndReadRitual(action)
 }
+/** Explicit-program local/test verifier factory; this does not authorize deployment or signing. */
 export const createRitualConfirmationVerifier = (reader: RitualsRpcReader, transport: RitualConfirmationTransport): RitualConfirmationVerifier => new RitualConfirmationVerifier(reader, transport)
+/** Current production deployment is deliberately unavailable; fails before inspecting dependencies. */
+export function createCurrentRitualConfirmationVerifier(_reader: RitualsRpcReader, _transport: RitualConfirmationTransport): never {
+  void _reader
+  void _transport
+  const config: { deployment: string; programId: unknown } = RITUALS_CURRENT_CONFIG
+  if (config.deployment !== 'deployed' || config.programId === null) return fail('deployment', 'No authorized Rituals deployment is configured')
+  return fail('deployment', 'Current Ritual confirmation verifier is unavailable')
+}
