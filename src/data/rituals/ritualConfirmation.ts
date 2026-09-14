@@ -43,7 +43,9 @@ export type ConfirmedRitualAction = Readonly<{
 const MAX_U64 = 0xffffffffffffffffn
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const BASE58 = /^[1-9A-HJ-NP-Za-km-z]+$/
-const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  try { return value !== null && typeof value === 'object' && !Array.isArray(value) } catch { return false }
+}
 const safeSlot = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 const safeU64 = (value: unknown): value is bigint => typeof value === 'bigint' && value >= 0n && value <= MAX_U64
 const fail = (category: RitualConfirmationErrorCategory, message: string): never => { throw new RitualConfirmationError(category, message) }

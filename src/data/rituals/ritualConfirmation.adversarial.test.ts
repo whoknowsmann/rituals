@@ -56,6 +56,14 @@ describe('Ritual confirmation adversarial transport and snapshots', () => {
     const reads = new Map<string, number>(); const hostile = new Proxy(action(created), { get(_target, property) { const name = String(property); reads.set(name, (reads.get(name) ?? 0) + 1); throw new Error('secret') } })
     await expectInput(hostile); expect([...reads.values()]).toEqual([1])
   })
+  it('rejects a revoked action proxy as input without calling dependencies', async () => {
+    const revoked = Proxy.revocable(action(created), {}); revoked.revoke()
+    await expectInput(revoked.proxy)
+  })
+  it('rejects a revoked expectation proxy as input without calling dependencies', async () => {
+    const revoked = Proxy.revocable(created, {}); revoked.revoke()
+    await expectInput(action(revoked.proxy))
+  })
 
   it.each(invalidSignatures.map(([signature]) => ({ signature })))('rejects noncanonical signature %s', async ({ signature }) => expectInput(action(created, { signature })))
   it('accepts independent varying-length valid signatures', async () => {
@@ -92,6 +100,11 @@ describe('Ritual confirmation adversarial transport and snapshots', () => {
   it.each([
     null, [], 1, { context: null, value: { err: null } }, { context: [], value: { err: null } }, { context: { slot: -1 }, value: { err: null } }, { context: { slot: 1.5 }, value: { err: null } }, { context: { slot: '1' }, value: { err: null } }, { context: { slot: Number.MAX_SAFE_INTEGER + 1 }, value: { err: null } }, { context: { slot: 50 }, value: null }, { context: { slot: 50 }, value: [] }, { context: { slot: 50 }, value: {} },
   ])('rejects malformed confirmation response %o', async (response) => { const { reader } = ok(); await expect(new RitualConfirmationVerifier(reader, { confirmTransaction: async () => response as never }).confirmAndReadRitual(action(created))).rejects.toMatchObject({ category: 'confirmation' }); expect(reader.calls).toHaveLength(0) })
+  it('rejects a revoked confirmation response without calling the reader', async () => {
+    const { reader } = ok(); const revoked = Proxy.revocable({ context: { slot: 50 }, value: { err: null } }, {}); revoked.revoke()
+    await expect(new RitualConfirmationVerifier(reader, { confirmTransaction: async () => revoked.proxy as never }).confirmAndReadRitual(action(created))).rejects.toMatchObject({ category: 'confirmation' })
+    expect(reader.calls).toHaveLength(0)
+  })
   it.each([undefined, 'failed', {}, [], new Error('x')])('maps non-null transaction err to confirmation failure: %o', async (err) => { const { reader } = ok(); await expect(new RitualConfirmationVerifier(reader, { confirmTransaction: async () => ({ context: { slot: 50 }, value: { err } }) }).confirmAndReadRitual(action(created))).rejects.toMatchObject({ category: 'confirmation', message: 'transaction failed' }) })
   it('rejects inherited err and reads response getters once', async () => { const { reader } = ok(); const value = Object.create({ err: null }); await expect(new RitualConfirmationVerifier(reader, { confirmTransaction: async () => ({ context: { slot: 50 }, value }) as never }).confirmAndReadRitual(action(created))).rejects.toMatchObject({ category: 'confirmation' })
     let reads = 0; const response = { get context() { reads++; return { slot: 50 } }, get value() { reads++; return { err: null } } }; await new RitualConfirmationVerifier(reader, { confirmTransaction: async () => response as never }).confirmAndReadRitual(action(created)); expect(reads).toBe(2) })
