@@ -83,21 +83,33 @@ const options = (value?: ReadOptions): ReadOptions => {
   if (value === undefined) return Object.freeze({})
   if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new RitualRpcError('input', 'read options must be an object')
   let min: unknown
-  try { min = (value as { minContextSlot?: unknown }).minContextSlot } catch (error) { throw failure('input', 'read options could not be read', error) }
+  try { min = (value as { minContextSlot?: unknown }).minContextSlot } catch { throw failure('input', 'read options could not be read') }
   if (min !== undefined && (!isSafeSlot(min))) throw new RitualRpcError('input', 'minContextSlot must be a safe nonnegative integer')
   return Object.freeze(min === undefined ? {} : { minContextSlot: min })
 }
 
-function failure(category: RitualRpcErrorCategory, message: string, cause?: unknown): RitualRpcError {
-  void cause
+function failure(category: RitualRpcErrorCategory, message: string): RitualRpcError {
   return new RitualRpcError(category, message)
 }
 function wrapRpc(error: unknown): RitualRpcError {
-  return error instanceof RitualRpcError ? error : failure('rpc', 'Rituals RPC request failed', error)
+  return error instanceof RitualRpcError ? error : failure('rpc', 'Rituals RPC request failed')
 }
 function decodeFailure(error: unknown): RitualRpcError {
-  return error instanceof RitualRpcError ? error : failure('decode', 'Ritual account decoding failed', error)
+  return error instanceof RitualRpcError ? error : failure('decode', 'Ritual account decoding failed')
 }
+
+const immutableRitualEqual = (left: RitualAccountView, right: RitualAccountView): boolean => {
+  const sameKey = (a: PublicKey, b: PublicKey): boolean => a.equals(b)
+  const sameWindows = left.schedule.length === right.schedule.length && left.schedule.every((window, index) => {
+    const other = right.schedule[index]
+    return window.opens === other.opens && window.deadline === other.deadline && window.resolution === other.resolution
+  })
+  return left.schemaVersion === right.schemaVersion && sameKey(left.protocolConfig, right.protocolConfig) && sameKey(left.creator, right.creator) && left.nonce === right.nonce && left.ruleDigest === right.ruleDigest && sameKey(left.stakeMint, right.stakeMint) && left.members.length === right.members.length && left.members.every((member, index) => sameKey(member, right.members[index])) && left.memberTotalStake === right.memberTotalStake && left.perEventAllocation === right.perEventAllocation && sameWindows && left.additionalConfirmationThreshold === right.additionalConfirmationThreshold && left.feePayerMode === right.feePayerMode && left.lockedActivationFee === right.lockedActivationFee && left.stakeDecimals === right.stakeDecimals && sameKey(left.lockedFeeRecipient, right.lockedFeeRecipient) && sameKey(left.stakeVault, right.stakeVault) && sameKey(left.feeVault, right.feeVault) && left.stakeVaultBump === right.stakeVaultBump && left.feeVaultBump === right.feeVaultBump && left.createdAt === right.createdAt && left.bump === right.bump
+}
+
+const sameProtocolConfigIdentity = (left: ProtocolConfigAccountView, right: ProtocolConfigAccountView): boolean => left.schemaVersion === right.schemaVersion && left.allowedStakeMint.equals(right.allowedStakeMint)
+
+const bundleMismatch = (): never => { throw failure('canonical', 'Ritual immutable fields changed across bundle read') }
 
 /**
  * Read-only/local/test Rituals RPC reader. It has no signing or write capability.
@@ -147,12 +159,12 @@ export class RitualsRpcReader {
         if (raw === null) return null
         if (typeof raw !== 'object' || Array.isArray(raw)) throw failure('rpc', 'Rituals RPC account is malformed')
         let owner: unknown; let data: unknown; let executable: unknown
-        try { owner = (raw as { owner: unknown }).owner; data = (raw as { data: unknown }).data; executable = (raw as { executable: unknown }).executable } catch (error) { throw failure('rpc', 'Rituals RPC account could not be read', error) }
+        try { owner = (raw as { owner: unknown }).owner; data = (raw as { data: unknown }).data; executable = (raw as { executable: unknown }).executable } catch { throw failure('rpc', 'Rituals RPC account could not be read') }
         if (!(owner instanceof PublicKey) || !(data instanceof Uint8Array) || typeof executable !== 'boolean' || executable) throw failure('rpc', 'Rituals RPC account snapshot is invalid')
         return Object.freeze({ owner: new PublicKey(owner.toBytes()), data: new Uint8Array(data), executable: false })
       })
       return { slot, accounts }
-    } catch (error) { throw error instanceof RitualRpcError ? error : failure('rpc', 'Rituals RPC response is malformed', error) }
+    } catch (error) { throw error instanceof RitualRpcError ? error : failure('rpc', 'Rituals RPC response is malformed') }
   }
 
   #decode(account: RitualRpcAccountInfo | null, decoder: () => unknown): unknown {
@@ -184,7 +196,7 @@ export class RitualsRpcReader {
       if (!value.protocolConfigAddress.equals(this.#protocolConfigAddress) || !value.account.protocolConfig.equals(this.#protocolConfigAddress)) throw failure('canonical', 'ritual read is bound to another protocol config')
       const [canonicalAddress] = ritualPda(value.account.creator, value.account.nonce, this.#programId)
       if (!value.address.equals(canonicalAddress)) throw failure('canonical', 'ritual read address is not canonical')
-    } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'ritual read context is invalid', error) }
+    } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'ritual read context is invalid') }
   }
   #checkEvent(value: EventRead, ritual: RitualRead): void {
     this.#checkRitual(ritual)
@@ -201,7 +213,7 @@ export class RitualsRpcReader {
       const expected = ritual.account.schedule[account.eventIndex]
       const [canonicalAddress, canonicalBump] = eventPda(ritual.address, account.eventIndex, this.#programId)
       if (account.window.opens !== expected.opens || account.window.deadline !== expected.deadline || account.window.resolution !== expected.resolution || account.bump !== canonicalBump || !value.address.equals(canonicalAddress)) throw failure('canonical', 'Ritual event does not match canonical schedule or PDA')
-    } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'event read context is invalid', error) }
+    } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'event read context is invalid') }
   }
 
   async getEvent(ritual: RitualRead, eventIndex: number, readOptions?: ReadOptions): Promise<EventRead> {
@@ -228,6 +240,8 @@ export class RitualsRpcReader {
       ? discovery.account.schedule.length - 1
       : discovery.account.currentEventIndex
     let minContextSlot = maxMin(opts.minContextSlot ?? 0, discovery.slot)
+    const discoveryAccount = discovery.account
+    const discoveryProtocolConfig = discovery.protocolConfig
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const eventAddress = eventPda(target, requestedIndex, this.#programId)[0]
@@ -238,9 +252,10 @@ export class RitualsRpcReader {
       const ritual = Object.freeze({ slot: fetched.slot, address: target, protocolConfigAddress: this.protocolConfigAddress, protocolConfig, account })
       this.#ritualReads.add(ritual)
 
-      if (account.status === 'Funding' || account.status === 'Cancelled') {
-        return Object.freeze({ slot: fetched.slot, ritual, event: null, claims: Object.freeze([]) })
-      }
+      if (!sameProtocolConfigIdentity(discoveryProtocolConfig, protocolConfig) || !immutableRitualEqual(discoveryAccount, account)) bundleMismatch()
+      if (account.status === 'Funding' || account.status === 'Cancelled') throw failure('canonical', 'Ritual lifecycle changed across bundle read')
+      if (discovery.account.status === 'Completed' && account.status !== 'Completed') throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
+      if (discovery.account.status === 'Active' && account.status !== 'Active' && account.status !== 'Completed') throw failure('canonical', 'Ritual lifecycle changed across bundle read')
       const nextIndex = account.status === 'Completed' ? account.schedule.length - 1 : account.currentEventIndex
       if (nextIndex !== requestedIndex) {
         discovery = ritual
@@ -248,6 +263,11 @@ export class RitualsRpcReader {
         minContextSlot = fetched.slot
         continue
       }
+      if (discovery.account.status === 'Active' && account.status === 'Active' && nextIndex < discovery.account.currentEventIndex) throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
+
+      const expectedEventAddress = eventPda(target, nextIndex, this.#programId)[0]
+      const expectedClaimAddresses = account.members.map(member => claimPda(expectedEventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[0])
+      if (!eventAddress.equals(expectedEventAddress) || claimAddresses.length !== expectedClaimAddresses.length || claimAddresses.some((address, index) => !address.equals(expectedClaimAddresses[index]))) bundleMismatch()
 
       const rawEvent = fetched.accounts[2]
       if (rawEvent === null) {
