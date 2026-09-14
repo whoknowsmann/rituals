@@ -34,6 +34,7 @@ const failBuild = (fn: () => unknown) => { expect(fn).toThrow(RitualInstructionB
 const withRitual = (change: Partial<RitualAccountView>) => ({ ...args.initialize, ritual: { address: ritualAddress, account: { ...ritualAccount, ...change } } })
 const withEvent = (change: Partial<RitualEventAccountView>) => ({ ...args.approve, event: { address: eventAddress, account: { ...claimed.account, ...change } } })
 const withClaim = (change: Partial<CompletionClaimAccountView>) => ({ ...args.approve, claim: { address: claimAddress, account: { ...claimAccount, ...change } } })
+const withQuestionClaim = (change: Partial<CompletionClaimAccountView>) => ({ ...args.question, claim: { address: claimAddress, account: { ...claimAccount, ...change } } })
 
 // These rows deliberately use decoded-view-shaped objects, not raw account fixtures.
 describe('event builders: canonical cross-account matrix', () => {
@@ -53,7 +54,8 @@ describe('event builders: canonical cross-account matrix', () => {
     ['window opens', () => buildApproveClaimInstruction(withEvent({ window: { ...claimed.account.window, opens: claimed.account.window.opens + 1n } }))],
     ['window deadline', () => buildApproveClaimInstruction(withEvent({ window: { ...claimed.account.window, deadline: claimed.account.window.deadline + 1n } }))],
     ['window resolution', () => buildApproveClaimInstruction(withEvent({ window: { ...claimed.account.window, resolution: claimed.account.window.resolution + 1n } }))],
-    ['event bump', () => buildApproveClaimInstruction({ ...withEvent({}), event: { ...withEvent({}).event, address: key(90) } })],
+    ['event address', () => buildApproveClaimInstruction({ ...withEvent({}), event: { ...withEvent({}).event, address: key(90) } })],
+    ['event bump', () => buildApproveClaimInstruction(withEvent({ bump: (eventAccount.bump + 1) % 256 }))],
     ['claim address', () => buildApproveClaimInstruction({ ...args.approve, claim: { ...claim, address: key(90) } })],
     ['claim ritual', () => buildApproveClaimInstruction(withClaim({ ritual: key(90) }))],
     ['claim event', () => buildApproveClaimInstruction(withClaim({ event: key(90) }))],
@@ -109,6 +111,9 @@ describe('claim, approve, and question state matrix', () => {
     ['approve self', () => buildApproveClaimInstruction({ ...args.approve, approver: claimAccount.claimant })],
     ['approve nonmember', () => buildApproveClaimInstruction({ ...args.approve, approver: key(90) })],
     ['approve duplicate', () => buildApproveClaimInstruction({ ...args.approve, claim: { ...claim, account: { ...claimAccount, approvalsBitmap: 4, approvalCount: 1 } } })],
+    ['approve unfunded prior approval', () => buildApproveClaimInstruction({ ...args.approve, ritual: { ...ritual, account: { ...ritualAccount, fundedMembersBitmap: 3 } }, approver: ritualAccount.members[0], claim: { ...claim, account: { ...claimAccount, approvalsBitmap: 4, approvalCount: 1 } } })],
+    ['approve claimed before window', () => buildApproveClaimInstruction(withClaim({ claimedAt: claimed.account.window.opens - 1n }))],
+    ['approve claimed after window', () => buildApproveClaimInstruction(withClaim({ claimedAt: claimed.account.window.deadline + 1n }))],
     ['question Settled', () => buildQuestionClaimInstruction({ ...args.question, event: { ...claimed, account: { ...claimed.account, status: 'Settled' } } })],
     ['question Confirmed', () => buildQuestionClaimInstruction(withClaim({ status: 'Confirmed' }) as never)],
     ['question missing claimed bit', () => buildQuestionClaimInstruction({ ...args.question, event: { ...claimed, account: { ...claimed.account, claimedMembersBitmap: 0 } } })],
@@ -116,6 +121,9 @@ describe('claim, approve, and question state matrix', () => {
     ['question self', () => buildQuestionClaimInstruction({ ...args.question, questioner: claimAccount.claimant })],
     ['question nonmember', () => buildQuestionClaimInstruction({ ...args.question, questioner: key(90) })],
     ['question prior approval', () => buildQuestionClaimInstruction({ ...args.question, claim: { ...claim, account: { ...claimAccount, approvalsBitmap: 4, approvalCount: 1 } } })],
+    ['question unfunded prior approval', () => buildQuestionClaimInstruction({ ...args.question, ritual: { ...ritual, account: { ...ritualAccount, fundedMembersBitmap: 3 } }, questioner: ritualAccount.members[0], claim: { ...claim, account: { ...claimAccount, approvalsBitmap: 4, approvalCount: 1 } } })],
+    ['question claimed before window', () => buildQuestionClaimInstruction(withQuestionClaim({ claimedAt: claimed.account.window.opens - 1n }) as never)],
+    ['question claimed after window', () => buildQuestionClaimInstruction(withQuestionClaim({ claimedAt: claimed.account.window.deadline + 1n }) as never)],
   ])('rejects %s', (_name, build) => failBuild(build))
   it.each(['Claiming', 'Resolving'] as const)('accepts approve in %s', status => expect(() => buildApproveClaimInstruction({ ...args.approve, event: { ...claimed, account: { ...claimed.account, status } } })).not.toThrow())
   it.each(['Claiming', 'Resolving'] as const)('accepts question in %s', status => expect(() => buildQuestionClaimInstruction({ ...args.question, event: { ...claimed, account: { ...claimed.account, status } } })).not.toThrow())
@@ -124,12 +132,32 @@ describe('claim, approve, and question state matrix', () => {
       expect(ix.keys).toHaveLength(4); expect(ix.keys[3].isSigner).toBe(true); expect(ix.keys[3].isWritable).toBe(false); expect(ix.data).toHaveLength(9)
     }
   })
+  it.each([claimed.account.window.opens, claimed.account.window.deadline])('accepts claimedAt boundary %s', claimedAt => {
+    expect(() => buildApproveClaimInstruction(withClaim({ claimedAt }))).not.toThrow()
+    expect(() => buildQuestionClaimInstruction(withQuestionClaim({ claimedAt }) as never)).not.toThrow()
+  })
+  it('accepts a scheduled or claiming unclaimed event for every funded claimant index with derived claim meta', () => {
+    for (const status of ['Scheduled', 'Claiming'] as const) {
+      for (let index = 0; index < ritualAccount.members.length; index += 1) {
+        const eventView = { ...scheduled, account: { ...scheduled.account, status, claimedMembersBitmap: 0 } }
+        const ix = buildClaimCompletionInstruction({ ...args.claim, event: eventView, claimant: ritualAccount.members[index] })
+        expect(ix.keys[2].pubkey).toEqual(claimPda(eventAddress, ritualAccount.members[index], 0, programId)[0])
+      }
+    }
+  })
+  it('rejects unfunded actors for approval and question independently', () => {
+    const partial = { ...ritual, account: { ...ritualAccount, fundedMembersBitmap: 2 } }
+    failBuild(() => buildApproveClaimInstruction({ ...args.approve, ritual: partial, approver: ritualAccount.members[0] }))
+    failBuild(() => buildQuestionClaimInstruction({ ...args.question, ritual: partial, questioner: ritualAccount.members[0] }))
+  })
 })
 
 describe('finalize and close state/shape matrix', () => {
   it.each(['Settled', 'Voided'] as const)('rejects finalize %s', status => failBuild(() => buildFinalizeEventInstruction({ ...args.finalize, event: { ...event, account: { ...eventAccount, status } } })))
   it.each([
     ['settlement version', { settlementVersion: 1 }], ['resolvedAt', { resolvedAt: 1n }], ['receipt event pool', { eventPool: 1n }],
+    ['forfeited total', { forfeitedTotal: 1n }], ['payout total', { payoutTotal: 1n }], ['refunded total', { refundedTotal: 1n }],
+    ['confirmed member count', { confirmedMemberCount: 1 }], ['remainder units', { remainderUnits: 1n }], ['remaining stake total after', { remainingStakeTotalAfter: 1n }], ['void reason', { voidReason: 'Other' }],
     ['duplicate destinations', { destinationTokenAccounts: [key(41), key(41), key(43)] }], ['stake vault destination', { destinationTokenAccounts: [key(41), ritualAccount.stakeVault, key(43)] }],
     ['fee vault destination', { destinationTokenAccounts: [key(41), ritualAccount.feeVault, key(43)] }], ['sparse destinations', { destinationTokenAccounts: Object.assign([], { 2: key(43), length: 3 }) }],
   ])('rejects finalize %s', (_name, change) => failBuild(() => {
@@ -144,7 +172,22 @@ describe('finalize and close state/shape matrix', () => {
       list[0] = key(99); expect(ix.keys[5].pubkey).toEqual(key(41))
     }
   })
-  it.each(['Completed', 'Cancelled'] as const)('accepts coherent terminal ritual %s', status => expect(() => buildCloseTerminalVaultsInstruction({ ...args.close, ritual: terminalRitual(status) })).not.toThrow())
+  it('accepts coherent N2 and N6 routing views with exact destination order and flags', () => {
+    for (const count of [2, 6]) {
+      const members = Array.from({ length: count }, (_, index) => key(60 + index))
+      members[0] = ritualAccount.members[0]
+      const ritualView = { address: ritualAddress, account: { ...ritualAccount, members, fundedMembersBitmap: (1 << count) - 1 } }
+      const eventView = { address: eventAddress, account: { ...eventAccount, memberCount: count, claimedMembersBitmap: 0, confirmedMembersBitmap: 0, questionedMembersBitmap: 0 } }
+      const destinationList = members.map((_, index) => key(100 + index))
+      const ix = buildFinalizeEventInstruction({ ...args.finalize, ritual: ritualView, event: eventView, destinationTokenAccounts: destinationList })
+      expect(ix.keys).toHaveLength(5 + count)
+      expect(ix.keys.slice(5).map(meta => meta.pubkey)).toEqual(destinationList)
+      expect(ix.keys.slice(5).every(meta => meta.isWritable && !meta.isSigner)).toBe(true)
+      destinationList[0] = key(199)
+      expect(ix.keys[5].pubkey).toEqual(key(100))
+    }
+  })
+  it.each(['Completed', 'Cancelled'] as const)('accepts decoded-view-shaped terminal context %s', status => expect(() => buildCloseTerminalVaultsInstruction({ ...args.close, ritual: terminalRitual(status) })).not.toThrow())
   it.each(['Funding', 'Active'] as const)('rejects nonterminal ritual %s', status => failBuild(() => buildCloseTerminalVaultsInstruction({ ...args.close, ritual: { address: ritualAddress, account: { ...ritualAccount, status } } })))
   it('rejects already closed vaults and emits immutable creator rent meta', () => {
     failBuild(() => buildCloseTerminalVaultsInstruction({ ...args.close, ritual: terminalRitual('Completed', true) }))

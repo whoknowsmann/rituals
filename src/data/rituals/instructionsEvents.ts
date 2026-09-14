@@ -57,6 +57,8 @@ function claimParts(programId: PublicKey, ritual: RitualParts, event: EventParts
   if (memberIndex >= ritual.members.length || !ritualAddress.equals(ritual.address) || !eventAddress.equals(event.address) || index !== event.eventIndex || !ritual.members[memberIndex].equals(claimant) || claimVersion !== CURRENT_CLAIM_VERSION || required !== ritual.additionalConfirmationThreshold) fail('canonical', 'claim context is not canonical')
   let derived: [PublicKey, number]; try { derived = claimPda(event.address, claimant, CURRENT_CLAIM_VERSION, programId) } catch { return fail('canonical', 'claim PDA derivation failed') }; if (!address.equals(derived[0]) || bump !== derived[1]) fail('canonical', 'claim context is not canonical')
   if (!['Pending', 'Confirmed', 'Questioned'].includes(status)) fail('input', 'claim.status is invalid')
+  if (claimedAt < event.window.opens || claimedAt > event.window.deadline) fail('invariant', 'claim.claimedAt is outside event window')
+  if ((approvals & ~ritual.fundedMembersBitmap) !== 0) fail('authorization', 'claim approvals include unfunded ritual members')
   return Object.freeze({ address, ritual: ritualAddress, event: eventAddress, eventIndex: index, claimant, memberIndex, claimVersion, status, requiredAdditionalConfirmations: required, approvalsBitmap: approvals, approvalCount, claimedAt, bump })
 }
 function active(ritual: RitualParts): void { if (ritual.status !== 'Active' || ritual.currentEventIndex >= ritual.schedule.length) fail('invariant', 'ritual must be Active with a current event') }
