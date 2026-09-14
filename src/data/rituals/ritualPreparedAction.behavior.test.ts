@@ -114,7 +114,7 @@ const expectCategory = async (promise: Promise<unknown>, category: string) => {
     mutable.ritual.nonce = 99n; mutable.ritual.members = [key(8), key(7)]; mutable.ritual.ruleDigest = 'aa'.repeat(32) as never
     mutable.ritual.schedule[0].opens = 999n; mutable.ritual.feePayerMode = 'SPLIT'
     release(); const action = await pending; const wallet = preparer.getTransactionForWallet(action)
-    expect(wallet.expectation.creator.equals(key(1))).toBe(true); expect(wallet.expectation.nonce).toBe(7n)
+    expect(wallet.expectation.creator).toBe(key(1).toBase58()); expect(wallet.expectation.nonce).toBe(7n)
     expect(wallet.transaction.instructions[0].data[8]).toBe(7)
     expect(wallet.transaction.feePayer?.equals(key(1))).toBe(true)
   })
@@ -153,6 +153,30 @@ const expectCategory = async (promise: Promise<unknown>, category: string) => {
     expect(action.messageDigest).toMatch(/^[0-9a-f]{64}$/); expect(action.summary.networkFeeIsEstimate).toBe(true)
     expect('transaction' in action).toBe(false); expect('instruction' in action).toBe(false); expect('messageBytes' in action).toBe(false); expect('blockhash' in action).toBe(false)
     expect(Object.isFrozen(action.expectation)).toBe(true)
+  })
+
+  it('exposes canonical scalar metadata without mutable web3 objects or shared snapshots', async () => {
+    const { preparer } = prepare(); const action = await preparer.prepareCreate(baseArgs())
+    const wallet = preparer.getTransactionForWallet(action)
+    const publicMetadata = { action, wallet: { ...wallet, transaction: undefined } }
+    const forbidden = (value: unknown, seen = new Set<object>()): void => {
+      if (value === null || typeof value !== 'object' || seen.has(value)) return
+      seen.add(value)
+      expect(value).not.toBeInstanceOf(PublicKey)
+      expect(value).not.toBeInstanceOf(Uint8Array)
+      expect(value).not.toBeInstanceOf(Transaction)
+      for (const child of Object.values(value)) forbidden(child, seen)
+    }
+    forbidden(publicMetadata)
+    expect(action.programId).toBe(LOCAL_PLACEHOLDER_PROGRAM_ID.toBase58())
+    expect(action.ritualAddress).toBe(wallet.ritualAddress)
+    expect(action.feePayer).toBe(key(1).toBase58())
+    expect(action.summary.tokenMint).toBe(key(2).toBase58())
+    expect(action.expectation.creator).toBe(key(1).toBase58())
+    expect(wallet.expectation).toBe(action.expectation)
+    for (const text of [action.programId, action.ritualAddress, action.feePayer, action.summary.tokenMint, action.expectation.creator, wallet.ritualAddress]) {
+      expect(new PublicKey(text).toBase58()).toBe(text)
+    }
   })
 
   it.each([

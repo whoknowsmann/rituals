@@ -6,6 +6,7 @@ import { Message, PublicKey, Transaction, TransactionInstruction } from '@solana
 import type { BuildCreateRitualArgs } from './instructionsLifecycle'
 import { buildCreateRitualInstruction } from './instructionsLifecycle'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
+import type { PublicKeyText } from '../../domain/rituals/types'
 
 const MAX_SAFE = Number.MAX_SAFE_INTEGER
 
@@ -26,7 +27,7 @@ export type RitualPreparationTransport = {
 }
 export type RitualPreparationSummary = Readonly<{
   clusterLabel: 'local/test-unconfigured'
-  tokenMint: PublicKey
+  tokenMint: PublicKeyText
   tokenOutflow: 0n
   stakeOutflow: 0n
   activationFeeOutflow: 0n
@@ -38,14 +39,14 @@ export type RitualPreparationSummary = Readonly<{
 }>
 export type PreparedRitualAction = Readonly<{
   kind: 'create'
-  programId: PublicKey
-  ritualAddress: PublicKey
-  feePayer: PublicKey
+  programId: PublicKeyText
+  ritualAddress: PublicKeyText
+  feePayer: PublicKeyText
   blockhashContextSlot: number
   lastValidBlockHeight: number
   messageDigest: string
   summary: RitualPreparationSummary
-  expectation: Readonly<{ kind: 'created'; creator: PublicKey; nonce: bigint }>
+  expectation: Readonly<{ kind: 'created'; creator: PublicKeyText; nonce: bigint }>
 }>
 export type WalletRitualTransaction = Readonly<{
   transaction: Transaction
@@ -53,8 +54,8 @@ export type WalletRitualTransaction = Readonly<{
   expectedMessageDigest: string
   submittedContextSlot: number
   lastValidBlockHeight: number
-  expectation: Readonly<{ kind: 'created'; creator: PublicKey; nonce: bigint }>
-  ritualAddress: PublicKey
+  expectation: Readonly<{ kind: 'created'; creator: PublicKeyText; nonce: bigint }>
+  ritualAddress: PublicKeyText
 }>
 
 type Internal = {
@@ -67,10 +68,11 @@ type Internal = {
   instruction: TransactionInstruction
   messageBytes: Uint8Array
   messageDigest: string
-  expectation: Readonly<{ kind: 'created'; creator: PublicKey; nonce: bigint }>
+  expectation: Readonly<{ kind: 'created'; creator: PublicKeyText; nonce: bigint }>
 }
 const fail = (category: PreparationCategory, message: string): never => { throw new RitualPreparationError(category, message) }
 const copyKey = (key: PublicKey): PublicKey => new PublicKey(Uint8Array.from(key.toBytes()))
+const keyText = (key: PublicKey): PublicKeyText => key.toBase58() as PublicKeyText
 const copyInstruction = (instruction: TransactionInstruction): TransactionInstruction => new TransactionInstruction({
   programId: copyKey(instruction.programId),
   keys: instruction.keys.map(meta => ({ pubkey: copyKey(meta.pubkey), isSigner: meta.isSigner, isWritable: meta.isWritable })),
@@ -193,10 +195,10 @@ export class RitualActionPreparer {
     const total = BigInt(networkFee) + rentTotal
     const messageBytes = Uint8Array.from(transaction.serializeMessage())
     const messageDigest = hex(sha256(messageBytes))
-    const expectation = Object.freeze({ kind: 'created' as const, creator: copyKey(feePayer), nonce })
+    const expectation = Object.freeze({ kind: 'created' as const, creator: keyText(feePayer), nonce })
     const internal: Internal = { programId: copyKey(this.programId), feePayer, ritualAddress, blockhash: recentBlockhash, lastValidBlockHeight, blockhashContextSlot: slot, instruction: instructionCopy, messageBytes, messageDigest, expectation }
-    const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint, tokenOutflow: 0n, stakeOutflow: 0n, activationFeeOutflow: 0n, estimatedNetworkFeeLamports: BigInt(networkFee), estimatedRentLamports: rentTotal, totalEstimatedLamportOutflow: total, creates: Object.freeze({ description: 'ritual, stake vault, and fee vault' as const, count: 3 as const }), networkFeeIsEstimate: true as const })
-    const action = Object.freeze({ kind: 'create' as const, programId: copyKey(this.programId), ritualAddress: copyKey(ritualAddress), feePayer: copyKey(feePayer), blockhashContextSlot: slot, lastValidBlockHeight, messageDigest, summary, expectation })
+    const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint: keyText(tokenMint), tokenOutflow: 0n, stakeOutflow: 0n, activationFeeOutflow: 0n, estimatedNetworkFeeLamports: BigInt(networkFee), estimatedRentLamports: rentTotal, totalEstimatedLamportOutflow: total, creates: Object.freeze({ description: 'ritual, stake vault, and fee vault' as const, count: 3 as const }), networkFeeIsEstimate: true as const })
+    const action = Object.freeze({ kind: 'create' as const, programId: keyText(this.programId), ritualAddress: keyText(ritualAddress), feePayer: keyText(feePayer), blockhashContextSlot: slot, lastValidBlockHeight, messageDigest, summary, expectation })
     this.#snapshots.set(action, internal)
     return action
   }
@@ -206,7 +208,7 @@ export class RitualActionPreparer {
     const transaction = new Transaction({ feePayer: copyKey(snapshot.feePayer), blockhash: snapshot.blockhash, lastValidBlockHeight: snapshot.lastValidBlockHeight })
     transaction.add(copyInstruction(snapshot.instruction))
     if (!equalBytes(Uint8Array.from(transaction.serializeMessage()), snapshot.messageBytes)) fail('mutation', 'prepared message reconstruction changed')
-    return Object.freeze({ transaction, blockhash: snapshot.blockhash, expectedMessageDigest: snapshot.messageDigest, submittedContextSlot: snapshot.blockhashContextSlot, lastValidBlockHeight: snapshot.lastValidBlockHeight, expectation: snapshot.expectation, ritualAddress: copyKey(snapshot.ritualAddress) })
+    return Object.freeze({ transaction, blockhash: snapshot.blockhash, expectedMessageDigest: snapshot.messageDigest, submittedContextSlot: snapshot.blockhashContextSlot, lastValidBlockHeight: snapshot.lastValidBlockHeight, expectation: snapshot.expectation, ritualAddress: keyText(snapshot.ritualAddress) })
   }
 
   assertWalletTransactionUnchanged(prepared: PreparedRitualAction, transaction: Transaction): void {
