@@ -58,8 +58,13 @@ function readConfirmation<T>(object: object, property: string): T {
   try { return (object as Record<string, unknown>)[property] as T } catch { return fail('confirmation', 'transaction confirmation response is malformed') }
 }
 function cloneKey(value: unknown, name: string): PublicKey {
-  if (!(value instanceof PublicKey) || value.equals(PublicKey.default)) fail('input', `${name} must be a non-default PublicKey`)
-  try { return new PublicKey((value as PublicKey).toBytes()) } catch { return fail('input', `${name} must be a readable PublicKey`) }
+  try {
+    if (!(value instanceof PublicKey) || value.equals(PublicKey.default)) fail('input', `${name} must be a non-default PublicKey`)
+    return new PublicKey((value as PublicKey).toBytes())
+  } catch (error) {
+    if (error instanceof RitualConfirmationError) throw error
+    return fail('input', `${name} must be a readable PublicKey`)
+  }
 }
 function canonicalKey(value: unknown, name: string): string {
   if (typeof value !== 'string' || value.length === 0 || !BASE58.test(value)) fail('input', `${name} is invalid`)
@@ -143,7 +148,10 @@ export class RitualConfirmationVerifier {
   readonly #reader: RitualsRpcReader
   readonly #confirm: RitualConfirmationTransport['confirmTransaction']
   constructor(reader: RitualsRpcReader, transport: RitualConfirmationTransport) {
-    if (!(reader instanceof RitualsRpcReader)) fail('input', 'Ritual confirmation reader is invalid')
+    try { if (!(reader instanceof RitualsRpcReader)) fail('input', 'Ritual confirmation reader is invalid') } catch (error) {
+      if (error instanceof RitualConfirmationError) throw error
+      fail('input', 'Ritual confirmation reader is invalid')
+    }
     if (transport === null || typeof transport !== 'object' || Array.isArray(transport)) fail('input', 'Ritual confirmation transport is invalid')
     let method: unknown
     try { method = transport.confirmTransaction } catch { fail('input', 'Ritual confirmation transport is invalid') }
