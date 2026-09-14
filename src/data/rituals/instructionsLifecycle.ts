@@ -133,13 +133,15 @@ function buildActivateRitualInstructionUnsafe(args: BuildActivateRitualArgs): Tr
 }
 
 function buildCancelUnactivatedInstructionUnsafe(args: BuildCancelUnactivatedArgs): TransactionInstruction {
-  const p = program(read(args, 'programId')); const parts = ritualKeys(p, read(args, 'ritual')); const account = parts.context.account; requireStatus(account, 'Funding'); const caller = key(read(args, 'caller'), 'caller'); const destinations = read(args, 'destinationTokenAccounts')
+  const p = program(read(args, 'programId')); const parts = ritualKeys(p, read(args, 'ritual')); const account = parts.context.account; requireStatus(account, 'Funding'); // The chain clock authorizes cancellation: before the first window only the creator
+ // is accepted onchain; after it opens any signer is accepted. This clockless builder
+ // therefore validates only that caller is a real signer and never accepts local `now`.
+ const caller = key(read(args, 'caller'), 'caller'); const destinations = read(args, 'destinationTokenAccounts')
+
   if (!Array.isArray(destinations) || destinations.length !== account.members.length) fail('invariant', 'destination count must equal member count')
   const normalized = (destinations as unknown[]).map((item: unknown, index: number) => key(item, `destinationTokenAccounts[${index}]`))
   if (new Set(normalized.map(item => item.toBase58())).size !== normalized.length) fail('invariant', 'destinations must be unique')
   if (normalized.some(item => item.equals(parts.stakeVault) || item.equals(parts.feeVault))) fail('invariant', 'destinations must not be ritual vaults')
-  const callerIndex = account.members.findIndex(item => item.equals(caller)); const fundedCaller = callerIndex >= 0 && (account.fundedMembersBitmap & (1 << callerIndex)) !== 0
-  if (!caller.equals(account.creator) && !fundedCaller) fail('authorization', 'caller must be creator or funded member')
   const base: { pubkey: PublicKey; isWritable: boolean; isSigner: boolean }[] = [{ pubkey: parts.context.address, isWritable: true, isSigner: false }, { pubkey: caller, isWritable: false, isSigner: true }, { pubkey: parts.stakeMint, isWritable: false, isSigner: false }, { pubkey: parts.stakeVault, isWritable: true, isSigner: false }, { pubkey: parts.feeVault, isWritable: true, isSigner: false }, { pubkey: TOKEN_PROGRAM_ID, isWritable: false, isSigner: false }]
   return instruction(p, [...base, ...normalized.map(pubkey => ({ pubkey, isWritable: true, isSigner: false }))], encodeCancelUnactivatedData())
 }
