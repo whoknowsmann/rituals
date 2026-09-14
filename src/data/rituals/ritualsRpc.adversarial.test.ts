@@ -202,11 +202,29 @@ describe('Ritual RPC adversarial transport and input matrix', () => {
     ['wrong ritual address', Object.freeze({ slot: 100, address: PublicKey.default, protocolConfigAddress: configAddress, protocolConfig: configView, account: ritualView })],
   ])('rejects unsafe supplied ritual context: %s', async (_name, supplied) => {
     const r = reader()
-    await expectError(r.getEvent(supplied as never, 0), ['wrong ritual config', 'wrong ritual address'].includes(_name) ? 'canonical' : 'input')
+    await expectError(r.getEvent(supplied as never, 0), 'input')
+  })
+  it('redacts arbitrary transport causes from public RPC errors', async () => {
+    const error = await rError(reader(new FakeTransport({ reject: { provider: 'provider-secret', endpoint: 'endpoint-secret', decoder: 'decoder-secret' } })).getProtocolConfig())
+    expect(error).toMatchObject({ category: 'rpc', message: 'Rituals RPC request failed' })
+    expect(Object.prototype.hasOwnProperty.call(error, 'cause')).toBe(false)
+    expect(JSON.stringify(error)).not.toContain('secret')
+    expect(Object.keys(error as object)).not.toContain('cause')
+  })
+  it('seals ritual and event contexts to their producing reader', async () => {
+    const transport = new FakeTransport(); const a = reader(transport); const b = reader(transport)
+    const ritual = await a.getRitual(ritualAddress); const eventRead = await a.getEvent(ritual, 0)
+    await expect(a.getEvent(Object.freeze({ ...ritual }) as never, 0)).rejects.toMatchObject({ category: 'input', message: 'ritual read context is not produced by this reader' })
+    await expect(b.getEvent(ritual, 0)).rejects.toMatchObject({ category: 'input', message: 'ritual read context is not produced by this reader' })
+    await expect(a.getClaim(ritual, Object.freeze({ ...eventRead }) as never, claimant)).rejects.toMatchObject({ category: 'input', message: 'event read context is not produced by this reader' })
+    await expect(b.getClaim(ritual, eventRead, claimant)).rejects.toMatchObject({ category: 'input', message: 'ritual read context is not produced by this reader' })
+    expect(transport.calls).toHaveLength(2)
   })
 })
 
-// Canonical mutations are made on valid serialized allocations, so decoder success
+const rError = async (promise: Promise<unknown>): Promise<unknown> => {
+  try { await promise; throw new Error('expected rejection') } catch (error) { return error }
+}
 // is distinct from the RPC reader's cross-account binding checks.
 describe('Ritual RPC canonical bindings', () => {
   const canonical = async (eventBytes = eventData, claimBytes = claimData) => {

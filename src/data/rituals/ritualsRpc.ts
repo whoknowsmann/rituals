@@ -1,19 +1,16 @@
 import { PublicKey } from '@solana/web3.js'
 import { decodeCompletionClaim, decodeProtocolConfig, decodeRitual, decodeRitualEvent, type CompletionClaimAccountView, type ProtocolConfigAccountView, type RitualAccountView, type RitualEventAccountView } from './accounts'
 import { claimPda, eventPda, protocolConfigPda, ritualPda, CURRENT_CLAIM_VERSION } from './pdas'
-import { RITUALS_CURRENT_CONFIG } from './programIds'
 
 /** Stable failure classes for the read-only Rituals RPC boundary. */
 export type RitualRpcErrorCategory = 'deployment' | 'input' | 'rpc' | 'not-found' | 'stale' | 'decode' | 'canonical'
 
 export class RitualRpcError extends Error {
   readonly category: RitualRpcErrorCategory
-  readonly cause?: unknown
-  constructor(category: RitualRpcErrorCategory, message: string, cause?: unknown) {
+  constructor(category: RitualRpcErrorCategory, message: string) {
     super(message)
     this.name = 'RitualRpcError'
     this.category = category
-    this.cause = cause
   }
 }
 
@@ -78,7 +75,8 @@ const options = (value?: ReadOptions): ReadOptions => {
 }
 
 function failure(category: RitualRpcErrorCategory, message: string, cause?: unknown): RitualRpcError {
-  return new RitualRpcError(category, message, cause)
+  void cause
+  return new RitualRpcError(category, message)
 }
 function wrapRpc(error: unknown): RitualRpcError {
   return error instanceof RitualRpcError ? error : failure('rpc', 'Rituals RPC request failed', error)
@@ -96,6 +94,8 @@ export class RitualsRpcReader {
   readonly #transport: RitualRpcTransport
   readonly #programId: PublicKey
   readonly #protocolConfigAddress: PublicKey
+  readonly #ritualReads = new WeakSet<object>()
+  readonly #eventReads = new WeakSet<object>()
 
   constructor(transport: RitualRpcTransport, programId: PublicKey) {
     let method: unknown
@@ -158,12 +158,15 @@ export class RitualsRpcReader {
     const fetched = await this.#fetch([this.#protocolConfigAddress, target], opts)
     const protocolConfig = this.#decode(fetched.accounts[0], () => decodeProtocolConfig(fetched.accounts[0], this.#programId)) as ProtocolConfigAccountView
     const account = this.#decode(fetched.accounts[1], () => decodeRitual(fetched.accounts[1], this.#programId, protocolConfig.allowedStakeMint, target)) as RitualAccountView
-    return Object.freeze({ slot: fetched.slot, address: target, protocolConfigAddress: this.protocolConfigAddress, protocolConfig, account })
+    const result = Object.freeze({ slot: fetched.slot, address: target, protocolConfigAddress: this.protocolConfigAddress, protocolConfig, account })
+    this.#ritualReads.add(result)
+    return result
   }
 
   #checkRitual(value: RitualRead): void {
     try {
       if (value === null || typeof value !== 'object' || Array.isArray(value) || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.protocolConfigAddress instanceof PublicKey) || !(value.protocolConfig && Object.isFrozen(value.protocolConfig)) || !(value.account && Object.isFrozen(value.account))) throw failure('input', 'ritual read context is invalid')
+      if (!this.#ritualReads.has(value)) throw failure('input', 'ritual read context is not produced by this reader')
       if (!value.protocolConfigAddress.equals(this.#protocolConfigAddress) || !value.account.protocolConfig.equals(this.#protocolConfigAddress)) throw failure('canonical', 'ritual read is bound to another protocol config')
       const [canonicalAddress] = ritualPda(value.account.creator, value.account.nonce, this.#programId)
       if (!value.address.equals(canonicalAddress)) throw failure('canonical', 'ritual read address is not canonical')
@@ -173,6 +176,7 @@ export class RitualsRpcReader {
     this.#checkRitual(ritual)
     try {
       if (value === null || typeof value !== 'object' || Array.isArray(value) || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.ritualAddress instanceof PublicKey) || !(value.protocolConfigAddress instanceof PublicKey) || !(value.account && Object.isFrozen(value.account)) || value.ritual !== ritual || value.protocolConfig !== ritual.protocolConfig) throw failure('input', 'event read context is invalid')
+      if (!this.#eventReads.has(value)) throw failure('input', 'event read context is not produced by this reader')
       if (value.slot < ritual.slot) throw failure('stale', 'event read context is older than ritual read')
       if (!value.ritualAddress.equals(ritual.address) || !value.protocolConfigAddress.equals(ritual.protocolConfigAddress)) throw failure('canonical', 'event read is bound to another ritual or protocol config')
 
@@ -192,6 +196,7 @@ export class RitualsRpcReader {
     const fetched = await this.#fetch([address], effectiveOpts)
     const account = this.#decode(fetched.accounts[0], () => decodeRitualEvent(fetched.accounts[0], this.#programId)) as RitualEventAccountView
     const candidate = Object.freeze({ slot: fetched.slot, address, ritualAddress: ritual.address, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, account })
+    this.#eventReads.add(candidate)
     this.#checkEvent(candidate, ritual)
     return candidate
   }
@@ -216,6 +221,5 @@ export { RitualsRpcReader as ReadOnlyRitualsRpcReader }
 /** Current deployment is deliberately unavailable; this fails before touching the transport. */
 export function createCurrentRitualsRpcReader(_transport: RitualRpcTransport): never {
   void _transport
-  if (RITUALS_CURRENT_CONFIG.programId === null) throw failure('deployment', 'No authorized Rituals deployment is configured')
   throw failure('deployment', 'No authorized Rituals deployment is configured')
 }

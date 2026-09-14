@@ -121,7 +121,7 @@ describe('confirmed read-only Rituals RPC reader', () => {
     const ritual = await reader.getRitual(ritualAddress)
     const eventRead = await reader.getEvent(ritual, 0)
     const staleEvent = Object.freeze({ ...eventRead, slot: 41 })
-    await expect(reader.getClaim(ritual, staleEvent, new PublicKey(accountVectors.completionClaim.expected.claimant))).rejects.toMatchObject({ category: 'stale', message: 'event read context is older than ritual read' })
+    await expect(reader.getClaim(ritual, staleEvent, new PublicKey(accountVectors.completionClaim.expected.claimant))).rejects.toMatchObject({ category: 'input', message: 'event read context is not produced by this reader' })
   })
 
   it.each([
@@ -138,7 +138,7 @@ describe('confirmed read-only Rituals RPC reader', () => {
     const eventRead = await reader.getEvent(ritual, 0)
     const forgedEvent = forge(eventRead)
 
-    await expect(reader.getClaim(ritual, forgedEvent, new PublicKey(accountVectors.completionClaim.expected.claimant))).rejects.toMatchObject({ category: 'canonical' })
+    await expect(reader.getClaim(ritual, forgedEvent, new PublicKey(accountVectors.completionClaim.expected.claimant))).rejects.toMatchObject({ category: 'input', message: 'event read context is not produced by this reader' })
     expect(connection.calls).toHaveLength(2)
   })
 
