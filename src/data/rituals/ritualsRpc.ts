@@ -294,8 +294,15 @@ export class RitualsRpcReader {
           const expectedBump = claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[1]
           if (!claimAccount.ritual.equals(target) || !claimAccount.event.equals(eventAddress) || claimAccount.eventIndex !== requestedIndex || !claimAccount.claimant.equals(member) || claimAccount.memberIndex !== index || claimAccount.claimVersion !== CURRENT_CLAIM_VERSION || claimAccount.requiredAdditionalConfirmations !== account.additionalConfirmationThreshold || claimAccount.bump !== expectedBump || claimAccount.claimedAt < eventAccount.window.opens || claimAccount.claimedAt > eventAccount.window.deadline || (claimAccount.approvalsBitmap & ~account.fundedMembersBitmap) !== 0 || !claimAddress.equals(claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[0])) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
           claimed |= 1 << index
-          if (claimAccount.status === 'Confirmed') confirmed |= 1 << index
-          if (claimAccount.status === 'Questioned') questioned |= 1 << index
+          if (claimAccount.status === 'Confirmed') {
+            confirmed |= 1 << index
+            if ((eventAccount.confirmedMembersBitmap & (1 << index)) === 0) throw failure('canonical', 'Ritual event and claims bitmaps do not correlate')
+          }
+          if (claimAccount.status === 'Questioned') {
+            questioned |= 1 << index
+            if ((eventAccount.questionedMembersBitmap & (1 << index)) === 0) throw failure('canonical', 'Ritual event and claims bitmaps do not correlate')
+          }
+          if (claimAccount.status === 'Pending' && ((eventAccount.confirmedMembersBitmap | eventAccount.questionedMembersBitmap) & (1 << index)) !== 0) throw failure('canonical', 'Ritual event and claims bitmaps do not correlate')
         }
         claims.push(Object.freeze({ memberIndex: index, member, address: new PublicKey(claimAddress.toBytes()), account: claimAccount }))
       }
