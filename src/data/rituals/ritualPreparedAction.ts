@@ -88,8 +88,13 @@ function safeSlot(value: unknown, name: string, category: 'rpc' | 'fee' = 'rpc')
   return value as number
 }
 function object(value: unknown, name: string, category: 'rpc' | 'fee' = 'rpc'): Record<string, unknown> {
-  if (value === null || typeof value !== 'object') fail(category, `invalid ${name}`)
-  return value as Record<string, unknown>
+  try {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) fail(category, `invalid ${name}`)
+    return value as Record<string, unknown>
+  } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail(category, `invalid ${name}`) }
+}
+function property(objectValue: Record<string, unknown>, name: string, category: 'rpc' | 'fee' = 'rpc'): unknown {
+  try { return objectValue[name] } catch { fail(category, `invalid ${name}`) }
 }
 function blockhash(value: unknown): string {
   if (typeof value !== 'string' || value.length < 32 || value.length > 44) fail('rpc', 'invalid blockhash')
@@ -104,7 +109,7 @@ function amount(value: unknown, category: 'fee' | 'rent'): number {
   return value as number
 }
 function transportMethod(transport: unknown, name: keyof RitualPreparationTransport): (...args: any[]) => Promise<unknown> {
-  if (transport === null || (typeof transport !== 'object' && typeof transport !== 'function')) fail('input', 'transport is invalid')
+  if (transport === null || Array.isArray(transport) || (typeof transport !== 'object' && typeof transport !== 'function')) fail('input', 'transport is invalid')
   try {
     const method = (transport as Record<string, unknown>)[name]
     if (typeof method !== 'function') fail('input', 'transport is invalid')
@@ -135,7 +140,8 @@ export class RitualActionPreparer {
 
   private internalFor(prepared: PreparedRitualAction): Internal {
     if (prepared === null || (typeof prepared !== 'object' && typeof prepared !== 'function')) fail('input', 'prepared action provenance is invalid')
-    const internal = this.#snapshots.get(prepared as object)
+    let internal: Internal | undefined
+    try { internal = this.#snapshots.get(prepared as object) } catch { fail('input', 'prepared action provenance is invalid') }
     if (!internal) fail('input', 'prepared action provenance is invalid')
     return internal as Internal
   }
@@ -151,20 +157,24 @@ export class RitualActionPreparer {
     const nonce = nonceFromInstruction(instructionCopy)
     const latest = await this.latest({ commitment: 'confirmed' }).catch(() => fail('rpc', 'latest blockhash request failed'))
     const latestObject = object(latest, 'latest blockhash response')
-    const context = object(latestObject.context, 'blockhash context')
-    const value = object(latestObject.value, 'blockhash value')
-    const slot = safeSlot(context.slot, 'blockhash context slot')
-    const recentBlockhash = blockhash(value.blockhash)
-    const lastValidBlockHeight = safeSlot(value.lastValidBlockHeight, 'last valid block height')
+    const context = object(property(latestObject, 'context'), 'blockhash context')
+    const value = object(property(latestObject, 'value'), 'blockhash value')
+    const slot = safeSlot(property(context, 'slot'), 'blockhash context slot')
+    const recentBlockhash = blockhash(property(value, 'blockhash'))
+    const lastValidBlockHeight = safeSlot(property(value, 'lastValidBlockHeight'), 'last valid block height')
     const transaction = new Transaction({ feePayer: copyKey(feePayer), blockhash: recentBlockhash, lastValidBlockHeight })
     transaction.add(copyInstruction(instructionCopy))
     const message = transaction.compileMessage()
+    const messageBytesBeforeFee = Uint8Array.from(message.serialize())
     const feeResponse = await this.fee(message, { commitment: 'confirmed', minContextSlot: slot }).catch(() => fail('fee', 'fee request failed'))
+    try {
+      if (!equalBytes(Uint8Array.from(message.serialize()), messageBytesBeforeFee)) fail('fee', 'fee transport mutated message')
+    } catch (error) { if (error instanceof RitualPreparationError) throw error; fail('fee', 'fee transport mutated message') }
     const feeObject = object(feeResponse, 'fee response', 'fee')
-    const feeContext = object(feeObject.context, 'fee context', 'fee')
-    const feeSlot = safeSlot(feeContext.slot, 'fee context slot', 'fee')
+    const feeContext = object(property(feeObject, 'context', 'fee'), 'fee context', 'fee')
+    const feeSlot = safeSlot(property(feeContext, 'slot', 'fee'), 'fee context slot', 'fee')
     if (feeSlot < slot) fail('fee', 'fee context is stale')
-    const feeValue = feeObject.value
+    const feeValue = property(feeObject, 'value', 'fee')
     if (feeValue === null) fail('fee', 'fee is unavailable')
     const networkFee = amount(feeValue, 'fee')
     const rents: bigint[] = []
@@ -194,8 +204,11 @@ export class RitualActionPreparer {
 
   assertWalletTransactionUnchanged(prepared: PreparedRitualAction, transaction: Transaction): void {
     const internal = this.internalFor(prepared)
-    if (!(transaction instanceof Transaction)) fail('input', 'transaction provenance is invalid')
-    if (transaction.recentBlockhash !== internal.blockhash || transaction.lastValidBlockHeight !== internal.lastValidBlockHeight) fail('mutation', 'wallet transaction strategy was mutated')
+    try { if (!(transaction instanceof Transaction)) fail('input', 'transaction provenance is invalid')
+    } catch { fail('input', 'transaction provenance is invalid') }
+    try {
+      if (transaction.recentBlockhash !== internal.blockhash || transaction.lastValidBlockHeight !== internal.lastValidBlockHeight) fail('mutation', 'wallet transaction strategy was mutated')
+    } catch { fail('mutation', 'wallet transaction strategy was mutated') }
     let bytes = new Uint8Array()
     try { bytes = Uint8Array.from(transaction.serializeMessage()) } catch { fail('mutation', 'wallet transaction message was mutated') }
     if (!equalBytes(bytes, internal.messageBytes) || hex(sha256(bytes)) !== internal.messageDigest) fail('mutation', 'wallet transaction message was mutated')
