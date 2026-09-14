@@ -5,8 +5,8 @@ import { ACCOUNT_DATA_LENGTHS, type RitualAccountView } from './accounts'
 import { Message, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js'
 import type { BuildCreateRitualArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs, RitualAccountContext } from './instructionsLifecycle'
 import { buildCreateRitualInstruction, buildFundMemberInstruction, buildActivateRitualInstruction, buildCancelUnactivatedInstruction } from './instructionsLifecycle'
-import type { BuildCloseTerminalVaultsArgs } from './instructionsEvents'
-import { buildCloseTerminalVaultsInstruction } from './instructionsEvents'
+import type { BuildCloseTerminalVaultsArgs, BuildInitializeCurrentEventArgs, BuildClaimCompletionArgs, BuildApproveClaimArgs, BuildQuestionClaimArgs, BuildFinalizeEventArgs, RitualEventAccountContext, CompletionClaimAccountContext } from './instructionsEvents'
+import { buildCloseTerminalVaultsInstruction, buildInitializeCurrentEventInstruction, buildClaimCompletionInstruction, buildApproveClaimInstruction, buildQuestionClaimInstruction, buildFinalizeEventInstruction } from './instructionsEvents'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import type { PublicKeyText } from '../../domain/rituals/types'
 
@@ -22,13 +22,18 @@ export type RitualPreparationTransport = {
   getFeeForMessage: (message: Message, config: Readonly<{ commitment: 'confirmed'; minContextSlot: number }>) => Promise<unknown>
   getMinimumBalanceForRentExemption: (dataLength: number, commitment: 'confirmed') => Promise<unknown>
 }
-type ActionKind = 'create' | 'fund' | 'activate' | 'cancel' | 'close'
+type ActionKind = 'create' | 'fund' | 'activate' | 'cancel' | 'close' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'finalize'
 export type PreparedExpectation =
   | Readonly<{ kind: 'created'; creator: PublicKeyText; nonce: bigint }>
   | Readonly<{ kind: 'funded'; member: PublicKeyText; expectedFundedMemberCount: number; expectedFundedStakeTotal: bigint; expectedFundedFeeTotal: bigint }>
   | Readonly<{ kind: 'activated' }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'vaults-closed' }>
+  | Readonly<{ kind: 'event-initialized'; eventIndex: number }>
+  | Readonly<{ kind: 'claimed'; claimant: PublicKeyText; eventIndex: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
+  | Readonly<{ kind: 'approved'; claimant: PublicKeyText; approver: PublicKeyText; eventIndex: number; expectedApprovalCount: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
+  | Readonly<{ kind: 'questioned'; claimant: PublicKeyText; questioner: PublicKeyText; eventIndex: number }>
+  | Readonly<{ kind: 'finalized'; eventIndex: number; expectedEventStatus: 'Settled' | 'Voided'; expectedVoidReason: 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims'; expectedRitualStatus: 'Active' | 'Completed'; expectedCurrentEventIndex: number; expectedSettledEventCount: number }>
 export type RitualPreparationSummary = Readonly<{
   clusterLabel: 'local/test-unconfigured'
   tokenMint: PublicKeyText
@@ -36,12 +41,14 @@ export type RitualPreparationSummary = Readonly<{
   stakeOutflow: bigint
   activationFeeOutflow: bigint
   escrowActivationFeeTransfer: bigint
+  escrowSettlementTransfer: bigint
+  protocolForfeitureShare: 0n
   estimatedNetworkFeeLamports: bigint
   estimatedRentLamports: bigint
   estimatedRentCreditLamports: bigint
   rentCreditRecipient: PublicKeyText | null
   totalEstimatedLamportOutflow: bigint
-  creates: Readonly<{ description: 'ritual, stake vault, and fee vault'; count: 3 }> | null
+  creates: Readonly<{ description: 'ritual, stake vault, and fee vault'; count: 3 } | { description: 'ritual event'; count: 1 } | { description: 'completion claim'; count: 1 }> | null
   networkFeeIsEstimate: true
   rentCreditIsEstimate: boolean
 }>
@@ -78,6 +85,7 @@ const copyInstruction = (instruction: TransactionInstruction): TransactionInstru
   programId: copyKey(instruction.programId), keys: instruction.keys.map(meta => ({ pubkey: copyKey(meta.pubkey), isSigner: meta.isSigner, isWritable: meta.isWritable })), data: Buffer.from(instruction.data),
 })
 const equalBytes = (a: Uint8Array, b: Uint8Array): boolean => a.length === b.length && a.every((value, i) => value === b[i])
+const popcount = (value: number): number => { let count = 0; for (let bits = value; bits !== 0; bits &= bits - 1) count += 1; return count }
 const nonceFromInstruction = (instruction: TransactionInstruction): bigint => { let nonce = 0n; for (let i = 0; i < 8; i += 1) nonce |= BigInt(instruction.data[8 + i]) << BigInt(i * 8); return nonce }
 const hex = (bytes: Uint8Array): string => Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
 function safeSlot(value: unknown, name: string, category: 'rpc' | 'fee' = 'rpc'): number { if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) fail(category, `invalid ${name}`); return value as number }
@@ -112,6 +120,16 @@ function ritualSnapshot(context: unknown): { address: PublicKey; account: Ritual
     return { address, account }
   } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid ritual context') }
 }
+function eventSnapshot(context: unknown): RitualEventAccountContext {
+  const value = inputObject(context, 'event'); const address = copyKey(inputProperty(value, 'address') as PublicKey); const raw = inputObject(inputProperty(value, 'account'), 'event.account'); const read = (name: string) => inputProperty(raw, name); const windowRaw = inputObject(read('window'), 'event.window')
+  const account = Object.freeze({ schemaVersion: read('schemaVersion'), ritual: copyKey(read('ritual') as PublicKey), eventIndex: read('eventIndex'), window: Object.freeze({ opens: readBigint(windowRaw.opens, 'event.window.opens'), deadline: readBigint(windowRaw.deadline, 'event.window.deadline'), resolution: readBigint(windowRaw.resolution, 'event.window.resolution') }), memberCount: read('memberCount'), status: read('status'), claimedMembersBitmap: read('claimedMembersBitmap'), confirmedMembersBitmap: read('confirmedMembersBitmap'), questionedMembersBitmap: read('questionedMembersBitmap'), initializedAt: readBigint(read('initializedAt'), 'event.initializedAt'), resolvedAt: readBigint(read('resolvedAt'), 'event.resolvedAt'), settlementVersion: read('settlementVersion'), voidReason: read('voidReason'), eventPool: readU64(read('eventPool'), 'event.eventPool'), forfeitedTotal: readU64(read('forfeitedTotal'), 'event.forfeitedTotal'), payoutTotal: readU64(read('payoutTotal'), 'event.payoutTotal'), refundedTotal: readU64(read('refundedTotal'), 'event.refundedTotal'), confirmedMemberCount: read('confirmedMemberCount'), remainderUnits: readU64(read('remainderUnits'), 'event.remainderUnits'), remainingStakeTotalAfter: readU64(read('remainingStakeTotalAfter'), 'event.remainingStakeTotalAfter'), bump: read('bump') }) as RitualEventAccountContext['account']
+  return Object.freeze({ address, account })
+}
+function claimSnapshot(context: unknown): CompletionClaimAccountContext {
+  const value = inputObject(context, 'claim'); const address = copyKey(inputProperty(value, 'address') as PublicKey); const raw = inputObject(inputProperty(value, 'account'), 'claim.account'); const read = (name: string) => inputProperty(raw, name)
+  const account = Object.freeze({ schemaVersion: read('schemaVersion'), ritual: copyKey(read('ritual') as PublicKey), event: copyKey(read('event') as PublicKey), eventIndex: read('eventIndex'), claimant: copyKey(read('claimant') as PublicKey), memberIndex: read('memberIndex'), claimVersion: read('claimVersion'), status: read('status'), requiredAdditionalConfirmations: read('requiredAdditionalConfirmations'), approvalsBitmap: read('approvalsBitmap'), approvalCount: read('approvalCount'), claimedAt: readBigint(read('claimedAt'), 'claim.claimedAt'), bump: read('bump') }) as CompletionClaimAccountContext['account']
+  return Object.freeze({ address, account })
+}
 function readBigint(value: unknown, name: string): bigint { if (typeof value !== 'bigint') fail('input', `${name} is invalid`); return value as bigint }
 function readU64(value: unknown, name: string): bigint { return u64(readBigint(value, name), name) }
 
@@ -129,7 +147,7 @@ export class RitualActionPreparer {
 
   private async prepare(
     kind: ActionKind, instruction: TransactionInstruction, feePayer: PublicKey, ritualAddress: PublicKey, tokenMint: PublicKey,
-    expectation: PreparedExpectation, outflow: { token: bigint; stake: bigint; activation: bigint; escrow: bigint },
+    expectation: PreparedExpectation, outflow: { token: bigint; stake: bigint; activation: bigint; escrow: bigint; settlement?: bigint },
     rentLengths: readonly number[], rentCreditRecipient: PublicKeyText | null, creates: RitualPreparationSummary['creates'],
   ): Promise<PreparedRitualAction> {
     if (!instruction.programId.equals(this.programId)) fail('input', 'programId does not match preparer')
@@ -145,7 +163,7 @@ export class RitualActionPreparer {
     const messageBytes = Uint8Array.from(transaction.serializeMessage()); const messageDigest = hex(sha256(messageBytes)); const total = networkFee + rentDebit
     const stakeOutflow = u64(outflow.stake, 'stakeOutflow'); const activationFeeOutflow = u64(outflow.activation, 'activationFeeOutflow'); const tokenOutflow = u64(outflow.token, 'tokenOutflow'); if (tokenOutflow !== addU64(stakeOutflow, activationFeeOutflow, 'tokenOutflow')) fail('input', 'tokenOutflow does not equal stakeOutflow plus activationFeeOutflow')
     const internal: Internal = { kind, programId: copyKey(this.programId), feePayer: payer, ritualAddress: ritual, blockhash: recentBlockhash, lastValidBlockHeight, blockhashContextSlot: slot, instruction: ix, messageBytes, messageDigest, expectation }
-    const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint: keyText(tokenMint), tokenOutflow, stakeOutflow, activationFeeOutflow, escrowActivationFeeTransfer: u64(outflow.escrow, 'escrowActivationFeeTransfer'), estimatedNetworkFeeLamports: networkFee, estimatedRentLamports: rentDebit, estimatedRentCreditLamports: rentCredit, rentCreditRecipient, totalEstimatedLamportOutflow: total, creates, networkFeeIsEstimate: true as const, rentCreditIsEstimate: rentCreditRecipient !== null })
+    const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint: keyText(tokenMint), tokenOutflow, stakeOutflow, activationFeeOutflow, escrowActivationFeeTransfer: u64(outflow.escrow, 'escrowActivationFeeTransfer'), escrowSettlementTransfer: u64(outflow.settlement ?? 0n, 'escrowSettlementTransfer'), protocolForfeitureShare: 0n, estimatedNetworkFeeLamports: networkFee, estimatedRentLamports: rentDebit, estimatedRentCreditLamports: rentCredit, rentCreditRecipient, totalEstimatedLamportOutflow: total, creates, networkFeeIsEstimate: true as const, rentCreditIsEstimate: rentCreditRecipient !== null })
     const action = Object.freeze({ kind, programId: keyText(this.programId), ritualAddress: keyText(ritual), feePayer: keyText(payer), blockhashContextSlot: slot, lastValidBlockHeight, messageDigest, summary, expectation })
     this.#snapshots.set(action, internal); return action
   }
@@ -173,6 +191,22 @@ export class RitualActionPreparer {
   }
   async prepareClose(args: BuildCloseTerminalVaultsArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction> {
     try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const payer = copyKey(inputProperty(args, 'feePayer') as PublicKey); if (payer.equals(PublicKey.default)) fail('input', 'feePayer must not be default'); const instruction = buildCloseTerminalVaultsInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual }); return this.prepare('close', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'vaults-closed' }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [ACCOUNT_SIZE, ACCOUNT_SIZE], keyText(ritual.account.creator), null) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Close Ritual inputs') }
+  }
+
+  async prepareInitializeEvent(args: BuildInitializeCurrentEventArgs): Promise<PreparedRitualAction> {
+    try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const index = inputProperty(args, 'eventIndex') as number; if (typeof index !== 'number' || !Number.isSafeInteger(index) || index < 0 || index > 255) fail('input', 'invalid eventIndex'); const eventIndex = index; const payer = copyKey(inputProperty(args, 'payer') as PublicKey); const instruction = buildInitializeCurrentEventInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, eventIndex: eventIndex, payer }); return this.prepare('initialize-event', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'event-initialized', eventIndex: eventIndex }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [ACCOUNT_DATA_LENGTHS.RitualEvent], null, Object.freeze({ description: 'ritual event', count: 1 })) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Initialize Event inputs') }
+  }
+  async prepareClaim(args: BuildClaimCompletionArgs): Promise<PreparedRitualAction> {
+    try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const event = eventSnapshot(inputProperty(args, 'event')); const claimant = copyKey(inputProperty(args, 'claimant') as PublicKey); const instruction = buildClaimCompletionInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, event, claimant }); const index = event.account.eventIndex; const threshold = ritual.account.additionalConfirmationThreshold; return this.prepare('claim', instruction, claimant, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'claimed', claimant: keyText(claimant), eventIndex: index, expectedClaimStatus: threshold === 0 ? 'Confirmed' : 'Pending' }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [ACCOUNT_DATA_LENGTHS.CompletionClaim], null, Object.freeze({ description: 'completion claim', count: 1 })) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Claim inputs') }
+  }
+  async prepareApprove(args: BuildApproveClaimArgs): Promise<PreparedRitualAction> {
+    try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const event = eventSnapshot(inputProperty(args, 'event')); const claim = claimSnapshot(inputProperty(args, 'claim')); const approver = copyKey(inputProperty(args, 'approver') as PublicKey); const instruction = buildApproveClaimInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, event, claim, approver }); const count = claim.account.approvalCount + 1; if (!Number.isSafeInteger(count) || count > 255) fail('input', 'expected approval count is outside u8'); return this.prepare('approve', instruction, approver, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'approved', claimant: keyText(claim.account.claimant), approver: keyText(approver), eventIndex: claim.account.eventIndex, expectedApprovalCount: count, expectedClaimStatus: count === claim.account.requiredAdditionalConfirmations ? 'Confirmed' : 'Pending' }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [], null, null) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Approve inputs') }
+  }
+  async prepareQuestion(args: BuildQuestionClaimArgs): Promise<PreparedRitualAction> {
+    try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const event = eventSnapshot(inputProperty(args, 'event')); const claim = claimSnapshot(inputProperty(args, 'claim')); const questioner = copyKey(inputProperty(args, 'questioner') as PublicKey); const instruction = buildQuestionClaimInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, event, claim, questioner }); return this.prepare('question', instruction, questioner, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'questioned', claimant: keyText(claim.account.claimant), questioner: keyText(questioner), eventIndex: claim.account.eventIndex }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [], null, null) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Question inputs') }
+  }
+  async prepareFinalize(args: BuildFinalizeEventArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction> {
+    try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const event = eventSnapshot(inputProperty(args, 'event')); const raw = inputProperty(args, 'destinationTokenAccounts'); if (!Array.isArray(raw)) fail('input', 'invalid destinationTokenAccounts'); const destinations = Object.freeze((raw as unknown[]).map((item, index) => { try { return copyKey(item as PublicKey) } catch { return fail('input', `invalid destinationTokenAccounts[${index}]`) } })); const payer = copyKey(inputProperty(args, 'feePayer') as PublicKey); const instruction = buildFinalizeEventInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, event, destinationTokenAccounts: destinations }); const pending = event.account.claimedMembersBitmap & ~(event.account.confirmedMembersBitmap | event.account.questionedMembersBitmap); const confirmedCount = popcount(event.account.confirmedMembersBitmap); const voided = pending !== 0 || event.account.questionedMembersBitmap !== 0 || confirmedCount === 0; const expectedEventStatus = voided ? 'Voided' : 'Settled'; const expectedVoidReason = voided ? (pending !== 0 || event.account.questionedMembersBitmap !== 0 ? 'UnresolvedClaims' : 'NoConfirmedMembers') : 'None'; const nextIndex = event.account.eventIndex + 1; if (nextIndex > ritual.account.schedule.length) fail('input', 'expected event index is outside schedule'); const expectedRitualStatus = nextIndex === ritual.account.schedule.length ? 'Completed' : 'Active'; const settlement = u64(ritual.account.perEventAllocation * BigInt(ritual.account.members.length), 'escrowSettlementTransfer'); return this.prepare('finalize', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'finalized', eventIndex: event.account.eventIndex, expectedEventStatus, expectedVoidReason, expectedRitualStatus, expectedCurrentEventIndex: nextIndex, expectedSettledEventCount: ritual.account.settledEventCount + 1 }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n, settlement }, [], null, null) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Finalize inputs') }
   }
 
   getTransactionForWallet(prepared: PreparedRitualAction): WalletRitualTransaction { const snapshot = this.internalFor(prepared); const transaction = new Transaction({ feePayer: copyKey(snapshot.feePayer), blockhash: snapshot.blockhash, lastValidBlockHeight: snapshot.lastValidBlockHeight }); transaction.add(copyInstruction(snapshot.instruction)); if (!equalBytes(Uint8Array.from(transaction.serializeMessage()), snapshot.messageBytes)) fail('mutation', 'prepared message reconstruction changed'); return Object.freeze({ kind: snapshot.kind, transaction, blockhash: snapshot.blockhash, expectedMessageDigest: snapshot.messageDigest, submittedContextSlot: snapshot.blockhashContextSlot, lastValidBlockHeight: snapshot.lastValidBlockHeight, expectation: snapshot.expectation, ritualAddress: keyText(snapshot.ritualAddress) }) }
