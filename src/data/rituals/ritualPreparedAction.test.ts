@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { ACCOUNT_SIZE } from '@solana/spl-token'
-import { PublicKey } from '@solana/web3.js'
+import { PublicKey, Transaction } from '@solana/web3.js'
 import { sha256 } from '@noble/hashes/sha256'
 import { ACCOUNT_DATA_LENGTHS } from './accounts'
-import { RitualActionPreparer, RitualPreparationError } from './ritualPreparedAction'
+import { createCurrentRitualActionPreparer, RitualActionPreparer, RitualPreparationError } from './ritualPreparedAction'
 import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
 import type { BuildCreateRitualArgs } from './instructionsLifecycle'
 
@@ -36,15 +36,34 @@ describe('opaque prepared Create Ritual actions', () => {
     expect(Buffer.from(first.transaction.serializeMessage()).equals(Buffer.from(second.transaction.serializeMessage()))).toBe(true)
     const digest = Buffer.from(sha256(first.transaction.serializeMessage())).toString('hex')
     expect(action.messageDigest).toBe(digest)
+    expect(first.blockhash).toBe(key(9).toBase58())
     preparer.assertWalletTransactionUnchanged(action, first.transaction)
-    first.transaction.recentBlockhash = key(8).toBase58()
-    expect(() => preparer.assertWalletTransactionUnchanged(action, first.transaction)).toThrowError(RitualPreparationError)
-    try { preparer.assertWalletTransactionUnchanged(action, first.transaction) } catch (error) { expect(error).toMatchObject({ category: 'mutation' }) }
+    const mutations: Array<(transaction: Transaction) => void> = [
+      transaction => { transaction.recentBlockhash = key(8).toBase58() },
+      transaction => { transaction.recentBlockhash = key(9).toBase58(); transaction.lastValidBlockHeight = (transaction.lastValidBlockHeight ?? 0) + 1 },
+      transaction => { transaction.lastValidBlockHeight = (transaction.lastValidBlockHeight ?? 0) - 1 },
+      transaction => { transaction.lastValidBlockHeight = undefined },
+    ]
+    for (const mutate of mutations) {
+      const walletTransaction = preparer.getTransactionForWallet(action).transaction
+      mutate(walletTransaction)
+      expect(() => preparer.assertWalletTransactionUnchanged(action, walletTransaction)).toThrowError(RitualPreparationError)
+      try { preparer.assertWalletTransactionUnchanged(action, walletTransaction) } catch (error) { expect(error).toMatchObject({ category: 'mutation' }) }
+    }
   })
 
   it('rejects prepared objects without this preparer provenance', async () => {
-    const preparer = new RitualActionPreparer(new FakeTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const transport = new FakeTransport()
+    const preparer = new RitualActionPreparer(transport, LOCAL_PLACEHOLDER_PROGRAM_ID)
     const action = await preparer.prepareCreate(args)
     expect(() => preparer.getTransactionForWallet({ ...action })).toThrowError(/provenance/)
+    expect(() => new RitualActionPreparer(transport, LOCAL_PLACEHOLDER_PROGRAM_ID).getTransactionForWallet(action)).toThrowError(/provenance/)
+    expect(() => new RitualActionPreparer(transport, key(8)).getTransactionForWallet(action)).toThrowError(/provenance/)
+  })
+
+  it('rejects the current factory before inspecting hostile transport dependencies', () => {
+    const hostile = new Proxy({}, { get: () => { throw new Error('transport touched') } })
+    expect(() => createCurrentRitualActionPreparer(hostile as never)).toThrowError(RitualPreparationError)
+    try { createCurrentRitualActionPreparer(hostile as never) } catch (error) { expect(error).toMatchObject({ category: 'deployment' }) }
   })
 })

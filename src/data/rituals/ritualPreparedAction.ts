@@ -5,6 +5,7 @@ import { ACCOUNT_DATA_LENGTHS } from './accounts'
 import { Message, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js'
 import type { BuildCreateRitualArgs } from './instructionsLifecycle'
 import { buildCreateRitualInstruction } from './instructionsLifecycle'
+import { RITUALS_CURRENT_CONFIG } from './programIds'
 
 const MAX_SAFE = Number.MAX_SAFE_INTEGER
 
@@ -48,6 +49,7 @@ export type PreparedRitualAction = Readonly<{
 }>
 export type WalletRitualTransaction = Readonly<{
   transaction: Transaction
+  blockhash: string
   expectedMessageDigest: string
   submittedContextSlot: number
   lastValidBlockHeight: number
@@ -67,14 +69,7 @@ type Internal = {
   messageDigest: string
   expectation: Readonly<{ kind: 'created'; creator: PublicKey; nonce: bigint }>
 }
-const snapshots = new WeakMap<object, Internal>()
 const fail = (category: PreparationCategory, message: string): never => { throw new RitualPreparationError(category, message) }
-function internalFor(prepared: PreparedRitualAction): Internal {
-  if (prepared === null || (typeof prepared !== 'object' && typeof prepared !== 'function')) fail('input', 'prepared action provenance is invalid')
-  const internal = snapshots.get(prepared as object)
-  if (!internal) fail('input', 'prepared action provenance is invalid')
-  return internal as Internal
-}
 const copyKey = (key: PublicKey): PublicKey => new PublicKey(Uint8Array.from(key.toBytes()))
 const copyInstruction = (instruction: TransactionInstruction): TransactionInstruction => new TransactionInstruction({
   programId: copyKey(instruction.programId),
@@ -119,6 +114,7 @@ function transportMethod(transport: unknown, name: keyof RitualPreparationTransp
 }
 
 export class RitualActionPreparer {
+  #snapshots = new WeakMap<object, Internal>()
   private readonly programId!: PublicKey
   private readonly latest!: (...args: any[]) => Promise<unknown>
   private readonly fee!: (...args: any[]) => Promise<unknown>
@@ -135,6 +131,13 @@ export class RitualActionPreparer {
       if (error instanceof RitualPreparationError) throw error
       fail('input', 'invalid preparation dependencies')
     }
+  }
+
+  private internalFor(prepared: PreparedRitualAction): Internal {
+    if (prepared === null || (typeof prepared !== 'object' && typeof prepared !== 'function')) fail('input', 'prepared action provenance is invalid')
+    const internal = this.#snapshots.get(prepared as object)
+    if (!internal) fail('input', 'prepared action provenance is invalid')
+    return internal as Internal
   }
 
   async prepareCreate(args: BuildCreateRitualArgs): Promise<PreparedRitualAction> {
@@ -177,23 +180,35 @@ export class RitualActionPreparer {
     const internal: Internal = { programId: copyKey(this.programId), feePayer, ritualAddress, blockhash: recentBlockhash, lastValidBlockHeight, blockhashContextSlot: slot, instruction: instructionCopy, messageBytes, messageDigest, expectation }
     const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint, tokenOutflow: 0n, stakeOutflow: 0n, activationFeeOutflow: 0n, estimatedNetworkFeeLamports: BigInt(networkFee), estimatedRentLamports: rentTotal, totalEstimatedLamportOutflow: total, creates: Object.freeze({ description: 'ritual, stake vault, and fee vault' as const, count: 3 as const }), networkFeeIsEstimate: true as const })
     const action = Object.freeze({ kind: 'create' as const, programId: copyKey(this.programId), ritualAddress: copyKey(ritualAddress), feePayer: copyKey(feePayer), blockhashContextSlot: slot, lastValidBlockHeight, messageDigest, summary, expectation })
-    snapshots.set(action, internal)
+    this.#snapshots.set(action, internal)
     return action
   }
 
   getTransactionForWallet(prepared: PreparedRitualAction): WalletRitualTransaction {
-    const snapshot = internalFor(prepared)
+    const snapshot = this.internalFor(prepared)
     const transaction = new Transaction({ feePayer: copyKey(snapshot.feePayer), blockhash: snapshot.blockhash, lastValidBlockHeight: snapshot.lastValidBlockHeight })
     transaction.add(copyInstruction(snapshot.instruction))
     if (!equalBytes(Uint8Array.from(transaction.serializeMessage()), snapshot.messageBytes)) fail('mutation', 'prepared message reconstruction changed')
-    return Object.freeze({ transaction, expectedMessageDigest: snapshot.messageDigest, submittedContextSlot: snapshot.blockhashContextSlot, lastValidBlockHeight: snapshot.lastValidBlockHeight, expectation: snapshot.expectation, ritualAddress: copyKey(snapshot.ritualAddress) })
+    return Object.freeze({ transaction, blockhash: snapshot.blockhash, expectedMessageDigest: snapshot.messageDigest, submittedContextSlot: snapshot.blockhashContextSlot, lastValidBlockHeight: snapshot.lastValidBlockHeight, expectation: snapshot.expectation, ritualAddress: copyKey(snapshot.ritualAddress) })
   }
 
   assertWalletTransactionUnchanged(prepared: PreparedRitualAction, transaction: Transaction): void {
-    const internal = internalFor(prepared)
+    const internal = this.internalFor(prepared)
     if (!(transaction instanceof Transaction)) fail('input', 'transaction provenance is invalid')
+    if (transaction.recentBlockhash !== internal.blockhash || transaction.lastValidBlockHeight !== internal.lastValidBlockHeight) fail('mutation', 'wallet transaction strategy was mutated')
     let bytes = new Uint8Array()
     try { bytes = Uint8Array.from(transaction.serializeMessage()) } catch { fail('mutation', 'wallet transaction message was mutated') }
     if (!equalBytes(bytes, internal.messageBytes) || hex(sha256(bytes)) !== internal.messageDigest) fail('mutation', 'wallet transaction message was mutated')
   }
+}
+
+/** Explicit-program local/test preparer; this does not authorize deployment or signing. */
+export const createRitualActionPreparer = (transport: RitualPreparationTransport, programId: PublicKey): RitualActionPreparer => new RitualActionPreparer(transport, programId)
+
+/** Current production deployment is deliberately unavailable; fails before inspecting dependencies. */
+export function createCurrentRitualActionPreparer(_transport: RitualPreparationTransport): never {
+  void _transport
+  const config: { deployment: string; programId: unknown } = RITUALS_CURRENT_CONFIG
+  if (config.deployment !== 'deployed' || config.programId === null) return fail('deployment', 'No authorized Rituals deployment is configured')
+  return fail('deployment', 'Current Ritual action preparer is unavailable')
 }
