@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import { decodeCompletionClaim, decodeProtocolConfig, decodeRitual, decodeRitualEvent, type CompletionClaimAccountView, type ProtocolConfigAccountView, type RitualAccountView, type RitualEventAccountView } from './accounts'
-import { claimPda, eventPda, protocolConfigPda } from './pdas'
+import { claimPda, eventPda, protocolConfigPda, ritualPda, CURRENT_CLAIM_VERSION } from './pdas'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 
 /** Stable failure classes for the read-only Rituals RPC boundary. */
@@ -60,8 +60,13 @@ function maxMin(...values: number[]): number {
   return Math.max(...values)
 }
 const key = (value: unknown, name: string): PublicKey => {
-  if (!(value instanceof PublicKey) || value.equals(PublicKey.default)) throw new RitualRpcError('input', `${name} must be a non-default PublicKey`)
-  return new PublicKey(value.toBytes())
+  try {
+    if (!(value instanceof PublicKey) || value.equals(PublicKey.default)) throw new RitualRpcError('input', `${name} must be a non-default PublicKey`)
+    return new PublicKey(value.toBytes())
+  } catch (error) {
+    if (error instanceof RitualRpcError) throw error
+    throw failure('input', `${name} must be a readable non-default PublicKey`)
+  }
 }
 const options = (value?: ReadOptions): ReadOptions => {
   if (value === undefined) return Object.freeze({})
@@ -93,10 +98,17 @@ export class RitualsRpcReader {
   readonly #protocolConfigAddress: PublicKey
 
   constructor(transport: RitualRpcTransport, programId: PublicKey) {
-    if (transport === null || typeof transport !== 'object' || typeof transport.getMultipleAccountsInfoAndContext !== 'function') throw failure('input', 'read-only RPC transport is invalid')
-    this.#transport = transport
+    let method: unknown
+    try {
+      if (transport === null || typeof transport !== 'object' || Array.isArray(transport)) throw failure('input', 'read-only RPC transport is invalid')
+      method = (transport as { getMultipleAccountsInfoAndContext?: unknown }).getMultipleAccountsInfoAndContext
+    } catch (error) {
+      throw error instanceof RitualRpcError ? error : failure('input', 'read-only RPC transport is invalid')
+    }
+    if (typeof method !== 'function') throw failure('input', 'read-only RPC transport is invalid')
+    this.#transport = Object.freeze({ getMultipleAccountsInfoAndContext: method.bind(transport) })
     this.#programId = key(programId, 'programId')
-    this.#protocolConfigAddress = protocolConfigPda(this.#programId)[0]
+    try { this.#protocolConfigAddress = protocolConfigPda(this.#programId)[0] } catch { throw failure('input', 'programId cannot derive the protocol config address') }
   }
 
   get programId(): PublicKey { return new PublicKey(this.#programId.toBytes()) }
@@ -109,17 +121,17 @@ export class RitualsRpcReader {
       response = await this.#transport.getMultipleAccountsInfoAndContext(requestKeys, { commitment: 'confirmed', ...(readOptions.minContextSlot === undefined ? {} : { minContextSlot: readOptions.minContextSlot }) })
     } catch (error) { throw wrapRpc(error) }
     try {
-      if (response === null || typeof response !== 'object') throw failure('rpc', 'Rituals RPC response is malformed')
+      if (response === null || typeof response !== 'object' || Array.isArray(response)) throw failure('rpc', 'Rituals RPC response is malformed')
       const context = (response as { context?: unknown }).context
       const values = (response as { value?: unknown }).value
       const slot = context !== null && typeof context === 'object' ? (context as { slot?: unknown }).slot : undefined
-      if (context === null || typeof context !== 'object' || !isSafeSlot(slot)) throw failure('rpc', 'Rituals RPC context is malformed')
+      if (context === null || typeof context !== 'object' || Array.isArray(context) || !isSafeSlot(slot)) throw failure('rpc', 'Rituals RPC context is malformed')
       if (!Array.isArray(values) || values.length !== requestKeys.length) throw failure('rpc', 'Rituals RPC returned an unexpected account count')
       if (readOptions.minContextSlot !== undefined && slot < readOptions.minContextSlot) throw failure('stale', 'Rituals RPC context is older than requested')
       for (let index = 0; index < values.length; index += 1) if (!Object.hasOwn(values, index)) throw failure('rpc', 'Rituals RPC account value is missing')
       const accounts = values.map((raw): RitualRpcAccountInfo | null => {
         if (raw === null) return null
-        if (typeof raw !== 'object') throw failure('rpc', 'Rituals RPC account is malformed')
+        if (typeof raw !== 'object' || Array.isArray(raw)) throw failure('rpc', 'Rituals RPC account is malformed')
         let owner: unknown; let data: unknown; let executable: unknown
         try { owner = (raw as { owner: unknown }).owner; data = (raw as { data: unknown }).data; executable = (raw as { executable: unknown }).executable } catch (error) { throw failure('rpc', 'Rituals RPC account could not be read', error) }
         if (!(owner instanceof PublicKey) || !(data instanceof Uint8Array) || typeof executable !== 'boolean' || executable) throw failure('rpc', 'Rituals RPC account snapshot is invalid')
@@ -151,15 +163,19 @@ export class RitualsRpcReader {
 
   #checkRitual(value: RitualRead): void {
     try {
-      if (value === null || typeof value !== 'object' || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.protocolConfigAddress instanceof PublicKey) || !(value.protocolConfig && Object.isFrozen(value.protocolConfig)) || !(value.account && Object.isFrozen(value.account))) throw failure('input', 'ritual read context is invalid')
+      if (value === null || typeof value !== 'object' || Array.isArray(value) || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.protocolConfigAddress instanceof PublicKey) || !(value.protocolConfig && Object.isFrozen(value.protocolConfig)) || !(value.account && Object.isFrozen(value.account))) throw failure('input', 'ritual read context is invalid')
       if (!value.protocolConfigAddress.equals(this.#protocolConfigAddress) || !value.account.protocolConfig.equals(this.#protocolConfigAddress)) throw failure('canonical', 'ritual read is bound to another protocol config')
+      const [canonicalAddress] = ritualPda(value.account.creator, value.account.nonce, this.#programId)
+      if (!value.address.equals(canonicalAddress)) throw failure('canonical', 'ritual read address is not canonical')
     } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'ritual read context is invalid', error) }
   }
   #checkEvent(value: EventRead, ritual: RitualRead): void {
     this.#checkRitual(ritual)
     try {
-      if (value === null || typeof value !== 'object' || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.ritualAddress instanceof PublicKey) || !value.ritualAddress.equals(ritual.address) || !(value.protocolConfigAddress instanceof PublicKey) || !value.protocolConfigAddress.equals(ritual.protocolConfigAddress) || value.protocolConfig !== ritual.protocolConfig || !(value.account && Object.isFrozen(value.account)) || value.ritual !== ritual || !value.account.ritual.equals(ritual.address)) throw failure('input', 'event read context is invalid')
+      if (value === null || typeof value !== 'object' || Array.isArray(value) || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.ritualAddress instanceof PublicKey) || !value.ritualAddress.equals(ritual.address) || !(value.protocolConfigAddress instanceof PublicKey) || !value.protocolConfigAddress.equals(ritual.protocolConfigAddress) || value.protocolConfig !== ritual.protocolConfig || !(value.account && Object.isFrozen(value.account)) || value.ritual !== ritual || !value.account.ritual.equals(ritual.address)) throw failure('input', 'event read context is invalid')
       if (value.slot < ritual.slot) throw failure('stale', 'event read context is older than ritual read')
+      const [canonicalAddress] = eventPda(ritual.address, value.account.eventIndex, this.#programId)
+      if (!value.address.equals(canonicalAddress)) throw failure('canonical', 'event read address is not canonical')
     } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'event read context is invalid', error) }
   }
 
@@ -180,10 +196,10 @@ export class RitualsRpcReader {
     const memberIndex = ritual.account.members.findIndex((member) => member.equals(target))
     if (memberIndex < 0) throw failure('input', 'claimant is not a Ritual member')
     if (event.account.eventIndex >= ritual.account.schedule.length || !event.account.ritual.equals(ritual.address)) throw failure('canonical', 'event is not bound to ritual')
-    const address = claimPda(event.address, target, 0, this.#programId)[0]; const fetched = await this.#fetch([address], effectiveOpts)
+    const address = claimPda(event.address, target, CURRENT_CLAIM_VERSION, this.#programId)[0]; const fetched = await this.#fetch([address], effectiveOpts)
     const account = this.#decode(fetched.accounts[0], () => decodeCompletionClaim(fetched.accounts[0], this.#programId)) as CompletionClaimAccountView
-    const expectedBump = claimPda(event.address, target, 0, this.#programId)[1]
-    if (!account.ritual.equals(ritual.address) || !account.event.equals(event.address) || account.eventIndex !== event.account.eventIndex || !account.claimant.equals(target) || account.memberIndex !== memberIndex || account.claimVersion !== 0 || account.requiredAdditionalConfirmations !== ritual.account.additionalConfirmationThreshold || account.bump !== expectedBump || !address.equals(claimPda(event.address, target, 0, this.#programId)[0]) || account.claimedAt < event.account.window.opens || account.claimedAt > event.account.window.deadline) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
+    const expectedBump = claimPda(event.address, target, CURRENT_CLAIM_VERSION, this.#programId)[1]
+    if (!account.ritual.equals(ritual.address) || !account.event.equals(event.address) || account.eventIndex !== event.account.eventIndex || !account.claimant.equals(target) || account.memberIndex !== memberIndex || account.claimVersion !== CURRENT_CLAIM_VERSION || account.requiredAdditionalConfirmations !== ritual.account.additionalConfirmationThreshold || account.bump !== expectedBump || !address.equals(claimPda(event.address, target, CURRENT_CLAIM_VERSION, this.#programId)[0]) || account.claimedAt < event.account.window.opens || account.claimedAt > event.account.window.deadline) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
     return Object.freeze({ slot: fetched.slot, address, ritualAddress: ritual.address, eventAddress: event.address, claimant: target, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, event, account })
   }
 }
