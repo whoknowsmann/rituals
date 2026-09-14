@@ -117,6 +117,13 @@ function transportMethod(transport: unknown, name: keyof RitualPreparationTransp
   } catch { fail('input', 'transport is invalid') }
   return fail('input', 'transport is invalid')
 }
+async function callTransport<T>(method: (...args: any[]) => unknown, args: unknown[], category: 'rpc' | 'fee' | 'rent', message: string): Promise<T> {
+  try {
+    return await Promise.resolve().then(() => method(...args)) as T
+  } catch {
+    return fail(category, message)
+  }
+}
 
 export class RitualActionPreparer {
   #snapshots = new WeakMap<object, Internal>()
@@ -155,7 +162,7 @@ export class RitualActionPreparer {
     const ritualAddress = copyKey(instructionCopy.keys[1].pubkey)
     const tokenMint = copyKey(instructionCopy.keys[3].pubkey)
     const nonce = nonceFromInstruction(instructionCopy)
-    const latest = await this.latest({ commitment: 'confirmed' }).catch(() => fail('rpc', 'latest blockhash request failed'))
+    const latest = await callTransport(this.latest, [{ commitment: 'confirmed' }], 'rpc', 'latest blockhash request failed')
     const latestObject = object(latest, 'latest blockhash response')
     const context = object(property(latestObject, 'context'), 'blockhash context')
     const value = object(property(latestObject, 'value'), 'blockhash value')
@@ -166,7 +173,7 @@ export class RitualActionPreparer {
     transaction.add(copyInstruction(instructionCopy))
     const message = transaction.compileMessage()
     const messageBytesBeforeFee = Uint8Array.from(message.serialize())
-    const feeResponse = await this.fee(message, { commitment: 'confirmed', minContextSlot: slot }).catch(() => fail('fee', 'fee request failed'))
+    const feeResponse = await callTransport(this.fee, [message, { commitment: 'confirmed', minContextSlot: slot }], 'fee', 'fee request failed')
     try {
       if (!equalBytes(Uint8Array.from(message.serialize()), messageBytesBeforeFee)) fail('fee', 'fee transport mutated message')
     } catch (error) { if (error instanceof RitualPreparationError) throw error; fail('fee', 'fee transport mutated message') }
@@ -179,7 +186,7 @@ export class RitualActionPreparer {
     const networkFee = amount(feeValue, 'fee')
     const rents: bigint[] = []
     for (const length of [ACCOUNT_DATA_LENGTHS.Ritual, ACCOUNT_SIZE, ACCOUNT_SIZE]) {
-      const result = await this.rent(length, 'confirmed').catch(() => fail('rent', 'rent request failed'))
+      const result = await callTransport(this.rent, [length, 'confirmed'], 'rent', 'rent request failed')
       rents.push(BigInt(amount(result, 'rent')))
     }
     const rentTotal = rents.reduce((sum, item) => sum + item, 0n)
@@ -207,6 +214,7 @@ export class RitualActionPreparer {
     try { if (!(transaction instanceof Transaction)) fail('input', 'transaction provenance is invalid')
     } catch { fail('input', 'transaction provenance is invalid') }
     try {
+      if (!(transaction.feePayer instanceof PublicKey) || !transaction.feePayer.equals(internal.feePayer)) fail('mutation', 'wallet transaction strategy was mutated')
       if (transaction.recentBlockhash !== internal.blockhash || transaction.lastValidBlockHeight !== internal.lastValidBlockHeight) fail('mutation', 'wallet transaction strategy was mutated')
     } catch { fail('mutation', 'wallet transaction strategy was mutated') }
     let bytes = new Uint8Array()
