@@ -48,9 +48,16 @@ describe('initialize_protocol_config adversarial input and byte boundaries', () 
 
   it.each(['allowedStakeMint', 'feeRecipient'])('rejects non-PublicKey %s', field => expectError(() => encodeInitializeProtocolConfigData({ ...base(), [field]: 'not a key' } as never)))
 
-  it('rejects default public keys', () => {
-    expectError(() => encodeInitializeProtocolConfigData({ ...base(), allowedStakeMint: PublicKey.default }), 'invariant')
-    expectError(() => encodeInitializeProtocolConfigData({ ...base(), feeRecipient: PublicKey.default }), 'invariant')
+  // Raw instruction encoding mirrors Rust; default-key policy belongs to the later builder.
+  it.each([
+    ['default allowed stake mint', PublicKey.default, key(2)],
+    ['default fee recipient', key(1), PublicKey.default],
+    ['both default keys', PublicKey.default, PublicKey.default],
+  ])('serializes %s in the raw codec', (_name, allowedStakeMint, feeRecipient) => {
+    const data = encodeInitializeProtocolConfigData({ ...base(), allowedStakeMint, feeRecipient })
+    expect(data).toHaveLength(98)
+    expect(data.slice(8, 40)).toEqual(allowedStakeMint.toBytes())
+    expect(data.slice(40, 72)).toEqual(feeRecipient.toBytes())
   })
 
   it('converts each successful top-level property exactly once', () => {

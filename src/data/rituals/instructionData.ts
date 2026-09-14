@@ -118,7 +118,6 @@ export function encodeQuestionClaimData(): Uint8Array { const w = new Writer(9);
 export function encodeInitializeProtocolConfigData(input: InitializeProtocolConfigInput): Uint8Array {
   try {
     const o = record(input); const mint = keyBytes(prop(o, 'allowedStakeMint'), 'allowedStakeMint'); const recipient = keyBytes(prop(o, 'feeRecipient'), 'feeRecipient')
-    if (Uint8Array.from(mint).every(x => x === 0) || Uint8Array.from(recipient).every(x => x === 0)) throw new RitualInstructionDataError('invariant', 'public keys must not be default')
     const bps = prop<number>(o, 'feeBasisPoints'); if (typeof bps !== 'number' || !Number.isInteger(bps) || bps < 1 || bps > 10000) throw new RitualInstructionDataError('input', 'feeBasisPoints must be 1..10000')
     const min = bigintValue(prop(o, 'minimumFee'), 'minimumFee'); const max = bigintValue(prop(o, 'maximumFee'), 'maximumFee'); const stake = bigintValue(prop(o, 'maximumMemberStake'), 'maximumMemberStake')
     if (min === 0n || max === 0n || stake === 0n || min > max) throw new RitualInstructionDataError('invariant', 'fee and stake bounds are invalid')
