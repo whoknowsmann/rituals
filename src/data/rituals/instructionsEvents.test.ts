@@ -42,4 +42,19 @@ describe('Ritual event instruction builders', () => {
     expect(instructions.initialize.keys.at(-1)?.pubkey).toEqual(SystemProgram.programId)
     for (const [name, ix] of Object.entries(instructions)) { const actual = manifest(ix); expect(actual).toBe(RITUAL_EVENT_RUST_MANIFESTS[name as keyof typeof RITUAL_EVENT_RUST_MANIFESTS]) }
   })
+
+  it('rejects claim completion from a Resolving event', () => {
+    const resolving = { address: eventAddress, account: { ...decodedEvent, status: 'Resolving' as const, claimedMembersBitmap: 0, confirmedMembersBitmap: 0, questionedMembersBitmap: 0 } }
+    expect(() => buildClaimCompletionInstruction({ programId, ritual, event: resolving, claimant: decodedRitual.members[1] })).toThrow(/invariant/)
+  })
+
+  it('requires an approver claim bit before approving', () => {
+    const resolving = { address: eventAddress, account: { ...decodedEvent, status: 'Resolving' as const, claimedMembersBitmap: 0, confirmedMembersBitmap: 0, questionedMembersBitmap: 0 } }
+    expect(() => buildApproveClaimInstruction({ programId, ritual, event: resolving, claim, approver: decodedRitual.members[2] })).toThrow(/invariant/)
+  })
+
+  it('requires a questioner claim bit before questioning', () => {
+    const resolving = { address: eventAddress, account: { ...decodedEvent, status: 'Resolving' as const, claimedMembersBitmap: 0, confirmedMembersBitmap: 0, questionedMembersBitmap: 0 } }
+    expect(() => buildQuestionClaimInstruction({ programId, ritual, event: resolving, claim, questioner: decodedRitual.members[2] })).toThrow(/invariant/)
+  })
 })
