@@ -23,15 +23,12 @@ export type RitualPreparationTransport = {
   getMinimumBalanceForRentExemption: (dataLength: number, commitment: 'confirmed') => Promise<unknown>
 }
 type ActionKind = 'create' | 'fund' | 'activate' | 'cancel' | 'close'
-type Expectation = Readonly<{
-  kind: 'created' | 'funded' | 'activated' | 'cancelled' | 'vaults-closed'
-  creator: PublicKeyText
-  nonce: bigint
-  member?: PublicKeyText
-  expectedCount?: number
-  stakeTotal?: bigint
-  feeTotal?: bigint
-}>
+export type PreparedExpectation =
+  | Readonly<{ kind: 'created'; creator: PublicKeyText; nonce: bigint }>
+  | Readonly<{ kind: 'funded'; member: PublicKeyText; expectedFundedMemberCount: number; expectedFundedStakeTotal: bigint; expectedFundedFeeTotal: bigint }>
+  | Readonly<{ kind: 'activated' }>
+  | Readonly<{ kind: 'cancelled' }>
+  | Readonly<{ kind: 'vaults-closed' }>
 export type RitualPreparationSummary = Readonly<{
   clusterLabel: 'local/test-unconfigured'
   tokenMint: PublicKeyText
@@ -57,7 +54,7 @@ export type PreparedRitualAction = Readonly<{
   lastValidBlockHeight: number
   messageDigest: string
   summary: RitualPreparationSummary
-  expectation: Expectation
+  expectation: PreparedExpectation
 }>
 export type WalletRitualTransaction = Readonly<{
   kind: ActionKind
@@ -66,13 +63,13 @@ export type WalletRitualTransaction = Readonly<{
   expectedMessageDigest: string
   submittedContextSlot: number
   lastValidBlockHeight: number
-  expectation: Expectation
+  expectation: PreparedExpectation
   ritualAddress: PublicKeyText
 }>
 type Internal = {
   kind: ActionKind; programId: PublicKey; feePayer: PublicKey; ritualAddress: PublicKey; blockhash: string
   lastValidBlockHeight: number; blockhashContextSlot: number; instruction: TransactionInstruction
-  messageBytes: Uint8Array; messageDigest: string; expectation: Expectation
+  messageBytes: Uint8Array; messageDigest: string; expectation: PreparedExpectation
 }
 const fail = (category: PreparationCategory, message: string): never => { throw new RitualPreparationError(category, message) }
 const copyKey = (key: PublicKey): PublicKey => new PublicKey(Uint8Array.from(key.toBytes()))
@@ -119,7 +116,7 @@ export class RitualActionPreparer {
 
   private async prepare(
     kind: ActionKind, instruction: TransactionInstruction, feePayer: PublicKey, ritualAddress: PublicKey, tokenMint: PublicKey,
-    expectation: Expectation, outflow: { token: bigint; stake: bigint; activation: bigint; escrow: bigint },
+    expectation: PreparedExpectation, outflow: { token: bigint; stake: bigint; activation: bigint; escrow: bigint },
     rentLengths: readonly number[], rentCreditRecipient: PublicKeyText | null, creates: RitualPreparationSummary['creates'],
   ): Promise<PreparedRitualAction> {
     if (!instruction.programId.equals(this.programId)) fail('input', 'programId does not match preparer')
@@ -133,8 +130,9 @@ export class RitualActionPreparer {
     const feeObject = object(feeResponse, 'fee response', 'fee'); const feeContext = object(property(feeObject, 'context', 'fee'), 'fee context', 'fee'); const feeSlot = safeSlot(property(feeContext, 'slot', 'fee'), 'fee context slot', 'fee'); if (feeSlot < slot) fail('fee', 'fee context is stale'); const feeValue = property(feeObject, 'value', 'fee'); if (feeValue === null) fail('fee', 'fee is unavailable'); const networkFee = BigInt(amount(feeValue, 'fee'))
     let rentDebit = 0n; let rentCredit = 0n; for (const length of rentLengths) { const result = BigInt(amount(await callTransport(this.rent, [length, 'confirmed'], 'rent', 'rent request failed'), 'rent')); if (rentCreditRecipient === null) rentDebit += result; else rentCredit += result }
     const messageBytes = Uint8Array.from(transaction.serializeMessage()); const messageDigest = hex(sha256(messageBytes)); const total = networkFee + rentDebit
+    const stakeOutflow = u64(outflow.stake, 'stakeOutflow'); const activationFeeOutflow = u64(outflow.activation, 'activationFeeOutflow'); const tokenOutflow = u64(outflow.token, 'tokenOutflow'); if (tokenOutflow !== addU64(stakeOutflow, activationFeeOutflow, 'tokenOutflow')) fail('input', 'tokenOutflow does not equal stakeOutflow plus activationFeeOutflow')
     const internal: Internal = { kind, programId: copyKey(this.programId), feePayer: payer, ritualAddress: ritual, blockhash: recentBlockhash, lastValidBlockHeight, blockhashContextSlot: slot, instruction: ix, messageBytes, messageDigest, expectation }
-    const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint: keyText(tokenMint), tokenOutflow: u64(outflow.token, 'tokenOutflow'), stakeOutflow: u64(outflow.stake, 'stakeOutflow'), activationFeeOutflow: u64(outflow.activation, 'activationFeeOutflow'), escrowActivationFeeTransfer: u64(outflow.escrow, 'escrowActivationFeeTransfer'), estimatedNetworkFeeLamports: networkFee, estimatedRentLamports: rentDebit, estimatedRentCreditLamports: rentCredit, rentCreditRecipient, totalEstimatedLamportOutflow: total, creates, networkFeeIsEstimate: true as const, rentCreditIsEstimate: true as const })
+    const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint: keyText(tokenMint), tokenOutflow, stakeOutflow, activationFeeOutflow, escrowActivationFeeTransfer: u64(outflow.escrow, 'escrowActivationFeeTransfer'), estimatedNetworkFeeLamports: networkFee, estimatedRentLamports: rentDebit, estimatedRentCreditLamports: rentCredit, rentCreditRecipient, totalEstimatedLamportOutflow: total, creates, networkFeeIsEstimate: true as const, rentCreditIsEstimate: true as const })
     const action = Object.freeze({ kind, programId: keyText(this.programId), ritualAddress: keyText(ritual), feePayer: keyText(payer), blockhashContextSlot: slot, lastValidBlockHeight, messageDigest, summary, expectation })
     this.#snapshots.set(action, internal); return action
   }
@@ -148,24 +146,24 @@ export class RitualActionPreparer {
   async prepareFund(args: BuildFundMemberArgs): Promise<PreparedRitualAction> {
     const ritual = ritualSnapshot(args.ritual); const member = copyKey(args.member); const account = ritual.account; const index = account.members.findIndex(item => item.equals(member)); if (index < 0) fail('input', 'member is not in ritual')
     const share = account.feePayerMode === 'Host' ? (member.equals(account.creator) ? account.lockedActivationFee : 0n) : account.lockedActivationFee / BigInt(account.members.length) + (BigInt(index) < account.lockedActivationFee % BigInt(account.members.length) ? 1n : 0n)
-    const expectedCount = account.fundedMemberCount + 1; const stakeTotal = addU64(account.fundedStakeTotal, account.memberTotalStake, 'expected stake total'); const feeTotal = addU64(account.fundedFeeTotal, share, 'expected fee total')
+    const expectedCount = account.fundedMemberCount + 1; const stakeTotal = addU64(account.fundedStakeTotal, account.memberTotalStake, 'expected stake total'); const feeTotal = addU64(account.fundedFeeTotal, share, 'expected fee total'); const walletTokenOutflow = addU64(account.memberTotalStake, share, 'wallet token outflow')
     let instruction!: TransactionInstruction; try { instruction = buildFundMemberInstruction({ ...args, ritual, member }) } catch { fail('input', 'invalid Fund Ritual inputs') }
-    return this.prepare('fund', instruction, member, ritual.address, account.stakeMint, Object.freeze({ kind: 'funded', member: keyText(member), expectedCount, stakeTotal, feeTotal }) as Expectation, { token: account.memberTotalStake, stake: account.memberTotalStake, activation: share, escrow: 0n }, [], null, null)
+    return this.prepare('fund', instruction, member, ritual.address, account.stakeMint, Object.freeze({ kind: 'funded', member: keyText(member), expectedFundedMemberCount: expectedCount, expectedFundedStakeTotal: stakeTotal, expectedFundedFeeTotal: feeTotal }), { token: walletTokenOutflow, stake: account.memberTotalStake, activation: share, escrow: 0n }, [], null, null)
   }
   async prepareActivate(args: BuildActivateRitualArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction> {
     const ritual = ritualSnapshot(args.ritual); const payer = copyKey(args.feePayer); if (payer.equals(PublicKey.default)) fail('input', 'feePayer must not be default')
     let instruction!: TransactionInstruction; try { instruction = buildActivateRitualInstruction({ programId: args.programId, ritual }) } catch { fail('input', 'invalid Activate Ritual inputs') }
-    return this.prepare('activate', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'activated' }) as Expectation, { token: 0n, stake: 0n, activation: 0n, escrow: ritual.account.lockedActivationFee }, [], null, null)
+    return this.prepare('activate', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'activated' }), { token: 0n, stake: 0n, activation: 0n, escrow: ritual.account.lockedActivationFee }, [], null, null)
   }
   async prepareCancel(args: BuildCancelUnactivatedArgs): Promise<PreparedRitualAction> {
     const ritual = ritualSnapshot(args.ritual); const payer = copyKey(args.caller); if (payer.equals(PublicKey.default)) fail('input', 'caller must not be default')
     let instruction!: TransactionInstruction; try { instruction = buildCancelUnactivatedInstruction({ ...args, ritual }) } catch { fail('input', 'invalid Cancel Ritual inputs') }
-    return this.prepare('cancel', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'cancelled' }) as Expectation, { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [], null, null)
+    return this.prepare('cancel', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'cancelled' }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [], null, null)
   }
   async prepareClose(args: BuildCloseTerminalVaultsArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction> {
     const ritual = ritualSnapshot(args.ritual); const payer = copyKey(args.feePayer); if (payer.equals(PublicKey.default)) fail('input', 'feePayer must not be default')
     let instruction!: TransactionInstruction; try { instruction = buildCloseTerminalVaultsInstruction({ programId: args.programId, ritual }) } catch { fail('input', 'invalid Close Ritual inputs') }
-    return this.prepare('close', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'vaults-closed' }) as Expectation, { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [ACCOUNT_SIZE, ACCOUNT_SIZE], keyText(ritual.account.creator), null)
+    return this.prepare('close', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'vaults-closed' }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [ACCOUNT_SIZE, ACCOUNT_SIZE], keyText(ritual.account.creator), null)
   }
 
   getTransactionForWallet(prepared: PreparedRitualAction): WalletRitualTransaction { const snapshot = this.internalFor(prepared); const transaction = new Transaction({ feePayer: copyKey(snapshot.feePayer), blockhash: snapshot.blockhash, lastValidBlockHeight: snapshot.lastValidBlockHeight }); transaction.add(copyInstruction(snapshot.instruction)); if (!equalBytes(Uint8Array.from(transaction.serializeMessage()), snapshot.messageBytes)) fail('mutation', 'prepared message reconstruction changed'); return Object.freeze({ kind: snapshot.kind, transaction, blockhash: snapshot.blockhash, expectedMessageDigest: snapshot.messageDigest, submittedContextSlot: snapshot.blockhashContextSlot, lastValidBlockHeight: snapshot.lastValidBlockHeight, expectation: snapshot.expectation, ritualAddress: keyText(snapshot.ritualAddress) }) }

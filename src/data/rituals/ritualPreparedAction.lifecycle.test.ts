@@ -10,7 +10,9 @@ import { RitualActionPreparer } from './ritualPreparedAction'
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
 const source = decodeRitual(envelope(accountVectors.ritual.hex), LOCAL_PLACEHOLDER_PROGRAM_ID)
 const addresses = deriveCreateRitualAccounts(LOCAL_PLACEHOLDER_PROGRAM_ID, source.creator, source.nonce)
-const funding = { address: addresses.ritual, account: { ...source, status: 'Funding' as const, fundedMembersBitmap: 1, fundedMemberCount: 1, fundedStakeTotal: source.memberTotalStake, fundedFeeTotal: source.lockedActivationFee, activatedAt: 0n, cancelledAt: 0n, completedAt: 0n, currentEventIndex: 0, settledEventCount: 0 } }
+const funding = { address: addresses.ritual, account: { ...source, status: 'Funding' as const, fundedMembersBitmap: 1, fundedMemberCount: 1, fundedStakeTotal: source.memberTotalStake, fundedFeeTotal: source.lockedActivationFee } }
+const hostCreatorFunding = { address: addresses.ritual, account: { ...source, status: 'Funding' as const, fundedMembersBitmap: 2, fundedMemberCount: 1, fundedStakeTotal: source.memberTotalStake, fundedFeeTotal: 0n } }
+const splitFunding = { address: addresses.ritual, account: { ...source, feePayerMode: 'Split' as const, status: 'Funding' as const, fundedMembersBitmap: 1, fundedMemberCount: 1, fundedStakeTotal: source.memberTotalStake, fundedFeeTotal: 260n } }
 const transport = () => ({
   rentLengths: [] as number[],
   async getLatestBlockhashAndContext() { return { context: { slot: 12 }, value: { blockhash: key(9).toBase58(), lastValidBlockHeight: 100 } } },
@@ -19,9 +21,21 @@ const transport = () => ({
 })
 
 describe('opaque Ritual lifecycle preparation', () => {
-  it('prepares funding with member payer, exact split share, and next totals', async () => {
+  it('prepares HOST noncreator funding with stake-only wallet outflow', async () => {
     const t = transport(); const action = await new RitualActionPreparer(t, LOCAL_PLACEHOLDER_PROGRAM_ID).prepareFund({ programId: LOCAL_PLACEHOLDER_PROGRAM_ID, ritual: funding, member: source.members[1], memberSource: key(32) })
-    expect(action.kind).toBe('fund'); expect(action.feePayer).toBe(source.members[1].toBase58()); expect(action.summary.tokenOutflow).toBe(source.memberTotalStake); expect(action.summary.stakeOutflow).toBe(source.memberTotalStake); expect(action.summary.activationFeeOutflow).toBe(0n); expect(action.expectation).toMatchObject({ kind: 'funded', expectedCount: 2, stakeTotal: source.memberTotalStake * 2n, feeTotal: source.lockedActivationFee }); expect(t.rentLengths).toEqual([])
+    expect(action.kind).toBe('fund'); expect(action.feePayer).toBe(source.members[1].toBase58()); expect(action.summary.tokenOutflow).toBe(source.memberTotalStake); expect(action.summary.stakeOutflow).toBe(source.memberTotalStake); expect(action.summary.activationFeeOutflow).toBe(0n); expect(action.summary.tokenOutflow).toBe(action.summary.stakeOutflow + action.summary.activationFeeOutflow); expect(action.expectation).toMatchObject({ kind: 'funded', expectedFundedMemberCount: 2, expectedFundedStakeTotal: source.memberTotalStake * 2n, expectedFundedFeeTotal: source.lockedActivationFee }); expect(t.rentLengths).toEqual([])
+  })
+  it('prepares HOST creator funding with stake and activation fee wallet outflow', async () => {
+    const action = await new RitualActionPreparer(transport(), LOCAL_PLACEHOLDER_PROGRAM_ID).prepareFund({ programId: LOCAL_PLACEHOLDER_PROGRAM_ID, ritual: hostCreatorFunding, member: source.creator, memberSource: key(33) })
+    expect(action.summary).toMatchObject({ tokenOutflow: source.memberTotalStake + source.lockedActivationFee, stakeOutflow: source.memberTotalStake, activationFeeOutflow: source.lockedActivationFee })
+  })
+  it('prepares SPLIT funding with the exact member fee share in wallet outflow', async () => {
+    const action = await new RitualActionPreparer(transport(), LOCAL_PLACEHOLDER_PROGRAM_ID).prepareFund({ programId: LOCAL_PLACEHOLDER_PROGRAM_ID, ritual: splitFunding, member: source.members[1], memberSource: key(34) })
+    expect(action.summary).toMatchObject({ tokenOutflow: source.memberTotalStake + 259n, stakeOutflow: source.memberTotalStake, activationFeeOutflow: 259n }); expect(action.summary.tokenOutflow).toBe(action.summary.stakeOutflow + action.summary.activationFeeOutflow); expect(action.expectation).toMatchObject({ kind: 'funded', expectedFundedMemberCount: 2, expectedFundedStakeTotal: source.memberTotalStake * 2n, expectedFundedFeeTotal: 519n })
+  })
+  it('rejects wallet token outflow overflow before transport', async () => {
+    const overflow = { address: addresses.ritual, account: { ...source, feePayerMode: 'Split' as const, memberTotalStake: 0xffffffffffffffffn, lockedActivationFee: 3n, fundedMembersBitmap: 0, fundedMemberCount: 0, fundedStakeTotal: 0n, fundedFeeTotal: 0n } }
+    await expect(new RitualActionPreparer(transport(), LOCAL_PLACEHOLDER_PROGRAM_ID).prepareFund({ programId: LOCAL_PLACEHOLDER_PROGRAM_ID, ritual: overflow, member: source.members[0], memberSource: key(35) })).rejects.toMatchObject({ category: 'input' })
   })
   it('prepares activation with escrow transfer but no wallet outflow', async () => {
     const t = transport(); const funded = { address: addresses.ritual, account: { ...funding.account, fundedMembersBitmap: 7, fundedMemberCount: 3, fundedStakeTotal: source.memberTotalStake * 3n, fundedFeeTotal: source.lockedActivationFee } }

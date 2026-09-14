@@ -114,7 +114,7 @@ const expectCategory = async (promise: Promise<unknown>, category: string) => {
     mutable.ritual.nonce = 99n; mutable.ritual.members = [key(8), key(7)]; mutable.ritual.ruleDigest = 'aa'.repeat(32) as never
     mutable.ritual.schedule[0].opens = 999n; mutable.ritual.feePayerMode = 'SPLIT'
     release(); const action = await pending; const wallet = preparer.getTransactionForWallet(action)
-    expect(wallet.expectation.creator).toBe(key(1).toBase58()); expect(wallet.expectation.nonce).toBe(7n)
+    expect(wallet.expectation.kind).toBe('created'); if (wallet.expectation.kind === 'created') { expect(wallet.expectation.creator).toBe(key(1).toBase58()); expect(wallet.expectation.nonce).toBe(7n) }
     expect(wallet.transaction.instructions[0].data[8]).toBe(7)
     expect(wallet.transaction.feePayer?.equals(key(1))).toBe(true)
   })
@@ -172,9 +172,10 @@ const expectCategory = async (promise: Promise<unknown>, category: string) => {
     expect(action.ritualAddress).toBe(wallet.ritualAddress)
     expect(action.feePayer).toBe(key(1).toBase58())
     expect(action.summary.tokenMint).toBe(key(2).toBase58())
-    expect(action.expectation.creator).toBe(key(1).toBase58())
+    expect(action.expectation.kind).toBe('created'); if (action.expectation.kind === 'created') expect(action.expectation.creator).toBe(key(1).toBase58())
     expect(wallet.expectation).toBe(action.expectation)
-    for (const text of [action.programId, action.ritualAddress, action.feePayer, action.summary.tokenMint, action.expectation.creator, wallet.ritualAddress]) {
+    const creator = action.expectation.kind === 'created' ? action.expectation.creator : ''
+    for (const text of [action.programId, action.ritualAddress, action.feePayer, action.summary.tokenMint, creator, wallet.ritualAddress]) {
       expect(new PublicKey(text).toBase58()).toBe(text)
     }
   })
