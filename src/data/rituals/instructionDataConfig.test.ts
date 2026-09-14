@@ -1,0 +1,98 @@
+import { describe, expect, it } from 'vitest'
+import { PublicKey } from '@solana/web3.js'
+import { encodeInitializeProtocolConfigData, RitualInstructionDataError } from './instructionData'
+
+const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
+const base = () => ({ allowedStakeMint: key(1), feeRecipient: key(2), feeBasisPoints: 250, minimumFee: 11n, maximumFee: 999n, maximumMemberStake: 1000n })
+const expectError = (fn: () => unknown, category: RitualInstructionDataError['category'] = 'input') => {
+  try { fn(); throw new Error('expected encoder to throw') } catch (error) {
+    expect(error).toBeInstanceOf(RitualInstructionDataError)
+    expect((error as RitualInstructionDataError).category).toBe(category)
+    expect(String(error)).not.toMatch(/TypeError|undefined|Cannot read|is not a function/)
+  }
+}
+
+const u64 = (value: bigint) => Array.from({ length: 8 }, (_, i) => Number((value >> BigInt(i * 8)) & 255n))
+
+describe('initialize_protocol_config adversarial input and byte boundaries', () => {
+  it.each([
+    ['minimum bps', 1], ['maximum bps', 10_000],
+  ])('accepts %s fee basis points and encodes u16 LE', (_name, bps) => {
+    const data = encodeInitializeProtocolConfigData({ ...base(), feeBasisPoints: bps })
+    expect(data.slice(72, 74)).toEqual(Uint8Array.from([bps & 255, bps >>> 8]))
+  })
+
+  it.each([
+    ['zero', 0], ['too high', 10_001], ['fraction', 1.5], ['NaN', NaN], ['infinity', Infinity], ['string', '250'],
+  ])('rejects %s bps', (_name, value) => expectError(() => encodeInitializeProtocolConfigData({ ...base(), feeBasisPoints: value } as never)))
+
+  it.each([
+    ['zero', 0n], ['maximum', 0xffffffffffffffffn], ['negative', -1n], ['above maximum', 0x10000000000000000n], ['number', 1], ['string', '1'],
+  ])('handles minimumFee %s', (_name, value) => {
+    if (_name === 'zero' || _name === 'negative' || _name === 'above maximum' || _name === 'number' || _name === 'string') expectError(() => encodeInitializeProtocolConfigData({ ...base(), minimumFee: value } as never), _name === 'negative' || _name === 'above maximum' || _name === 'number' || _name === 'string' ? 'overflow' : 'invariant')
+    else expect(encodeInitializeProtocolConfigData({ ...base(), minimumFee: value, maximumFee: value } as never)).toBeInstanceOf(Uint8Array)
+  })
+
+  it.each([
+    ['maximumFee', 'maximumFee'], ['maximumMemberStake', 'maximumMemberStake'],
+  ])('rejects wrong type for %s', (_label, field) => expectError(() => encodeInitializeProtocolConfigData({ ...base(), [field]: '1' } as never), 'overflow'))
+
+  it.each([
+    ['missing object', {}], ['null', null], ['undefined', undefined], ['primitive', 3], ['array', []],
+  ])('rejects malformed input %s with a stable error', (_name, value) => expectError(() => encodeInitializeProtocolConfigData(value as never)))
+
+  it.each(['allowedStakeMint', 'feeRecipient'])('rejects missing %s', field => {
+    const input = base(); delete (input as Record<string, unknown>)[field]
+    expectError(() => encodeInitializeProtocolConfigData(input as never))
+  })
+
+  it.each(['allowedStakeMint', 'feeRecipient'])('rejects non-PublicKey %s', field => expectError(() => encodeInitializeProtocolConfigData({ ...base(), [field]: 'not a key' } as never)))
+
+  it('rejects default public keys', () => {
+    expectError(() => encodeInitializeProtocolConfigData({ ...base(), allowedStakeMint: PublicKey.default }), 'invariant')
+    expectError(() => encodeInitializeProtocolConfigData({ ...base(), feeRecipient: PublicKey.default }), 'invariant')
+  })
+
+  it('converts each successful top-level property exactly once', () => {
+    const input = base() as Record<string, unknown>
+    for (const field of Object.keys(input)) {
+      let reads = 0
+      const value = input[field]
+      Object.defineProperty(input, field, { configurable: true, get: () => { reads++; return value } })
+      encodeInitializeProtocolConfigData(input as never)
+      expect(reads, field).toBe(1)
+    }
+  })
+
+  it.each(['allowedStakeMint', 'feeRecipient', 'feeBasisPoints', 'minimumFee', 'maximumFee', 'maximumMemberStake'])('normalizes a throwing %s getter', field => {
+    const input = base() as Record<string, unknown>
+    Object.defineProperty(input, field, { get: () => { throw new Error('hostile getter') } })
+    expectError(() => encodeInitializeProtocolConfigData(input as never))
+  })
+
+  it('does not leak a PublicKey toBytes failure', () => {
+    const original = PublicKey.prototype.toBytes
+    Object.defineProperty(PublicKey.prototype, 'toBytes', { configurable: true, value: () => { throw new Error('hostile') } })
+    try { expectError(() => encodeInitializeProtocolConfigData(base())) } finally { Object.defineProperty(PublicKey.prototype, 'toBytes', { configurable: true, value: original }) }
+  })
+
+  it('accepts equal positive fee bounds and writes exact u64 little endian fields', () => {
+    const value = 0x123456789abcdef0n
+    const data = encodeInitializeProtocolConfigData({ ...base(), minimumFee: value, maximumFee: value, maximumMemberStake: 0xffffffffffffffffn })
+    expect(Array.from(data.slice(74, 82))).toEqual(u64(value))
+    expect(Array.from(data.slice(82, 90))).toEqual(u64(value))
+    expect(Array.from(data.slice(90, 98))).toEqual(u64(0xffffffffffffffffn))
+    expect(data).toHaveLength(98)
+  })
+
+  it('rejects invalid fee ordering and zero bounds', () => {
+    expectError(() => encodeInitializeProtocolConfigData({ ...base(), minimumFee: 1000n, maximumFee: 999n }), 'invariant')
+    expectError(() => encodeInitializeProtocolConfigData({ ...base(), maximumFee: 0n }), 'invariant')
+    expectError(() => encodeInitializeProtocolConfigData({ ...base(), maximumMemberStake: 0n }), 'invariant')
+  })
+
+  it('returns independent fresh output arrays', () => {
+    const first = encodeInitializeProtocolConfigData(base()); const second = encodeInitializeProtocolConfigData(base())
+    expect(first).not.toBe(second); first[0] ^= 255; expect(second[0]).toBe(28)
+  })
+})

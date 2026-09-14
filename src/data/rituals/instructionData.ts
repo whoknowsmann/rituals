@@ -56,6 +56,11 @@ function record(value: unknown): AnyRecord {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new RitualInstructionDataError('input', 'expected an object')
   return value as AnyRecord
 }
+function denseArray<T>(value: unknown, name: string): T[] {
+  if (!Array.isArray(value)) throw new RitualInstructionDataError('input', `${name} must be an array`)
+  for (let i = 0; i < value.length; i += 1) if (!Object.prototype.hasOwnProperty.call(value, i)) throw new RitualInstructionDataError('input', `${name} must be dense`)
+  return value as T[]
+}
 function prop<T>(obj: AnyRecord, name: string): T {
   try { return obj[name] as T } catch { throw new RitualInstructionDataError('input', `could not read ${name}`) }
 }
@@ -124,12 +129,14 @@ export function encodeInitializeProtocolConfigData(input: InitializeProtocolConf
 export function encodeCreateRitualData(input: CreateRitualInput): Uint8Array {
   try {
     const o = record(input); const nonce = bigintValue(prop(o, 'nonce'), 'nonce'); const digest = digestBytes(prop(o, 'ruleDigest')); const rawMembers = prop<unknown>(o, 'members')
-    if (!Array.isArray(rawMembers)) throw new RitualInstructionDataError('input', 'members must be an array')
-    const members = rawMembers.map((m, i) => keyBytes(m, `members[${i}]`)); if (members.length < 2 || members.length > 6) throw new RitualInstructionDataError('invariant', 'members must contain 2..6 keys')
+    const memberArray = denseArray<unknown>(rawMembers, 'members')
+    if (memberArray.length < 2 || memberArray.length > 6) throw new RitualInstructionDataError('invariant', 'members must contain 2..6 keys')
+    const members = memberArray.map((m, i) => keyBytes(m, `members[${i}]`))
     if (members.some(m => m.every(x => x === 0)) || new Set(members.map(m => Array.from(m).join(','))).size !== members.length) throw new RitualInstructionDataError('invariant', 'members must be unique and non-default')
     const stake = bigintValue(prop(o, 'memberTotalStake'), 'memberTotalStake'); if (stake === 0n) throw new RitualInstructionDataError('invariant', 'memberTotalStake must be positive')
-    const rawSchedule = prop<unknown>(o, 'schedule'); if (!Array.isArray(rawSchedule) || rawSchedule.length < 1 || rawSchedule.length > 16) throw new RitualInstructionDataError('invariant', 'schedule must contain 1..16 windows')
-    const schedule = rawSchedule.map((x, i) => { const q = record(x); const opens = bigintValue(prop(q, 'opens'), `schedule[${i}].opens`, true); const deadline = bigintValue(prop(q, 'deadline'), `schedule[${i}].deadline`, true); const resolution = bigintValue(prop(q, 'resolution'), `schedule[${i}].resolution`, true); if (opens < 0n || !(opens < deadline && deadline < resolution)) throw new RitualInstructionDataError('invariant', 'event window ordering is invalid'); return { opens, deadline, resolution } })
+    const rawSchedule = prop<unknown>(o, 'schedule'); const scheduleArray = denseArray<unknown>(rawSchedule, 'schedule')
+    if (scheduleArray.length < 1 || scheduleArray.length > 16) throw new RitualInstructionDataError('invariant', 'schedule must contain 1..16 windows')
+    const schedule = scheduleArray.map((x, i) => { const q = record(x); const opens = bigintValue(prop(q, 'opens'), `schedule[${i}].opens`, true); const deadline = bigintValue(prop(q, 'deadline'), `schedule[${i}].deadline`, true); const resolution = bigintValue(prop(q, 'resolution'), `schedule[${i}].resolution`, true); if (opens < 0n || !(opens < deadline && deadline < resolution)) throw new RitualInstructionDataError('invariant', 'event window ordering is invalid'); return { opens, deadline, resolution } })
     for (let i = 1; i < schedule.length; i++) if (schedule[i - 1].resolution >= schedule[i].opens) throw new RitualInstructionDataError('invariant', 'schedule windows overlap')
     if (stake % BigInt(schedule.length) !== 0n || stake / BigInt(schedule.length) === 0n) throw new RitualInstructionDataError('invariant', 'stake must divide evenly across events')
     if (stake * BigInt(members.length) > MAX_U64) throw new RitualInstructionDataError('overflow', 'group stake pool exceeds u64')
