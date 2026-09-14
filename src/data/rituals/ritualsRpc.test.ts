@@ -155,6 +155,35 @@ describe('confirmed read-only Rituals RPC reader', () => {
     ])
   })
 
+  it('reads an authoritative same-slot ritual/event/claim bundle in member order', async () => {
+    const connection = new FakeConnection()
+    const reader = createRitualsRpcReader(connection, programId)
+    const bundle = await reader.getRitualBundle(ritualAddress, { minContextSlot: 40 })
+    expect(bundle.slot).toBe(42)
+    expect(bundle.ritual.slot).toBe(42)
+    expect(bundle.event?.slot).toBe(42)
+    expect(bundle.claims).toHaveLength(3)
+    expect(bundle.claims.map(item => item.memberIndex)).toEqual([0, 1, 2])
+    expect(bundle.claims[1].account?.status).toBe('Pending')
+    expect(bundle.claims[0].account).toBeNull()
+    expect(bundle.claims[2].account).toBeNull()
+    expect(Object.isFrozen(bundle)).toBe(true)
+    expect(Object.isFrozen(bundle.claims)).toBe(true)
+    expect(connection.calls.map(call => call.config)).toEqual([
+      { commitment: 'confirmed', minContextSlot: 40 },
+      { commitment: 'confirmed', minContextSlot: 42 },
+    ])
+  })
+
+  it('registers bundle event contexts for subsequent claim reads', async () => {
+    const connection = new FakeConnection()
+    const reader = createRitualsRpcReader(connection, programId)
+    const bundle = await reader.getRitualBundle(ritualAddress)
+    if (bundle.event === null) throw new Error('expected event')
+    const result = await reader.getClaim(bundle.ritual, bundle.event, new PublicKey(accountVectors.completionClaim.expected.claimant))
+    expect(result.account.status).toBe('Pending')
+  })
+
   it('rejects a confirmed RPC response with a sparse account value array', async () => {
     const reader = createRitualsRpcReader(new FakeConnection(claim.data, [42], 'hole'), programId)
     await expect(reader.getProtocolConfig()).rejects.toMatchObject({ category: 'rpc', message: 'Rituals RPC account value is missing' })
