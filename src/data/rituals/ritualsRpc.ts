@@ -252,19 +252,18 @@ export class RitualsRpcReader {
       const ritual = Object.freeze({ slot: fetched.slot, address: target, protocolConfigAddress: this.protocolConfigAddress, protocolConfig, account })
       this.#ritualReads.add(ritual)
 
+      const nextIndex = account.status === 'Completed' ? account.schedule.length - 1 : account.currentEventIndex
+      if (discovery.account.status === 'Active' && nextIndex < discovery.account.currentEventIndex) throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
       if (!sameProtocolConfigIdentity(discoveryProtocolConfig, protocolConfig) || !immutableRitualEqual(discoveryAccount, account)) bundleMismatch()
       if (account.status === 'Funding' || account.status === 'Cancelled') throw failure('canonical', 'Ritual lifecycle changed across bundle read')
       if (discovery.account.status === 'Completed' && account.status !== 'Completed') throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
       if (discovery.account.status === 'Active' && account.status !== 'Active' && account.status !== 'Completed') throw failure('canonical', 'Ritual lifecycle changed across bundle read')
-      const nextIndex = account.status === 'Completed' ? account.schedule.length - 1 : account.currentEventIndex
       if (nextIndex !== requestedIndex) {
         discovery = ritual
         requestedIndex = nextIndex
         minContextSlot = fetched.slot
         continue
       }
-      if (discovery.account.status === 'Active' && account.status === 'Active' && nextIndex < discovery.account.currentEventIndex) throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
-
       const expectedEventAddress = eventPda(target, nextIndex, this.#programId)[0]
       const expectedClaimAddresses = account.members.map(member => claimPda(expectedEventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[0])
       if (!eventAddress.equals(expectedEventAddress) || claimAddresses.length !== expectedClaimAddresses.length || claimAddresses.some((address, index) => !address.equals(expectedClaimAddresses[index]))) bundleMismatch()

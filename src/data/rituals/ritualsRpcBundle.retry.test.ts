@@ -119,15 +119,31 @@ describe('Ritual bundle retries and immutable snapshots', () => {
     expect(transport.calls[2].keys.slice(0, 3)).toEqual([key(configAddress), key(ritualAddress), key(event1)])
   })
 
-  it('bounds repeated event advancement at three bundle attempts', async () => {
+  it('rejects backward event-index movement before requesting the regressed event', async () => {
+    const [event1] = eventPda(ritualAddress, 1, programId)
+
+    const transport = new ScriptedTransport((call, keys) => keys.map(current => {
+      if (current.equals(configAddress)) return configFor()
+      if (current.equals(ritualAddress)) return ritualFor(call === 1 ? activeRitual(1, 300n) : activeRitual(0, 600n))
+      if (current.equals(event1)) return null
+      return null
+    }))
+    const reader = createRitualsRpcReader(transport, programId)
+
+    await expect(reader.getRitualBundle(ritualAddress)).rejects.toMatchObject({ category: 'canonical', message: 'Ritual lifecycle regressed across bundle read' })
+    expect(transport.calls).toHaveLength(2)
+    expect(transport.calls[1].keys.slice(0, 3)).toEqual([key(configAddress), key(ritualAddress), key(event1)])
+  })
+
+  it('rejects a backward event after one advancement attempt', async () => {
     const transport = new ScriptedTransport((call, keys) => keys.map(current => {
       if (current.equals(configAddress)) return configFor()
       if (current.equals(ritualAddress)) return ritualFor(activeRitual(call % 2 === 0 ? 1 : 0, call % 2 === 0 ? 300n : 600n))
       return null
     }))
     const reader = createRitualsRpcReader(transport, programId)
-    await expect(reader.getRitualBundle(ritualAddress)).rejects.toMatchObject({ category: 'unstable' })
-    expect(transport.calls).toHaveLength(4)
-    expect(transport.calls.map(call => call.minContextSlot)).toEqual([undefined, 10, 11, 12])
+    await expect(reader.getRitualBundle(ritualAddress)).rejects.toMatchObject({ category: 'canonical', message: 'Ritual lifecycle regressed across bundle read' })
+    expect(transport.calls).toHaveLength(3)
+    expect(transport.calls.map(call => call.minContextSlot)).toEqual([undefined, 10, 11])
   })
 })
