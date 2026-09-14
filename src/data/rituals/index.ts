@@ -1,6 +1,7 @@
 export * from './programIds'
 export * from './pdas'
 export * from './accounts'
+export * from './ritualsRpc'
 export * from './instructionData'
 export * from './instructionsLifecycle'
 export * from './instructionsEvents'
