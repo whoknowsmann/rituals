@@ -15,7 +15,23 @@ const preparer = (transport = new Transport()) => ({ transport, value: new Ritua
 const fund = (ritual = lifecycleContext()) => ({ programId: lifecycleProgramId, ritual, member: lifecycleSource.members[0], memberSource: lifecycleKey(70) })
 const activate = (ritual = fullyFundedContext()) => ({ programId: lifecycleProgramId, ritual, feePayer: lifecycleKey(71) })
 const cancel = (ritual = lifecycleContext()) => ({ programId: lifecycleProgramId, ritual, caller: lifecycleKey(72), destinationTokenAccounts: lifecycleSource.members.map((_, i) => lifecycleKey(80 + i)) })
-const close = (status: 'Completed' | 'Cancelled') => ({ programId: lifecycleProgramId, ritual: lifecycleContext({ status, vaultsClosed: false, fundedMembersBitmap: status === 'Completed' ? 7 : 0, fundedMemberCount: status === 'Completed' ? 3 : 0 }), feePayer: lifecycleKey(73) })
+const close = (status: 'Completed' | 'Cancelled') => ({
+  programId: lifecycleProgramId,
+  ritual: lifecycleContext({
+    status,
+    vaultsClosed: false,
+    fundedMembersBitmap: status === 'Completed' ? 7 : 0,
+    fundedMemberCount: status === 'Completed' ? 3 : 0,
+    fundedStakeTotal: 0n,
+    fundedFeeTotal: status === 'Completed' ? lifecycleSource.lockedActivationFee : 0n,
+    currentEventIndex: status === 'Completed' ? lifecycleSource.schedule.length : 0,
+    settledEventCount: status === 'Completed' ? lifecycleSource.schedule.length : 0,
+    activatedAt: status === 'Completed' ? 20n : 0n,
+    cancelledAt: status === 'Cancelled' ? lifecycleSource.createdAt : 0n,
+    completedAt: status === 'Completed' ? lifecycleSource.schedule.at(-1)!.resolution + 1n : 0n,
+  }),
+  feePayer: lifecycleKey(73),
+})
 const splitCases = Array.from({ length: 5 }, (_, n) => n + 2).flatMap(memberCount => Array.from({ length: memberCount }, (_, remainder) => Array.from({ length: memberCount }, (_, memberIndex) => ({ memberCount, remainder, memberIndex }))).flat())
 
 describe('Fund, Activate, Cancel, and Close preparation contract', () => {

@@ -47,7 +47,7 @@ describe('opaque Ritual lifecycle preparation', () => {
     expect(action.kind).toBe('cancel'); expect(action.feePayer).toBe(key(77).toBase58()); expect(action.summary.tokenOutflow).toBe(0n); expect(action.summary.totalEstimatedLamportOutflow).toBe(5000n); expect(action.expectation.kind).toBe('cancelled')
   })
   it('prepares terminal closure with two rent credits to the immutable creator', async () => {
-    const t = transport(); const terminal = { address: addresses.ritual, account: { ...funding.account, status: 'Completed' as const, vaultsClosed: false, fundedMembersBitmap: 7, fundedMemberCount: 3, fundedStakeTotal: 0n, fundedFeeTotal: source.lockedActivationFee, currentEventIndex: source.schedule.length, settledEventCount: source.schedule.length, activatedAt: 1n, completedAt: source.schedule.at(-1)!.resolution + 1n } }
+    const t = transport(); const terminal = { address: addresses.ritual, account: { ...funding.account, status: 'Completed' as const, vaultsClosed: false, fundedMembersBitmap: 7, fundedMemberCount: 3, fundedStakeTotal: 0n, fundedFeeTotal: source.lockedActivationFee, currentEventIndex: source.schedule.length, settledEventCount: source.schedule.length, activatedAt: 20n, completedAt: source.schedule.at(-1)!.resolution + 1n } }
     const action = await new RitualActionPreparer(t, LOCAL_PLACEHOLDER_PROGRAM_ID).prepareClose({ programId: LOCAL_PLACEHOLDER_PROGRAM_ID, ritual: terminal, feePayer: key(66) })
     expect(t.rentLengths).toEqual([ACCOUNT_SIZE, ACCOUNT_SIZE]); expect(action.summary).toMatchObject({ estimatedRentLamports: 0n, estimatedRentCreditLamports: BigInt(ACCOUNT_SIZE * 2), rentCreditRecipient: source.creator.toBase58(), totalEstimatedLamportOutflow: 5000n }); expect(action.expectation.kind).toBe('vaults-closed')
   })
