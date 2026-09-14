@@ -30,6 +30,50 @@ const eventWindowOffset = 42
 const eventMemberCountOffset = 66
 const eventStatusOffset = 67
 
+// Anchor serializes the schedule vector before the scalar lifecycle fields. The
+// fixture has two 24-byte windows; adding two windows shifts every later field
+// by 48 bytes while preserving the fixed 909-byte allocation.
+const ritualScheduleLengthOffset = 261
+const ritualScheduleDataOffset = 265
+const ritualScheduleWindowBytes = 24
+const ritualScalarOffset = ritualScheduleDataOffset + 2 * ritualScheduleWindowBytes
+const ritualUsedBytes = 477
+const fourEventSchedule = [
+  [100n, 200n, 300n],
+  [400n, 500n, 600n],
+  [700n, 800n, 900n],
+  [1000n, 1100n, 1200n],
+] as const
+
+const putWindow = (data: Uint8Array, offset: number, window: readonly [bigint, bigint, bigint]) => {
+  window.forEach((value, index) => putU64(data, offset + index * 8, value))
+}
+
+const fourEventActive = (eventIndex: number) => {
+  if (!Number.isInteger(eventIndex) || eventIndex < 0 || eventIndex > 3) throw new Error('four-event active index must be 0..3')
+  const data = new Uint8Array(ritualBytes.length)
+  data.set(ritualBytes.slice(0, ritualScheduleLengthOffset))
+  data[ritualScheduleLengthOffset] = 4
+  fourEventSchedule.forEach((window, index) => putWindow(data, ritualScheduleDataOffset + index * ritualScheduleWindowBytes, window))
+  data.set(ritualBytes.slice(ritualScalarOffset, ritualUsedBytes), ritualScalarOffset + 2 * ritualScheduleWindowBytes)
+
+  // memberTotalStake remains 200; four events therefore require 50 per event.
+  putU64(data, 253, 50n)
+  const shifted = 2 * ritualScheduleWindowBytes
+  const currentEventOffset = ritualCurrentEventOffset + shifted
+  const settledCountOffset = ritualSettledCountOffset + shifted
+  const fundedStakeOffset = ritualFundedStakeOffset + shifted
+  const activatedAtOffset = 451 + shifted
+  data[currentEventOffset] = eventIndex
+  data[settledCountOffset] = eventIndex
+  data[422 + shifted] = 7 // all three members funded
+  data[423 + shifted] = 3
+  putU64(data, fundedStakeOffset, BigInt(4 - eventIndex) * 50n * 3n)
+  putU64(data, activatedAtOffset, 20n) // createdAt is 10; schedule opens at 100
+  data.fill(0, ritualUsedBytes + shifted)
+  return data
+}
+
 const activeRitual = (eventIndex: number, fundedStake: bigint) => {
   const data = copy(ritualBytes)
   data[ritualCurrentEventOffset] = eventIndex
@@ -94,6 +138,32 @@ describe('Ritual bundle retries and immutable snapshots', () => {
     const transport = new ScriptedTransport((call, keys) => keys.map(current => current.equals(configAddress) ? configFor() : current.equals(ritualAddress) ? ritualFor(call === 1 ? ritualBytes : changed) : null))
     const reader = createRitualsRpcReader(transport, programId)
     await expect(reader.getRitualBundle(ritualAddress)).rejects.toMatchObject({ category: 'canonical', message: 'Ritual immutable fields changed across bundle read' })
+  })
+
+  it('exhausts three advancement attempts with decoder-valid four-event snapshots', async () => {
+    const snapshots = [0, 1, 2, 3].map((index) => {
+      const data = fourEventActive(index)
+      const decoded = decodeRitual(account(data), programId, configView.allowedStakeMint, ritualAddress)
+      expect(decoded.schedule).toHaveLength(4)
+      expect(decoded.currentEventIndex).toBe(index)
+      expect(decoded.fundedStakeTotal).toBe(BigInt(4 - index) * 50n * 3n)
+      return data
+    })
+    const requestedIndices = [0, 1, 2]
+    const transport = new ScriptedTransport((call, keys) => keys.map(current => {
+      if (current.equals(configAddress)) return configFor()
+      if (current.equals(ritualAddress)) return ritualFor(snapshots[Math.min(call - 1, 3)])
+      return null
+    }))
+    const reader = createRitualsRpcReader(transport, programId)
+
+    await expect(reader.getRitualBundle(ritualAddress)).rejects.toMatchObject({
+      category: 'unstable',
+      message: 'Ritual event advanced while reading bundle',
+    })
+    expect(transport.calls).toHaveLength(4)
+    expect(transport.calls.map(call => call.minContextSlot)).toEqual([undefined, 10, 11, 12])
+    expect(transport.calls.slice(1).map(call => call.keys[2])).toEqual(requestedIndices.map(index => key(eventPda(ritualAddress, index, programId)[0])))
   })
 
   it('refetches the advanced event and derives null claims from refetched members', async () => {
