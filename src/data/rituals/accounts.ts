@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import type { RuleDigest } from '../../domain/rituals/types'
-import { feeVaultPda, protocolConfigPda, ritualPda, stakeVaultPda } from './pdas'
+import { CURRENT_CLAIM_VERSION, feeVaultPda, protocolConfigPda, ritualPda, stakeVaultPda } from './pdas'
 
 export type AccountEnvelope = unknown
 export type ProtocolConfigAccountView = Readonly<{ schemaVersion: number; authority: PublicKey; allowedStakeMint: PublicKey; feeRecipient: PublicKey; feeBasisPoints: number; minimumFee: bigint; maximumFee: bigint; maximumMemberStake: bigint; maxMembers: number; maxEvents: number; paused: boolean; bump: number }>
@@ -23,8 +23,6 @@ export const ACCOUNT_DATA_LENGTHS = Object.freeze({
   RitualEvent: 139,
   CompletionClaim: 121,
 })
-
-const CURRENT_CLAIM_VERSION = 0
 
 export class RitualAccountDecodeError extends Error {
   readonly category: string
