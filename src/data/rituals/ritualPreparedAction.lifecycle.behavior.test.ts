@@ -33,6 +33,7 @@ const close = (status: 'Completed' | 'Cancelled') => ({
   feePayer: lifecycleKey(73),
 })
 const splitCases = Array.from({ length: 5 }, (_, n) => n + 2).flatMap(memberCount => Array.from({ length: memberCount }, (_, remainder) => Array.from({ length: memberCount }, (_, memberIndex) => ({ memberCount, remainder, memberIndex }))).flat())
+const hostCases = Array.from({ length: 5 }, (_, n) => n + 2).flatMap(memberCount => Array.from({ length: memberCount }, (_, creatorPosition) => ({ memberCount, creatorPosition })))
 
 describe('Fund, Activate, Cancel, and Close preparation contract', () => {
   it.each([
@@ -91,17 +92,24 @@ describe('Fund, Activate, Cancel, and Close preparation contract', () => {
     expect(action.expectation).toMatchObject({ expectedFundedMemberCount: 1, expectedFundedStakeTotal: ritual.account.memberTotalStake, expectedFundedFeeTotal: expectedShare })
   })
 
-  it.each([0, 1, 2])('charges HOST fee only when the funded member is the creator at position %s', async creatorPosition => {
+  it.each(hostCases)('charges HOST fee only for the creator (N=$memberCount position=$creatorPosition)', async ({ memberCount, creatorPosition }) => {
     const { value } = preparer()
-    const members = lifecycleSource.members.slice()
     const creator = lifecycleSource.creator
-    members.splice(members.findIndex(member => member.equals(creator)), 1); members.splice(creatorPosition, 0, creator)
+    const noncreators = Array.from({ length: memberCount - 1 }, (_, index) => lifecycleKey(100 + (memberCount - 2) * 5 + index))
+    const members = noncreators.slice()
+    members.splice(creatorPosition, 0, creator)
     const ritual = lifecycleContext({ members, feePayerMode: 'Host', lockedActivationFee: 778n, fundedMembersBitmap: 0, fundedMemberCount: 0, fundedStakeTotal: 0n, fundedFeeTotal: 0n })
+    expect(ritual.account.members).toEqual(members)
+    expect(ritual.account.members).toHaveLength(memberCount)
+    expect(ritual.account.members[creatorPosition]).toEqual(creator)
+    expect(ritual.account.members.findIndex(member => member.equals(creator))).toBe(creatorPosition)
     const creatorAction = await value.prepareFund({ ...fund(), ritual, member: creator })
     const noncreator = members.find(member => !member.equals(creator))!
     const noncreatorAction = await value.prepareFund({ ...fund(), ritual, member: noncreator })
-    expect(creatorAction.summary.activationFeeOutflow).toBe(778n)
-    expect(noncreatorAction.summary.activationFeeOutflow).toBe(0n)
+    expect(creatorAction.summary).toMatchObject({ activationFeeOutflow: 778n, tokenOutflow: ritual.account.memberTotalStake + 778n })
+    expect(creatorAction.expectation).toMatchObject({ member: creator.toBase58(), expectedFundedMemberCount: 1, expectedFundedStakeTotal: ritual.account.memberTotalStake, expectedFundedFeeTotal: 778n })
+    expect(noncreatorAction.summary).toMatchObject({ activationFeeOutflow: 0n, tokenOutflow: ritual.account.memberTotalStake })
+    expect(noncreatorAction.expectation).toMatchObject({ member: noncreator.toBase58(), expectedFundedMemberCount: 1, expectedFundedStakeTotal: ritual.account.memberTotalStake, expectedFundedFeeTotal: 0n })
   })
 
   it('keeps discriminated expectation keys exact and keeps wallet clones independent for every kind', async () => {
