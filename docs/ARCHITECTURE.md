@@ -35,7 +35,7 @@ The Anchor workspace and native ProgramTest coverage are separate from the mobil
 
 `funded_fee_total` is historical cumulative activation-fee funding, not an outstanding post-activation liability. Successful activation transfers that exact amount from the fee vault while retaining the value for invariant/readback checks; live fee custody is represented by the actual fee-vault balance. Terminal closure requires coherent Completed or Cancelled state and both actual vault balances to be zero, fails closed on unsolicited dust, and can return token-account rent only to the immutable Ritual creator. Ritual and event receipts remain.
 
-Generated deployment keypairs, validator ledgers, and `target/` artifacts are local and disposable. They are intentionally absent from Git. The reviewed IDL snapshot is now frozen under `src/data/rituals/idl/` and has been reproduced byte-for-byte from a clean Anchor build. PDA helpers and strict decoders cover ProtocolConfig, Ritual, RitualEvent, and CompletionClaim; instruction construction, RPC reads, and MWA writes remain separate unfinished layers.
+Generated deployment keypairs, validator ledgers, and `target/` artifacts are local and disposable. They are intentionally absent from Git. The reviewed IDL snapshot is frozen under `src/data/rituals/idl/` and has been reproduced byte-for-byte from a clean Anchor build. PDA helpers and strict decoders cover ProtocolConfig, Ritual, RitualEvent, and CompletionClaim. All eleven instruction-data encoders and canonical account-meta builders are approved against Rust vectors; RPC reads and MWA writes remain separate unfinished layers.
 
 ## Identity and build boundary
 

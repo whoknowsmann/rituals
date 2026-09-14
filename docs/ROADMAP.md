@@ -18,12 +18,13 @@ Status labels describe observed implementation, not aspiration.
 - [x] Conservation-safe atomic event settlement and durable receipts
 - [x] Fail-closed terminal zero-balance vault closure with creator-only rent return
 - [x] Frozen Anchor IDL, cross-language PDA vectors, and approved fail-closed account decoders
+- [x] Byte-exact data and canonical account-meta builders for all eleven instructions
 - [x] Focused JavaScript tests, TypeScript, Expo Doctor, and Android bundle gates
 - [x] Consumer Rituals sketch and screenshot
 
 ## Remaining protocol work
 
-- [>] Typed mobile adapter: IDL/PDA/account reads approved; instruction builders and RPC client remain
+- [>] Typed mobile adapter: IDL/PDA/decoders/instruction builders approved; RPC client remains
 - [ ] Real devnet deployment with valueless test assets
 - [ ] Native MWA signing and confirmed read-after-write flow
 - [ ] Two-wallet devnet acceptance cycle
