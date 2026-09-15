@@ -46,17 +46,43 @@ function walletFailure(error: unknown): never {
   return fail('wallet', 'wallet submission failed')
 }
 
+export class SubmittedRitualActionHandle {
+  readonly signature: string
+  readonly messageDigest: string
+  readonly actionKind: PreparedRitualAction['kind']
+  readonly expectationKind: RitualActionExpectation['kind']
+  readonly ritualAddress: string
+  private constructor(metadata: Readonly<SubmittedRitualActionHandle>) {
+    this.signature = metadata.signature
+    this.messageDigest = metadata.messageDigest
+    this.actionKind = metadata.actionKind
+    this.expectationKind = metadata.expectationKind
+    this.ritualAddress = metadata.ritualAddress
+    Object.freeze(this)
+  }
+  static create(metadata: Readonly<SubmittedRitualActionHandle>): SubmittedRitualActionHandle {
+    return new SubmittedRitualActionHandle(metadata)
+  }
+}
+
+type SubmittedHandleState = {
+  readonly submitted: SubmittedRitualAction
+  readonly metadata: Readonly<SubmittedRitualActionHandle>
+  confirmation?: Promise<RitualSubmissionResult>
+}
+
 export class RitualActionSubmitter {
   readonly #preparer: RitualActionPreparer
   readonly #confirmer: RitualConfirmationVerifier
   readonly #wallet: RitualWalletSubmissionTransport['signAndSendTransaction']
+  readonly #handles = new WeakMap<SubmittedRitualActionHandle, SubmittedHandleState>()
   constructor(preparer: RitualActionPreparer, confirmer: RitualConfirmationVerifier, wallet: RitualWalletSubmissionTransport) {
     if (!(preparer instanceof RitualActionPreparer)) fail('input', 'Ritual action preparer is invalid')
     try { if (!(confirmer instanceof RitualConfirmationVerifier)) fail('input', 'Ritual confirmation verifier is invalid') } catch (error) { if (error instanceof RitualSubmissionError) throw error; fail('input', 'Ritual confirmation verifier is invalid') }
     if (wallet === null || typeof wallet !== 'object' || Array.isArray(wallet) || typeof wallet.signAndSendTransaction !== 'function') fail('input', 'Ritual wallet transport is invalid')
     this.#preparer = preparer; this.#confirmer = confirmer; this.#wallet = wallet.signAndSendTransaction.bind(wallet)
   }
-  async submitAndConfirm(prepared: PreparedRitualAction): Promise<RitualSubmissionResult> {
+  async submitPrepared(prepared: PreparedRitualAction): Promise<SubmittedRitualActionHandle> {
     let walletAction: ReturnType<RitualActionPreparer['getTransactionForWallet']>
     try { walletAction = this.#preparer.getTransactionForWallet(prepared) } catch (error) { if (error instanceof RitualSubmissionError) throw error; throw error }
     const scalar = Object.freeze({ kind: walletAction.kind, blockhash: walletAction.blockhash, lastValidBlockHeight: walletAction.lastValidBlockHeight, submittedContextSlot: walletAction.submittedContextSlot, expectedMessageDigest: walletAction.expectedMessageDigest, ritualAddress: walletAction.ritualAddress, expectation: copyExpectation(walletAction.expectation) })
@@ -75,10 +101,22 @@ export class RitualActionSubmitter {
     if (compiled.header.numRequiredSignatures !== 1 || compiled.accountKeys.length === 0 || !compiled.accountKeys[0].equals(reconstructed.transaction.feePayer as PublicKey)) fail('signature', 'prepared transaction does not have exactly one fee-payer signer')
     try { reconstructed.transaction.addSignature(compiled.accountKeys[0], Buffer.from(decodeCanonicalBase58Signature(signature))) } catch { return fail('signature', 'wallet signature could not be attached') }
     try { if (reconstructed.transaction.verifySignatures(true) !== true) fail('signature', 'wallet signature does not verify the prepared message') } catch (error) { if (error instanceof RitualSubmissionError) throw error; return fail('signature', 'wallet signature does not verify the prepared message') }
-    const submitted: SubmittedRitualAction = Object.freeze({ signature, blockhash: scalar.blockhash, lastValidBlockHeight: scalar.lastValidBlockHeight, submittedContextSlot: scalar.submittedContextSlot, ritualAddress: copyKey(scalar.ritualAddress, 'ritualAddress'), expectation: expectation(scalar.expectation) })
-    let confirmed: ConfirmedRitualAction
-    try { confirmed = await this.#confirmer.confirmAndReadRitual(submitted) } catch (error) { throw error }
-    return Object.freeze({ signature, messageDigest: digest, actionKind: scalar.kind, expectationKind: submitted.expectation.kind, confirmed })
+    const ritualAddress = copyKey(scalar.ritualAddress, 'ritualAddress').toBase58()
+    const submitted: SubmittedRitualAction = Object.freeze({ signature, blockhash: scalar.blockhash, lastValidBlockHeight: scalar.lastValidBlockHeight, submittedContextSlot: scalar.submittedContextSlot, ritualAddress: new PublicKey(ritualAddress), expectation: expectation(scalar.expectation) })
+    const metadata = SubmittedRitualActionHandle.create(Object.freeze({ signature, messageDigest: digest, actionKind: scalar.kind, expectationKind: submitted.expectation.kind, ritualAddress }))
+    this.#handles.set(metadata, { submitted, metadata })
+    return metadata
+  }
+  confirmSubmitted(handle: SubmittedRitualActionHandle): Promise<RitualSubmissionResult> {
+    const state = this.#handles.get(handle)
+    if (!state) return Promise.reject(new RitualSubmissionError('input', 'Submitted Ritual action handle is invalid'))
+    if (!state.confirmation) {
+      state.confirmation = this.#confirmer.confirmAndReadRitual(state.submitted).then(confirmed => Object.freeze({ ...state.metadata, confirmed }))
+    }
+    return state.confirmation
+  }
+  async submitAndConfirm(prepared: PreparedRitualAction): Promise<RitualSubmissionResult> {
+    return this.confirmSubmitted(await this.submitPrepared(prepared))
   }
 }
 

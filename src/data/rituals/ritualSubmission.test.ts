@@ -3,7 +3,7 @@ import { Keypair, PublicKey, Transaction } from '@solana/web3.js'
 
 import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
 import { RitualActionPreparer, type RitualPreparationTransport } from './ritualPreparedAction'
-import { RitualActionSubmitter, type RitualWalletSubmissionTransport } from './ritualSubmission'
+import { RitualActionSubmitter, SubmittedRitualActionHandle, type RitualWalletSubmissionTransport } from './ritualSubmission'
 import { RitualConfirmationVerifier } from './ritualConfirmation'
 import { RitualsRpcReader } from './ritualsRpc'
 import { deriveCreateRitualAccounts } from './instructionsLifecycle'
@@ -168,6 +168,80 @@ describe('Ritual action submission', () => {
     const revoked = Proxy.revocable(new CapturingVerifier(), {})
     revoked.revoke()
     expect(() => new RitualActionSubmitter(preparer, revoked.proxy, wallet)).toThrowError(/verifier is invalid/)
+  })
+
+  it('returns a frozen opaque handle with detached canonical metadata after one wallet request', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    let walletCalls = 0
+    const confirmer = new CapturingVerifier({ marker: 'confirmed' })
+    const submitter = new RitualActionSubmitter(preparer, confirmer, { signAndSendTransaction: async transaction => { walletCalls += 1; transaction.partialSign(payer); return base58(transaction.signatures[0].signature as Uint8Array) } })
+    const handle = await submitter.submitPrepared(prepared)
+    expect(handle).toBeInstanceOf(SubmittedRitualActionHandle)
+    expect(Object.isFrozen(handle)).toBe(true)
+    expect(handle).toMatchObject({ signature: expect.any(String), messageDigest: expect.any(String), actionKind: 'create', expectationKind: 'created', ritualAddress: prepared.ritualAddress })
+    expect(Object.keys(handle)).toEqual(['signature', 'messageDigest', 'actionKind', 'expectationKind', 'ritualAddress'])
+    expect(walletCalls).toBe(1)
+    expect(await submitter.confirmSubmitted(handle)).toMatchObject({ confirmed: { marker: 'confirmed' } })
+    expect(confirmer.actions).toHaveLength(1)
+  })
+
+  it('rejects plain and prototype-only forged handles before confirmation transport', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    let confirmations = 0
+    const confirmer = new CapturingVerifier()
+    const submitter = new RitualActionSubmitter(preparer, confirmer, { signAndSendTransaction: async transaction => { transaction.partialSign(payer); return base58(transaction.signatures[0].signature as Uint8Array) } })
+    const forged = { signature: 'x', messageDigest: 'y', actionKind: 'create', expectationKind: 'created', ritualAddress: prepared.ritualAddress }
+    const prototypeOnly = Object.create(SubmittedRitualActionHandle.prototype)
+    const guarded = new Proxy(confirmer, { get(target, property, receiver) { if (property === 'confirmAndReadRitual') confirmations += 1; return Reflect.get(target, property, receiver) } })
+    const guardedSubmitter = new RitualActionSubmitter(preparer, guarded, { signAndSendTransaction: async transaction => { transaction.partialSign(payer); return base58(transaction.signatures[0].signature as Uint8Array) } })
+    await expect(guardedSubmitter.confirmSubmitted(forged as never)).rejects.toMatchObject({ category: 'input' })
+    await expect(guardedSubmitter.confirmSubmitted(prototypeOnly as never)).rejects.toMatchObject({ category: 'input' })
+    expect(confirmations).toBe(0)
+  })
+
+  it('rejects a handle issued by another submitter', async () => {
+    const firstPreparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const secondPreparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await firstPreparer.prepareCreate(args)
+    const wallet = { signAndSendTransaction: async (transaction: Transaction) => { transaction.partialSign(payer); return base58(transaction.signatures[0].signature as Uint8Array) } }
+    const first = new RitualActionSubmitter(firstPreparer, new CapturingVerifier(), wallet)
+    let confirmations = 0
+    const secondVerifier = new CapturingVerifier()
+    const second = new RitualActionSubmitter(secondPreparer, new Proxy(secondVerifier, { get(target, property, receiver) { if (property === 'confirmAndReadRitual') confirmations += 1; return Reflect.get(target, property, receiver) } }), wallet)
+    const handle = await first.submitPrepared(prepared)
+    await expect(second.confirmSubmitted(handle)).rejects.toMatchObject({ category: 'input' })
+    expect(confirmations).toBe(0)
+  })
+
+  it('shares duplicate confirmation promises and a failed confirmation without retrying', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    let confirmations = 0
+    const failure = new Error('readback failed')
+    const verifier = new CapturingVerifier()
+    verifier.confirmAndReadRitual = async () => { confirmations += 1; throw failure }
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async transaction => { transaction.partialSign(payer); return base58(transaction.signatures[0].signature as Uint8Array) } })
+    const handle = await submitter.submitPrepared(prepared)
+    const first = submitter.confirmSubmitted(handle)
+    const second = submitter.confirmSubmitted(handle)
+    expect(first).toBe(second)
+    await expect(first).rejects.toBe(failure)
+    await expect(submitter.confirmSubmitted(handle)).rejects.toBe(failure)
+    expect(confirmations).toBe(1)
+  })
+
+  it('keeps submitAndConfirm on the split path', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    let walletCalls = 0
+    const verifier = new CapturingVerifier({ marker: 'split' })
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async transaction => { walletCalls += 1; transaction.partialSign(payer); return base58(transaction.signatures[0].signature as Uint8Array) } })
+    const result = await submitter.submitAndConfirm(prepared)
+    expect(result.confirmed).toEqual({ marker: 'split' })
+    expect(walletCalls).toBe(1)
+    expect(verifier.actions).toHaveLength(1)
   })
 
   it('keeps low-level submission constructors out of the rituals barrel', () => {
