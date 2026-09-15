@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { buildReviewViewModel } from '../features/rituals/create/reviewViewModel'
-import { homeCreateTarget, reviewCompleteTarget } from '../features/rituals/create/routeHelpers'
+import { homeCreateTarget, reviewCompleteTarget, rosterNavigationParams } from '../features/rituals/create/routeHelpers'
 import { validateRitualDraft } from '../features/rituals/create/draftForm'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReviewRitual'>
@@ -75,10 +75,10 @@ export function ReviewRitualScreen({ route }: Props) {
       </Card>
       <Button
         mode="contained"
-        onPress={() => navigation.navigate(reviewCompleteTarget().name)}
-        accessibilityLabel="Preview complete"
+        onPress={() => navigation.navigate('RitualRoster', rosterNavigationParams(route.params))}
+        accessibilityLabel="Add member wallets"
       >
-        Preview complete
+        Add member wallets
       </Button>
       <Text style={styles.footer}>Preview only · not saved · no transaction will be submitted</Text>
     </ScrollView>

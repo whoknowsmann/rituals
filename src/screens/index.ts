@@ -3,6 +3,8 @@ export * from "./SettingsScreen";
 export * from "./TemplatePickerScreen";
 export * from "./CreateRitualScreen";
 export * from "./ReviewRitualScreen";
+export * from "./RitualRosterScreen";
+export * from "./RitualFundingLobbyScreen";
 export * from "./RitualDetailScreen";
 export * from "./ClaimCompletionScreen";
 export * from "./ConfirmationInboxScreen";
