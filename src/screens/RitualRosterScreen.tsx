@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { Button, Card, Text, TextInput, useTheme, type MD3Theme } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
@@ -8,7 +8,7 @@ import { useAuthorization } from '../utils/useAuthorization'
 import { useMobileWallet } from '../utils/useMobileWallet'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { fundingLobbyNavigationParams, parseRitualRosterRoute } from '../features/rituals/create/routeHelpers'
-import { validateMemberRoster } from '../features/rituals/create/roster'
+import { reconcileRosterContext, validateMemberRoster } from '../features/rituals/create/roster'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RitualRoster'>
 
@@ -23,17 +23,46 @@ export function RitualRosterScreen({ route }: Props) {
   const [friends, setFriends] = useState<string[]>(() => Array.from({ length: Math.max(0, count - 1) }, () => ''))
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({})
   const [connecting, setConnecting] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
+
+  const host = selectedAccount?.publicKey.toBase58() ?? ''
+  const previousHost = useRef(host)
+  const previousFriendCount = useRef(Math.max(0, count - 1))
+  useEffect(() => {
+    const friendCount = Math.max(0, count - 1)
+    const next = reconcileRosterContext(previousHost.current, host, previousFriendCount.current, friendCount, friends)
+    previousHost.current = host
+    previousFriendCount.current = friendCount
+    if (next.requiresReentry) {
+      setFriends([...next.friendAddresses])
+      setErrors({ rosterContext: next.message ?? 'Ritual roster changed. Re-enter friend wallets.' })
+    }
+  }, [host, count])
 
   if (!parsed.ok) return <SafeError message={parsed.error} onHome={() => navigation.navigate('RitualsHome')} styles={styles} />
   const draft = parsed.value
-  const host = selectedAccount?.publicKey.toBase58() ?? ''
   const submit = () => {
     if (!selectedAccount) return
+    const friendCount = Math.max(0, count - 1)
+    const pendingContext = reconcileRosterContext(previousHost.current, host, previousFriendCount.current, friendCount, friends)
+    if (pendingContext.requiresReentry) {
+      previousHost.current = host
+      previousFriendCount.current = friendCount
+      setFriends([...pendingContext.friendAddresses])
+      setErrors({ rosterContext: pendingContext.message ?? 'Ritual roster changed. Re-enter friend wallets.' })
+      return
+    }
     const result = validateMemberRoster({ hostAddress: host, memberCount: count, friendAddresses: friends })
     if (!result.ok) { setErrors(result.errors); return }
     navigation.navigate('RitualFundingLobby', fundingLobbyNavigationParams(draft, result.value))
   }
-  const doConnect = async () => { setConnecting(true); try { await connect() } finally { setConnecting(false) } }
+  const doConnect = async () => {
+    setConnecting(true)
+    setConnectionError(null)
+    try { await connect() }
+    catch { setConnectionError('Wallet connection was not completed. Try again.') }
+    finally { setConnecting(false) }
+  }
 
   return <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Text variant="headlineMedium" accessibilityRole="header">Add member wallets</Text>
@@ -41,9 +70,10 @@ export function RitualRosterScreen({ route }: Props) {
     <Card style={styles.card} accessibilityLabel="Host wallet">
       <Card.Content><Text variant="labelLarge">Host</Text><Text style={styles.address}>{host ? `${host.slice(0, 5)}…${host.slice(-5)}` : 'Not connected'}</Text></Card.Content>
     </Card>
-    {!selectedAccount && <Card style={styles.notice} accessibilityLabel="Connect wallet required"><Card.Content><Text variant="titleMedium">Connect your wallet to continue</Text><Text style={styles.muted}>The host must be a real connected wallet. No transaction will be prepared here.</Text><Button mode="contained" onPress={doConnect} loading={connecting} disabled={connecting}>Connect wallet</Button></Card.Content></Card>}
+    {!selectedAccount && <Card style={styles.notice} accessibilityLabel="Connect wallet required"><Card.Content><Text variant="titleMedium">Connect your wallet to continue</Text><Text style={styles.muted}>The host must be a real connected wallet. No transaction will be prepared here.</Text>{connectionError && <Text style={styles.error} accessibilityLiveRegion="polite">{connectionError}</Text>}<Button mode="contained" onPress={() => { void doConnect() }} loading={connecting} disabled={connecting}>Connect wallet</Button></Card.Content></Card>}
     {Array.from({ length: count - 1 }, (_, index) => <View key={index} style={styles.field}><TextInput label={`Friend wallet ${index + 1}`} value={friends[index] ?? ''} onChangeText={(value) => { setFriends((current) => { const next = [...current]; next[index] = value; return next }); setErrors((current) => { const next = { ...current }; delete next[`friend${index}`]; return next }) }} error={Boolean(errors[`friend${index}`])} accessibilityLabel={`Friend wallet ${index + 1}`} /><>{errors[`friend${index}`] && <Text style={styles.error} accessibilityLiveRegion="polite">{errors[`friend${index}`]}</Text>}</></View>)}
     {errors.roster && <Text style={styles.error} accessibilityLiveRegion="polite">{errors.roster}</Text>}
+    {errors.rosterContext && <Text style={styles.error} accessibilityLiveRegion="polite">{errors.rosterContext}</Text>}
     <Card style={styles.notice} accessibilityLabel="Ritual readiness"><Card.Content><Text variant="titleMedium">{client.status === 'not-deployed' ? 'Local preview only' : client.status === 'ready' ? 'Deployment ready' : 'Rituals unavailable'}</Text><Text style={styles.muted}>{client.status === 'not-deployed' ? 'This roster is local preview data, not saved. No transaction can be prepared or submitted until deployment.' : client.status === 'ready' ? 'Wallet and network readiness are checked before creation.' : client.reason}</Text></Card.Content></Card>
     <Button mode="contained" onPress={submit} disabled={!selectedAccount}>Continue to funding lobby</Button>
     <Button mode="outlined" onPress={() => navigation.goBack()}>Back to review</Button>

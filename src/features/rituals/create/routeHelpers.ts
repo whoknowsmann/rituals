@@ -38,23 +38,25 @@ export function parseRitualRosterRoute(value: unknown): SafeRouteResult<RootStac
 }
 
 export function parseRitualFundingLobbyRoute(value: unknown): SafeRouteResult<RootStackParamList['RitualFundingLobby']> {
-  if (value === null || typeof value !== 'object' || !Array.isArray((value as { members?: unknown }).members)) return { ok: false, error: 'This funding lobby link is invalid.' }
-  const { members, ...draft } = value as { members: unknown; [key: string]: unknown }
-  const parsed = validateRitualDraft(draft)
-  if (!parsed.ok || !Array.isArray(members)) return { ok: false, error: 'This funding lobby link is invalid.' }
-  const roster = validateMemberRoster({ hostAddress: members[0], memberCount: parsed.value.memberCount, friendAddresses: members.slice(1) })
-  if (!roster.ok) return { ok: false, error: 'This funding lobby link is invalid.' }
-  return {
-    ok: true,
-    value: {
-      title: parsed.value.title,
-      requirement: parsed.value.requirement,
-      memberCount: String(parsed.value.memberCount),
-      eventCount: String(parsed.value.eventCount),
-      memberTotalStake: parsed.value.memberTotalStake,
-      confirmationMode: parsed.value.confirmationMode,
-      feePayerMode: parsed.value.feePayerMode,
-      members: [...roster.value],
-    },
-  }
+  try {
+    if (value === null || typeof value !== 'object' || !Array.isArray((value as { members?: unknown }).members)) return { ok: false, error: 'This funding lobby link is invalid.' }
+    const { members, ...draft } = value as { members: unknown; [key: string]: unknown }
+    const parsed = validateRitualDraft(draft)
+    if (!parsed.ok || !Array.isArray(members)) return { ok: false, error: 'This funding lobby link is invalid.' }
+    const roster = validateMemberRoster({ hostAddress: members[0], memberCount: parsed.value.memberCount, friendAddresses: members.slice(1) })
+    if (!roster.ok) return { ok: false, error: 'This funding lobby link is invalid.' }
+    return {
+      ok: true,
+      value: {
+        title: parsed.value.title,
+        requirement: parsed.value.requirement,
+        memberCount: String(parsed.value.memberCount),
+        eventCount: String(parsed.value.eventCount),
+        memberTotalStake: parsed.value.memberTotalStake,
+        confirmationMode: parsed.value.confirmationMode,
+        feePayerMode: parsed.value.feePayerMode,
+        members: [...roster.value],
+      },
+    }
+  } catch { return { ok: false, error: 'This funding lobby link is invalid.' } }
 }

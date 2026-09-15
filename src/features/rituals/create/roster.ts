@@ -54,6 +54,25 @@ export function shortRosterAddress(address: string): string {
   return address.length <= 12 ? address : `${address.slice(0, 5)}…${address.slice(-5)}`
 }
 
+export function reconcileRosterContext(previousHost: string, nextHost: string, previousFriendCount: number, nextFriendCount: number, friendAddresses: readonly string[]): Readonly<{ friendAddresses: readonly string[]; message: string | null; requiresReentry: boolean }> {
+  const hostChanged = previousHost.length > 0 && previousHost !== nextHost
+  const countChanged = previousFriendCount !== nextFriendCount
+  const requiresReentry = hostChanged || countChanged
+  return Object.freeze({
+    friendAddresses: Object.freeze(requiresReentry ? Array.from({ length: nextFriendCount }, () => '') : [...friendAddresses]),
+    message: hostChanged
+      ? 'Host wallet changed. Re-enter friend wallets for this roster.'
+      : countChanged ? 'Ritual member count changed. Re-enter friend wallets for this roster.' : null,
+    requiresReentry,
+  })
+}
+
+export function fundingLobbyCta(status: 'ready' | 'not-deployed' | 'unsupported-cluster'): string {
+  if (status === 'ready') return 'Onchain creation wiring next'
+  if (status === 'not-deployed') return 'Devnet deployment pending'
+  return 'Rituals unavailable on selected cluster'
+}
+
 export interface FundingLobbyInput {
   readonly members: readonly string[]
   readonly memberTotalStake: string
@@ -74,7 +93,7 @@ export function buildFundingLobbyModel(input: FundingLobbyInput): FundingLobbyMo
   return Object.freeze({
     rows: Object.freeze(rows),
     progress: `0 of ${count} funded`,
-    activation: 'Activation locked until all members are funded',
+    activation: 'Activation would require every member to fund onchain',
     stake: `${input.memberTotalStake} TEST per member`,
     fee: input.feePayerMode === 'HOST' ? `Host pays activation fee · ${input.activationFee} TEST` : `Split activation fee across members · ${input.activationFee} TEST`,
   })

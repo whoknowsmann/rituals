@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
-import { buildFundingLobbyModel, validateMemberRoster } from './roster'
+import { buildFundingLobbyModel, fundingLobbyCta, reconcileRosterContext, validateMemberRoster } from './roster'
 import { DEFAULT_RITUAL_DRAFT } from './draftForm'
 import { fundingLobbyNavigationParams, parseRitualFundingLobbyRoute, parseRitualRosterRoute, rosterNavigationParams } from './routeHelpers'
 
@@ -53,16 +53,47 @@ describe('member roster contract', () => {
       { ...fundingRoute, members: Object.assign([], { 1: friend1, length: 2 }) },
       { ...fundingRoute, members: [host, friend1, friend1] },
     ]) expect(parseRitualFundingLobbyRoute(bad).ok).toBe(false)
+    const hostile = new Proxy({}, { get() { throw new Error('route detail') } })
+    expect(() => parseRitualFundingLobbyRoute(hostile)).not.toThrow()
+    expect(parseRitualFundingLobbyRoute(hostile).ok).toBe(false)
   })
 
-  it('builds an unfunded HOST/SPLIT lobby with exact progress and locked activation copy', () => {
+  it('preserves friend rows on initial connection but requires re-entry when the host changes', () => {
+    expect(reconcileRosterContext('', host, 1, 1, [friend1])).toEqual({ friendAddresses: [friend1], message: null, requiresReentry: false })
+    expect(reconcileRosterContext(host, friend2, 1, 1, [friend1])).toEqual({
+      friendAddresses: [''],
+      message: 'Host wallet changed. Re-enter friend wallets for this roster.',
+      requiresReentry: true,
+    })
+  })
+
+  it('resets friend rows to the new size when mounted route terms change', () => {
+    expect(reconcileRosterContext(host, host, 1, 3, [friend1])).toEqual({
+      friendAddresses: ['', '', ''],
+      message: 'Ritual member count changed. Re-enter friend wallets for this roster.',
+      requiresReentry: true,
+    })
+    expect(reconcileRosterContext(host, host, 3, 1, [friend1, friend2, friend3])).toEqual({
+      friendAddresses: [''],
+      message: 'Ritual member count changed. Re-enter friend wallets for this roster.',
+      requiresReentry: true,
+    })
+  })
+
+  it('labels ready, deployment-pending, and unsupported-cluster lobby states distinctly', () => {
+    expect(fundingLobbyCta('ready')).toBe('Onchain creation wiring next')
+    expect(fundingLobbyCta('not-deployed')).toBe('Devnet deployment pending')
+    expect(fundingLobbyCta('unsupported-cluster')).toBe('Rituals unavailable on selected cluster')
+  })
+
+  it('builds an unfunded HOST/SPLIT lobby with exact progress and preview activation requirements', () => {
     const model = buildFundingLobbyModel({ members: [host, friend1], memberTotalStake: '20', activationFee: '0.8', feePayerMode: 'SPLIT' })
     expect(model.rows).toEqual([
       { index: 0, address: host, role: 'Host', funding: 'Not funded' },
       { index: 1, address: friend1, role: 'Member', funding: 'Not funded' },
     ])
     expect(model.progress).toBe('0 of 2 funded')
-    expect(model.activation).toBe('Activation locked until all members are funded')
+    expect(model.activation).toBe('Activation would require every member to fund onchain')
     expect(model.stake).toBe('20 TEST per member')
     expect(model.fee).toContain('Split')
     expect(model.fee).toContain('0.8 TEST')
