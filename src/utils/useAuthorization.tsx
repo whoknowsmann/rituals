@@ -98,8 +98,8 @@ async function persistAuthorization(
 
 export const APP_IDENTITY = {
   name: "Rituals",
-  // Keep the current private-repository origin until a public Rituals URL exists.
-  uri: "https://github.com/whoknowsmann/" + "pre" + "flight",
+  // Keep the private source-of-truth repository until a public product URL exists.
+  uri: "https://github.com/whoknowsmann/rituals",
 };
 
 export function useAuthorization() {

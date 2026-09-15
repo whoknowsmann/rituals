@@ -33,6 +33,8 @@ describe('active Rituals product hygiene', () => {
 
     expect(route).toContain('RitualsHome')
     expect(auth).toContain('name: "Rituals"')
+    expect(auth).toContain('uri: "https://github.com/whoknowsmann/rituals"')
+    expect(auth).not.toContain('"pre" + "flight"')
     expect(auth).toContain('const CLUSTER = "devnet"')
   })
 })
