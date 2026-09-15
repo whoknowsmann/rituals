@@ -1,48 +1,86 @@
 # Roadmap
 
-Status labels describe observed implementation, not aspiration.
+Status labels describe observed implementation, not aspiration. Rituals is the sole active hackathon product; the retired Preflight implementation remains available through Git history.
 
 ## Complete
 
-- [x] Expo/React Native Android shell and navigation
-- [x] Mobile Wallet Adapter authorization plumbing on Solana devnet
+### Product and mobile foundation
+
+- [x] Expo/React Native Android shell and Rituals navigation
 - [x] Rituals domain contracts: draft, invite, lifecycle, money, settlement, and thresholds
-- [x] Deterministic fixture-backed Rituals home with loading, populated, funding, confirmation, completed, empty, and error states
-- [x] Explicit devnet / no-real-value disclosures and safe fixture actions
-- [x] Activation implementation and approval
-- [x] Safe pre-activation cancellation and exact tracked refunds
-- [x] Current-event accounts and signed completion claims
-- [x] Exact friend-approval thresholds and safe questioning
-- [x] Fixture-backed template, create, and review preview
-- [x] Fixture-backed detail, claim, confirmation, and receipt previews
-- [x] Conservation-safe atomic event settlement and durable receipts
-- [x] Fail-closed terminal zero-balance vault closure with creator-only rent return
-- [x] Frozen Anchor IDL, cross-language PDA vectors, and approved fail-closed account decoders
-- [x] Byte-exact data and canonical account-meta builders for all eleven instructions
-- [x] Focused JavaScript tests, TypeScript, Expo Doctor, and Android bundle gates
-- [x] Consumer Rituals sketch and screenshot
+- [x] Fixture-backed home/dashboard with loading, funding, confirmation, completed, empty, and error states
+- [x] Fixture-backed templates, create/review, detail, claim, friend-confirmation, and settlement-receipt journeys
+- [x] Explicit devnet/no-real-value and no-wallet/no-persistence disclosures
+- [x] Remove predecessor-specific UX and domain logic from active source
 
-## Remaining protocol work
+### Production Anchor protocol
 
-- [>] Typed mobile adapter: IDL/PDA/decoders/instruction builders approved; RPC client remains
-- [ ] Real devnet deployment with valueless test assets
-- [ ] Native MWA signing and confirmed read-after-write flow
-- [ ] Two-wallet devnet acceptance cycle
-- [ ] Independent program/security review
+- [x] Protocol configuration and immutable two-to-six-member Ritual creation
+- [x] Classic SPL Token mint/account validation and separate stake/fee vaults
+- [x] Exact HOST/SPLIT funding, activation-fee transfer, and safe cancellation refunds
+- [x] Event initialization, signed completion claims, friend approvals, and questioning
+- [x] Conservation-safe settlement with settled/voided receipts and no protocol forfeiture share
+- [x] Fail-closed zero-balance terminal vault closure with immutable creator rent return
+- [x] Specification and custody/security review through terminal closure
+- [x] 176 native Solana test cases at the approved protocol checkpoint
 
-## Remaining consumer and release work
+### Typed mobile Solana client
 
-- [ ] Invite/join/funding/activation screens beyond the approved fixture home and create/review preview
-- [x] Fixture-backed ritual detail, claim, confirmation inbox, and settlement receipt screens
-- [ ] Loading, stale, rejected, and transaction error behavior for real repositories
-- [ ] Standalone Seeker APK and offline/native acceptance
-- [ ] Public HTTPS wallet origin and final metadata
-- [ ] Publisher/privacy/legal review before valuable assets or mainnet
+- [x] Frozen Anchor IDL and explicit local/current deployment identity boundary
+- [x] Canonical PDA helpers with cross-language vectors
+- [x] Fail-closed ProtocolConfig/Ritual/Event/Claim decoders from Rust-serialized fixtures
+- [x] Exact instruction-data encoders for all eleven instructions
+- [x] Canonical account-meta and `TransactionInstruction` builders for every action
+- [x] Confirmed RPC reads with monotonic `minContextSlot`, sparse-response rejection, error redaction, and sealed read provenance
+- [x] Authoritative same-slot ProtocolConfig/Ritual/Event/all-Claims bundles with bounded event-advance retry and bitmap correlation
+- [x] Blockheight-confirmed Create/Fund/Activate/Cancel/Close readback; a signature alone cannot report success
+- [x] Opaque Create/Fund/Activate/Cancel/Close preparation with exact fee/rent/token summaries, per-preparer provenance, message digest, and mutation detection
+- [>] Event-action preparation implemented; bounded adversarial hardening and combined review remain
+- [x] 1,642 JavaScript/TypeScript cases at the latest accepted event-preparation success checkpoint
+
+## Active integration sequence
+
+1. [>] Finish one bounded adversarial pass for Initialize/Claim/Approve/Question/Finalize preparation
+2. [ ] Run one combined event-preparation specification/security review
+3. [ ] Add event/claim/finalization confirmation and authoritative readback
+4. [ ] Bind exact prepared message bytes to the wallet-returned signature
+5. [ ] Add Mobile Wallet Adapter signing and submission
+6. [ ] Replace fixture repositories/actions with real RPC and transaction states
+
+Compute policy for the remaining build:
+
+- Keep adversarial depth for custody, authority, arithmetic, serialization, transaction identity, and readback.
+- Do not add broad malformed-input Cartesian matrices without a concrete boundary risk or RED defect.
+- Use focused tests during implementation and one aggregate suite per milestone.
+- Run Expo Doctor, Android export, and packaging only at phase boundaries.
+- Use one bounded implementation task and one combined spec/security review per milestone.
+
+## Remaining mobile UX
+
+- [ ] Invite/join flow
+- [ ] Dedicated member-funding and activation progress
+- [ ] Review → wallet → submitted → confirming → confirmed/error transaction UX
+- [ ] Authoritative dashboard, detail, claim, confirmation, and receipt data
+- [ ] Loading, stale, rejected, expired, offline, and reconnect behavior
+- [ ] Final icon, splash, adaptive icon, and visual polish
+- [ ] Accessibility and Seeker-size QA
+
+## Devnet, device, and release proof
+
+- [ ] Provision an authorized local-only devnet program identity
+- [ ] Deploy to devnet with valueless classic SPL test assets
+- [ ] Verify the complete two-wallet lifecycle
+- [ ] Test native Mobile Wallet Adapter on Jack's Solana Seeker
+- [ ] Build, sign, install, and verify the standalone APK
+- [ ] Run a broader integrated adversarial/security audit after the complete app is wired
+- [ ] Capture demo video, screenshots, pitch, privacy copy, and submission materials
+- [ ] Final release/submission QA and Jack's explicit approval
 
 ## Explicitly deferred
 
 - Solo rituals are a P1 candidate after the private-group P0 loop.
 - Public discovery, feeds, leaderboards, stranger betting, and sponsor pools are outside P0.
-- AI and reminders are optional follow-on work, not part of the current fixture slice.
+- AI and reminders are optional follow-on work.
+- Mainnet and valuable-token support are not part of the hackathon acceptance path.
 
-The existing Expo slug, Android package, iOS bundle identifier, and EAS project ID remain legacy build identifiers for now. They are not a product-identity migration target in this change.
+The existing Expo slug, Android package, iOS bundle identifier, and EAS project ID remain legacy build identifiers for now. They are not active Preflight branding and will change only when doing so will not disrupt the proven build pipeline.
