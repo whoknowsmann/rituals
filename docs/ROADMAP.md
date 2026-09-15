@@ -10,10 +10,12 @@ Status labels describe observed implementation, not aspiration. Rituals is the s
 - [x] Rituals domain contracts: draft, invite, lifecycle, money, settlement, and thresholds
 - [x] Fixture-backed home/dashboard with loading, funding, confirmation, completed, empty, and error states
 - [x] Fixture-backed templates, create/review, detail, claim, friend-confirmation, and settlement-receipt journeys
-- [x] Explicit devnet/no-real-value and no-wallet/no-persistence disclosures
+- [x] Connected host plus immutable two-to-six-member roster entry
+- [x] Honest pre-funding lobby with exact preview terms and no fake invite, persistence, or transaction behavior
+- [x] Explicit devnet/no-real-value and preview-only disclosures
 - [x] Remove predecessor-specific UX and domain logic from active source
 
-### Production Anchor protocol
+### Approved local Anchor protocol
 
 - [x] Protocol configuration and immutable two-to-six-member Ritual creation
 - [x] Classic SPL Token mint/account validation and separate stake/fee vaults
@@ -29,23 +31,27 @@ Status labels describe observed implementation, not aspiration. Rituals is the s
 - [x] Frozen Anchor IDL and explicit local/current deployment identity boundary
 - [x] Canonical PDA helpers with cross-language vectors
 - [x] Fail-closed ProtocolConfig/Ritual/Event/Claim decoders from Rust-serialized fixtures
-- [x] Exact instruction-data encoders for all eleven instructions
-- [x] Canonical account-meta and `TransactionInstruction` builders for every action
+- [x] Exact instruction-data encoders and canonical account-meta builders for all eleven actions
 - [x] Confirmed RPC reads with monotonic `minContextSlot`, sparse-response rejection, error redaction, and sealed read provenance
 - [x] Authoritative same-slot ProtocolConfig/Ritual/Event/all-Claims bundles with bounded event-advance retry and bitmap correlation
-- [x] Blockheight-confirmed Create/Fund/Activate/Cancel/Close readback; a signature alone cannot report success
-- [x] Opaque Create/Fund/Activate/Cancel/Close preparation with exact fee/rent/token summaries, per-preparer provenance, message digest, and mutation detection
-- [>] Event-action preparation implemented; bounded adversarial hardening and combined review remain
-- [x] 1,642 JavaScript/TypeScript cases at the latest accepted event-preparation success checkpoint
+- [x] Opaque preparation for Create/Fund/Activate/Cancel/Close and Initialize/Claim/Approve/Question/Finalize
+- [x] Exact fee/rent/token summaries, per-preparer provenance, message digest, and mutation detection
+- [x] Blockheight confirmation and action-specific authoritative readback for all lifecycle and event actions
+- [x] Exact prepared-message binding to the wallet-returned signature
+- [x] Mobile Wallet Adapter authorization and single-transaction submission transport
+- [x] Safe application facade gated by devnet cluster and authorized deployment identity
+- [x] 1,737 JavaScript/TypeScript cases across 55 files at the current green checkpoint
 
 ## Active integration sequence
 
-1. [>] Finish one bounded adversarial pass for Initialize/Claim/Approve/Question/Finalize preparation
-2. [ ] Run one combined event-preparation specification/security review
-3. [ ] Add event/claim/finalization confirmation and authoritative readback
-4. [ ] Bind exact prepared message bytes to the wallet-returned signature
-5. [ ] Add Mobile Wallet Adapter signing and submission
-6. [ ] Replace fixture repositories/actions with real RPC and transaction states
+1. [>] Wire the first visible Create transaction state machine: review → wallet → submitted → confirming → confirmed/error
+2. [ ] Generate a digest-bound invite only after authoritative Create confirmation
+3. [ ] Build invite/join and dedicated member-funding progress
+4. [ ] Add funding and activation transaction state machines
+5. [ ] Replace fixture dashboard/detail/claim/confirmation/receipt actions with authoritative RPC and submitted transactions
+6. [ ] Handle stale, rejected, expired, offline, duplicate-tap, and reconnect behavior across visible actions
+
+The typed transaction stack is implemented and tested against deterministic transports. The current deployment configuration is deliberately `not-deployed`; visible transaction CTAs remain disabled and no public-cluster transaction has occurred.
 
 Compute policy for the remaining build:
 
@@ -57,10 +63,9 @@ Compute policy for the remaining build:
 
 ## Remaining mobile UX
 
-- [ ] Invite/join flow
+- [ ] Digest-bound invite/join flow
 - [ ] Dedicated member-funding and activation progress
-- [ ] Review → wallet → submitted → confirming → confirmed/error transaction UX
-- [ ] Authoritative dashboard, detail, claim, confirmation, and receipt data
+- [ ] Authoritative dashboard, detail, claim, confirmation, and receipt data/actions
 - [ ] Loading, stale, rejected, expired, offline, and reconnect behavior
 - [ ] Final icon, splash, adaptive icon, and visual polish
 - [ ] Accessibility and Seeker-size QA

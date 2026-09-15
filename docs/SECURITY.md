@@ -2,7 +2,7 @@
 
 ## Honest status
 
-Rituals currently ships approved fixture-backed home, create/review, claim/confirmation, and receipt previews with explicit devnet, preview-only, and no-real-value labeling. The local program is approved through terminal zero-balance vault closure. Fixture actions do not submit real transactions. Real devnet deployment and native MWA signing are not release-proven.
+Rituals currently ships approved fixture-backed home, create/review, roster/pre-funding, claim/confirmation, and receipt previews with explicit devnet, preview-only, and no-real-value labeling. The local program is approved through terminal zero-balance vault closure. The typed client implements preparation, MWA submission, confirmation, and authoritative action readback, but visible fixture actions do not call those writes and the current deployment configuration fails closed as `not-deployed`. Real devnet deployment, native Seeker MWA signing, and a complete two-wallet lifecycle are not release-proven.
 
 Nothing here claims that mainnet funds or stablecoins are safe. P0 is devnet with valueless test assets.
 

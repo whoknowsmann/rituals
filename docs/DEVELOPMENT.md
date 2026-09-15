@@ -2,7 +2,9 @@
 
 ## Current state
 
-Rituals is the active product. The visible app is a deterministic, fixture-backed home slice with loading, populated, funding, pending-confirmation, completed, empty, and error states. Activation is implemented and approved. Cancellation is implemented but remains in review, not approved or complete. No real transaction is submitted by the fixture home actions.
+Rituals is the active product. The visible app remains deterministic and fixture-backed for home, detail, claim, confirmation, and receipt data, and now includes the create/review → connected host/member roster → honest pre-funding-lobby journey. Visible fixture actions do not submit transactions.
+
+The local Anchor program is approved through terminal vault closure. The typed mobile client implements RPC reads, all-action preparation, exact message/signature binding, MWA submission, confirmation, and authoritative readback, but the current program configuration is deliberately `not-deployed` and no screen invokes a state-changing Ritual action yet.
 
 The JavaScript/TypeScript source contains only active Rituals app code plus generic shell, cluster, and wallet plumbing. The retired product is preserved only by Git history.
 

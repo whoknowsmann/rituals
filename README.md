@@ -4,9 +4,11 @@ Rituals is a Solana Mobile accountability app for private groups: friends commit
 
 ## Current status
 
-The active app is a fixture-backed Rituals experience covering home, template/create/review, detail, claim, confirmation, and settled/voided receipt previews. It labels fixture data `DEVNET` / `NO REAL VALUE` and submits no transaction. The local Anchor program is approved through creation, exact funding, activation, cancellation/refunds, signed claims, friend attestations, safe questioning, and conservation-safe event settlement. Real devnet, MWA writes, and terminal vault closure remain unverified.
+The active app is a fixture-backed Rituals experience covering home, template/create/review, member roster, pre-funding lobby, detail, claim, confirmation, and settled/voided receipt previews. Fixture data and actions are labeled `DEVNET` / `NO REAL VALUE`; visible screens do not submit transactions.
 
-The app uses hosted-model-compatible architecture but no hosted model is active in the current home slice. Wallet authorization is configured for Solana devnet through Mobile Wallet Adapter. No real transaction is submitted by the fixture home actions.
+The local Anchor program is approved through creation, exact funding, activation, cancellation/refunds, signed claims, friend attestations, safe questioning, conservation-safe event settlement, and terminal zero-balance vault closure. Beneath the fixture UI, the typed client implements authoritative RPC reads, opaque preparation for all eleven actions, exact prepared-message binding, Mobile Wallet Adapter submission, blockheight confirmation, and action-specific readback against injected transports.
+
+The current deployment configuration is deliberately `not-deployed`, so the application facade fails closed before RPC or wallet work and the funding-lobby transaction CTA remains disabled. No public-cluster deployment, native Seeker signing, or real onchain lifecycle has been verified yet.
 
 This branch contains no active archived product UI or domain code. Git history is the rollback/archive boundary.
 
