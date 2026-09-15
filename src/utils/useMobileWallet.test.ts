@@ -46,6 +46,23 @@ describe('authorizeAndSendTransaction', () => {
     expect(error).toMatchObject({ category: 'wallet' })
     expect(error).not.toHaveProperty('message', 'secret')
   })
+  it('recognizes the installed MWA not-signed protocol code as user rejection', async () => {
+    const session = wallet()
+    session.signAndSendTransactions.mockRejectedValueOnce({ code: -3, message: 'private wallet detail' })
+    await expect(authorizeAndSendTransaction(session, authorize, legacy(), 1)).rejects.toMatchObject({
+      category: 'wallet',
+      message: 'wallet request was rejected',
+      userRejected: true,
+    })
+  })
+  it('sanitizes malformed authorization account getters before wallet submission', async () => {
+    const session = wallet()
+    const malformed = Object.defineProperty({}, 'publicKey', { get() { throw new Error('private wallet detail') } })
+    const error = await authorizeAndSendTransaction(session, async () => malformed as Account, legacy(), 1).catch(value => value)
+    expect(error).toBeInstanceOf(MobileWalletError)
+    expect(error).toMatchObject({ category: 'input', message: 'wallet authorization has no valid account' })
+    expect(session.signAndSendTransactions).not.toHaveBeenCalled()
+  })
   it.each([[], {}, [undefined]])('rejects malformed wallet signatures', async (result) => {
     const session = wallet(); session.signAndSendTransactions.mockResolvedValueOnce(result as never)
     await expect(authorizeAndSendTransaction(session, authorize, legacy(), 1)).rejects.toBeInstanceOf(MobileWalletError)

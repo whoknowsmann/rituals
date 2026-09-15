@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { PublicKey } from '@solana/web3.js'
 import { useCluster, type ClusterNetwork } from '../../../components/cluster/cluster-data-access'
 import { useConnection } from '../../../utils/ConnectionProvider'
 import { useMobileWallet } from '../../../utils/useMobileWallet'
@@ -16,9 +17,11 @@ type ClientFactory = () => RitualClient
 
 export function resolveRitualClientState(cluster: ClusterNetwork, deployment: RitualDeploymentConfig, createClient: ClientFactory): RitualClientState {
   if (cluster !== 'devnet') return Object.freeze({ status: 'unsupported-cluster', reason: `Rituals are not enabled on ${String(cluster)}` })
-  let placeholder = deployment.programId === RITUALS_LOCAL_PLACEHOLDER_PROGRAM_ID
-  try { placeholder = placeholder || (typeof deployment.programId === 'object' && deployment.programId !== null && 'toBase58' in deployment.programId && (deployment.programId as { toBase58: () => string }).toBase58() === RITUALS_LOCAL_PLACEHOLDER_PROGRAM_ID) } catch { placeholder = true }
-  if (deployment.deployment !== 'deployed' || deployment.programId === null || placeholder) return Object.freeze({ status: 'not-deployed', reason: 'No authorized Rituals deployment is configured' })
+  let validProgram = false
+  try {
+    validProgram = deployment.programId instanceof PublicKey && !deployment.programId.equals(PublicKey.default) && deployment.programId.toBase58() !== RITUALS_LOCAL_PLACEHOLDER_PROGRAM_ID
+  } catch { validProgram = false }
+  if (deployment.deployment !== 'deployed' || !validProgram) return Object.freeze({ status: 'not-deployed', reason: 'No authorized Rituals deployment is configured' })
   return Object.freeze({ status: 'ready', client: createClient() })
 }
 

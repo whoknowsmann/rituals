@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
+import { PublicKey } from '@solana/web3.js'
 import { ClusterNetwork } from '../../../components/cluster/cluster-data-access'
 import { resolveRitualClientState } from './useRitualClient'
 
 const client = Object.freeze({ readRitual: vi.fn() }) as never
-const deployed = { deployment: 'deployed' as const, programId: {} }
+const deployed = { deployment: 'deployed' as const, programId: new PublicKey(new Uint8Array(32).fill(7)) }
 const unavailable = { deployment: 'not-deployed' as const, programId: null }
 
 describe('Ritual client readiness', () => {
@@ -26,6 +27,12 @@ describe('Ritual client readiness', () => {
     expect(state).toEqual({ status: 'ready', client })
     expect(create).toHaveBeenCalledTimes(1)
     expect(Object.isFrozen(state)).toBe(true)
+  })
+  it.each([{}, '11111111111111111111111111111111'])('rejects invalid future deployment program identity %#', (programId) => {
+    const create = vi.fn(() => client)
+    const state = resolveRitualClientState(ClusterNetwork.Devnet, { deployment: 'deployed', programId }, create)
+    expect(state).toEqual({ status: 'not-deployed', reason: 'No authorized Rituals deployment is configured' })
+    expect(create).not.toHaveBeenCalled()
   })
   it('does not treat the local placeholder as a deployment', () => {
     const create = vi.fn(() => client)

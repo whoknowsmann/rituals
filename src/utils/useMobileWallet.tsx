@@ -2,7 +2,7 @@ import { transact, type Web3MobileWallet } from "@solana-mobile/mobile-wallet-ad
 import { Account, useAuthorization } from "./useAuthorization";
 import { PublicKey, Transaction, TransactionSignature, VersionedTransaction } from "@solana/web3.js";
 import { useCallback, useMemo } from "react";
-import { SignInPayload } from "@solana-mobile/mobile-wallet-adapter-protocol";
+import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
 export type MobileWalletErrorCategory = "authorization" | "input" | "wallet";
 export class MobileWalletError extends Error {
@@ -16,7 +16,7 @@ function isUserRejection(error: unknown): boolean {
   try {
     if (error && typeof error === "object") {
       const value = error as { name?: unknown; code?: unknown };
-      return value.name === "UserRejectedRequestError" || value.code === 4001;
+      return value.name === "UserRejectedRequestError" || value.code === 4001 || value.code === SolanaMobileWalletAdapterProtocolErrorCode.ERROR_AUTHORIZATION_FAILED || value.code === SolanaMobileWalletAdapterProtocolErrorCode.ERROR_NOT_SIGNED;
     }
   } catch { /* sanitize hostile errors */ }
   return false;
@@ -35,13 +35,19 @@ export async function authorizeAndSendTransaction(
   minContextSlot: number,
 ): Promise<TransactionSignature> {
   if (!Number.isSafeInteger(minContextSlot) || minContextSlot < 0) inputFailure("invalid transaction context slot");
-  const payer = feePayerOf(transaction);
-  if (!payer || payer.equals(PublicKey.default)) inputFailure("transaction fee payer is missing");
+  let payer: PublicKey | undefined;
+  try { payer = feePayerOf(transaction); if (!(payer instanceof PublicKey) || payer.equals(PublicKey.default)) inputFailure("transaction fee payer is missing"); }
+  catch (error) { if (error instanceof MobileWalletError) throw error; inputFailure("transaction fee payer is missing"); }
   let authorized: Account;
   try { authorized = await authorizeSession(wallet as Web3MobileWallet); }
   catch (error) { const rejected = isUserRejection(error); throw new MobileWalletError("authorization", rejected ? "wallet authorization was rejected" : "wallet authorization failed", rejected); }
-  if (!authorized?.publicKey || authorized.publicKey.equals(PublicKey.default)) inputFailure("wallet authorization has no valid account");
-  if (!payer.equals(authorized.publicKey)) inputFailure("transaction fee payer does not match the authorized account");
+  let authorizedKey: PublicKey;
+  try {
+    const candidate = authorized?.publicKey;
+    if (!(candidate instanceof PublicKey) || candidate.equals(PublicKey.default)) inputFailure("wallet authorization has no valid account");
+    authorizedKey = new PublicKey(candidate.toBytes());
+  } catch (error) { if (error instanceof MobileWalletError) throw error; return inputFailure("wallet authorization has no valid account"); }
+  if (!payer.equals(authorizedKey)) inputFailure("transaction fee payer does not match the authorized account");
   let signatures: unknown;
   try {
     signatures = await wallet.signAndSendTransactions({ transactions: [transaction], minContextSlot, commitment: "confirmed", skipPreflight: false, maxRetries: 3, waitForCommitmentToSendNextTransaction: true });
