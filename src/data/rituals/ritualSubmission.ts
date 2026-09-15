@@ -52,7 +52,7 @@ export class RitualActionSubmitter {
   readonly #wallet: RitualWalletSubmissionTransport['signAndSendTransaction']
   constructor(preparer: RitualActionPreparer, confirmer: RitualConfirmationVerifier, wallet: RitualWalletSubmissionTransport) {
     if (!(preparer instanceof RitualActionPreparer)) fail('input', 'Ritual action preparer is invalid')
-    if (confirmer === null || typeof confirmer !== 'object' || Array.isArray(confirmer) || typeof confirmer.confirmAndReadRitual !== 'function') fail('input', 'Ritual confirmation verifier is invalid')
+    try { if (!(confirmer instanceof RitualConfirmationVerifier)) fail('input', 'Ritual confirmation verifier is invalid') } catch (error) { if (error instanceof RitualSubmissionError) throw error; fail('input', 'Ritual confirmation verifier is invalid') }
     if (wallet === null || typeof wallet !== 'object' || Array.isArray(wallet) || typeof wallet.signAndSendTransaction !== 'function') fail('input', 'Ritual wallet transport is invalid')
     this.#preparer = preparer; this.#confirmer = confirmer; this.#wallet = wallet.signAndSendTransaction.bind(wallet)
   }
