@@ -1,4 +1,4 @@
-import type { PublicKey } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { RitualsRpcReader, type ReadOptions, type RitualRead, type RitualBundleRead, type RitualRpcTransport } from './ritualsRpc'
 import { RitualActionPreparer, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
@@ -64,9 +64,8 @@ export function createLocalTestRitualClient(rpcTransport: RitualClientTransport,
 }
 
 /** Current deployment entry point; deployment is checked before touching dependencies. */
-export function createCurrentRitualClient(_rpcTransport: RitualClientTransport, _walletTransport: RitualWalletSubmissionTransport): never {
-  void _rpcTransport; void _walletTransport
+export function createCurrentRitualClient(rpcTransport: RitualClientTransport, walletTransport: RitualWalletSubmissionTransport): RitualClient {
   const config: { deployment: string; programId: unknown } = RITUALS_CURRENT_CONFIG
-  if (config.deployment !== 'deployed' || config.programId === null) throw new Error('No authorized Rituals deployment is configured')
-  throw new Error('Current Ritual client is unavailable')
+  if (config.deployment !== 'deployed' || !(config.programId instanceof PublicKey)) throw new Error('No authorized Rituals deployment is configured')
+  return makeClient(rpcTransport, walletTransport, config.programId)
 }
