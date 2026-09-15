@@ -170,9 +170,9 @@ describe('Ritual action submission', () => {
     expect(() => new RitualActionSubmitter(preparer, revoked.proxy, wallet)).toThrowError(/verifier is invalid/)
   })
 
-  it('exports the public submission API from the rituals barrel', () => {
-    expect(api.RitualActionSubmitter).toBe(RitualActionSubmitter)
-    expect(api.createRitualActionSubmitter).toBeTypeOf('function')
+  it('keeps low-level submission constructors out of the rituals barrel', () => {
+    expect((api as Record<string, unknown>).RitualActionSubmitter).toBeUndefined()
+    expect((api as Record<string, unknown>).createRitualActionSubmitter).toBeUndefined()
     expect(api.RitualSubmissionError).toBeTypeOf('function')
   })
 })
