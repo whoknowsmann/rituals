@@ -120,27 +120,27 @@ function snapshotExpectation(value: unknown): RitualActionExpectation {
     return Object.freeze({ kind: 'funded' as const, member, expectedFundedMemberCount: count as number, expectedFundedStakeTotal: stake as bigint, expectedFundedFeeTotal: fee as bigint })
   }
   if (kind === 'event-initialized') {
-    const eventIndex = read<unknown>(value as object, 'eventIndex'); if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0) fail('input', 'eventIndex is invalid')
+    const eventIndex = read<unknown>(value as object, 'eventIndex'); if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15) fail('input', 'eventIndex is invalid')
     return Object.freeze({ kind: 'event-initialized' as const, eventIndex: eventIndex as number })
   }
   if (kind === 'claimed') {
     const claimant = cloneKey(read<unknown>(value as object, 'claimant'), 'claimant'); const eventIndex = read<unknown>(value as object, 'eventIndex'); const expectedClaimStatus = read<unknown>(value as object, 'expectedClaimStatus')
-    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || (expectedClaimStatus !== 'Pending' && expectedClaimStatus !== 'Confirmed')) fail('input', 'claim expectation is invalid')
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15 || (expectedClaimStatus !== 'Pending' && expectedClaimStatus !== 'Confirmed')) fail('input', 'claim expectation is invalid')
     return Object.freeze({ kind: 'claimed' as const, claimant, eventIndex: eventIndex as number, expectedClaimStatus: expectedClaimStatus as 'Pending' | 'Confirmed' })
   }
   if (kind === 'approved') {
     const claimant = cloneKey(read<unknown>(value as object, 'claimant'), 'claimant'); const approver = cloneKey(read<unknown>(value as object, 'approver'), 'approver'); const eventIndex = read<unknown>(value as object, 'eventIndex'); const count = read<unknown>(value as object, 'expectedApprovalCount'); const expectedClaimStatus = read<unknown>(value as object, 'expectedClaimStatus')
-    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || typeof count !== 'number' || !Number.isSafeInteger(count) || count < 1 || count > 255 || (expectedClaimStatus !== 'Pending' && expectedClaimStatus !== 'Confirmed')) fail('input', 'approval expectation is invalid')
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15 || typeof count !== 'number' || !Number.isSafeInteger(count) || count < 1 || count > 6 || (expectedClaimStatus !== 'Pending' && expectedClaimStatus !== 'Confirmed')) fail('input', 'approval expectation is invalid')
     return Object.freeze({ kind: 'approved' as const, claimant, approver, eventIndex: eventIndex as number, expectedApprovalCount: count as number, expectedClaimStatus: expectedClaimStatus as 'Pending' | 'Confirmed' })
   }
   if (kind === 'questioned') {
     const claimant = cloneKey(read<unknown>(value as object, 'claimant'), 'claimant'); const questioner = cloneKey(read<unknown>(value as object, 'questioner'), 'questioner'); const eventIndex = read<unknown>(value as object, 'eventIndex')
-    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0) fail('input', 'eventIndex is invalid')
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15) fail('input', 'eventIndex is invalid')
     return Object.freeze({ kind: 'questioned' as const, claimant, questioner, eventIndex: eventIndex as number })
   }
   if (kind === 'finalized') {
     const eventIndex = read<unknown>(value as object, 'eventIndex'); const expectedEventStatus = read<unknown>(value as object, 'expectedEventStatus'); const expectedVoidReason = read<unknown>(value as object, 'expectedVoidReason'); const expectedRitualStatus = read<unknown>(value as object, 'expectedRitualStatus'); const current = read<unknown>(value as object, 'expectedCurrentEventIndex'); const settled = read<unknown>(value as object, 'expectedSettledEventCount')
-    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || (expectedEventStatus !== 'Settled' && expectedEventStatus !== 'Voided') || (expectedVoidReason !== 'None' && expectedVoidReason !== 'NoConfirmedMembers' && expectedVoidReason !== 'UnresolvedClaims') || (expectedRitualStatus !== 'Active' && expectedRitualStatus !== 'Completed') || typeof current !== 'number' || !Number.isSafeInteger(current) || current < 0 || typeof settled !== 'number' || !Number.isSafeInteger(settled) || settled < 0) fail('input', 'finalization expectation is invalid')
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15 || (expectedEventStatus !== 'Settled' && expectedEventStatus !== 'Voided') || (expectedVoidReason !== 'None' && expectedVoidReason !== 'NoConfirmedMembers' && expectedVoidReason !== 'UnresolvedClaims') || (expectedEventStatus === 'Settled' ? expectedVoidReason !== 'None' : expectedVoidReason === 'None') || (expectedRitualStatus !== 'Active' && expectedRitualStatus !== 'Completed') || typeof current !== 'number' || !Number.isSafeInteger(current) || current < 1 || current > 16 || current !== eventIndex + 1 || typeof settled !== 'number' || !Number.isSafeInteger(settled) || settled < 1 || settled > 16 || settled !== current) fail('input', 'finalization expectation is invalid')
     return Object.freeze({ kind: 'finalized' as const, eventIndex: eventIndex as number, expectedEventStatus: expectedEventStatus as 'Settled' | 'Voided', expectedVoidReason: expectedVoidReason as 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims', expectedRitualStatus: expectedRitualStatus as 'Active' | 'Completed', expectedCurrentEventIndex: current as number, expectedSettledEventCount: settled as number })
   }
   return fail('input', 'Ritual expectation kind is invalid')
@@ -182,7 +182,7 @@ function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionEx
     const claim = index < 0 ? undefined : bundle.claims[index]?.account
     if (index < 0 || !claim || !claim.claimant.equals(claimant) || (bundle.event.account.claimedMembersBitmap & (1 << index)) === 0) mismatch()
     if (expectation.kind === 'claimed') {
-      if (claim.status === 'Pending') { if (expectation.expectedClaimStatus === 'Confirmed') mismatch() } else if (claim.status !== 'Confirmed' && claim.status !== 'Questioned') mismatch()
+      if (expectation.expectedClaimStatus === 'Confirmed' ? claim.status !== 'Confirmed' : !['Pending', 'Confirmed', 'Questioned'].includes(claim.status)) mismatch()
     } else if (expectation.kind === 'approved') {
       const approverIndex = account.members.findIndex(member => member.equals(expectation.approver))
       if (approverIndex < 0 || (account.fundedMembersBitmap & (1 << approverIndex)) === 0 || (claim.approvalsBitmap & (1 << approverIndex)) === 0 || claim.approvalCount < expectation.expectedApprovalCount) mismatch()

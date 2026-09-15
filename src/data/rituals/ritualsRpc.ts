@@ -314,7 +314,7 @@ export class RitualsRpcReader {
   /** Read one explicit historical/current event without retrying to a moving current index. */
   async getEventBundle(address: PublicKey, eventIndex: number, readOptions?: ReadOptions): Promise<RitualBundleRead> {
     const target = key(address, 'ritual address')
-    if (!Number.isSafeInteger(eventIndex) || eventIndex < 0) throw failure('input', 'eventIndex must be a safe nonnegative integer')
+    if (!Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15) throw failure('input', 'eventIndex must be a safe integer in 0..15')
     const opts = options(readOptions)
     const discovery = await this.getRitual(target, opts)
     const ritualAccount = discovery.account
