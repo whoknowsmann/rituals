@@ -111,7 +111,9 @@ export class RitualActionSubmitter {
     const state = this.#handles.get(handle)
     if (!state) return Promise.reject(new RitualSubmissionError('input', 'Submitted Ritual action handle is invalid'))
     if (!state.confirmation) {
-      state.confirmation = this.#confirmer.confirmAndReadRitual(state.submitted).then(confirmed => Object.freeze({ ...state.metadata, confirmed }))
+      state.confirmation = Promise.resolve()
+        .then(() => this.#confirmer.confirmAndReadRitual(state.submitted))
+        .then(confirmed => Object.freeze({ ...state.metadata, confirmed }))
     }
     return state.confirmation
   }

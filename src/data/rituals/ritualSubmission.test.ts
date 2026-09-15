@@ -127,10 +127,10 @@ describe('Ritual action submission', () => {
   it('rejects malformed wallet signatures before confirmation', async () => {
     const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
     const prepared = await preparer.prepareCreate(args)
-    let confirmations = 0
-    const submitter = new RitualActionSubmitter(preparer, new CapturingVerifier(), { signAndSendTransaction: async () => 'not-a-signature' })
-    await expect(submitter.submitAndConfirm(prepared)).rejects.toMatchObject({ category: 'signature' })
-    expect(confirmations).toBe(0)
+    const verifier = new CapturingVerifier()
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async () => 'not-a-signature' })
+    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ category: 'signature' })
+    expect(verifier.actions).toHaveLength(0)
   })
 
   it('rejects a valid signature made for a different message', async () => {
@@ -145,10 +145,10 @@ describe('Ritual action submission', () => {
   it('rejects wallet message mutation after handoff without confirmation', async () => {
     const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
     const prepared = await preparer.prepareCreate(args)
-    let confirmations = 0
-    const submitter = new RitualActionSubmitter(preparer, new CapturingVerifier(), { signAndSendTransaction: async (transaction: Transaction) => { transaction.recentBlockhash = key(8).toBase58(); return '11111111111111111111111111111111111111111111111111111111111111111' } })
-    await expect(submitter.submitAndConfirm(prepared)).rejects.toMatchObject({ category: 'mutation' })
-    expect(confirmations).toBe(0)
+    const verifier = new CapturingVerifier()
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async (transaction: Transaction) => { transaction.recentBlockhash = key(8).toBase58(); return '11111111111111111111111111111111111111111111111111111111111111111' } })
+    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ category: 'mutation' })
+    expect(verifier.actions).toHaveLength(0)
   })
 
   it('rejects actions from another preparer before touching the wallet', async () => {
@@ -229,6 +229,42 @@ describe('Ritual action submission', () => {
     expect(first).toBe(second)
     await expect(first).rejects.toBe(failure)
     await expect(submitter.confirmSubmitted(handle)).rejects.toBe(failure)
+    expect(confirmations).toBe(1)
+  })
+
+  it('normalizes and memoizes a synchronous confirmation failure', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    const failure = new Error('synchronous readback failure')
+    let confirmations = 0
+    const verifier = new CapturingVerifier()
+    verifier.confirmAndReadRitual = (() => { confirmations += 1; throw failure }) as never
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async transaction => { transaction.partialSign(payer); return base58(transaction.signatures[0].signature as Uint8Array) } })
+    const handle = await submitter.submitPrepared(prepared)
+    const first = submitter.confirmSubmitted(handle)
+    const second = submitter.confirmSubmitted(handle)
+    expect(first).toBe(second)
+    await expect(first).rejects.toBe(failure)
+    await expect(submitter.confirmSubmitted(handle)).rejects.toBe(failure)
+    expect(confirmations).toBe(1)
+  })
+
+  it('normalizes and memoizes a hostile confirmation thenable', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    const failure = new Error('hostile thenable')
+    let confirmations = 0
+    const verifier = new CapturingVerifier()
+    verifier.confirmAndReadRitual = (() => {
+      confirmations += 1
+      return Object.defineProperty({}, 'then', { get() { throw failure } })
+    }) as never
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async transaction => { transaction.partialSign(payer); return base58(transaction.signatures[0].signature as Uint8Array) } })
+    const handle = await submitter.submitPrepared(prepared)
+    const first = submitter.confirmSubmitted(handle)
+    const second = submitter.confirmSubmitted(handle)
+    expect(first).toBe(second)
+    await expect(first).rejects.toBe(failure)
     expect(confirmations).toBe(1)
   })
 
