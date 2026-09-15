@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js'
 import { RitualRpcError, RitualsRpcReader, type RitualBundleRead } from './ritualsRpc'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
+import { canonicalBase58Signature } from './base58Signature'
 
 export type RitualConfirmationErrorCategory = 'deployment' | 'input' | 'confirmation' | 'expired' | 'readback' | 'rpc'
 
@@ -47,8 +48,8 @@ export type ConfirmedRitualAction = Readonly<{
 }>
 
 const MAX_U64 = 0xffffffffffffffffn
-const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const BASE58 = /^[1-9A-HJ-NP-Za-km-z]+$/
+
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   try { return value !== null && typeof value === 'object' && !Array.isArray(value) } catch { return false }
 }
@@ -82,28 +83,7 @@ function canonicalKey(value: unknown, name: string): string {
     return value as string
   } catch { return fail('input', `${name} is invalid`) }
 }
-function canonicalSignature(value: unknown): string {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 90 || !BASE58.test(value)) fail('input', 'transaction signature is invalid')
-  const signature = value as string
-  const bytes: number[] = [0]
-  for (const character of signature) {
-    const digit = BASE58_ALPHABET.indexOf(character)
-    if (digit < 0) fail('input', 'transaction signature is invalid')
-    let carry = digit
-    for (let index = 0; index < bytes.length; index += 1) {
-      const product = bytes[index] * 58 + carry
-      bytes[index] = product & 0xff
-      carry = product >>> 8
-    }
-    while (carry > 0) { bytes.push(carry & 0xff); carry >>>= 8 }
-  }
-  let leadingZeros = 0
-  while (leadingZeros < signature.length && signature[leadingZeros] === '1') leadingZeros += 1
-  const allZero = bytes.length === 1 && bytes[0] === 0
-  const decodedLength = allZero ? leadingZeros : bytes.length + leadingZeros
-  if (decodedLength !== 64) fail('input', 'transaction signature must decode to exactly 64 bytes')
-  return signature
-}
+function canonicalSignature(value: unknown): string { try { return canonicalBase58Signature(value) } catch { return fail('input', 'transaction signature is invalid') } }
 function snapshotExpectation(value: unknown): RitualActionExpectation {
   if (!isRecord(value)) fail('input', 'Ritual expectation is invalid')
   const kind = read<unknown>(value as object, 'kind')
