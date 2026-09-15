@@ -198,7 +198,7 @@ export class RitualsRpcReader {
       if (!value.address.equals(canonicalAddress)) throw failure('canonical', 'ritual read address is not canonical')
     } catch (error) { throw error instanceof RitualRpcError ? error : failure('input', 'ritual read context is invalid') }
   }
-  #checkEvent(value: EventRead, ritual: RitualRead): void {
+  #checkEvent(value: EventRead, ritual: RitualRead, indexedEventIndex?: number): void {
     this.#checkRitual(ritual)
     try {
       if (value === null || typeof value !== 'object' || Array.isArray(value) || !isSafeSlot(value.slot) || !(value.address instanceof PublicKey) || !(value.ritualAddress instanceof PublicKey) || !(value.protocolConfigAddress instanceof PublicKey) || !(value.account && Object.isFrozen(value.account)) || value.ritual !== ritual || value.protocolConfig !== ritual.protocolConfig) throw failure('input', 'event read context is invalid')
@@ -208,7 +208,7 @@ export class RitualsRpcReader {
 
       const account = value.account
       if (!Number.isSafeInteger(account.eventIndex) || account.eventIndex < 0 || account.eventIndex > 15) throw failure('input', 'event read context is invalid')
-      const expectedEventIndex = ritual.account.status === 'Completed' ? ritual.account.schedule.length - 1 : ritual.account.currentEventIndex
+      const expectedEventIndex = indexedEventIndex ?? (ritual.account.status === 'Completed' ? ritual.account.schedule.length - 1 : ritual.account.currentEventIndex)
       if (!account.ritual.equals(ritual.address) || account.eventIndex !== expectedEventIndex || account.eventIndex >= ritual.account.schedule.length || account.memberCount !== ritual.account.members.length) throw failure('canonical', 'Ritual event is not bound to its ritual')
       const expected = ritual.account.schedule[account.eventIndex]
       const [canonicalAddress, canonicalBump] = eventPda(ritual.address, account.eventIndex, this.#programId)
@@ -309,6 +309,58 @@ export class RitualsRpcReader {
       return Object.freeze({ slot: fetched.slot, ritual, event, claims: Object.freeze(claims) })
     }
     throw failure('unstable', 'Ritual event advanced while reading bundle')
+  }
+
+  /** Read one explicit historical/current event without retrying to a moving current index. */
+  async getEventBundle(address: PublicKey, eventIndex: number, readOptions?: ReadOptions): Promise<RitualBundleRead> {
+    const target = key(address, 'ritual address')
+    if (!Number.isSafeInteger(eventIndex) || eventIndex < 0) throw failure('input', 'eventIndex must be a safe nonnegative integer')
+    const opts = options(readOptions)
+    const discovery = await this.getRitual(target, opts)
+    const ritualAccount = discovery.account
+    if (ritualAccount.status === 'Funding' || ritualAccount.status === 'Cancelled') throw failure('canonical', 'Ritual event bundle is unavailable in this lifecycle state')
+    if (eventIndex >= ritualAccount.schedule.length) throw failure('input', 'eventIndex is outside the Ritual schedule')
+    const current = ritualAccount.status === 'Completed' ? ritualAccount.schedule.length : ritualAccount.currentEventIndex
+    if (ritualAccount.status === 'Active' && eventIndex > current) throw failure('canonical', 'Ritual event is in the future')
+    const eventAddress = eventPda(target, eventIndex, this.#programId)[0]
+    const claimAddresses = ritualAccount.members.map(member => claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[0])
+    const fetched = await this.#fetch([this.#protocolConfigAddress, target, eventAddress, ...claimAddresses], Object.freeze({ minContextSlot: maxMin(opts.minContextSlot ?? 0, discovery.slot) }))
+    const protocolConfig = this.#decode(fetched.accounts[0], () => decodeProtocolConfig(fetched.accounts[0], this.#programId)) as ProtocolConfigAccountView
+    const account = this.#decode(fetched.accounts[1], () => decodeRitual(fetched.accounts[1], this.#programId, protocolConfig.allowedStakeMint, target)) as RitualAccountView
+    if (!sameProtocolConfigIdentity(discovery.protocolConfig, protocolConfig) || !immutableRitualEqual(discovery.account, account)) bundleMismatch()
+    if (discovery.account.status === 'Active' && account.status === 'Active' && account.currentEventIndex < discovery.account.currentEventIndex) throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
+    if (discovery.account.status === 'Completed' && account.status !== 'Completed') throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
+    if (account.status === 'Funding' || account.status === 'Cancelled') throw failure('canonical', 'Ritual lifecycle changed across bundle read')
+    if (account.status === 'Active' && eventIndex > account.currentEventIndex) throw failure('canonical', 'Ritual event is in the future')
+    if (account.status === 'Completed' && eventIndex >= account.schedule.length) throw failure('canonical', 'Completed Ritual event index is invalid')
+    const ritual = Object.freeze({ slot: fetched.slot, address: target, protocolConfigAddress: this.protocolConfigAddress, protocolConfig, account })
+    this.#ritualReads.add(ritual)
+    const rawEvent = fetched.accounts[2]
+    if (rawEvent === null) throw failure('not-found', 'Ritual event was not found')
+    const eventAccount = this.#decode(rawEvent, () => decodeRitualEvent(rawEvent, this.#programId)) as RitualEventAccountView
+    const event = Object.freeze({ slot: fetched.slot, address: eventAddress, ritualAddress: target, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, account: eventAccount })
+    this.#eventReads.add(event)
+    this.#checkEvent(event, ritual, eventIndex)
+    const historical = eventIndex < account.currentEventIndex || account.status === 'Completed'
+    if (historical && !['Settled', 'Voided'].includes(eventAccount.status)) throw failure('canonical', 'Historical Ritual event is not terminal')
+    if (account.status === 'Active' && eventIndex === account.currentEventIndex && !['Scheduled', 'Claiming', 'Resolving'].includes(eventAccount.status)) throw failure('canonical', 'Active Ritual event is not unresolved')
+    const claims: BundleClaimRead[] = []; let claimed = 0; let confirmed = 0; let questioned = 0
+    for (let index = 0; index < account.members.length; index += 1) {
+      const member = new PublicKey(account.members[index].toBytes()); const claimAddress = claimAddresses[index]; const rawClaim = fetched.accounts[index + 3]
+      let claimAccount: CompletionClaimAccountView | null = null
+      if (rawClaim !== null) {
+        claimAccount = this.#decode(rawClaim, () => decodeCompletionClaim(rawClaim, this.#programId)) as CompletionClaimAccountView
+        const expectedBump = claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[1]
+        if (!claimAccount.ritual.equals(target) || !claimAccount.event.equals(eventAddress) || claimAccount.eventIndex !== eventIndex || !claimAccount.claimant.equals(member) || claimAccount.memberIndex !== index || claimAccount.claimVersion !== CURRENT_CLAIM_VERSION || claimAccount.requiredAdditionalConfirmations !== account.additionalConfirmationThreshold || claimAccount.bump !== expectedBump || claimAccount.claimedAt < eventAccount.window.opens || claimAccount.claimedAt > eventAccount.window.deadline || (claimAccount.approvalsBitmap & ~account.fundedMembersBitmap) !== 0 || !claimAddress.equals(claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[0])) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
+        claimed |= 1 << index
+        if (claimAccount.status === 'Confirmed') { confirmed |= 1 << index; if ((eventAccount.confirmedMembersBitmap & (1 << index)) === 0) throw failure('canonical', 'Ritual event and claims bitmaps do not correlate') }
+        if (claimAccount.status === 'Questioned') { questioned |= 1 << index; if ((eventAccount.questionedMembersBitmap & (1 << index)) === 0) throw failure('canonical', 'Ritual event and claims bitmaps do not correlate') }
+        if (claimAccount.status === 'Pending' && ((eventAccount.confirmedMembersBitmap | eventAccount.questionedMembersBitmap) & (1 << index)) !== 0) throw failure('canonical', 'Ritual event and claims bitmaps do not correlate')
+      }
+      claims.push(Object.freeze({ memberIndex: index, member, address: new PublicKey(claimAddress.toBytes()), account: claimAccount }))
+    }
+    if (eventAccount.claimedMembersBitmap !== claimed || eventAccount.confirmedMembersBitmap !== confirmed || eventAccount.questionedMembersBitmap !== questioned) throw failure('canonical', 'Ritual event and claims bitmaps do not correlate')
+    return Object.freeze({ slot: fetched.slot, ritual, event, claims: Object.freeze(claims) })
   }
 
   async getCurrentRitualBundle(address: PublicKey, readOptions?: ReadOptions): Promise<RitualBundleRead> {

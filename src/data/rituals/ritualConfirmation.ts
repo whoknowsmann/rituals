@@ -23,6 +23,11 @@ export type RitualActionExpectation =
   | Readonly<{ kind: 'activated' }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'vaults-closed' }>
+  | Readonly<{ kind: 'event-initialized'; eventIndex: number }>
+  | Readonly<{ kind: 'claimed'; claimant: PublicKey; eventIndex: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
+  | Readonly<{ kind: 'approved'; claimant: PublicKey; approver: PublicKey; eventIndex: number; expectedApprovalCount: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
+  | Readonly<{ kind: 'questioned'; claimant: PublicKey; questioner: PublicKey; eventIndex: number }>
+  | Readonly<{ kind: 'finalized'; eventIndex: number; expectedEventStatus: 'Settled' | 'Voided'; expectedVoidReason: 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims'; expectedRitualStatus: 'Active' | 'Completed'; expectedCurrentEventIndex: number; expectedSettledEventCount: number }>
 
 export type SubmittedRitualAction = Readonly<{
   signature: string
@@ -37,6 +42,7 @@ export type ConfirmedRitualAction = Readonly<{
   signature: string
   confirmationSlot: number
   bundle: RitualBundleRead
+  indexedBundle?: RitualBundleRead
   expectationKind: RitualActionExpectation['kind']
 }>
 
@@ -113,6 +119,30 @@ function snapshotExpectation(value: unknown): RitualActionExpectation {
     if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 1 || count > 6 || !safeU64(stake) || stake === 0n || !safeU64(fee)) fail('input', 'funding expectation is invalid')
     return Object.freeze({ kind: 'funded' as const, member, expectedFundedMemberCount: count as number, expectedFundedStakeTotal: stake as bigint, expectedFundedFeeTotal: fee as bigint })
   }
+  if (kind === 'event-initialized') {
+    const eventIndex = read<unknown>(value as object, 'eventIndex'); if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0) fail('input', 'eventIndex is invalid')
+    return Object.freeze({ kind: 'event-initialized' as const, eventIndex: eventIndex as number })
+  }
+  if (kind === 'claimed') {
+    const claimant = cloneKey(read<unknown>(value as object, 'claimant'), 'claimant'); const eventIndex = read<unknown>(value as object, 'eventIndex'); const expectedClaimStatus = read<unknown>(value as object, 'expectedClaimStatus')
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || (expectedClaimStatus !== 'Pending' && expectedClaimStatus !== 'Confirmed')) fail('input', 'claim expectation is invalid')
+    return Object.freeze({ kind: 'claimed' as const, claimant, eventIndex: eventIndex as number, expectedClaimStatus: expectedClaimStatus as 'Pending' | 'Confirmed' })
+  }
+  if (kind === 'approved') {
+    const claimant = cloneKey(read<unknown>(value as object, 'claimant'), 'claimant'); const approver = cloneKey(read<unknown>(value as object, 'approver'), 'approver'); const eventIndex = read<unknown>(value as object, 'eventIndex'); const count = read<unknown>(value as object, 'expectedApprovalCount'); const expectedClaimStatus = read<unknown>(value as object, 'expectedClaimStatus')
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || typeof count !== 'number' || !Number.isSafeInteger(count) || count < 1 || count > 255 || (expectedClaimStatus !== 'Pending' && expectedClaimStatus !== 'Confirmed')) fail('input', 'approval expectation is invalid')
+    return Object.freeze({ kind: 'approved' as const, claimant, approver, eventIndex: eventIndex as number, expectedApprovalCount: count as number, expectedClaimStatus: expectedClaimStatus as 'Pending' | 'Confirmed' })
+  }
+  if (kind === 'questioned') {
+    const claimant = cloneKey(read<unknown>(value as object, 'claimant'), 'claimant'); const questioner = cloneKey(read<unknown>(value as object, 'questioner'), 'questioner'); const eventIndex = read<unknown>(value as object, 'eventIndex')
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0) fail('input', 'eventIndex is invalid')
+    return Object.freeze({ kind: 'questioned' as const, claimant, questioner, eventIndex: eventIndex as number })
+  }
+  if (kind === 'finalized') {
+    const eventIndex = read<unknown>(value as object, 'eventIndex'); const expectedEventStatus = read<unknown>(value as object, 'expectedEventStatus'); const expectedVoidReason = read<unknown>(value as object, 'expectedVoidReason'); const expectedRitualStatus = read<unknown>(value as object, 'expectedRitualStatus'); const current = read<unknown>(value as object, 'expectedCurrentEventIndex'); const settled = read<unknown>(value as object, 'expectedSettledEventCount')
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || (expectedEventStatus !== 'Settled' && expectedEventStatus !== 'Voided') || (expectedVoidReason !== 'None' && expectedVoidReason !== 'NoConfirmedMembers' && expectedVoidReason !== 'UnresolvedClaims') || (expectedRitualStatus !== 'Active' && expectedRitualStatus !== 'Completed') || typeof current !== 'number' || !Number.isSafeInteger(current) || current < 0 || typeof settled !== 'number' || !Number.isSafeInteger(settled) || settled < 0) fail('input', 'finalization expectation is invalid')
+    return Object.freeze({ kind: 'finalized' as const, eventIndex: eventIndex as number, expectedEventStatus: expectedEventStatus as 'Settled' | 'Voided', expectedVoidReason: expectedVoidReason as 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims', expectedRitualStatus: expectedRitualStatus as 'Active' | 'Completed', expectedCurrentEventIndex: current as number, expectedSettledEventCount: settled as number })
+  }
   return fail('input', 'Ritual expectation kind is invalid')
 }
 function snapshotAction(value: unknown): Readonly<{ strategy: Readonly<{ signature: string; blockhash: string; lastValidBlockHeight: number }>; submittedContextSlot: number; ritualAddress: PublicKey; expectation: RitualActionExpectation }> {
@@ -143,6 +173,24 @@ function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionEx
     if (account.status !== 'Active' || account.activatedAt <= 0n || account.fundedMemberCount !== account.members.length || account.fundedMembersBitmap !== (1 << account.members.length) - 1) mismatch()
   } else if (expectation.kind === 'cancelled') {
     if (account.status !== 'Cancelled' || account.fundedStakeTotal !== 0n || account.fundedFeeTotal !== 0n) mismatch()
+  } else if (expectation.kind === 'event-initialized') {
+    if (!bundle.event || bundle.event.account.eventIndex !== expectation.eventIndex || !['Scheduled', 'Claiming', 'Resolving'].includes(bundle.event.account.status)) mismatch()
+  } else if (expectation.kind === 'claimed' || expectation.kind === 'approved' || expectation.kind === 'questioned') {
+    if (!bundle.event || bundle.event.account.eventIndex !== expectation.eventIndex) mismatch()
+    const claimant = expectation.claimant
+    const index = account.members.findIndex(member => member.equals(claimant))
+    const claim = index < 0 ? undefined : bundle.claims[index]?.account
+    if (index < 0 || !claim || !claim.claimant.equals(claimant) || (bundle.event.account.claimedMembersBitmap & (1 << index)) === 0) mismatch()
+    if (expectation.kind === 'claimed') {
+      if (claim.status === 'Pending') { if (expectation.expectedClaimStatus === 'Confirmed') mismatch() } else if (claim.status !== 'Confirmed' && claim.status !== 'Questioned') mismatch()
+    } else if (expectation.kind === 'approved') {
+      const approverIndex = account.members.findIndex(member => member.equals(expectation.approver))
+      if (approverIndex < 0 || (account.fundedMembersBitmap & (1 << approverIndex)) === 0 || (claim.approvalsBitmap & (1 << approverIndex)) === 0 || claim.approvalCount < expectation.expectedApprovalCount) mismatch()
+      if (expectation.expectedClaimStatus === 'Confirmed' && claim.status !== 'Confirmed') mismatch()
+      if (expectation.expectedClaimStatus === 'Pending' && claim.status !== 'Pending' && claim.status !== 'Confirmed' && claim.status !== 'Questioned') mismatch()
+    } else if (claim.status !== 'Questioned' || (bundle.event.account.questionedMembersBitmap & (1 << index)) === 0) mismatch()
+  } else if (expectation.kind === 'finalized') {
+    if (!bundle.event || bundle.event.account.eventIndex !== expectation.eventIndex || bundle.event.account.status !== expectation.expectedEventStatus || bundle.event.account.voidReason !== expectation.expectedVoidReason || account.status !== expectation.expectedRitualStatus || account.currentEventIndex !== expectation.expectedCurrentEventIndex || account.settledEventCount !== expectation.expectedSettledEventCount) mismatch()
   } else if ((account.status !== 'Completed' && account.status !== 'Cancelled') || !account.vaultsClosed) mismatch()
 }
 
@@ -178,13 +226,17 @@ export class RitualConfirmationVerifier {
     if (!isRecord(value) || !owns(value, 'err')) fail('confirmation', 'transaction confirmation value is malformed')
     if (readConfirmation<unknown>(value as object, 'err') !== null) fail('confirmation', 'transaction failed')
     let bundle!: RitualBundleRead
-    try { bundle = await this.#reader.getRitualBundle(snapshot.ritualAddress, { minContextSlot: confirmationSlot }) } catch (error) {
+    try {
+      bundle = ['event-initialized', 'claimed', 'approved', 'questioned', 'finalized'].includes(snapshot.expectation.kind)
+        ? await this.#reader.getEventBundle(snapshot.ritualAddress, (snapshot.expectation as { eventIndex: number }).eventIndex, { minContextSlot: confirmationSlot })
+        : await this.#reader.getRitualBundle(snapshot.ritualAddress, { minContextSlot: confirmationSlot })
+    } catch (error) {
       if (error instanceof RitualRpcError) fail(error.category === 'rpc' ? 'rpc' : 'readback', 'Ritual authoritative readback failed')
       fail('readback', 'Ritual authoritative readback failed')
     }
     if (!bundle || !safeSlot(bundle.slot) || bundle.slot < confirmationSlot) fail('readback', 'Ritual authoritative readback is stale')
     verifyExpectation(bundle, snapshot.expectation)
-    return Object.freeze({ signature: snapshot.strategy.signature, confirmationSlot, bundle, expectationKind: snapshot.expectation.kind })
+    return Object.freeze({ signature: snapshot.strategy.signature, confirmationSlot, bundle, ...( ['event-initialized', 'claimed', 'approved', 'questioned', 'finalized'].includes(snapshot.expectation.kind) ? { indexedBundle: bundle } : {}), expectationKind: snapshot.expectation.kind })
   }
 }
 
