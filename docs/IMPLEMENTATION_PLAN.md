@@ -7,7 +7,7 @@ The approved product direction is Rituals.
 Use:
 
 - `docs/ROADMAP.md` for current completed and remaining repository work;
-- `docs/plans/2026-09-15-ritual-client-progress-boundary.md` for the active split submission/confirmation client milestone;
+- `docs/plans/2026-09-15-ritual-client-progress-boundary.md` as the completed split submission/confirmation client milestone and acceptance record;
 - the Hub note `Rituals Roadmap.md` for the concise product-level view;
 - `docs/plans/2026-09-09-rituals-rebuild.md` as the historical detailed execution record and acceptance reference.
 

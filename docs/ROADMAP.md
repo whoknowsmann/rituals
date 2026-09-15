@@ -38,18 +38,21 @@ Status labels describe observed implementation, not aspiration. Rituals is the s
 - [x] Exact fee/rent/token summaries, per-preparer provenance, message digest, and mutation detection
 - [x] Blockheight confirmation and action-specific authoritative readback for all lifecycle and event actions
 - [x] Exact prepared-message binding to the wallet-returned signature
+- [x] Runtime-opaque split `submitPrepared` / `confirmSubmitted` boundary with issuing-client authority and duplicate-confirmation memoization
 - [x] Mobile Wallet Adapter authorization and single-transaction submission transport
 - [x] Safe application facade gated by devnet cluster and authorized deployment identity
-- [x] 1,737 JavaScript/TypeScript cases across 55 files at the current green checkpoint
+- [x] 1,758 JavaScript/TypeScript cases across 56 files at the current green checkpoint
 
 ## Active integration sequence
 
-1. [>] Wire the first visible Create transaction state machine: review → wallet → submitted → confirming → confirmed/error
-2. [ ] Generate a digest-bound invite only after authoritative Create confirmation
-3. [ ] Build invite/join and dedicated member-funding progress
-4. [ ] Add funding and activation transaction state machines
-5. [ ] Replace fixture dashboard/detail/claim/confirmation/receipt actions with authoritative RPC and submitted transactions
-6. [ ] Handle stale, rejected, expired, offline, duplicate-tap, and reconnect behavior across visible actions
+1. [x] Expose a truthful submitted-versus-confirming client boundary without weakening transaction identity or readback
+2. [>] Define the missing honest Create inputs: schedule UX, canonical rule serialization/digest, nonce policy, and authoritative protocol/mint/fee-recipient sources
+3. [ ] Wire the visible Create state machine: review → wallet → submitted → confirming → confirmed/error
+4. [ ] Generate a digest-bound invite only after authoritative Create confirmation
+5. [ ] Build invite/join and dedicated member-funding progress
+6. [ ] Add funding and activation transaction state machines
+7. [ ] Replace fixture dashboard/detail/claim/confirmation/receipt actions with authoritative RPC and submitted transactions
+8. [ ] Handle stale, rejected, expired, offline, duplicate-tap, reload-recovery, and reconnect behavior across visible actions
 
 The typed transaction stack is implemented and tested against deterministic transports. The current deployment configuration is deliberately `not-deployed`; visible transaction CTAs remain disabled and no public-cluster transaction has occurred.
 

@@ -22,6 +22,7 @@ A wallet signature proves who attested, not that the underlying real-world activ
 - Confirm transactions and read back exact target state before reporting success.
 - Reject wrong cluster, program ID, account owner, mint, schema, or invite digest.
 - Rebuild and redisplay any action if its blockhash, instruction, accounts, or bytes change.
+- Treat submitted-action handles as process-local capabilities: accept them only in the issuing client, share duplicate confirmation work, and never restore confirmation authority by deserializing a handle after reload.
 
 ## Program and money limits
 

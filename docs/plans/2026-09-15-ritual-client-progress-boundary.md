@@ -1,6 +1,6 @@
 # Ritual Client Progress Boundary Implementation Plan
 
-> **Status:** Active production plan. Spike `spikes/002-client-progress-boundary/` validated the split runtime-opaque submitted-action seam. This plan implements that seam before visible Create transaction UX.
+> **Status:** Completed production milestone. Spike `spikes/002-client-progress-boundary/` validated the split runtime-opaque submitted-action seam; commits following this plan implemented and reviewed the low-level submitter and frozen RitualClient facade. The visible Create state machine remains future work because its schedule, canonical rule digest, nonce, and deployed protocol/mint/fee inputs are not yet defined.
 
 ## Goal
 
