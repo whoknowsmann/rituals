@@ -23,7 +23,6 @@ const createArgs: BuildCreateRitualArgs = {
   programId: LOCAL_PLACEHOLDER_PROGRAM_ID, creator: creator.publicKey, stakeMint: new PublicKey(new Uint8Array(32).fill(2)), feeRecipientToken: new PublicKey(new Uint8Array(32).fill(3)),
   ritual: { nonce: 7n, ruleDigest: '1f'.repeat(32) as never, members: [creator.publicKey, member], memberTotalStake: 100n, schedule: [{ opens: 10n, deadline: 20n, resolution: 30n }], additionalConfirmationThreshold: 0, feePayerMode: 'HOST' },
 }
-
 describe('safe Ritual client facade', () => {
   it('does not expose confirmation or submission bypasses from the public barrel', () => {
     const runtimeApi = api as unknown as Record<string, unknown>
@@ -44,6 +43,8 @@ describe('safe Ritual client facade', () => {
     expect(client).not.toHaveProperty('confirmer')
     expect(client).not.toHaveProperty('submitter')
     expect(client).not.toHaveProperty('signAndSendTransaction')
+    expect(client).toHaveProperty('submitPrepared')
+    expect(client).toHaveProperty('confirmSubmitted')
     expect(client).toHaveProperty('submitAndConfirm')
   })
 
@@ -53,7 +54,15 @@ describe('safe Ritual client facade', () => {
 
   it('provides every read, preparation, and safe submission operation', () => {
     const client = api.createLocalTestRitualClient({ ...rpc, ...prep, ...confirmation }, wallet, LOCAL_PLACEHOLDER_PROGRAM_ID)
-    expect(['readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitAndConfirm'].every(name => typeof (client as unknown as Record<string, unknown>)[name] === 'function')).toBe(true)
+    expect(['readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm'].every(name => typeof (client as unknown as Record<string, unknown>)[name] === 'function')).toBe(true)
+  })
+
+  it('keeps every facade method hidden and immutable', () => {
+    const client = api.createLocalTestRitualClient({ ...rpc, ...prep, ...confirmation }, wallet, LOCAL_PLACEHOLDER_PROGRAM_ID) as unknown as Record<string, unknown>
+    const names = ['readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm']
+    expect(Object.getOwnPropertyNames(client).sort()).toEqual(names.sort())
+    expect(Object.isFrozen(client)).toBe(true)
+    for (const name of names) expect(Object.getOwnPropertyDescriptor(client, name)).toMatchObject({ enumerable: false, writable: false, configurable: false, value: expect.any(Function) })
   })
 
   it('rejects a prepared action from another facade before touching the wallet', async () => {

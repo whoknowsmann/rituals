@@ -3,9 +3,11 @@ import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { RitualsRpcReader, type ReadOptions, type RitualRead, type RitualBundleRead, type RitualRpcTransport } from './ritualsRpc'
 import { RitualActionPreparer, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualConfirmationTransport } from './ritualConfirmation'
-import { RitualActionSubmitter, type RitualWalletSubmissionTransport, type RitualSubmissionResult } from './ritualSubmission'
+import { RitualActionSubmitter, type RitualWalletSubmissionTransport, type RitualSubmissionResult, type SubmittedRitualActionHandle } from './ritualSubmission'
 import type { BuildCreateRitualArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs } from './instructionsLifecycle'
 import type { BuildCloseTerminalVaultsArgs, BuildInitializeCurrentEventArgs, BuildClaimCompletionArgs, BuildApproveClaimArgs, BuildQuestionClaimArgs, BuildFinalizeEventArgs } from './instructionsEvents'
+
+export type { SubmittedRitualActionHandle } from './ritualSubmission'
 
 /**
  * Application boundary for Ritual reads, preparation, signing, and authoritative confirmation.
@@ -27,6 +29,8 @@ export interface RitualClient {
   prepareApprove(args: BuildApproveClaimArgs): Promise<PreparedRitualAction>
   prepareQuestion(args: BuildQuestionClaimArgs): Promise<PreparedRitualAction>
   prepareFinalize(args: BuildFinalizeEventArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction>
+  submitPrepared(prepared: PreparedRitualAction): Promise<SubmittedRitualActionHandle>
+  confirmSubmitted(handle: SubmittedRitualActionHandle): Promise<RitualSubmissionResult>
   submitAndConfirm(prepared: PreparedRitualAction): Promise<RitualSubmissionResult>
 }
 
@@ -52,6 +56,8 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
     prepareApprove: preparer.prepareApprove.bind(preparer),
     prepareQuestion: preparer.prepareQuestion.bind(preparer),
     prepareFinalize: preparer.prepareFinalize.bind(preparer),
+    submitPrepared: submitter.submitPrepared.bind(submitter),
+    confirmSubmitted: submitter.confirmSubmitted.bind(submitter),
     submitAndConfirm: submitter.submitAndConfirm.bind(submitter),
   }
   for (const [name, method] of Object.entries(methods)) Object.defineProperty(client, name, { value: method, enumerable: false, writable: false, configurable: false })
