@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { Keypair, PublicKey } from '@solana/web3.js'
+import { describe, expect, it, vi } from 'vitest'
+import { Keypair, PublicKey, Transaction } from '@solana/web3.js'
 import * as api from './index'
 import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
 import type { RitualRpcTransport } from './ritualsRpc'
 import type { RitualPreparationTransport } from './ritualPreparedAction'
-import type { RitualConfirmationTransport } from './ritualConfirmation'
+import { RitualConfirmationVerifier, type RitualConfirmationTransport } from './ritualConfirmation'
 import type { RitualWalletSubmissionTransport } from './ritualSubmission'
 import type { BuildCreateRitualArgs } from './instructionsLifecycle'
 
@@ -23,6 +23,19 @@ const createArgs: BuildCreateRitualArgs = {
   programId: LOCAL_PLACEHOLDER_PROGRAM_ID, creator: creator.publicKey, stakeMint: new PublicKey(new Uint8Array(32).fill(2)), feeRecipientToken: new PublicKey(new Uint8Array(32).fill(3)),
   ritual: { nonce: 7n, ruleDigest: '1f'.repeat(32) as never, members: [creator.publicKey, member], memberTotalStake: 100n, schedule: [{ opens: 10n, deadline: 20n, resolution: 30n }], additionalConfirmationThreshold: 0, feePayerMode: 'HOST' },
 }
+const base58 = (bytes: Uint8Array) => {
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+  let digits = [0]
+  for (const byte of bytes) { let carry = byte; for (let i = 0; i < digits.length; i++) { const value = digits[i] * 256 + carry; digits[i] = value % 58; carry = Math.floor(value / 58) }; while (carry) { digits.push(carry % 58); carry = Math.floor(carry / 58) } }
+  let result = ''; for (let i = 0; i < bytes.length && bytes[i] === 0; i++) result += '1'; for (let i = digits.length - 1; i >= 0; i--) result += alphabet[digits[i]]; return result
+}
+const signingWallet = (calls: { count: number }): RitualWalletSubmissionTransport => ({
+  signAndSendTransaction: async (transaction: Transaction) => {
+    calls.count += 1
+    transaction.partialSign(creator)
+    return base58(transaction.signatures[0].signature as Uint8Array)
+  },
+})
 describe('safe Ritual client facade', () => {
   it('does not expose confirmation or submission bypasses from the public barrel', () => {
     const runtimeApi = api as unknown as Record<string, unknown>
@@ -33,6 +46,7 @@ describe('safe Ritual client facade', () => {
     expect(runtimeApi.RitualActionSubmitter).toBeUndefined()
     expect(runtimeApi.createRitualActionSubmitter).toBeUndefined()
     expect(runtimeApi.SubmittedRitualAction).toBeUndefined()
+    expect(runtimeApi.SubmittedRitualActionHandle).toBeUndefined()
   })
 
   it('returns a facade with no internal objects or wallet signing methods', () => {
@@ -62,7 +76,46 @@ describe('safe Ritual client facade', () => {
     const names = ['readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm']
     expect(Object.getOwnPropertyNames(client).sort()).toEqual(names.sort())
     expect(Object.isFrozen(client)).toBe(true)
+    expect(Object.getPrototypeOf(client)).toBeNull()
     for (const name of names) expect(Object.getOwnPropertyDescriptor(client, name)).toMatchObject({ enumerable: false, writable: false, configurable: false, value: expect.any(Function) })
+  })
+
+  it('round-trips split submission through one facade with one wallet and confirmation call', async () => {
+    const calls = { count: 0 }
+    const confirmed = { marker: 'authoritative facade readback' }
+    const confirmationSpy = vi.spyOn(RitualConfirmationVerifier.prototype, 'confirmAndReadRitual').mockResolvedValue(confirmed as never)
+    try {
+      const client = api.createLocalTestRitualClient({ ...rpc, ...prep, ...confirmation }, signingWallet(calls), LOCAL_PLACEHOLDER_PROGRAM_ID)
+      const prepared = await client.prepareCreate(createArgs)
+      const handle = await client.submitPrepared(prepared)
+      expect(handle).toMatchObject({ actionKind: 'create', expectationKind: 'created', ritualAddress: prepared.ritualAddress })
+      await expect(client.confirmSubmitted(handle)).resolves.toMatchObject({ confirmed })
+      expect(calls.count).toBe(1)
+      expect(confirmationSpy).toHaveBeenCalledTimes(1)
+    } finally { confirmationSpy.mockRestore() }
+  })
+
+  it('rejects another facade handle before confirmation work', async () => {
+    const confirmationSpy = vi.spyOn(RitualConfirmationVerifier.prototype, 'confirmAndReadRitual').mockResolvedValue({ marker: 'should not run' } as never)
+    try {
+      const transport = { ...rpc, ...prep, ...confirmation }
+      const first = api.createLocalTestRitualClient(transport, signingWallet({ count: 0 }), LOCAL_PLACEHOLDER_PROGRAM_ID)
+      const second = api.createLocalTestRitualClient(transport, signingWallet({ count: 0 }), LOCAL_PLACEHOLDER_PROGRAM_ID)
+      const handle = await second.submitPrepared(await second.prepareCreate(createArgs))
+      await expect(first.confirmSubmitted(handle)).rejects.toMatchObject({ category: 'input' })
+      expect(confirmationSpy).not.toHaveBeenCalled()
+    } finally { confirmationSpy.mockRestore() }
+  })
+
+  it('keeps compatibility submission on the same facade path', async () => {
+    const calls = { count: 0 }
+    const confirmationSpy = vi.spyOn(RitualConfirmationVerifier.prototype, 'confirmAndReadRitual').mockResolvedValue({ marker: 'compatibility' } as never)
+    try {
+      const client = api.createLocalTestRitualClient({ ...rpc, ...prep, ...confirmation }, signingWallet(calls), LOCAL_PLACEHOLDER_PROGRAM_ID)
+      await expect(client.submitAndConfirm(await client.prepareCreate(createArgs))).resolves.toMatchObject({ confirmed: { marker: 'compatibility' } })
+      expect(calls.count).toBe(1)
+      expect(confirmationSpy).toHaveBeenCalledTimes(1)
+    } finally { confirmationSpy.mockRestore() }
   })
 
   it('rejects a prepared action from another facade before touching the wallet', async () => {
