@@ -136,10 +136,10 @@ describe('Ritual action submission', () => {
   it('rejects a valid signature made for a different message', async () => {
     const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
     const prepared = await preparer.prepareCreate(args)
-    let confirmations = 0
-    const submitter = new RitualActionSubmitter(preparer, new CapturingVerifier(), { signAndSendTransaction: async (transaction: Transaction) => { const changed = new Transaction({ feePayer: payer.publicKey, blockhash: key(8).toBase58(), lastValidBlockHeight: 100 }); changed.add(transaction.instructions[0]); changed.partialSign(payer); return base58(changed.signatures[0].signature as Uint8Array) } })
-    await expect(submitter.submitAndConfirm(prepared)).rejects.toMatchObject({ category: 'signature' })
-    expect(confirmations).toBe(0)
+    const verifier = new CapturingVerifier()
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async (transaction: Transaction) => { const changed = new Transaction({ feePayer: payer.publicKey, blockhash: key(8).toBase58(), lastValidBlockHeight: 100 }); changed.add(transaction.instructions[0]); changed.partialSign(payer); return base58(changed.signatures[0].signature as Uint8Array) } })
+    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ category: 'signature' })
+    expect(verifier.actions).toHaveLength(0)
   })
 
   it('rejects wallet message mutation after handoff without confirmation', async () => {
