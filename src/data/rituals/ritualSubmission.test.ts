@@ -6,6 +6,10 @@ import { RitualActionPreparer, type RitualPreparationTransport } from './ritualP
 import { RitualActionSubmitter, type RitualWalletSubmissionTransport } from './ritualSubmission'
 import { RitualConfirmationVerifier } from './ritualConfirmation'
 import { RitualsRpcReader } from './ritualsRpc'
+import { deriveCreateRitualAccounts } from './instructionsLifecycle'
+import { claimContext, eventContext, eventKey, eventProgramId } from './ritualPreparedAction.events.test.helpers'
+import { lifecycleContext, lifecycleSource } from './lifecycleBuilderTestHelpers'
+import { eventPda } from './pdas'
 import type { BuildCreateRitualArgs } from './instructionsLifecycle'
 import * as api from './index'
 
@@ -35,7 +39,74 @@ const base58 = (bytes: Uint8Array) => {
   let result = ''; for (let i = 0; i < bytes.length && bytes[i] === 0; i++) result += '1'; for (let i = digits.length - 1; i >= 0; i--) result += alphabet[digits[i]]; return result
 }
 
+const signingKeys = Array.from({ length: 8 }, (_, n) => Keypair.fromSeed(new Uint8Array(32).fill(40 + n)))
+const actors = signingKeys.map(keypair => keypair.publicKey)
+const actorByAddress = new Map(signingKeys.map(keypair => [keypair.publicKey.toBase58(), keypair]))
+const ritualAddress = deriveCreateRitualAccounts(eventProgramId, actors[0], 7n).ritual
+const ritualAccounts = deriveCreateRitualAccounts(eventProgramId, actors[0], 7n)
+const ritual = lifecycleContext({
+  creator: actors[0], members: [actors[0], actors[1], actors[2]], status: 'Funding',
+  protocolConfig: ritualAccounts.protocolConfig, stakeMint: lifecycleSource.stakeMint,
+  stakeVault: ritualAccounts.stakeVault, feeVault: ritualAccounts.feeVault,
+  bump: ritualAccounts.ritualBump, stakeVaultBump: ritualAccounts.stakeVaultBump, feeVaultBump: ritualAccounts.feeVaultBump,
+  fundedMembersBitmap: 7, fundedMemberCount: 3, fundedStakeTotal: 300n,
+  fundedFeeTotal: lifecycleSource.lockedActivationFee, activatedAt: 20n,
+}) as any
+ritual.address = ritualAddress
+const activeRitual = { ...ritual, account: { ...ritual.account, status: 'Active' as const } }
+const fundingRitual = { ...ritual, account: { ...ritual.account, fundedMembersBitmap: 0, fundedMemberCount: 0, fundedStakeTotal: 0n, fundedFeeTotal: 0n } }
+const fullFundingRitual = { ...ritual, account: { ...ritual.account, status: 'Funding' as const } }
+const event = (() => { const base = eventContext(activeRitual); const [address] = eventPda(ritualAddress, 0, eventProgramId); return { address, account: { ...base.account, ritual: ritualAddress } } })()
+const claim = claimContext(activeRitual, event, 0, { requiredAdditionalConfirmations: 2 })
+const sourceFor = (_member: PublicKey, index = 0) => eventKey(150 + index)
+const actionCases = [
+  { name: 'create', prepare: (p: RitualActionPreparer) => p.prepareCreate({ programId: eventProgramId, creator: actors[0], stakeMint: key(2), feeRecipientToken: key(3), ritual: { nonce: 7n, ruleDigest: '1f'.repeat(32) as never, members: [actors[0], actors[1], actors[2]], memberTotalStake: 100n, schedule: lifecycleSource.schedule, additionalConfirmationThreshold: 2, feePayerMode: 'HOST' } }), expected: { kind: 'created', creator: actors[0].toBase58(), nonce: 7n }, signer: actors[0] },
+  { name: 'fund', prepare: (p: RitualActionPreparer) => p.prepareFund({ programId: eventProgramId, ritual: fundingRitual, member: actors[0], memberSource: sourceFor(actors[0]) }), expected: { kind: 'funded', member: actors[0].toBase58(), expectedFundedMemberCount: 1, expectedFundedStakeTotal: 200n, expectedFundedFeeTotal: lifecycleSource.lockedActivationFee }, signer: actors[0] },
+  { name: 'activate', prepare: (p: RitualActionPreparer) => p.prepareActivate({ programId: eventProgramId, ritual: fullFundingRitual, feePayer: actors[3] }), expected: { kind: 'activated' }, signer: actors[3] },
+  { name: 'cancel', prepare: (p: RitualActionPreparer) => p.prepareCancel({ programId: eventProgramId, ritual, caller: actors[4], destinationTokenAccounts: actors.slice(0, 3).map((_, i) => eventKey(100 + i)) }), expected: { kind: 'cancelled' }, signer: actors[4] },
+  { name: 'close', prepare: (p: RitualActionPreparer) => p.prepareClose({ programId: eventProgramId, ritual: { ...ritual, account: { ...ritual.account, status: 'Completed', currentEventIndex: ritual.account.schedule.length, settledEventCount: ritual.account.schedule.length, fundedStakeTotal: 0n } }, feePayer: actors[5] }), expected: { kind: 'vaults-closed' }, signer: actors[5] },
+  { name: 'initialize-event', prepare: (p: RitualActionPreparer) => p.prepareInitializeEvent({ programId: eventProgramId, ritual: activeRitual, eventIndex: 0, payer: actors[0] }), expected: { kind: 'event-initialized', eventIndex: 0 }, signer: actors[0] },
+  { name: 'claim', prepare: (p: RitualActionPreparer) => p.prepareClaim({ programId: eventProgramId, ritual: activeRitual, event, claimant: actors[0] }), expected: { kind: 'claimed', claimant: actors[0].toBase58(), eventIndex: 0, expectedClaimStatus: 'Pending' }, signer: actors[0] },
+  { name: 'approve', prepare: (p: RitualActionPreparer) => p.prepareApprove({ programId: eventProgramId, ritual: activeRitual, event: { ...event, account: { ...event.account, status: 'Claiming', claimedMembersBitmap: 1 } }, claim, approver: actors[1] }), expected: { kind: 'approved', claimant: actors[0].toBase58(), approver: actors[1].toBase58(), eventIndex: 0, expectedApprovalCount: 1, expectedClaimStatus: 'Pending' }, signer: actors[1] },
+  { name: 'question', prepare: (p: RitualActionPreparer) => p.prepareQuestion({ programId: eventProgramId, ritual: activeRitual, event: { ...event, account: { ...event.account, status: 'Claiming', claimedMembersBitmap: 1 } }, claim, questioner: actors[1] }), expected: { kind: 'questioned', claimant: actors[0].toBase58(), questioner: actors[1].toBase58(), eventIndex: 0 }, signer: actors[1] },
+  { name: 'finalize', prepare: (p: RitualActionPreparer) => p.prepareFinalize({ programId: eventProgramId, ritual: activeRitual, event: { ...event, account: { ...event.account, status: 'Claiming', claimedMembersBitmap: 1, confirmedMembersBitmap: 1 } }, destinationTokenAccounts: actors.slice(0, 3).map((_, i) => eventKey(110 + i)), feePayer: actors[6] }), expected: { kind: 'finalized', eventIndex: 0, expectedEventStatus: 'Settled', expectedVoidReason: 'None', expectedRitualStatus: 'Active', expectedCurrentEventIndex: 1, expectedSettledEventCount: 1 }, signer: actors[6] },
+] as const
+
 describe('Ritual action submission', () => {
+  it('converts every prepared expectation and binds exactly one deterministic signer', async () => {
+    const observed: string[] = []
+    for (const testCase of actionCases) {
+      const preparer = new RitualActionPreparer(new PreparationTransport(), eventProgramId)
+      const prepared = await testCase.prepare(preparer)
+      const walletAction = preparer.getTransactionForWallet(prepared)
+      const verifier = new CapturingVerifier()
+      let walletCalls = 0
+      let submittedTransaction!: Transaction
+      const wallet: RitualWalletSubmissionTransport = { signAndSendTransaction: async (transaction: Transaction) => { walletCalls += 1; submittedTransaction = transaction; const signer = actorByAddress.get(transaction.feePayer!.toBase58()); if (!signer) throw new Error('missing deterministic signer'); expect(signer.publicKey.equals(testCase.signer)).toBe(true); transaction.partialSign(signer); return base58(transaction.signatures[0].signature as Uint8Array) } }
+      const result = await new RitualActionSubmitter(preparer, verifier, wallet).submitAndConfirm(prepared)
+      const submitted = verifier.actions[0] as any
+      const compiled = submittedTransaction.compileMessage()
+      expect(walletCalls).toBe(1)
+      expect(verifier.actions).toHaveLength(1)
+      expect(result.actionKind).toBe(testCase.name)
+      expect(result.expectationKind).toBe(testCase.expected.kind)
+      expect(submitted.signature).toBe(result.signature)
+      expect(submitted.blockhash).toBe(walletAction.blockhash)
+      expect(submitted.lastValidBlockHeight).toBe(walletAction.lastValidBlockHeight)
+      expect(submitted.submittedContextSlot).toBe(walletAction.submittedContextSlot)
+      expect(submitted.ritualAddress.toBase58()).toBe(prepared.ritualAddress)
+      const converted = { ...submitted.expectation }
+      for (const field of ['creator', 'member', 'claimant', 'approver', 'questioner']) if (converted[field]) converted[field] = converted[field].toBase58()
+      expect(converted).toEqual(walletAction.expectation)
+      expect(converted).toEqual(testCase.expected)
+      expect(compiled.header.numRequiredSignatures).toBe(1)
+      expect(compiled.accountKeys[0].toBase58()).toBe(submittedTransaction.feePayer!.toBase58())
+      observed.push(testCase.name)
+    }
+    expect(observed).toEqual(['create', 'fund', 'activate', 'cancel', 'close', 'initialize-event', 'claim', 'approve', 'question', 'finalize'])
+    expect(new Set(observed).size).toBe(10)
+  })
+
   it('binds a wallet signature to the exact prepared message before confirmation', async () => {
     const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
     const prepared = await preparer.prepareCreate(args)
