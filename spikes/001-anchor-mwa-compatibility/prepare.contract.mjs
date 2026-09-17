@@ -90,4 +90,4 @@ try {
   rmSync(rollbackRoot, { recursive: true, force: true });
 }
 
-console.log('prepare safety tests passed: success permissions, preflight validation, and atomic rollback verified');
+console.log('prepare safety tests passed: success permissions, simulation validation, and atomic rollback verified');

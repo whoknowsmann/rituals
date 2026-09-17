@@ -1,6 +1,6 @@
 # Roadmap
 
-Status labels describe observed implementation, not aspiration. Rituals is the sole active hackathon product; the retired Preflight implementation remains available through Git history.
+Status labels describe observed implementation, not aspiration. Rituals is the sole product in this repository. An earlier, unrelated prototype was fully removed from active source; it survives only under the `archive/*` Git tags and is not part of this submission.
 
 ## Complete
 
@@ -91,4 +91,4 @@ Compute policy for the remaining build:
 - AI and reminders are optional follow-on work.
 - Mainnet and valuable-token support are not part of the hackathon acceptance path.
 
-The existing Expo slug, Android package, iOS bundle identifier, and EAS project ID remain legacy build identifiers for now. They are not active Preflight branding and will change only when doing so will not disrupt the proven build pipeline.
+Build identifiers are Rituals throughout: slug `rituals`, Android package and iOS bundle identifier `com.whoknowsmann.rituals`. The EAS project link is being re-initialised against this identity, and the Android build pipeline must be re-proven after that change.

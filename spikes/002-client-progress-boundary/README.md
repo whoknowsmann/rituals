@@ -50,7 +50,7 @@ It does **not** make arbitrary modified application code trustworthy, replace wa
 
 ### Exact commands
 
-From `/home/hound/projects/preflight`:
+From the repository root:
 
 ```bash
 npx vitest run spikes/002-client-progress-boundary/progressBoundary.test.ts

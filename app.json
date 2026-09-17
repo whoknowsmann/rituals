@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Rituals",
-    "slug": "preflight",
+    "slug": "rituals",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,14 +16,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.whoknowsmann.preflight"
+      "bundleIdentifier": "com.whoknowsmann.rituals"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.whoknowsmann.preflight"
+      "package": "com.whoknowsmann.rituals"
     },
     "web": {
       "favicon": "./assets/favicon.png"
