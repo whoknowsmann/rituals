@@ -19,12 +19,12 @@ describe('Rituals program identity', () => {
     expect(LOCAL_PLACEHOLDER_PROGRAM_ID.toBase58()).toBe(RITUALS_PROGRAM_ID_BASE58)
   })
 
-  it('fails closed while no authorized deployment is configured', () => {
-    expect(() => assertSupportedRitualsProgram('devnet', RITUALS_PROGRAM_ID)).toThrow(/canonical|authorized/i)
+  it('accepts the authorized devnet deployment', () => {
+    expect(() => assertSupportedRitualsProgram('devnet', RITUALS_PROGRAM_ID)).not.toThrow()
   })
 
   it('rejects a mismatched or invalid program identity', () => {
-    expect(() => assertSupportedRitualsProgram('devnet', new PublicKey(new Uint8Array(32).fill(1)))).toThrow(/authorized|mismatch/i)
+    expect(() => assertSupportedRitualsProgram('devnet', new PublicKey(new Uint8Array(32).fill(1)))).toThrow(/mismatch|authorized/i)
     expect(() => assertSupportedRitualsProgram('mainnet-beta' as never, RITUALS_PROGRAM_ID)).toThrow(/cluster/i)
   })
 })

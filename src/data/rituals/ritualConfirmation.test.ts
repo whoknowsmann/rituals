@@ -83,9 +83,12 @@ describe('Ritual confirmation verifier', () => {
     await expect(new RitualConfirmationVerifier(reader, { confirmTransaction: async () => ({ context: { slot: 50 }, value: { err: null } }) }).confirmAndReadRitual(action({ kind: 'funded', member: lifecycleSource.members[0], expectedFundedMemberCount: 1, expectedFundedStakeTotal: 0n, expectedFundedFeeTotal: 0n }))).rejects.toMatchObject({ category: 'input' })
   })
 
-  it('keeps the current production confirmation factory disabled before touching dependencies', () => {
-    const hostile = new Proxy({}, { get: () => { throw new Error('touched') } })
-    expect(() => createCurrentRitualConfirmationVerifier(hostile as never, hostile as never)).toThrowError(RitualConfirmationError)
-    expect(() => createCurrentRitualConfirmationVerifier(hostile as never, hostile as never)).toThrowError(/deployment/)
+  it('builds a confirmation verifier for the authorized deployment', () => {
+    const fakeReader = new FakeReader(bundleFor(lifecycleSource))
+    const fakeTransport: RitualConfirmationTransport = {
+      confirmTransaction: async () => ({ context: { slot: 1 }, value: { err: null } }),
+    } as never
+    const verifier = createCurrentRitualConfirmationVerifier(fakeReader, fakeTransport)
+    expect(verifier).toBeInstanceOf(RitualConfirmationVerifier)
   })
 })

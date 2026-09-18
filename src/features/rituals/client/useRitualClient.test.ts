@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import { ClusterNetwork } from '../../../components/cluster/cluster-data-access'
 import { resolveRitualClientState } from './useRitualClient'
+import { RITUALS_PROGRAM_ID } from '../../../data/rituals/programIds'
 
 const client = Object.freeze({ readRitual: vi.fn() }) as never
-const deployed = { deployment: 'deployed' as const, programId: new PublicKey(new Uint8Array(32).fill(7)) }
+// Only the authorized devnet program id is accepted now that it is deployed.
+const deployed = { deployment: 'deployed' as const, programId: RITUALS_PROGRAM_ID }
 const unavailable = { deployment: 'not-deployed' as const, programId: null }
 
 describe('Ritual client readiness', () => {

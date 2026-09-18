@@ -226,10 +226,10 @@ export function confirmAndReadRitual(reader: RitualsRpcReader, transport: Ritual
 /** Explicit-program local/test verifier factory; this does not authorize deployment or signing. */
 export const createRitualConfirmationVerifier = (reader: RitualsRpcReader, transport: RitualConfirmationTransport): RitualConfirmationVerifier => new RitualConfirmationVerifier(reader, transport)
 /** Current production deployment is deliberately unavailable; fails before inspecting dependencies. */
-export function createCurrentRitualConfirmationVerifier(_reader: RitualsRpcReader, _transport: RitualConfirmationTransport): never {
-  void _reader
-  void _transport
+export function createCurrentRitualConfirmationVerifier(reader: RitualsRpcReader, transport: RitualConfirmationTransport): RitualConfirmationVerifier {
   const config: { deployment: string; programId: unknown } = RITUALS_CURRENT_CONFIG
-  if (config.deployment !== 'deployed' || config.programId === null) return fail('deployment', 'No authorized Rituals deployment is configured')
-  return fail('deployment', 'Current Ritual confirmation verifier is unavailable')
+  // Still fails closed: without an authorized deployment nothing is constructed
+  // and no dependency is touched.
+  if (config.deployment !== 'deployed' || config.programId === null) fail('deployment', 'No authorized Rituals deployment is configured')
+  return new RitualConfirmationVerifier(reader, transport)
 }

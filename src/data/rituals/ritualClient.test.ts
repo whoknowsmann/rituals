@@ -62,8 +62,11 @@ describe('safe Ritual client facade', () => {
     expect(client).toHaveProperty('submitAndConfirm')
   })
 
-  it('checks current deployment before reading hostile dependencies', () => {
-    expect(() => api.createCurrentRitualClient(hostile as never, hostile as never)).toThrowError(/deployment/)
+  it('builds a client for the authorized deployment', () => {
+    // The deployment is live, so the factory no longer fails closed. It binds
+    // the authorized program id; transports stay the caller's responsibility.
+    const built = api.createCurrentRitualClient({ ...rpc, ...prep, ...confirmation } as never, wallet as never)
+    expect(typeof (built as unknown as Record<string, unknown>).prepareCreate).toBe('function')
   })
 
   it('provides every read, preparation, and safe submission operation', () => {

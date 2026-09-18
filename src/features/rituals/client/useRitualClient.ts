@@ -4,7 +4,7 @@ import { useCluster, type ClusterNetwork } from '../../../components/cluster/clu
 import { useConnection } from '../../../utils/ConnectionProvider'
 import { useMobileWallet } from '../../../utils/useMobileWallet'
 import { createCurrentRitualClient, type RitualClient, type RitualClientTransport } from '../../../data/rituals/ritualClient'
-import { RITUALS_CURRENT_CONFIG, RITUALS_LOCAL_PLACEHOLDER_PROGRAM_ID } from '../../../data/rituals/programIds'
+import { RITUALS_CURRENT_CONFIG, RITUALS_PROGRAM_ID } from '../../../data/rituals/programIds'
 import type { RitualWalletSubmissionTransport } from '../../../data/rituals/ritualSubmission'
 
 export type RitualDeploymentConfig = Readonly<{ deployment: 'deployed' | 'not-deployed'; programId: unknown }>
@@ -19,7 +19,7 @@ export function resolveRitualClientState(cluster: ClusterNetwork, deployment: Ri
   if (cluster !== 'devnet') return Object.freeze({ status: 'unsupported-cluster', reason: `Rituals are not enabled on ${String(cluster)}` })
   let validProgram = false
   try {
-    validProgram = deployment.programId instanceof PublicKey && !deployment.programId.equals(PublicKey.default) && deployment.programId.toBase58() !== RITUALS_LOCAL_PLACEHOLDER_PROGRAM_ID
+    validProgram = deployment.programId instanceof PublicKey && !deployment.programId.equals(PublicKey.default) && deployment.programId.equals(RITUALS_PROGRAM_ID)
   } catch { validProgram = false }
   if (deployment.deployment !== 'deployed' || !validProgram) return Object.freeze({ status: 'not-deployed', reason: 'No authorized Rituals deployment is configured' })
   return Object.freeze({ status: 'ready', client: createClient() })
