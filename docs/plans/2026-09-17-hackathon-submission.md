@@ -69,14 +69,32 @@ network."
 
 ### Week 1 (Sep 17–23) — Deploy and prove Create
 
-- [ ] Send organizer questions ([[Clock In Organizer Questions]]) — **day one, blocks nothing but informs everything**
+- [ ] Send organizer questions (Hub: Clock In Organizer Questions) — **day one, blocks nothing but informs everything**
 - [ ] Re-init EAS under `argussmithson` with the new `rituals` identity
 - [ ] Prove the Android build still works after the identity change
-- [ ] Provision the devnet program identity; deploy; create valueless SPL test mint
+- [x] Align program identity across declare_id!, Anchor.toml, deploy keypair, frozen IDL, and TS
+- [x] Decouple cross-language vectors from the deployment identity
+- [x] Implement the devnet duration override (accelerated demo cadence)
+- [x] Generate schedules and nonces (locked decisions 1–7)
+- [x] Build the Create state machine and orchestrator
+- [ ] **BLOCKED — fund the deploy wallet:** needs ~5 devnet SOL at
+      `5zLkuSKAdkswmsRsCN7XtiKAYhH1pkwpiYQKzeuJgZbm` (rent exemption alone is
+      3.01 SOL). Public CLI faucet is rate-limited; use the GitHub-authed
+      faucet at https://faucet.solana.com
+- [ ] Deploy to devnet; create a valueless SPL test mint
 - [ ] Flip deployment config off `not-deployed`; verify the client facade opens
-- [ ] Implement the devnet duration override
-- [ ] Wire the Create state machine: review → wallet → submitted → confirming → confirmed/error
+- [ ] Wire the machine into the Review screen
 - [ ] **Gate: one real Create transaction confirmed on devnet from the phone**
+
+#### Wallets
+
+| Role | Where | Purpose | Needs |
+|---|---|---|---|
+| Deploy | CLI `~/.config/solana/id.json` | deploy, mint, rent | ~5 SOL |
+| Host (wallet A) | Phantom / Seed Vault on Seeker | creates and funds | ~1 SOL |
+| Friend (wallet B) | second Phantom on Seeker | confirms the claim | ~1 SOL |
+
+Public addresses only. Never store or transmit seed phrases or private keys.
 
 ### Week 2 (Sep 24–30) — Complete the lifecycle
 
