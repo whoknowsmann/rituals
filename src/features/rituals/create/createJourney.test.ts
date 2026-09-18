@@ -156,7 +156,7 @@ describe('Ritual creation journey', () => {
     expect(() => reviewNavigationParams({ ...validDraft, confirmationMode: 'BOGUS' as never })).toThrow()
   })
 
-  it('keeps navigation graph and create screens fixture-only', () => {
+  it('keeps the navigation graph coherent and create screens honest', () => {
     const params: RootStackParamList['ReviewRitual'] = validDraft
     expect(JSON.stringify(params)).not.toContain('bigint')
     const source = readFileSync('src/navigators/AppNavigator.tsx', 'utf8')
@@ -190,9 +190,14 @@ describe('Ritual creation journey', () => {
     expect(roster).toContain('reconcileRosterContext')
     expect(roster).toContain('if (pendingContext.requiresReentry)')
     expect(roster).toContain('No transaction can be prepared or submitted')
-    expect(lobby).toContain('fundingLobbyCta(client.status)')
-    expect(lobby).toContain('No funds or ritual are locked in this preview.')
-    expect(lobby).toContain('There is no share or copy action')
+    // The lobby is the first screen that submits a real transaction.
+    expect(lobby).toContain('useCreateRitual')
+    expect(lobby).toContain('buildCreateRitualDeps')
+    expect(lobby).toContain('Create ritual')
+    // Demo cadence acceleration must stay disclosed, never silent.
+    expect(lobby).toContain('describeCadence')
+    // Devnet/no-real-value disclosure must survive.
+    expect(lobby).toContain('no real value')
     expect(create).toContain('Review terms')
     expect(review).toContain('Ritual terms preview')
     expect(review).toContain('This is a preview. Go back to edit any term before creating it.')
