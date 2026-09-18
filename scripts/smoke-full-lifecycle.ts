@@ -197,11 +197,14 @@ async function main(): Promise<void> {
   // ---------- 6. FRIEND APPROVES ----------
   console.log('\n[6] approve_claim (friend confirms)')
   const [claimAddress] = claimPda(eventAddress, host.publicKey, CURRENT_CLAIM_VERSION, RITUALS_PROGRAM_ID)
+  // The bundle returns one slot per member; only the claimant has an account.
+  const hostClaimAccount = bundle.claims.find((c) => c.account !== null)?.account
+  if (hostClaimAccount === undefined || hostClaimAccount === null) throw new Error('host claim account missing')
   await send(connection, buildApproveClaimInstruction({
     programId: RITUALS_PROGRAM_ID,
     ritual: ctx(),
     event: eventCtx(),
-    claim: { address: claimAddress, account: bundle.claims[0]!.account },
+    claim: { address: claimAddress, account: hostClaimAccount },
     approver: friend.publicKey,
   }), [friend])
   bundle = await reader.getEventBundle(ritualAddress, 0)
