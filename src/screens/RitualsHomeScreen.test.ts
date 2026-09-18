@@ -16,12 +16,15 @@ describe('RitualsHomeScreen safety and accessibility structure', () => {
     expect(source).toContain('Try again')
   })
 
-  it('uses stable ritual ids and theme-derived colors', () => {
+  it('uses stable ritual ids and named design tokens, never raw hex', () => {
     expect(source).toContain('key={ritual.id}')
     expect(source).toContain('makeStyles(theme)')
-    expect(source).toContain('theme.colors.onSurfaceVariant')
-    expect(source).not.toContain("color: '#5E625D'")
-    expect(source).not.toContain("color: '#687169'")
+    // Colours must come from the shared palette so the theme stays the single
+    // source of truth. Raw hex in a screen is how a design system rots.
+    expect(source).toContain("from '../theme'")
+    expect(source).toContain('palette.')
+    expect(source).not.toMatch(/color:\s*'#[0-9a-fA-F]{3,8}'/)
+    expect(source).not.toMatch(/backgroundColor:\s*'#[0-9a-fA-F]{3,8}'/)
   })
 
   it('does not expose repository error text', () => {

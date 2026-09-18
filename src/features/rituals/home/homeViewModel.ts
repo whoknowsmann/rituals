@@ -49,7 +49,7 @@ function format(amount: bigint, decimals: number, symbol: string): string {
 export const safeErrorMessage = (_error: unknown): string => 'Unable to load rituals right now.'
 
 const disclosure = 'DEVNET · TEST TOKENS · FIXTURE DATA'
-const identity = { title: 'Rituals', valueProposition: 'show up together, make progress together.' }
+const identity = { title: 'Rituals', valueProposition: 'Show up, or pay up. Everyone stakes — only those who show up get paid.' }
 const labels: Record<ConfirmationMode, string> = {
   HONOR: 'Honor system',
   ONE_FRIEND: 'One friend confirms',

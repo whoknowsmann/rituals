@@ -10,7 +10,7 @@ ADB="./scripts/adb.sh"
 echo "=== devices ==="
 $ADB devices -l
 
-COUNT="$($ADB devices | tail -n +2 | grep -c "device$" || true)"
+COUNT="$($ADB devices | tr -d '\r' | tail -n +2 | grep -cE '\sdevice([[:space:]]|$)' || true)"
 if [[ "$COUNT" -eq 0 ]]; then
   echo
   echo "No authorised device found. Check:"
