@@ -5,7 +5,21 @@ use rituals::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-const PROGRAM_ID: Pubkey = rituals::ID;
+/// Frozen cross-language vector identity.
+///
+/// These golden strings prove that the TypeScript client and the Rust program
+/// encode identical instructions and derive identical PDAs. That equivalence
+/// holds for ANY fixed program id, so the vectors deliberately pin their own
+/// constant instead of tracking `rituals::ID`.
+///
+/// Keeping them decoupled means redeploying the program under a new address
+/// does not invalidate hundreds of reviewed vectors. Do NOT change this value.
+const VECTOR_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
+    117, 149, 230, 54, 107, 213, 43, 204, 240, 50, 45, 105, 246, 31, 246, 5,
+    215, 74, 146, 204, 85, 199, 191, 123, 231, 253, 195, 215, 31, 14, 177, 70,
+]);
+
+const PROGRAM_ID: Pubkey = VECTOR_PROGRAM_ID;
 
 const ACCOUNT_DATA_LENGTHS: [(&str, usize); 4] = [
     ("ProtocolConfig", 8 + ProtocolConfig::INIT_SPACE),

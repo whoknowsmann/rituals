@@ -3,9 +3,10 @@ import { PublicKey } from '@solana/web3.js'
 import { decodeRitual } from './accounts'
 import { accountVectors, envelope } from './__fixtures__/accountVectors'
 import { deriveCreateRitualAccounts } from './instructionsLifecycle'
-import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
+import { VECTOR_PROGRAM_ID } from './__fixtures__/vectorProgramId'
 
-export const lifecycleProgramId = LOCAL_PLACEHOLDER_PROGRAM_ID
+// Vectors are pinned to the frozen vector identity, not the deployment identity.
+export const lifecycleProgramId = VECTOR_PROGRAM_ID
 export const lifecycleSource = decodeRitual(envelope(accountVectors.ritual.hex), lifecycleProgramId)
 export const lifecycleKey = (value: number) => new PublicKey(new Uint8Array(32).fill(value))
 

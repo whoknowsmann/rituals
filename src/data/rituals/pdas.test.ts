@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
-import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
+import { VECTOR_PROGRAM_ID } from './__fixtures__/vectorProgramId'
 import { claimPda, CURRENT_CLAIM_VERSION, eventPda, feeVaultPda, protocolConfigPda, ritualPda, stakeVaultPda } from './pdas'
 
 const pk = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
@@ -17,16 +17,17 @@ const expected = {
 
 describe('canonical Rituals PDAs', () => {
   it('matches independent cross-language vectors', () => {
-    expect([protocolConfigPda(LOCAL_PLACEHOLDER_PROGRAM_ID)[0].toBase58(), protocolConfigPda(LOCAL_PLACEHOLDER_PROGRAM_ID)[1]]).toEqual(expected.protocol)
-    expect([ritualPda(pk(1), 0n)[0].toBase58(), ritualPda(pk(1), 0n)[1]]).toEqual(expected.ritual0)
-    const ritual = ritualPda(pk(1), 7n)[0]
-    expect([ritual.toBase58(), ritualPda(pk(1), 7n)[1]]).toEqual(expected.ritual7)
-    expect([stakeVaultPda(ritual)[0].toBase58(), stakeVaultPda(ritual)[1]]).toEqual(expected.stake)
-    expect([feeVaultPda(ritual)[0].toBase58(), feeVaultPda(ritual)[1]]).toEqual(expected.fee)
-    const event1 = eventPda(ritual, 1)
+    expect([protocolConfigPda(VECTOR_PROGRAM_ID)[0].toBase58(), protocolConfigPda(VECTOR_PROGRAM_ID)[1]]).toEqual(expected.protocol)
+    const V = VECTOR_PROGRAM_ID
+    expect([ritualPda(pk(1), 0n, V)[0].toBase58(), ritualPda(pk(1), 0n, V)[1]]).toEqual(expected.ritual0)
+    const ritual = ritualPda(pk(1), 7n, V)[0]
+    expect([ritual.toBase58(), ritualPda(pk(1), 7n, V)[1]]).toEqual(expected.ritual7)
+    expect([stakeVaultPda(ritual, V)[0].toBase58(), stakeVaultPda(ritual, V)[1]]).toEqual(expected.stake)
+    expect([feeVaultPda(ritual, V)[0].toBase58(), feeVaultPda(ritual, V)[1]]).toEqual(expected.fee)
+    const event1 = eventPda(ritual, 1, V)
     expect([event1[0].toBase58(), event1[1]]).toEqual(expected.event1)
-    expect([eventPda(ritual, 15)[0].toBase58(), eventPda(ritual, 15)[1]]).toEqual(expected.event15)
-    expect([claimPda(event1[0], pk(2), CURRENT_CLAIM_VERSION)[0].toBase58(), claimPda(event1[0], pk(2), CURRENT_CLAIM_VERSION)[1]]).toEqual(expected.claim)
+    expect([eventPda(ritual, 15, V)[0].toBase58(), eventPda(ritual, 15, V)[1]]).toEqual(expected.event15)
+    expect([claimPda(event1[0], pk(2), CURRENT_CLAIM_VERSION, V)[0].toBase58(), claimPda(event1[0], pk(2), CURRENT_CLAIM_VERSION, V)[1]]).toEqual(expected.claim)
   })
 
   it('rejects invalid bounds and types, including the retired claim version', () => {

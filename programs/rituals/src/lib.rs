@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, spl_token, Mint, Token, TokenAccount};
 
 // Local-only placeholder identity; no deployed identity is implied.
-declare_id!("8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB");
+declare_id!("2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p");
 
 pub mod state {
     pub use super::{

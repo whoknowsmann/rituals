@@ -6,10 +6,10 @@ import { accountVectors, envelope } from './__fixtures__/accountVectors'
 import { RITUAL_LIFECYCLE_RUST_MANIFESTS } from './instructionLifecycle.fixture'
 import { buildActivateRitualInstruction, buildCancelUnactivatedInstruction, buildCreateRitualInstruction, buildFundMemberInstruction, buildInitializeProtocolConfigInstruction } from './instructionsLifecycle'
 import { deriveCreateRitualAccounts } from './instructionsLifecycle'
-import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
+import { VECTOR_PROGRAM_ID } from './__fixtures__/vectorProgramId'
 
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
-const programId = LOCAL_PLACEHOLDER_PROGRAM_ID
+const programId = VECTOR_PROGRAM_ID
 const manifest = (instruction: { programId: PublicKey; keys: readonly { pubkey: PublicKey; isWritable: boolean; isSigner: boolean }[]; data: Uint8Array }) => `program=${instruction.programId.toBase58()};${instruction.keys.map(meta => `${meta.pubkey.toBase58()}:${meta.isWritable ? 'w' : 'r'}/${meta.isSigner ? 's' : 'n'};`).join('')}${Buffer.from(instruction.data).toString('hex')}`
 
 const source = decodeRitual(envelope(accountVectors.ritual.hex), programId)

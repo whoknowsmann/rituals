@@ -3,11 +3,11 @@ import { PublicKey } from '@solana/web3.js'
 import { decodeCompletionClaim, decodeRitual, decodeRitualEvent } from './accounts'
 import { accountVectors, envelope } from './__fixtures__/accountVectors'
 import { claimPda, eventPda, ritualPda } from './pdas'
-import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
+import { VECTOR_PROGRAM_ID } from './__fixtures__/vectorProgramId'
 import { RitualInstructionBuildError } from './instructionsLifecycle'
 import { buildApproveClaimInstruction, buildClaimCompletionInstruction, buildCloseTerminalVaultsInstruction, buildFinalizeEventInstruction, buildInitializeCurrentEventInstruction, buildQuestionClaimInstruction } from './instructionsEvents'
 
-const programId = LOCAL_PLACEHOLDER_PROGRAM_ID
+const programId = VECTOR_PROGRAM_ID
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
 const ritualAccount = decodeRitual(envelope(accountVectors.ritual.hex), programId)
 const ritualAddress = ritualPda(ritualAccount.creator, ritualAccount.nonce, programId)[0]

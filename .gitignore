@@ -46,3 +46,5 @@ test-ledger/
 deploy/*-keypair.json
 **/deploy/*-keypair.json
 target/deploy/*-keypair.json
+deployment/
+!deployment/devnet.json

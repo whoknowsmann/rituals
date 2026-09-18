@@ -3,11 +3,11 @@ import { PublicKey, SystemProgram } from '@solana/web3.js'
 import { decodeCompletionClaim, decodeRitual, decodeRitualEvent } from './accounts'
 import { accountVectors, envelope } from './__fixtures__/accountVectors'
 import { claimPda, eventPda, ritualPda } from './pdas'
-import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
+import { VECTOR_PROGRAM_ID } from './__fixtures__/vectorProgramId'
 import { RITUAL_EVENT_RUST_MANIFESTS } from './instructionEvents.fixture'
 import { buildApproveClaimInstruction, buildClaimCompletionInstruction, buildCloseTerminalVaultsInstruction, buildFinalizeEventInstruction, buildInitializeCurrentEventInstruction, buildQuestionClaimInstruction } from './instructionsEvents'
 
-const programId = LOCAL_PLACEHOLDER_PROGRAM_ID
+const programId = VECTOR_PROGRAM_ID
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
 const manifest = (ix: { programId: PublicKey; keys: readonly { pubkey: PublicKey; isWritable: boolean; isSigner: boolean }[]; data: Uint8Array }) => `program=${ix.programId.toBase58()};${ix.keys.map(meta => `${meta.pubkey.toBase58()}:${meta.isWritable ? 'w' : 'r'}/${meta.isSigner ? 's' : 'n'};`).join('')}${Buffer.from(ix.data).toString('hex')}`
 const decodedRitual = decodeRitual(envelope(accountVectors.ritual.hex), programId)

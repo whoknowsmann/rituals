@@ -1,5 +1,19 @@
 use anchor_lang::{prelude::Pubkey, InstructionData, ToAccountMetas};
 
+/// Frozen cross-language vector identity.
+///
+/// These golden strings prove that the TypeScript client and the Rust program
+/// encode identical instructions and derive identical PDAs. That equivalence
+/// holds for ANY fixed program id, so the vectors deliberately pin their own
+/// constant instead of tracking `rituals::ID`.
+///
+/// Keeping them decoupled means redeploying the program under a new address
+/// does not invalidate hundreds of reviewed vectors. Do NOT change this value.
+const VECTOR_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
+    117, 149, 230, 54, 107, 213, 43, 204, 240, 50, 45, 105, 246, 31, 246, 5,
+    215, 74, 146, 204, 85, 199, 191, 123, 231, 253, 195, 215, 31, 14, 177, 70,
+]);
+
 fn key(byte: u8) -> Pubkey {
     Pubkey::new_from_array([byte; 32])
 }
@@ -23,7 +37,7 @@ fn manifest(
 
 #[test]
 fn event_instruction_manifests_are_frozen() {
-    let program_id = rituals::ID;
+    let program_id = VECTOR_PROGRAM_ID;
     let creator = key(11);
     let payer = key(11);
     let claimant = key(12);

@@ -3,10 +3,10 @@ import { PublicKey } from '@solana/web3.js'
 import { decodeRitual } from './accounts'
 import { accountVectors, envelope } from './__fixtures__/accountVectors'
 import { deriveCreateRitualAccounts, RitualInstructionBuildError, buildActivateRitualInstruction, buildCancelUnactivatedInstruction, buildCreateRitualInstruction, buildFundMemberInstruction, buildInitializeProtocolConfigInstruction } from './instructionsLifecycle'
-import { LOCAL_PLACEHOLDER_PROGRAM_ID } from './programIds'
+import { VECTOR_PROGRAM_ID } from './__fixtures__/vectorProgramId'
 
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
-const programId = LOCAL_PLACEHOLDER_PROGRAM_ID
+const programId = VECTOR_PROGRAM_ID
 const decoded = decodeRitual(envelope(accountVectors.ritual.hex), programId)
 const addresses = deriveCreateRitualAccounts(programId, decoded.creator, decoded.nonce)
 const funding = { address: addresses.ritual, account: { ...decoded, status: 'Funding' as const, activatedAt: 0n, cancelledAt: 0n, completedAt: 0n, currentEventIndex: 0, settledEventCount: 0, fundedMembersBitmap: 0, fundedMemberCount: 0, fundedStakeTotal: 0n, fundedFeeTotal: 0n } }

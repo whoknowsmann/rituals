@@ -2,7 +2,7 @@
 anchor_version = "0.31.1"
 
 [programs.localnet]
-rituals = "8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB"
+rituals = "2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p"
 
 [provider]
 cluster = "Localnet"
