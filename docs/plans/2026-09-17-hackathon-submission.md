@@ -77,14 +77,29 @@ network."
 - [x] Implement the devnet duration override (accelerated demo cadence)
 - [x] Generate schedules and nonces (locked decisions 1–7)
 - [x] Build the Create state machine and orchestrator
-- [ ] **BLOCKED — fund the deploy wallet:** needs ~5 devnet SOL at
-      `5zLkuSKAdkswmsRsCN7XtiKAYhH1pkwpiYQKzeuJgZbm` (rent exemption alone is
-      3.01 SOL). Public CLI faucet is rate-limited; use the GitHub-authed
-      faucet at https://faucet.solana.com
-- [ ] Deploy to devnet; create a valueless SPL test mint
-- [ ] Flip deployment config off `not-deployed`; verify the client facade opens
-- [ ] Wire the machine into the Review screen
-- [ ] **Gate: one real Create transaction confirmed on devnet from the phone**
+- [x] Fund the dedicated devnet deployer (5 SOL received)
+- [x] Deploy to devnet; create the valueless SPL TEST mint
+- [x] Initialize ProtocolConfig on-chain and verify it through the typed reader
+- [x] Flip deployment config off `not-deployed`; client facade now opens
+- [x] Prove the Create path end to end via script (Ritual created + verified)
+- [x] Wire the Create machine into the funding lobby screen
+- [x] Verify the Android bundle still exports after the transaction wiring
+- [ ] **Gate: one real Create transaction confirmed on devnet FROM THE PHONE**
+      (needs the Seeker and a connected Phantom wallet)
+
+#### Live devnet addresses
+
+| What | Address |
+|---|---|
+| Program | `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` |
+| ProtocolConfig | `7LMgBSJmEFKkfYKh2znr6VSxcm5QEHEouNijXDENhMd1` |
+| TEST mint (6dp) | `AaHgFh7ussUDor8QfaBCaRz2RHiPNCs7i2yuzdLbt9tc` |
+| Fee recipient token acct | `CD2gkjrNr6cp6asMzYXjPD2uxYkz97Hrmgw7z6c6Z8UJ` |
+| Deploy authority | `ETQ9czekQJSebxkWn986Hao15FfEbe1345cZZDrHhXbx` |
+| First verified Ritual | `fKKTwdDgNiqYtAnxgLyDL8W2xJxGx5Y2QjMu6pxT5XH` |
+
+Reusable scripts: `deploy-devnet.sh`, `create-test-mint.sh`,
+`init-protocol-config.ts`, `verify-devnet-config.ts`, `smoke-create-ritual.ts`.
 
 #### Wallets
 
