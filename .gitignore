@@ -51,3 +51,6 @@ deployment/
 
 # Local-only deploy keypairs. NEVER commit.
 .keys/
+
+# Device capture output (screenshots, recordings)
+artifacts/
