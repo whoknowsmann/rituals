@@ -83,7 +83,7 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleLarge">Start a ritual</Text>
-            <Text style={styles.body}>Pick a ritual, set the stake, invite up to 5 friends. Whoever keeps up splits the pot.</Text>
+            <Text style={styles.body}>Pick something you keep skipping. Put your own money behind it. Your friends confirm you showed up.</Text>
             <Button mode="contained" onPress={() => navigation.navigate(homeCreateTarget().name)} accessibilityLabel="Create Ritual">Create Ritual</Button>
           </Card.Content>
         </Card>
@@ -96,9 +96,9 @@ export function RitualsHomeScreen({ ritualsRepository = repository }: { readonly
                 <Text style={styles.body}>{ritual.requirement}</Text>
 
                 <View style={styles.potBlock}>
-                  <Text style={styles.label}>POT ON THE LINE</Text>
+                  <Text style={styles.label}>YOUR STAKE</Text>
                   <Text style={styles.potAmount}>{ritual.stakeAtRisk}</Text>
-                  <Text style={styles.potNote}>Miss it and your share goes to whoever showed up.</Text>
+                  <Text style={styles.potNote}>Your money, riding on your own follow-through.</Text>
                 </View>
 
                 <View style={styles.metaRow}>
