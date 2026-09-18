@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { RitualsRpcReader, type ReadOptions, type RitualRead, type RitualBundleRead, type RitualRpcTransport } from './ritualsRpc'
+import type { ProtocolConfigAccountView } from './accounts'
 import { RitualActionPreparer, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualConfirmationTransport } from './ritualConfirmation'
 import { RitualActionSubmitter, type RitualWalletSubmissionTransport, type RitualSubmissionResult, type SubmittedRitualActionHandle } from './ritualSubmission'
@@ -16,6 +17,8 @@ export type { SubmittedRitualActionHandle } from './ritualSubmission'
  * the security authority and the real wallet is still responsible for user authorization.
  */
 export interface RitualClient {
+  /** Authoritative protocol configuration: the only valid source of stake mint and fee recipient. */
+  getProtocolConfig(options?: ReadOptions): Promise<Readonly<{ slot: number; address: PublicKey; account: ProtocolConfigAccountView }>>
   readRitual(address: PublicKey, options?: ReadOptions): Promise<RitualRead>
   getRitualBundle(address: PublicKey, options?: ReadOptions): Promise<RitualBundleRead>
   getEventBundle(address: PublicKey, eventIndex: number, options?: ReadOptions): Promise<RitualBundleRead>
@@ -43,6 +46,7 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
   const submitter = new RitualActionSubmitter(preparer, confirmer, wallet)
   const client = Object.create(null) as RitualClient
   const methods: Record<keyof RitualClient, (...args: any[]) => unknown> = {
+    getProtocolConfig: reader.getProtocolConfig.bind(reader),
     readRitual: reader.getRitual.bind(reader),
     getRitualBundle: reader.getRitualBundle.bind(reader),
     getEventBundle: reader.getEventBundle.bind(reader),

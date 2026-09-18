@@ -71,12 +71,12 @@ describe('safe Ritual client facade', () => {
 
   it('provides every read, preparation, and safe submission operation', () => {
     const client = api.createLocalTestRitualClient({ ...rpc, ...prep, ...confirmation }, wallet, LOCAL_PLACEHOLDER_PROGRAM_ID)
-    expect(['readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm'].every(name => typeof (client as unknown as Record<string, unknown>)[name] === 'function')).toBe(true)
+    expect(['getProtocolConfig', 'readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm'].every(name => typeof (client as unknown as Record<string, unknown>)[name] === 'function')).toBe(true)
   })
 
   it('keeps every facade method hidden and immutable', () => {
     const client = api.createLocalTestRitualClient({ ...rpc, ...prep, ...confirmation }, wallet, LOCAL_PLACEHOLDER_PROGRAM_ID) as unknown as Record<string, unknown>
-    const names = ['readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm']
+    const names = ['getProtocolConfig', 'readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm']
     expect(Object.getOwnPropertyNames(client).sort()).toEqual(names.sort())
     expect(Object.isFrozen(client)).toBe(true)
     expect(Object.getPrototypeOf(client)).toBeNull()
