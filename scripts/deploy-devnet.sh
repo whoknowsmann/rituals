@@ -11,7 +11,10 @@
 set -euo pipefail
 
 CLUSTER_URL="https://api.devnet.solana.com"
-KEYPAIR="${SOLANA_KEYPAIR:-$HOME/.config/solana/id.json}"
+# Dedicated devnet-only deploy key. Deliberately NOT the global CLI default,
+# which may point at a wallet holding real mainnet funds and be reused for
+# unrelated work. This key's only job is deploying Rituals to devnet.
+KEYPAIR="${SOLANA_KEYPAIR:-.keys/rituals-devnet-deployer.json}"
 PROGRAM_KEYPAIR="target/deploy/rituals-keypair.json"
 PROGRAM_SO="target/deploy/rituals.so"
 MANIFEST="deployment/devnet.json"
@@ -36,6 +39,16 @@ awk -v b="$BALANCE" 'BEGIN { if (b < 3.5) { exit 1 } }' || {
   echo "      Fund $DEPLOYER via https://faucet.solana.com (devnet)."
   exit 1
 }
+
+# Refuse to run if the deploy key holds mainnet value; that would mean the
+# wrong key is configured.
+MAINNET_BAL="$(solana balance --url https://api.mainnet-beta.solana.com -k "$KEYPAIR" 2>/dev/null | awk '{print $1}')"
+MAINNET_BAL="${MAINNET_BAL:-0}"
+if awk -v b="$MAINNET_BAL" 'BEGIN { exit !(b > 0) }'; then
+  echo "FAIL: deploy key $DEPLOYER holds $MAINNET_BAL SOL on MAINNET."
+  echo "      Use a dedicated devnet-only key; refusing to proceed."
+  exit 1
+fi
 
 echo "==> Verifying declare_id matches the deploy keypair"
 DECLARED="$(grep -oP 'declare_id!\("\K[^"]+' programs/rituals/src/lib.rs)"

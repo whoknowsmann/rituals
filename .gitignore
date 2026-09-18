@@ -48,3 +48,6 @@ deploy/*-keypair.json
 target/deploy/*-keypair.json
 deployment/
 !deployment/devnet.json
+
+# Local-only deploy keypairs. NEVER commit.
+.keys/

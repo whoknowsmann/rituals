@@ -9,13 +9,14 @@ set -uo pipefail
 
 TARGET_SOL="${TARGET_SOL:-5}"
 URL="https://api.devnet.solana.com"
-ADDRESS="$(solana address)"
+KEYPAIR="${SOLANA_KEYPAIR:-.keys/rituals-devnet-deployer.json}"
+ADDRESS="$(solana address -k "$KEYPAIR")"
 LOG="${1:-/tmp/rituals-faucet.log}"
 
 echo "[$(date -u +%H:%M:%S)] watching $ADDRESS, target ${TARGET_SOL} SOL" | tee -a "$LOG"
 
 while true; do
-  BAL="$(solana balance --url "$URL" 2>/dev/null | awk '{print $1}')"
+  BAL="$(solana balance -k "$KEYPAIR" --url "$URL" 2>/dev/null | awk '{print $1}')"
   BAL="${BAL:-0}"
 
   if awk -v b="$BAL" -v t="$TARGET_SOL" 'BEGIN { exit !(b >= t) }'; then
@@ -24,8 +25,8 @@ while true; do
   fi
 
   # Ask for 2 at a time; the faucet often caps single requests.
-  if solana airdrop 2 --url "$URL" >/dev/null 2>&1; then
-    NEW="$(solana balance --url "$URL" 2>/dev/null | awk '{print $1}')"
+  if solana airdrop 2 "$ADDRESS" --url "$URL" >/dev/null 2>&1; then
+    NEW="$(solana balance -k "$KEYPAIR" --url "$URL" 2>/dev/null | awk '{print $1}')"
     echo "[$(date -u +%H:%M:%S)] airdrop OK -> $NEW SOL" | tee -a "$LOG"
   else
     echo "[$(date -u +%H:%M:%S)] rate limited at $BAL SOL, backing off" >> "$LOG"
