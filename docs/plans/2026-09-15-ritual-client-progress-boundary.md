@@ -1,5 +1,11 @@
 # Ritual Client Progress Boundary Implementation Plan
 
+> **Historical record — completed and superseded.** Its `not-deployed` statements
+> described the configuration at the time of writing (2026-09-15). The program was
+> deployed to devnet on 2026-09-18. Do not read this file for current state; see
+> `docs/STATUS.md`.
+
+
 > **Status:** Completed production milestone. Spike `spikes/002-client-progress-boundary/` validated the split runtime-opaque submitted-action seam; commits following this plan implemented and reviewed the low-level submitter and frozen RitualClient facade. The visible Create state machine remains future work because its schedule, canonical rule digest, nonce, and deployed protocol/mint/fee inputs are not yet defined.
 
 ## Goal

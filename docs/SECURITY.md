@@ -2,7 +2,13 @@
 
 ## Honest status
 
-Rituals currently ships approved fixture-backed home, create/review, roster/pre-funding, claim/confirmation, and receipt previews with explicit devnet, preview-only, and no-real-value labeling. The local program is approved through terminal zero-balance vault closure. The typed client implements preparation, MWA submission, confirmation, and authoritative action readback, but visible fixture actions do not call those writes and the current deployment configuration fails closed as `not-deployed`. Real devnet deployment, native Seeker MWA signing, and a complete two-wallet lifecycle are not release-proven.
+Rituals ships fixture-backed home, claim/confirmation, and receipt previews with explicit devnet and no-real-value labeling, plus a live create/review → roster → funding-lobby path that submits a **real** Create transaction. The program is deployed to devnet and approved through terminal zero-balance vault closure. The typed client implements preparation, MWA submission, confirmation, and authoritative action readback.
+
+Deployment configuration is `deployed`; `assertSupportedRitualsProgram` still fails closed on any cluster other than devnet or any program other than the authorized deployment.
+
+Proven on devnet with CLI keypairs: the complete lifecycle including conservation-safe settlement. **Not yet proven: native Mobile Wallet Adapter signing from a device**, a wallet-signed two-wallet lifecycle, and standalone release APK acceptance. Devnet with valueless TEST assets is not a claim that mainnet funds would be safe.
+
+Device rule: Jack's Seeker is a personal device. Its Seed Vault and existing personal wallets are off-limits — no authorization, no balance reads, no prompts that could reach them. Wallet accounts are chosen by Jack in the wallet's own prompt, never preselected by tooling, and demo wallets must be fresh accounts. Phantom storage is app-private and unreadable by adb on an unrooted user build; that is expected and must not be worked around.
 
 Nothing here claims that mainnet funds or stablecoins are safe. P0 is devnet with valueless test assets.
 

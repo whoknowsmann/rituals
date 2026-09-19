@@ -2,9 +2,9 @@
 
 ## Current state
 
-Rituals is the active product. The visible app remains deterministic and fixture-backed for home, detail, claim, confirmation, and receipt data, and now includes the create/review → connected host/member roster → honest pre-funding-lobby journey. Visible fixture actions do not submit transactions.
+Rituals is the active product. Home, detail, claim, confirmation, and receipt data are still deterministic and fixture-backed. The create/review → connected host/member roster → funding-lobby journey is live: the funding lobby submits a **real** Create transaction against the devnet deployment. Current state and the next gate are in `docs/STATUS.md`.
 
-The local Anchor program is approved through terminal vault closure. The typed mobile client implements RPC reads, all-action preparation, exact message/signature binding, an opaque split submission/confirmation boundary, MWA submission, confirmation, and authoritative readback, but the current program configuration is deliberately `not-deployed` and no screen invokes a state-changing Ritual action yet. Submitted-action handles are process-local capabilities; never persist or reconstruct them as authority after reload.
+The Anchor program is **deployed to devnet** (`2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p`) and approved through terminal vault closure. The typed mobile client implements RPC reads, all-action preparation, exact message/signature binding, an opaque split submission/confirmation boundary, MWA submission, confirmation, and authoritative readback. The deployment configuration is `deployed`, and the funding-lobby Create CTA invokes a state-changing Ritual action; the other lifecycle actions are proven on devnet by script but have no screen wiring yet. Submitted-action handles are process-local capabilities; never persist or reconstruct them as authority after reload.
 
 The JavaScript/TypeScript source contains only active Rituals app code plus generic shell, cluster, and wallet plumbing. The retired product is preserved only by Git history.
 

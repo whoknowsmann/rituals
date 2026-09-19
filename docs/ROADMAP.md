@@ -1,5 +1,9 @@
 # Roadmap
 
+> Current state and the next gate live in `docs/STATUS.md`, which is measured and
+> re-verified. This file is the longer completed/remaining breakdown. If the two
+> disagree, STATUS.md wins.
+
 Status labels describe observed implementation, not aspiration. Rituals is the sole product in this repository. An earlier, unrelated prototype was fully removed from active source; it survives only under the `archive/*` Git tags and is not part of this submission.
 
 ## Complete
@@ -24,7 +28,7 @@ Status labels describe observed implementation, not aspiration. Rituals is the s
 - [x] Conservation-safe settlement with settled/voided receipts and no protocol forfeiture share
 - [x] Fail-closed zero-balance terminal vault closure with immutable creator rent return
 - [x] Specification and custody/security review through terminal closure
-- [x] 176 native Solana test cases at the approved protocol checkpoint
+- [x] 180 native Solana test functions in `program-tests/` (measured 2026-09-18)
 
 ### Typed mobile Solana client
 
@@ -41,20 +45,20 @@ Status labels describe observed implementation, not aspiration. Rituals is the s
 - [x] Runtime-opaque split `submitPrepared` / `confirmSubmitted` boundary with issuing-client authority and duplicate-confirmation memoization
 - [x] Mobile Wallet Adapter authorization and single-transaction submission transport
 - [x] Safe application facade gated by devnet cluster and authorized deployment identity
-- [x] 1,758 JavaScript/TypeScript cases across 56 files at the current green checkpoint
+- [x] 1,906 JavaScript/TypeScript cases across 65 files (measured 2026-09-18)
 
 ## Active integration sequence
 
 1. [x] Expose a truthful submitted-versus-confirming client boundary without weakening transaction identity or readback
-2. [>] Define the missing honest Create inputs: schedule UX, canonical rule serialization/digest, nonce policy, and authoritative protocol/mint/fee-recipient sources
-3. [ ] Wire the visible Create state machine: review → wallet → submitted → confirming → confirmed/error
+2. [x] Define the missing honest Create inputs: schedule UX, canonical rule serialization/digest, nonce policy, and authoritative protocol/mint/fee-recipient sources
+3. [x] Wire the visible Create state machine: review → wallet → submitted → confirming → confirmed/error
 4. [ ] Generate a digest-bound invite only after authoritative Create confirmation
 5. [ ] Build invite/join and dedicated member-funding progress
 6. [ ] Add funding and activation transaction state machines
 7. [ ] Replace fixture dashboard/detail/claim/confirmation/receipt actions with authoritative RPC and submitted transactions
 8. [ ] Handle stale, rejected, expired, offline, duplicate-tap, reload-recovery, and reconnect behavior across visible actions
 
-The typed transaction stack is implemented and tested against deterministic transports. The current deployment configuration is deliberately `not-deployed`; visible transaction CTAs remain disabled and no public-cluster transaction has occurred.
+The typed transaction stack is deployed to devnet and exercised as real transactions. The deployment configuration is `deployed`; the funding-lobby Create CTA submits for real. Remaining visible screens still read fixtures. Every on-chain proof so far was signed by CLI keypairs — Mobile Wallet Adapter signing from the device is the next gate.
 
 Compute policy for the remaining build:
 
@@ -75,11 +79,14 @@ Compute policy for the remaining build:
 
 ## Devnet, device, and release proof
 
-- [ ] Provision an authorized local-only devnet program identity
-- [ ] Deploy to devnet with valueless classic SPL test assets
-- [ ] Verify the complete two-wallet lifecycle
-- [ ] Test native Mobile Wallet Adapter on Jack's Solana Seeker
-- [ ] Build, sign, install, and verify the standalone APK
+- [x] Provision an authorized devnet program identity
+- [x] Deploy to devnet with valueless classic SPL test assets
+- [x] Initialize and verify ProtocolConfig against the client contract
+- [x] Verify the complete lifecycle on devnet with CLI keypairs (17/17 assertions)
+- [x] Install and launch the APK on Jack's physical Seeker
+- [ ] **NEXT GATE:** sign a real Create through Mobile Wallet Adapter from the Seeker
+- [ ] Verify the complete two-wallet lifecycle with wallet-signed transactions
+- [ ] Build, sign, install, and verify the standalone release APK
 - [ ] Run a broader integrated adversarial/security audit after the complete app is wired
 - [ ] Capture demo video, screenshots, pitch, privacy copy, and submission materials
 - [ ] Final release/submission QA and Jack's explicit approval
@@ -91,4 +98,6 @@ Compute policy for the remaining build:
 - AI and reminders are optional follow-on work.
 - Mainnet and valuable-token support are not part of the hackathon acceptance path.
 
-Build identifiers are Rituals throughout: slug `rituals`, Android package and iOS bundle identifier `com.whoknowsmann.rituals`. The EAS project link is being re-initialised against this identity, and the Android build pipeline must be re-proven after that change.
+Build identifiers are Rituals throughout: name `Rituals`, slug `rituals`, Android package and iOS bundle identifier `com.whoknowsmann.rituals`, EAS owner `argussmithson`. The EAS relink landed in 8052f1c and the Android build pipeline was re-proven afterwards: both a preview and a development-client APK built and installed on the Seeker.
+
+AI/SKR note: the SKR activation-fee discount is a real balance read. The template-picker suggestions are deterministic and on-device — deliberately, so nothing can fail mid-demo — and must not be presented as an AI integration in the submission.

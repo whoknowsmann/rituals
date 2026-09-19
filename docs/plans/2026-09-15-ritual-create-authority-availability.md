@@ -1,5 +1,11 @@
 # Ritual Create Authority and Availability Plan
 
+> **Historical record — completed and superseded.** Its `not-deployed` statements
+> described the configuration at the time of writing (2026-09-15). The program was
+> deployed to devnet on 2026-09-18. Do not read this file for current state; see
+> `docs/STATUS.md`.
+
+
 > **Status:** Active read-only infrastructure plan. This milestone validates the authoritative inputs a future Create screen must consume; it does not select a nonce, define schedule UX, prepare a transaction, or enable deployment.
 
 ## Goal

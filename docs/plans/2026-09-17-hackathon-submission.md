@@ -8,9 +8,9 @@
 
 ## Posture change
 
-The protocol and the typed client are DONE and FROZEN. 176 native Rust cases and
-1,758 TypeScript cases already exceed what this submission needs. Measured at the
-freeze point:
+The protocol and the typed client are DONE and FROZEN. 180 native Rust test
+functions and 1,906 TypeScript cases across 65 files (re-measured 2026-09-18)
+already exceed what this submission needs. Measured at the freeze point:
 
 - `src/data` (plumbing): 6,296 lines vs `src/screens` (judge-visible): 722 lines
 - Rust: 2,145 program lines vs 11,830 program-test lines
@@ -84,8 +84,10 @@ network."
 - [x] Prove the Create path end to end via script (Ritual created + verified)
 - [x] Wire the Create machine into the funding lobby screen
 - [x] Verify the Android bundle still exports after the transaction wiring
+- [x] Install and launch the APK on the physical Seeker (Android 16, SDK 36, clean)
 - [ ] **Gate: one real Create transaction confirmed on devnet FROM THE PHONE**
-      (needs the Seeker and a connected Phantom wallet)
+      (needs a fresh, funded Phantom account; Jack selects it in Phantom's prompt.
+      Create requires only the host signer. Blocked on the wallet address only.)
 
 #### Live devnet addresses
 

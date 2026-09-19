@@ -2,26 +2,40 @@
 
 ## Status
 
-The active product is Rituals. Approved fixture-backed mobile slices cover home, template/create/review, connected host/member roster, pre-funding lobby, detail, claim, confirmation, and settled/voided receipt previews. The local onchain program is approved through terminal zero-balance vault closure. Typed transaction plumbing exists below the UI, but real-wallet and public-cluster flows are not presented as complete.
+The active product is Rituals. The program is **deployed to devnet** and the full
+lifecycle has been exercised as real transactions with CLI keypairs. The Create
+path is wired end to end from the funding-lobby screen; the remaining visible
+screens still read deterministic fixtures. Mobile Wallet Adapter signing from a
+physical device is **not yet proven** — see `docs/STATUS.md`.
 
 ## Active mobile path
 
 ```text
 Rituals React Native app
-    -> Visible fixture-backed path
-        -> AppNavigator (home, create/review/roster/funding preview, detail, claim, confirmation, receipt, settings)
+    -> Fixture-backed read path (home, detail, claim, confirmation, receipts)
+        -> AppNavigator
         -> RitualsHomeScreen and lifecycle preview screens
         -> typed RitualsRepository
             -> deterministic FixtureRitualsRepository
         -> normalized loading / populated / funding / confirmation / completed / empty / error view
-    -> Separate transaction plumbing (not invoked by current Ritual write screens)
-        -> useRitualClient
-            -> deployment and cluster gate
-            -> RitualClient (RPC reads, preparation, submission, confirmation/readback)
-            -> useMobileWallet MWA transport
+    -> Live transaction path (Create only, today)
+        -> RitualRosterScreen        -> authorizes a host wallet via MWA
+        -> RitualFundingLobbyScreen  -> submits a real Create transaction
+            -> useRitualClient
+                -> deployment and cluster gate (config: `deployed`, devnet)
+                -> RitualClient (RPC reads, preparation, submission, confirmation/readback)
+                -> useMobileWallet MWA transport
 ```
 
-The home and lifecycle preview screens intentionally perform no real transaction. The roster can authorize a host wallet, but it only builds a local funding-lobby route. The lobby CTA is disabled even if the client becomes ready until create-transaction UX is wired. `useAuthorization.tsx` contains the Solana devnet Mobile Wallet Adapter identity (`Rituals`) and cached authorization plumbing.
+Home and the lifecycle preview screens still perform no transaction. The roster
+authorizes a host wallet; the funding lobby holds the Create state machine and its
+CTA is gated on `!ready || !create.canSubmit || create.isBusy` rather than being
+hard-disabled. `useAuthorization.tsx` holds the devnet MWA identity (`Rituals`) and
+cached authorization plumbing.
+
+Fund, Activate, Claim, Approve, Question, Finalize, Cancel, and Close are
+implemented and proven in the typed client and on devnet via
+`scripts/smoke-full-lifecycle.ts`, but have no visible screen wiring yet.
 
 Active modules:
 
@@ -41,7 +55,10 @@ The Anchor workspace and native ProgramTest coverage are separate from the mobil
 
 `funded_fee_total` is historical cumulative activation-fee funding, not an outstanding post-activation liability. Successful activation transfers that exact amount from the fee vault while retaining the value for invariant/readback checks; live fee custody is represented by the actual fee-vault balance. Terminal closure requires coherent Completed or Cancelled state and both actual vault balances to be zero, fails closed on unsolicited dust, and can return token-account rent only to the immutable Ritual creator. Ritual and event receipts remain.
 
-Generated deployment keypairs, validator ledgers, and `target/` artifacts are local and disposable. They are intentionally absent from Git. The reviewed IDL snapshot is frozen under `src/data/rituals/idl/` and has been reproduced byte-for-byte from a clean Anchor build. PDA helpers and strict decoders cover ProtocolConfig, Ritual, RitualEvent, and CompletionClaim. All eleven instruction encoders/builders feed opaque prepared actions; the submitter verifies the wallet-returned signature against the exact prepared message, then returns a runtime-opaque submitted-action handle. Only the issuing client can confirm that handle, and duplicate confirmation calls share one authoritative blockheight-confirmation/readback promise. The compatibility `submitAndConfirm` method composes the same primitives. Handles are process-local and cannot be restored from serialized data; reload recovery requires a future separately validated transaction-identity path. `useRitualClient` composes the stack with RPC and MWA only after an authorized devnet deployment is configured. The current configuration is intentionally `not-deployed`.
+The devnet deployment is recorded in `deployment/devnet.json` and
+`deployment/devnet-mint.json`; addresses are also listed in the README. Deploy
+keypairs live in `.keys/` and are gitignored. Validator ledgers and `target/`
+artifacts are local and disposable, and intentionally absent from Git. The reviewed IDL snapshot is frozen under `src/data/rituals/idl/` and has been reproduced byte-for-byte from a clean Anchor build. PDA helpers and strict decoders cover ProtocolConfig, Ritual, RitualEvent, and CompletionClaim. All eleven instruction encoders/builders feed opaque prepared actions; the submitter verifies the wallet-returned signature against the exact prepared message, then returns a runtime-opaque submitted-action handle. Only the issuing client can confirm that handle, and duplicate confirmation calls share one authoritative blockheight-confirmation/readback promise. The compatibility `submitAndConfirm` method composes the same primitives. Handles are process-local and cannot be restored from serialized data; reload recovery requires a future separately validated transaction-identity path. `useRitualClient` composes the stack with RPC and MWA only after an authorized devnet deployment is configured. The current configuration is `deployed` against program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` on devnet, so the facade opens; `assertSupportedRitualsProgram` still fails closed on any other cluster or program identity.
 
 ## Identity and build boundary
 
