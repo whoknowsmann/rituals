@@ -31,7 +31,11 @@ printf 'abi      : %s\n' "$($ADB shell getprop ro.product.cpu.abi | tr -d '\r')"
 
 echo
 echo "=== Rituals installed? ==="
-if $ADB shell pm list packages 2>/dev/null | tr -d '\r' | grep -q "com.whoknowsmann.rituals"; then
+# Capture once, then match. Piping adb straight into `grep -q` makes grep exit on
+# first match, adb dies with SIGPIPE (141), and `pipefail` turns a successful
+# match into a false "not installed".
+PACKAGES="$($ADB shell pm list packages 2>/dev/null | tr -d '\r')"
+if printf '%s\n' "$PACKAGES" | grep -q "com.whoknowsmann.rituals"; then
   echo "yes: com.whoknowsmann.rituals"
   $ADB shell dumpsys package com.whoknowsmann.rituals 2>/dev/null | tr -d '\r' | grep -E "versionName|firstInstallTime" | head -2
 else
@@ -40,5 +44,11 @@ fi
 
 echo
 echo "=== wallets present (needed for MWA) ==="
-$ADB shell pm list packages 2>/dev/null | tr -d '\r' \
+printf '%s\n' "$PACKAGES" \
   | grep -Ei "phantom|solflare|backpack|seedvault|solana" || echo "none detected"
+
+echo
+echo "=== profiles (work profile keeps demo wallets off the personal side) ==="
+$ADB shell pm list users 2>/dev/null | tr -d '\r'
+echo "note: adb cannot enumerate or install into the work profile by design;"
+echo "      work-profile installs must be done from the phone."
