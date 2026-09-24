@@ -11,6 +11,7 @@
  * Devnet only. Never uses the Solana CLI default wallet.
  */
 import { readFileSync } from 'node:fs'
+import { withReadRetry } from '../src/features/rituals/client/resilientRead'
 import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js'
 import { getAccount } from '@solana/spl-token'
 import { createCurrentRitualClient, type RitualClientTransport } from '../src/data/rituals/ritualClient'
@@ -87,8 +88,9 @@ async function main(): Promise<void> {
   const connection = new Connection(URL, 'confirmed')
   const signers = new Map([[host.publicKey.toBase58(), host], [friend.publicKey.toBase58(), friend]])
   const transport: RitualClientTransport & RitualWalletSubmissionTransport = {
-    getMultipleAccountsInfoAndContext: connection.getMultipleAccountsInfoAndContext.bind(connection),
-    getLatestBlockhashAndContext: connection.getLatestBlockhashAndContext.bind(connection),
+    // Same read-retry wrapper the app transport uses (useRitualClient).
+    getMultipleAccountsInfoAndContext: withReadRetry(connection.getMultipleAccountsInfoAndContext.bind(connection)),
+    getLatestBlockhashAndContext: withReadRetry(connection.getLatestBlockhashAndContext.bind(connection)),
     getFeeForMessage: async (message, _config) => connection.getFeeForMessage(message, 'confirmed'),
     getMinimumBalanceForRentExemption: connection.getMinimumBalanceForRentExemption.bind(connection),
     confirmTransaction: async (strategy, commitment) => {
@@ -235,10 +237,21 @@ async function main(): Promise<void> {
   if (completed.account.status !== 'Active' || completed.account.currentEventIndex !== 1) throw new Error('accelerated first-event ritual readback mismatch')
   const hostAfterSettle = await tokenAmount(connection, hostToken)
   const friendAfterSettle = await tokenAmount(connection, friendToken)
-  if (hostAfterSettle - hostAfterFund !== settled.payoutTotal) throw new Error('settlement payout did not reach confirmed claimant exactly')
+  const feeRecipientAddress = completed.protocolConfig.feeRecipient
+  // On devnet the deployer is both the host member and the protocol fee
+  // recipient, so the two token accounts may be the SAME account. The
+  // activation fee landed in it after hostAfterFund was read, so the
+  // settlement baseline must be the post-activation balance. With aliasing,
+  // "combined delta == on-chain payoutTotal" proves the claimant received the
+  // exact payout and the protocol received nothing extra.
+  const feeRecipientAliasesHost = feeRecipientAddress.equals(hostToken)
+  const hostSettleBaseline = feeRecipientAliasesHost ? feeRecipientAfter : hostAfterFund
+  if (hostAfterSettle - hostSettleBaseline !== settled.payoutTotal) throw new Error('settlement payout did not reach confirmed claimant exactly')
   if (friendAfterSettle !== friendAfterFund) throw new Error('unclaimed friend balance changed unexpectedly during settlement')
-  const feeRecipientFinal = await tokenAmount(connection, completed.protocolConfig.feeRecipient)
-  if (feeRecipientFinal !== feeRecipientAfter) throw new Error('protocol took something during settlement')
+  if (!feeRecipientAliasesHost) {
+    const feeRecipientFinal = await tokenAmount(connection, feeRecipientAddress)
+    if (feeRecipientFinal !== feeRecipientAfter) throw new Error('protocol took something during settlement')
+  }
   console.log('finalize:', finalizeSignature)
   console.log('settlement:', JSON.stringify({ pool: settled.eventPool.toString(), payout: settled.payoutTotal.toString(), forfeited: settled.forfeitedTotal.toString(), remainingStake: settled.remainingStakeTotalAfter.toString() }))
   console.log('APP FULL LIFECYCLE VERIFIED ON DEVNET')

@@ -6,6 +6,7 @@ import { useMobileWallet } from '../../../utils/useMobileWallet'
 import { createCurrentRitualClient, type RitualClient, type RitualClientTransport } from '../../../data/rituals/ritualClient'
 import { RITUALS_CURRENT_CONFIG, RITUALS_PROGRAM_ID } from '../../../data/rituals/programIds'
 import type { RitualWalletSubmissionTransport } from '../../../data/rituals/ritualSubmission'
+import { withReadRetry } from './resilientRead'
 
 export type RitualDeploymentConfig = Readonly<{ deployment: 'deployed' | 'not-deployed'; programId: unknown }>
 export type RitualClientState =
@@ -27,11 +28,13 @@ export function resolveRitualClientState(cluster: ClusterNetwork, deployment: Ri
 
 function makeTransport(connection: any, signAndSendTransaction: RitualWalletSubmissionTransport['signAndSendTransaction']): RitualClientTransport & RitualWalletSubmissionTransport {
   return {
-    getMultipleAccountsInfoAndContext: connection.getMultipleAccountsInfoAndContext.bind(connection),
-    getLatestBlockhashAndContext: connection.getLatestBlockhashAndContext.bind(connection),
-    getFeeForMessage: connection.getFeeForMessage.bind(connection),
-    getMinimumBalanceForRentExemption: connection.getMinimumBalanceForRentExemption.bind(connection),
-    confirmTransaction: connection.confirmTransaction.bind(connection),
+    // Reads (including confirmation polling) are idempotent and retried on
+    // transient public-RPC failures. Submission is never retried.
+    getMultipleAccountsInfoAndContext: withReadRetry(connection.getMultipleAccountsInfoAndContext.bind(connection)),
+    getLatestBlockhashAndContext: withReadRetry(connection.getLatestBlockhashAndContext.bind(connection)),
+    getFeeForMessage: withReadRetry(connection.getFeeForMessage.bind(connection)),
+    getMinimumBalanceForRentExemption: withReadRetry(connection.getMinimumBalanceForRentExemption.bind(connection)),
+    confirmTransaction: withReadRetry(connection.confirmTransaction.bind(connection)),
     signAndSendTransaction,
   }
 }
