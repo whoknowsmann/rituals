@@ -52,6 +52,7 @@ export type RootStackParamList = {
   };
   RitualRoster: RootStackParamList['ReviewRitual'];
   RitualFundingLobby: RootStackParamList['ReviewRitual'] & { members: string[] };
+  JoinRitual: { invite?: string };
   RitualDetail: { ritualId: string };
   ClaimCompletion: { ritualId: string; eventIndex: number };
   ConfirmationInbox: { ritualId: string; eventIndex: number };
@@ -90,6 +91,7 @@ const AppStack = () => {
       <Stack.Screen name="ReviewRitual" component={Screens.ReviewRitualScreen} options={{ title: 'Review Ritual' }} />
       <Stack.Screen name="RitualRoster" component={Screens.RitualRosterScreen} options={{ title: 'Add member wallets' }} />
       <Stack.Screen name="RitualFundingLobby" component={Screens.RitualFundingLobbyScreen} options={{ title: 'Funding lobby' }} />
+      <Stack.Screen name="JoinRitual" component={Screens.JoinRitualScreen} options={{ title: 'Join ritual' }} />
       <Stack.Screen name="RitualDetail" component={Screens.RitualDetailScreen} options={{ title: 'Ritual detail' }} />
       <Stack.Screen name="ClaimCompletion" component={Screens.ClaimCompletionScreen} options={{ title: 'Claim preview' }} />
       <Stack.Screen name="ConfirmationInbox" component={Screens.ConfirmationInboxScreen} options={{ title: 'Confirmations' }} />

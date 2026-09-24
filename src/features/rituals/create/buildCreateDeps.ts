@@ -17,6 +17,7 @@ import type { SubmittedRitualActionHandle } from '../../../data/rituals/ritualSu
 import type { CreateRitualDeps } from './runCreateRitual'
 import type { ValidatedRitualDraft } from './draftForm'
 import { makePendingActionRecord, withPendingActionSignature, type PendingActionStore } from '../recovery/pendingAction'
+import { createRitualInvite, encodeRitualInvite } from '../invite/inviteCodec'
 import { generateRitualNonce } from '../../../domain/rituals/nonce'
 import { generateRitualSchedule, type RitualCadence } from '../../../domain/rituals/schedule'
 import { digestRulesSync, type LockedRitualRules } from '../../../domain/rituals/draft'
@@ -65,6 +66,7 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
   let prepared: PreparedRitualAction | null = null
   let handle: SubmittedRitualActionHandle | null = null
   let pendingRecord: ReturnType<typeof makePendingActionRecord> | null = null
+  let lockedRules: LockedRitualRules | null = null
 
   return {
     async prepare() {
@@ -105,6 +107,7 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       // Digest binds every reviewed term; the chain stores it so the rules a
       // member agreed to cannot be swapped afterwards.
       const ruleDigest = digestRulesSync(rules)
+      lockedRules = rules
 
       const action = await client.prepareCreate({
         programId: client.programId,
@@ -163,10 +166,17 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       const submitted = handle
       if (submitted === null) throw new CreateDepsError('cannot confirm before submitting')
       const result = await client.confirmSubmitted(submitted)
+      let invite: string | undefined
+      const authoritativeRitual = result.confirmed?.bundle?.ritual
+      if (lockedRules && authoritativeRitual) {
+        const candidate = createRitualInvite(authoritativeRitual.address.toBase58(), lockedRules)
+        if (candidate.ruleDigest !== authoritativeRitual.account.ruleDigest) throw new CreateDepsError('authoritative Create readback did not match the reviewed rules', true)
+        invite = encodeRitualInvite(candidate)
+      }
       if (pendingActionStore && pendingRecord) {
         try { await pendingActionStore.remove(pendingRecord) } catch { /* recovery can resolve it on the next launch */ }
       }
-      return { signature: result.signature, messageDigest: result.messageDigest }
+      return { signature: result.signature, messageDigest: result.messageDigest, ...(invite === undefined ? {} : { invite }) }
     },
   }
 }

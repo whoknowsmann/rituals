@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { ScrollView, Share, StyleSheet, View } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
 import { ActivityIndicator, Button, Card, Divider, Text, useTheme, type MD3Theme } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import { PublicKey } from '@solana/web3.js'
@@ -76,6 +77,9 @@ export function RitualFundingLobbyScreen({ route }: Props) {
     : !walletConnected ? 'Connect your wallet to create this ritual.' : null
 
   const confirmed = create.state.status === 'confirmed'
+  const invite = confirmed ? create.state.result.invite : undefined
+  const copyInvite = useCallback(() => { if (invite) void Clipboard.setStringAsync(invite) }, [invite])
+  const shareInvite = useCallback(() => { if (invite) void Share.share({ message: invite }) }, [invite])
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -142,6 +146,21 @@ export function RitualFundingLobbyScreen({ route }: Props) {
         </Card.Content>
       </Card>
 
+      {invite && (
+        <Card style={styles.card} accessibilityLabel="Ritual invite">
+          <Card.Content>
+            <Text variant="titleMedium">Invite your crew</Text>
+            <Text style={styles.muted}>This invite is bound to the confirmed ritual rules. Members should verify the terms before funding.</Text>
+            <Text selectable numberOfLines={3} style={styles.invite}>{invite}</Text>
+            <View style={styles.buttonRow}>
+              <Button mode="outlined" onPress={copyInvite} accessibilityLabel="Copy ritual invite">Copy invite</Button>
+              <Button mode="contained-tonal" onPress={shareInvite} accessibilityLabel="Share ritual invite">Share invite</Button>
+            </View>
+            <Button mode="text" onPress={() => navigation.navigate('JoinRitual', { invite })}>Preview join terms</Button>
+          </Card.Content>
+        </Card>
+      )}
+
       {blockedReason && !confirmed && (
         <Text style={styles.muted} accessibilityLiveRegion="polite">{blockedReason}</Text>
       )}
@@ -204,4 +223,6 @@ const makeStyles = (theme: MD3Theme) => StyleSheet.create({
   divider: { marginVertical: 12 },
   statusHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   signature: { marginTop: 10, fontWeight: '700' },
+  invite: { marginTop: 10, fontSize: 12, lineHeight: 18 },
+  buttonRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', marginTop: 10 },
 })

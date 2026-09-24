@@ -28,6 +28,8 @@ export type CreateSubmittedRef = Readonly<{ id: string }>
 export type CreateConfirmedRef = Readonly<{
   signature: string
   messageDigest: string
+  /** Present only after authoritative Create readback produced a digest-bound invite. */
+  invite?: string
 }>
 
 export type CreateFailureCategory =
