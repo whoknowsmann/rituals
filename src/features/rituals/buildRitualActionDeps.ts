@@ -4,35 +4,74 @@ import type { PreparedRitualAction } from '../../data/rituals/ritualPreparedActi
 import type { SubmittedRitualActionHandle } from '../../data/rituals/ritualSubmission'
 import { makePendingActionRecord, withPendingActionSignature, type PendingActionStore } from './recovery/pendingAction'
 import type { LifecycleActionDeps } from './runLifecycleAction'
+import type { LifecycleActionKind } from './lifecycleMachine'
 
 export type RitualActionDepsParams = Readonly<{
   client: RitualClient
   ritualAddress: PublicKey
   actor: PublicKey
-  kind: 'fund' | 'activate'
+  kind: LifecycleActionKind
   memberSource?: PublicKey
+  eventIndex?: number
+  claimant?: PublicKey
+  destinationTokenAccounts?: readonly PublicKey[]
   pendingActionStore?: PendingActionStore
   now?: () => number
+  /** Re-read the currently authorized wallet before prepare and signing. */
+  authorizedActor?: () => PublicKey | null
+  /** Optional blockheight reader used to reject stale prepared messages before signing. */
+  getBlockHeight?: () => Promise<number>
 }>
 
+const sameActor = (expected: PublicKey, actual: PublicKey | null): boolean => actual !== null && actual.equals(expected)
+const preSubmissionError = (message: string, blockhashExpired = false): Error & { blockhashExpired?: boolean } => Object.assign(new Error(message), blockhashExpired ? { blockhashExpired: true } : {})
+
 export function buildRitualActionDeps(params: RitualActionDepsParams): LifecycleActionDeps {
-  const { client, ritualAddress, actor, kind, memberSource, pendingActionStore, now = () => Date.now() } = params
+  const { client, ritualAddress, actor, kind, memberSource, eventIndex = 0, claimant = actor, destinationTokenAccounts = [], pendingActionStore, now = () => Date.now(), authorizedActor, getBlockHeight } = params
   let prepared: PreparedRitualAction | null = null
   let handle: SubmittedRitualActionHandle | null = null
   let record: ReturnType<typeof makePendingActionRecord> | null = null
+  const assertAuthorized = () => {
+    if (authorizedActor && !sameActor(actor, authorizedActor())) throw preSubmissionError('authorized wallet account changed before signing')
+  }
   return {
     async prepare() {
+      assertAuthorized()
       const read = await client.readRitual(ritualAddress)
-      if (kind === 'fund') {
-        if (!(memberSource instanceof PublicKey)) throw new Error('member token account is unavailable')
-        prepared = await client.prepareFund({ programId: client.programId, ritual: { address: read.address, account: read.account }, member: actor, memberSource })
+      if (kind === 'fund' || kind === 'activate') {
+        if (kind === 'fund') {
+          if (!(memberSource instanceof PublicKey)) throw new Error('member token account is unavailable')
+          prepared = await client.prepareFund({ programId: client.programId, ritual: { address: read.address, account: read.account }, member: actor, memberSource })
+        } else {
+          prepared = await client.prepareActivate({ programId: client.programId, ritual: { address: read.address, account: read.account }, feePayer: actor })
+        }
       } else {
-        prepared = await client.prepareActivate({ programId: client.programId, ritual: { address: read.address, account: read.account }, feePayer: actor })
+        if (kind === 'initialize-event') {
+          prepared = await client.prepareInitializeEvent({ programId: client.programId, ritual: { address: read.address, account: read.account }, eventIndex, payer: actor })
+        } else {
+          const bundle = await client.getEventBundle(ritualAddress, eventIndex)
+          if (!bundle.event) throw new Error('the current event is not initialized')
+          const event = { address: bundle.event.address, account: bundle.event.account }
+          if (kind === 'claim') {
+            prepared = await client.prepareClaim({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, claimant })
+          } else {
+            const claimEntry = bundle.claims.find((entry) => entry.member.equals(claimant) && entry.account !== null)
+            if ((kind === 'approve' || kind === 'question') && (!claimEntry || !claimEntry.account)) throw new Error('the claim is not available')
+            if (kind === 'approve') prepared = await client.prepareApprove({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, claim: { address: claimEntry!.address, account: claimEntry!.account! }, approver: actor })
+            else if (kind === 'question') prepared = await client.prepareQuestion({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, claim: { address: claimEntry!.address, account: claimEntry!.account! }, questioner: actor })
+            else prepared = await client.prepareFinalize({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, destinationTokenAccounts, feePayer: actor })
+          }
+        }
       }
       return { kind, messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress }
     },
     async submit() {
       if (!prepared) throw new Error('cannot submit before preparing')
+      assertAuthorized()
+      if (getBlockHeight) {
+        const current = await getBlockHeight()
+        if (Number.isSafeInteger(current) && current > prepared.lastValidBlockHeight) throw preSubmissionError('prepared blockhash expired before signing', true)
+      }
       if (pendingActionStore) {
         record = makePendingActionRecord(prepared, now())
         await pendingActionStore.upsert(record)

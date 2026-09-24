@@ -168,6 +168,25 @@ describe('buildCreateRitualDeps: step ordering', () => {
     expect(store.remove).toHaveBeenCalledTimes(1)
   })
 
+  it('fails before signing when the authorized creator account changes', async () => {
+    let current = CREATOR
+    const deps = buildCreateRitualDeps(params({ authorizedActor: () => current }))
+    const prepared = await deps.prepare()
+    current = FRIEND
+    await expect(deps.submit(prepared)).rejects.toThrow(/authorized wallet account changed/i)
+  })
+
+  it('rejects an expired prepared blockhash before submission', async () => {
+    const c = client({
+      prepareCreate: vi.fn(async () => ({ kind: 'create', messageDigest: 'a'.repeat(64), ritualAddress: key(9).toBase58(), blockhash: key(8).toBase58(), lastValidBlockHeight: 77 })),
+      submitPrepared: vi.fn(async () => ({ signature: '1'.repeat(64) })),
+    })
+    const deps = buildCreateRitualDeps(params({ client: c, getBlockHeight: async () => 78 }))
+    const prepared = await deps.prepare()
+    await expect(deps.submit(prepared)).rejects.toMatchObject({ blockhashExpired: true })
+    expect((c as unknown as { submitPrepared: ReturnType<typeof vi.fn> }).submitPrepared).not.toHaveBeenCalled()
+  })
+
   it('never exposes the opaque submission handle to the caller', async () => {
     const deps = buildCreateRitualDeps(params())
     const prepared = await deps.prepare()

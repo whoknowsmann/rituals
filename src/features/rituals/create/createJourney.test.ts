@@ -209,7 +209,11 @@ describe('Ritual creation journey', () => {
     expect(create).not.toMatch(/<View[^>]*\baccessible\b[^>]*>[\s\S]*<SegmentedButtons/)
     expect(review).toContain('accessibilityRole="header"')
     expect(home).not.toContain("Alert.alert('Create Ritual'")
-    for (const screen of [home, templatePicker, create, review]) {
+    expect(home).toContain('useRitualClient')
+    expect(home).toContain('loadKnownRitualBundles')
+    expect(home).toContain('AUTHORITATIVE CHAIN READS')
+    expect(home).not.toMatch(/sendTransaction|transact\s*\(|new\s+Connection|MWA|mobile-wallet/i)
+    for (const screen of [templatePicker, create, review]) {
       expect(screen).not.toMatch(/sendTransaction|transact\s*\(|Connection|MWA|mobile-wallet|rpc/i)
       expect(screen).not.toMatch(/#[0-9A-Fa-f]{3,8}/)
     }

@@ -74,3 +74,37 @@ No Anchor program, IDL, domain protocol logic, or deployed program was changed.
 - `8b41eea feat: add reload recovery for mobile transactions`
 - `0bdd409 feat: add confirmed ritual invites and join terms`
 - `ce800aa feat: wire fund and activate mobile actions`
+
+## Second pass
+
+### Requested-item status
+
+| Item | Status | Evidence |
+|---|---|---|
+| A. App-level Create → Fund(host) → Fund(friend) → Activate | **DONE + proven on devnet** | `npx tsx scripts/smoke-app-lifecycle.ts CD2gkjrNr6cp6asMzYXjPD2uxYkz97Hrmgw7z6c6Z8UJ 4UAbYjikxY1fWj1AkaPLih5hTdzvGgsRwBFCg6AVkmwP` reached authoritative Create/Fund/Fund/Activate readback. The latest A-complete run created Ritual `HCNi7NigPHgzSVzPfgKWzmrtQu3D3RkogLgJXR6h7HXH`, with Create `3bVMdBnex5ThccD8JpKraPxfX4QZznXwXfS4DpXx2UtoNDJXQT193QY39FYzf8aUvdWDotctDzN3FFc4DLeno5Gv`, Fund host `4v3WuZBpwfwEXXbNyRb3Z6cFq5oi9Q7HnZEGxirEefaU2eL6dUGz4wsjKR7N9KSaJZjhgSypHo5pnY2dSKvQ5247`, Fund friend `4Am1Bcoec7Wcgz4Z2kdmavQcyzeaidfLEXU9q6Th9UUnqfnjgqxRhNvcv88jK9whiaXAe8PEUaGvn33FxnZ679T7`, and Activate `5BshiMQQFnwuZ1Vpo85oM3v4wETTfWDVVRAdbGyUPbV9mTVhip9gnWYNuCuH2VQFAejGLUSAVMXngJAL9ZTPXXGa`. The script uses `createCurrentRitualClient`, `buildCreateRitualDeps`, `buildRitualActionDeps`, `runCreateRitual`, `runLifecycleAction`, and reducer state transitions with a local CLI signing transport. It asserted funding bitmap/count/stake/fee, exact host/friend token deltas, Active status, and fee-recipient delta. |
+| B. Authoritative home/detail/claim/inbox/receipt reads and visible actions | **DONE + unit-tested only** | Added AsyncStorage-known Ritual records and `loadKnownRitualBundles`; confirmed Create and verified Join persist addresses plus display metadata. Home, detail, claim, confirmation inbox, and settlement receipt now read `getRitualBundle`/`getEventBundle`; InitializeEvent, Claim, Approve, Question, and Finalize use the generalized lifecycle machine with pending-action journaling. Fixture data is labeled demo-only and is not the live dashboard source. Receipt displays principal, bonus, forfeiture, remaining stake, event pool, and next event from authoritative accounts. No physical-device run was performed. |
+| C. App-level InitializeEvent → Claim → Approve → Finalize | **PARTIAL** | The same app-level run for Ritual `E3jU254ynCBJnNr5RaCJJ1jDYfCxHvJjytHaUzB5f1A6` submitted and authoritatively confirmed Initialize `2VVSmoA9kM24d2CPAQivJRW2vmcAYagMKRpiVgmWigCk9Vo7szrSFDXxwVf6ByyUXgRiXkPKXLyfrdtGo9aX6Gxg`, Claim `5wb8AHor2qsRZvednJt6m9ui6dXVVkoVCuqqkcsQEWGSqWoZ66M7MauGwUScu2pcUdFKCR6hUqbEGKvoaenYN5Ze`, Approve `2JE9Grtz5yiypCj25SdJcsY8NMZDXU6be4huFK9P2SU6Wzyva9VDZzuPpfq6xV8LoduNATxw9ENZHDmdLdMazbhy`, and Finalize `2FebHxj8AyzEoQM2d4hiuysXwHVQ7MWtxZHM3oLztPN4VcWZtwpeZFfkUHdxhCDNqrxdMMCzPx6gq1PQzCcyqtDA`. Direct authoritative readback showed Settled, pool `2,000,000`, payout `2,000,000`, forfeiture `1,000,000`, refund `0`, remainder `0`, remaining future-event stake `2,000,000`, and fee recipient unchanged. The corrected script was not rerun after three scarce devnet lifecycle attempts: the first stopped on public-RPC confirmation throttling, the second exposed and corrected an over-broad balance assertion, and the third stopped on another public-RPC 429 after the approval transaction was already confirmed on-chain. |
+| D. Offline/RPC, reconnect/account change, blockhash expiry | **DONE + unit-tested only** | Read screens show retryable connection copy and retry controls; prepare failures are retryable; post-submission failures remain non-retryable. Added synchronous authorized-account checks before prepare/signing and pre-sign blockheight expiry checks. Added lifecycle tests for blockhash expiry and dependency tests proving no wallet submission after account change or expiry. MWA/Phantom/Seeker behavior remains unproven. |
+
+### Commands and measured results
+
+- `npx tsc --noEmit` — passed.
+- `npx vitest run src/features/rituals/create/createJourney.test.ts src/features/rituals/create/buildCreateDeps.test.ts src/features/rituals/create/runCreateRitual.test.ts src/features/rituals/lifecycleMachine.test.ts src/features/rituals/buildRitualActionDeps.test.ts src/screens/RitualsHomeScreen.test.ts` — 6 files, 55 tests passed.
+- `npm test` — 69 files, 1,925 tests passed.
+- `npx tsx scripts/smoke-app-lifecycle.ts CD2gkjrNr6cp6asMzYXjPD2uxYkz97Hrmgw7z6c6Z8UJ 4UAbYjikxY1fWj1AkaPLih5hTdzvGgsRwBFCg6AVkmwP` — A reached verified Create/Fund/Fund/Activate in the final run; C transactions also reached chain confirmation in the preceding run, but the command exited nonzero as documented above because public devnet confirmation throttling and the pre-fix settlement assertion prevented a clean end-to-end exit.
+- `npx expo export --platform android --output-dir .verify/expo-export` — pending final gate; `.verify/expo-export` will be removed after export.
+- Devnet emitted the existing `bigint` native-binding fallback warning; all proof and tests used the pure-JS implementation.
+
+### Files changed
+
+- `scripts/smoke-app-lifecycle.ts`
+- `src/features/rituals/authoritativeRituals.ts`
+- `src/features/rituals/buildRitualActionDeps.ts` and test
+- `src/features/rituals/lifecycleMachine.ts`/test and `runLifecycleAction.ts`
+- `src/features/rituals/create/buildCreateDeps.ts`/test, `createMachine.ts`, `runCreateRitual.ts`, and `createJourney.test.ts`
+- `src/navigators/AppNavigator.tsx`
+- `src/screens/RitualsHomeScreen.tsx`, `RitualDetailScreen.tsx`, `ClaimCompletionScreen.tsx`, `ConfirmationInboxScreen.tsx`, `SettlementReceiptScreen.tsx`, `RitualActionScreen.tsx`, `RitualFundingLobbyScreen.tsx`, `JoinRitualScreen.tsx`
+
+### Frozen-module changes and known defects
+
+No `programs/`, `program-tests/`, `src/data/rituals/`, or `src/domain/rituals/` files were changed in the second pass. No redeploy was performed. Known limitations: the corrected full smoke command lacks a clean final rerun because of the public devnet 429 budget; local metadata supplies title/requirement because the on-chain Ritual account stores only the digest; no device wallet, MWA, Phantom, Seeker install, or reconnect behavior was proven.

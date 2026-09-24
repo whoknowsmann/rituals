@@ -37,6 +37,8 @@ export type CreateDepsParams = Readonly<{
   /** Optional durable recovery journal used around wallet handoff. */
   pendingActionStore?: PendingActionStore
   now?: () => number
+  authorizedActor?: () => PublicKey | null
+  getBlockHeight?: () => Promise<number>
 }>
 
 export class CreateDepsError extends Error {
@@ -53,7 +55,8 @@ const fail = (message: string): never => {
 }
 
 export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDeps {
-  const { client, creator, members, draft, cadence, firstEventAt, pendingActionStore, now = () => Date.now() } = params
+  const { client, creator, members, draft, cadence, firstEventAt, pendingActionStore, now = () => Date.now(), authorizedActor, getBlockHeight } = params
+  const assertAuthorized = () => { if (authorizedActor && (!authorizedActor() || !authorizedActor()!.equals(creator))) throw new CreateDepsError('authorized wallet account changed before signing') }
 
   if (!(creator instanceof PublicKey)) fail('creator must be a PublicKey')
   if (!Array.isArray(members) || members.length !== draft.memberCount) {
@@ -70,6 +73,7 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
 
   return {
     async prepare() {
+      assertAuthorized()
       // Authoritative source of the stake mint and fee recipient. Never trust
       // UI-supplied values for these: they decide where funds go.
       const config = await client.getProtocolConfig()
@@ -141,6 +145,11 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       const action = prepared
       // Explicit throw (not the fail() helper) so TypeScript narrows the type.
       if (action === null) throw new CreateDepsError('cannot submit before preparing')
+      assertAuthorized()
+      if (getBlockHeight) {
+        const current = await getBlockHeight()
+        if (Number.isSafeInteger(current) && current > action.lastValidBlockHeight) throw Object.assign(new CreateDepsError('prepared blockhash expired before signing'), { blockhashExpired: true })
+      }
       if (pendingActionStore) {
         pendingRecord = makePendingActionRecord(action, now())
         await pendingActionStore.upsert(pendingRecord)

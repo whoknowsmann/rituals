@@ -43,4 +43,22 @@ describe('buildRitualActionDeps', () => {
     expect(ref.kind).toBe('activate')
     expect(client.prepareActivate).toHaveBeenCalledWith(expect.objectContaining({ feePayer: actor }))
   })
+
+  it('fails before wallet submission when the authorized account changes', async () => {
+    const client = fakeClient()
+    let current = actor
+    const deps = buildRitualActionDeps({ client, ritualAddress: ritual, actor, kind: 'fund', memberSource: key(6), authorizedActor: () => current })
+    const ref = await deps.prepare()
+    current = key(9)
+    await expect(deps.submit(ref)).rejects.toThrow('authorized wallet account changed')
+    expect(client.submitPrepared).not.toHaveBeenCalled()
+  })
+
+  it('rejects an expired prepared blockhash before wallet submission', async () => {
+    const client = fakeClient()
+    const deps = buildRitualActionDeps({ client, ritualAddress: ritual, actor, kind: 'fund', memberSource: key(6), getBlockHeight: async () => 101 })
+    const ref = await deps.prepare()
+    await expect(deps.submit(ref)).rejects.toMatchObject({ blockhashExpired: true })
+    expect(client.submitPrepared).not.toHaveBeenCalled()
+  })
 })

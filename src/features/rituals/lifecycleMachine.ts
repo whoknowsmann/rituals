@@ -1,7 +1,8 @@
-export type LifecyclePreparedRef = Readonly<{ kind: 'fund' | 'activate'; messageDigest: string; ritualAddress: string }>
+export type LifecycleActionKind = 'fund' | 'activate' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'finalize'
+export type LifecyclePreparedRef = Readonly<{ kind: LifecycleActionKind; messageDigest: string; ritualAddress: string }>
 export type LifecycleSubmittedRef = Readonly<{ id: string }>
 export type LifecycleConfirmedRef = Readonly<{ signature: string; messageDigest: string }>
-export type LifecycleFailureCategory = 'preparation' | 'wallet-rejected' | 'wallet-unavailable' | 'submission' | 'confirmation'
+export type LifecycleFailureCategory = 'preparation' | 'wallet-rejected' | 'wallet-unavailable' | 'blockhash-expired' | 'submission' | 'confirmation'
 
 export type LifecycleState =
   | Readonly<{ status: 'idle' }>

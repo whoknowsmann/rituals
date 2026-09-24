@@ -36,6 +36,7 @@ export type CreateFailureCategory =
   | 'preparation'
   | 'wallet-rejected'
   | 'wallet-unavailable'
+  | 'blockhash-expired'
   | 'submission'
   | 'confirmation'
 

@@ -58,7 +58,8 @@ const SAFE_MESSAGES: Record<CreateFailureCategory, string> = {
   preparation: 'Could not prepare the ritual. Nothing was sent.',
   'wallet-rejected': 'The request was declined in your wallet. Nothing was sent.',
   'wallet-unavailable': 'No wallet was available to approve the request.',
-  submission: 'Could not send the transaction to the network.',
+  'blockhash-expired': 'The prepared transaction expired before wallet approval. Nothing was sent; prepare again.',
+  submission: 'Could not send the transaction to the network. Nothing was sent; you can try again.',
   confirmation: 'The transaction was sent but could not be confirmed.',
 }
 
@@ -88,6 +89,7 @@ export async function runCreateRitual(
     // A wallet-returned signature followed by a local persistence failure is
     // indistinguishable from any other post-submission uncertainty.
     if (error !== null && typeof error === 'object' && (error as { submitted?: unknown }).submitted === true) return failWith('confirmation')
+    if (error !== null && typeof error === 'object' && (error as { blockhashExpired?: unknown }).blockhashExpired === true) return failWith('blockhash-expired')
     // A rejection is a normal user choice, not a fault; both are pre-network so
     // both stay retryable.
     return failWith(isUserRejection(error) ? 'wallet-rejected' : 'submission')

@@ -53,7 +53,7 @@ export type RootStackParamList = {
   RitualRoster: RootStackParamList['ReviewRitual'];
   RitualFundingLobby: RootStackParamList['ReviewRitual'] & { members: string[] };
   JoinRitual: { invite?: string };
-  RitualAction: { ritualId: string; phase: 'fund' | 'activate' };
+  RitualAction: { ritualId: string; phase: 'fund' | 'activate' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'finalize'; eventIndex?: number; claimant?: string };
   RitualDetail: { ritualId: string };
   ClaimCompletion: { ritualId: string; eventIndex: number };
   ConfirmationInbox: { ritualId: string; eventIndex: number };

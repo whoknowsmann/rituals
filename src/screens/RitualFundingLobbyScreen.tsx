@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ScrollView, Share, StyleSheet, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { ActivityIndicator, Button, Card, Divider, Text, useTheme, type MD3Theme } from 'react-native-paper'
@@ -18,6 +18,7 @@ import { asyncStoragePendingActionStore } from '../features/rituals/recovery/pen
 import { useCreateRitual } from '../features/rituals/create/useCreateRitual'
 import { buildCreateRitualDeps } from '../features/rituals/create/buildCreateDeps'
 import { DEMO_CADENCE, describeCadence, nextWeekdayOccurrence } from '../domain/rituals/schedule'
+import { rememberRitual } from '../features/rituals/authoritativeRituals'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RitualFundingLobby'>
 
@@ -28,6 +29,8 @@ export function RitualFundingLobbyScreen({ route }: Props) {
   const { connection } = useConnection()
   const recovery = usePendingRitualRecovery(client, connection, asyncStoragePendingActionStore)
   const { selectedAccount } = useAuthorization()
+  const accountRef = useRef(selectedAccount)
+  accountRef.current = selectedAccount
   const parsed = useMemo(() => parseRitualFundingLobbyRoute(route.params), [route.params])
 
   // P0 demo uses the accelerated devnet cadence so a full lifecycle is
@@ -52,10 +55,20 @@ export function RitualFundingLobbyScreen({ route }: Props) {
       cadence,
       firstEventAt,
       pendingActionStore: asyncStoragePendingActionStore,
+      authorizedActor: () => accountRef.current?.publicKey ?? null,
+      getBlockHeight: () => connection.getBlockHeight('confirmed'),
     })
-  }, [parsed, client, selectedAccount, cadence])
+  }, [parsed, client, selectedAccount, cadence, connection])
 
   const create = useCreateRitual(makeDeps)
+
+  const confirmed = create.state.status === 'confirmed'
+  const invite = confirmed ? create.state.result.invite : undefined
+  const confirmedRitualAddress = confirmed ? create.state.ritualAddress : null
+  useEffect(() => {
+    if (!confirmedRitualAddress || !parsed.ok) return
+    void rememberRitual({ address: confirmedRitualAddress, title: parsed.value.title, requirement: parsed.value.requirement })
+  }, [confirmedRitualAddress, parsed])
 
   if (!parsed.ok) return <InvalidLobby message={parsed.error} onHome={() => navigation.navigate('RitualsHome')} styles={styles} />
   const draft = validateRitualDraft(parsed.value)
@@ -76,9 +89,6 @@ export function RitualFundingLobbyScreen({ route }: Props) {
     ? (client.status === 'not-deployed' ? 'No authorized deployment is configured.' : client.reason)
     : !walletConnected ? 'Connect your wallet to create this ritual.' : null
 
-  const confirmed = create.state.status === 'confirmed'
-  const invite = confirmed ? create.state.result.invite : undefined
-  const confirmedRitualAddress = confirmed ? create.state.ritualAddress : null
   const copyInvite = useCallback(() => { if (invite) void Clipboard.setStringAsync(invite) }, [invite])
   const shareInvite = useCallback(() => { if (invite) void Share.share({ message: invite }) }, [invite])
 

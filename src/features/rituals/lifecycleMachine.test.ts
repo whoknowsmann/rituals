@@ -29,9 +29,16 @@ describe('runLifecycleAction', () => {
     expect(state).toMatchObject({ status: 'error', retryable: false, submitted: true })
   })
 
+  it('classifies a blockhash that expires before signing as retryable and pre-submission', async () => {
+    let state = lifecycleInitialState()
+    const outcome = await runLifecycleAction(deps({ submit: vi.fn(async () => { throw Object.assign(new Error('expired'), { blockhashExpired: true }) }) }), (event) => { state = lifecycleReducer(state, event) })
+    expect(outcome).toEqual({ ok: false, category: 'blockhash-expired' })
+    expect(state).toMatchObject({ status: 'error', retryable: true, submitted: false, category: 'blockhash-expired' })
+  })
+
   it('keeps wallet rejection retryable', async () => {
     let state = lifecycleInitialState()
-    await runLifecycleAction(deps({ submit: vi.fn(async () => { throw new Error('User rejected the request') }) }), (event) => { state = lifecycleReducer(state, event) })
+    await runLifecycleAction(deps({ submit: vi.fn(async () => { throw new Error('User rejected the request') }) }), (event: LifecycleEvent) => { state = lifecycleReducer(state, event) })
     expect(state).toMatchObject({ status: 'error', category: 'wallet-rejected', retryable: true })
   })
 })

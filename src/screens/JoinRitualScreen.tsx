@@ -8,6 +8,7 @@ import type { RootStackParamList } from '../navigators/AppNavigator'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { decodeRitualInvite, onchainInviteView } from '../features/rituals/invite/inviteCodec'
 import { verifyInvite, type RitualInvite } from '../domain/rituals/invite'
+import { rememberRitual } from '../features/rituals/authoritativeRituals'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JoinRitual'>
 type JoinState = Readonly<{ status: 'idle' | 'loading' | 'invalid' | 'valid' | 'error'; invite?: RitualInvite; message?: string }>
@@ -32,6 +33,7 @@ export function JoinRitualScreen({ route }: Props) {
       const read = await client.client.readRitual(new PublicKey(invite.ritual))
       const result = verifyInvite(invite, onchainInviteView(read))
       if (!result.ok) throw new Error(`This invite could not be verified (${result.reason}).`)
+      await rememberRitual({ address: invite.ritual, title: invite.rules.title, requirement: invite.rules.requirement })
       setState({ status: 'valid', invite })
     } catch (error) {
       setState({ status: 'error', message: error instanceof Error ? error.message : 'This invite could not be verified.' })
