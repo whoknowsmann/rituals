@@ -6,7 +6,6 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { buildReviewViewModel } from '../features/rituals/create/reviewViewModel'
 import { homeCreateTarget, reviewCompleteTarget, rosterNavigationParams } from '../features/rituals/create/routeHelpers'
-import { validateRitualDraft } from '../features/rituals/create/draftForm'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReviewRitual'>
 type ReviewRow = readonly [label: string, value: string]
@@ -14,8 +13,9 @@ type ReviewRow = readonly [label: string, value: string]
 export function ReviewRitualScreen({ route }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const styles = makeStyles(useTheme())
-  const validation = validateRitualDraft(route.params)
-  const review = validation.ok ? buildReviewViewModel(validation.value) : null
+  // buildReviewViewModel validates the raw string draft itself. Never pass it a
+  // validated draft (numeric counts) — that fails closed as an invalid link.
+  const review = buildReviewViewModel(route.params as unknown)
 
   if (review === null) {
     return (

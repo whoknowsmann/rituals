@@ -2,6 +2,29 @@ import type { RootStackParamList } from '../../../navigators/AppNavigator'
 import { validateRitualDraft, type RitualDraft } from './draftForm'
 import { validateMemberRoster } from './roster'
 
+/**
+ * Project a route object down to exactly the seven string draft fields.
+ *
+ * `validateRitualDraft` is deliberately strict: it rejects extra keys and
+ * non-string counts. Two shapes reach screens that are *not* raw drafts and
+ * must be projected first:
+ *   - a lobby route carries `members` alongside the draft fields;
+ *   - a validated draft has numeric counts and a bigint stake.
+ * Passing either straight back into validation fails closed, which on device
+ * showed a valid template as "This ritual link is invalid".
+ */
+export function draftFieldsOf(value: RitualDraft): RitualDraft {
+  return {
+    title: value.title,
+    requirement: value.requirement,
+    memberCount: value.memberCount,
+    eventCount: value.eventCount,
+    memberTotalStake: value.memberTotalStake,
+    confirmationMode: value.confirmationMode,
+    feePayerMode: value.feePayerMode,
+  }
+}
+
 export function reviewNavigationParams(draft: RitualDraft): RootStackParamList['ReviewRitual'] {
   const result = validateRitualDraft(draft)
   if (!result.ok) throw new RangeError(Object.values(result.errors).join(' '))
@@ -34,7 +57,7 @@ export type SafeRouteResult<T> = Readonly<{ ok: true; value: T }> | Readonly<{ o
 
 export function parseRitualRosterRoute(value: unknown): SafeRouteResult<RootStackParamList['RitualRoster']> {
   const result = validateRitualDraft(value)
-  return result.ok ? { ok: true, value: { ...result.value, memberCount: String(result.value.memberCount), eventCount: String(result.value.eventCount), memberTotalStake: result.value.memberTotalStake } } : { ok: false, error: 'This ritual draft is invalid.' }
+  return result.ok ? { ok: true, value: draftFieldsOf(value as RitualDraft) } : { ok: false, error: 'This ritual draft is invalid.' }
 }
 
 export function parseRitualFundingLobbyRoute(value: unknown): SafeRouteResult<RootStackParamList['RitualFundingLobby']> {

@@ -7,7 +7,7 @@ import { PublicKey } from '@solana/web3.js'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { buildReviewViewModel } from '../features/rituals/create/reviewViewModel'
-import { parseRitualFundingLobbyRoute } from '../features/rituals/create/routeHelpers'
+import { draftFieldsOf, parseRitualFundingLobbyRoute } from '../features/rituals/create/routeHelpers'
 import { buildFundingLobbyModel, shortRosterAddress } from '../features/rituals/create/roster'
 import { validateRitualDraft } from '../features/rituals/create/draftForm'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
@@ -39,7 +39,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
 
   const makeDeps = useCallback(() => {
     if (!parsed.ok) throw new Error('invalid ritual draft')
-    const draft = validateRitualDraft(parsed.value)
+    const draft = validateRitualDraft(draftFieldsOf(parsed.value))
     if (!draft.ok) throw new Error('invalid ritual draft')
     if (client.status !== 'ready') throw new Error('client not ready')
     if (!selectedAccount) throw new Error('wallet not connected')
@@ -71,9 +71,9 @@ export function RitualFundingLobbyScreen({ route }: Props) {
   }, [confirmedRitualAddress, parsed])
 
   if (!parsed.ok) return <InvalidLobby message={parsed.error} onHome={() => navigation.navigate('RitualsHome')} styles={styles} />
-  const draft = validateRitualDraft(parsed.value)
+  const draft = validateRitualDraft(draftFieldsOf(parsed.value))
   if (!draft.ok) return <InvalidLobby message="This ritual draft is invalid." onHome={() => navigation.navigate('RitualsHome')} styles={styles} />
-  const review = buildReviewViewModel(parsed.value)
+  const review = buildReviewViewModel(draftFieldsOf(parsed.value))
   if (!review) return <InvalidLobby message="This ritual preview is invalid." onHome={() => navigation.navigate('RitualsHome')} styles={styles} />
 
   const model = buildFundingLobbyModel({
