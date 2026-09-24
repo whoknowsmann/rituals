@@ -21,6 +21,37 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
+## Resume here (handoff 2026-09-24, before WSL restart)
+
+Session paused for `wsl --shutdown` to raise the WSL memory cap 8→12 GB. Pick up
+in this order:
+
+1. Verify the restart took: `free -g` shows ~12 GB total; `echo $ANDROID_HOME`
+   is `~/Android/Sdk`.
+2. First **local** build (replaces the slow EAS free queue):
+   `cd ~/projects/preflight && npx eas-cli build --local --profile preview --platform android --output artifacts/rituals-local.apk`
+   SDK (platform 35, build-tools 35.0.0, NDK 26.1.10909125, CMake 3.22.1) is
+   installed; Gradle limits are in `~/.gradle/gradle.properties`. JDK 21 is
+   present; if Gradle rejects it, install a JDK 17 under `~` (no sudo). If the
+   build OOMs, raise `.wslconfig` to 14–16 GB (Jack runs the shutdown).
+3. Also check EAS cloud build `27961a41-1e75-4242-b598-9210590363e3` (commit
+   48c4bfd) — its background watcher died with the restart. Use whichever APK
+   is ready first.
+4. Install over USB with `./scripts/adb.sh install -r "$(wslpath -w <apk>)"` —
+   always the Windows adb wrapper, never the SDK's Linux `adb` (they fight over
+   USB).
+5. **Phone session with Jack — the MWA gate.** Seeker is set up; Phantom is on
+   devnet with public address `Da59UWdaoBej5xdX9atiaZahMYLxJNsdXHVY6GMh8VmV`
+   funded with 0.1 SOL + 200 TEST. Flow: template → 2 members (Phantom host +
+   CLI friend `DNZKvX…`) → Connect wallet on Roster (first approval is sticky;
+   pick the right account) → Create → approve in Phantom → confirm in app. Then
+   Fund from phone, fund friend from CLI, and continue claim → approve → settle.
+
+Branch state: all work on `overnight/mobile-integration` (HEAD 48c4bfd, pushed,
+**not merged to main**). Submission drafts on `overnight/submission-materials`.
+Jack's standing direction: **build it, then make it perfect** — ship visible app
+behavior, no new adversarial test matrices.
+
 ## The one-line state
 
 The protocol, typed client, **and the app's own screen-level lifecycle code** are
