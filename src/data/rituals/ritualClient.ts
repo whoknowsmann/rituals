@@ -17,6 +17,8 @@ export type { SubmittedRitualActionHandle } from './ritualSubmission'
  * the security authority and the real wallet is still responsible for user authorization.
  */
 export interface RitualClient {
+  /** Authorized program identity used by the prepared-action boundary. */
+  readonly programId: PublicKey
   /** Authoritative protocol configuration: the only valid source of stake mint and fee recipient. */
   getProtocolConfig(options?: ReadOptions): Promise<Readonly<{ slot: number; address: PublicKey; account: ProtocolConfigAccountView }>>
   readRitual(address: PublicKey, options?: ReadOptions): Promise<RitualRead>
@@ -45,7 +47,7 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
   const confirmer = new RitualConfirmationVerifier(reader, rpc)
   const submitter = new RitualActionSubmitter(preparer, confirmer, wallet)
   const client = Object.create(null) as RitualClient
-  const methods: Record<keyof RitualClient, (...args: any[]) => unknown> = {
+  const methods: Partial<Record<keyof RitualClient, (...args: any[]) => unknown>> = {
     getProtocolConfig: reader.getProtocolConfig.bind(reader),
     readRitual: reader.getRitual.bind(reader),
     getRitualBundle: reader.getRitualBundle.bind(reader),
@@ -65,6 +67,7 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
     submitAndConfirm: submitter.submitAndConfirm.bind(submitter),
   }
   for (const [name, method] of Object.entries(methods)) Object.defineProperty(client, name, { value: method, enumerable: false, writable: false, configurable: false })
+  Object.defineProperty(client, 'programId', { value: new PublicKey(programId.toBytes()), enumerable: false, writable: false, configurable: false })
   return Object.freeze(client)
 }
 

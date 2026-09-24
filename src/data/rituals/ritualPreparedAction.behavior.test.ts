@@ -149,9 +149,9 @@ const expectCategory = async (promise: Promise<unknown>, category: string) => {
   it('freezes and exposes only the documented summary/action fields', async () => {
     const { preparer } = prepare(); const action = await preparer.prepareCreate(baseArgs())
     expect(Object.isFrozen(action)).toBe(true); expect(Object.isFrozen(action.summary)).toBe(true); expect(Object.isFrozen(action.summary.creates)).toBe(true)
-    expect(Object.keys(action).sort()).toEqual(['blockhashContextSlot', 'expectation', 'feePayer', 'kind', 'lastValidBlockHeight', 'messageDigest', 'programId', 'ritualAddress', 'summary'])
+    expect(Object.keys(action).sort()).toEqual(['blockhash', 'blockhashContextSlot', 'expectation', 'feePayer', 'kind', 'lastValidBlockHeight', 'messageDigest', 'programId', 'ritualAddress', 'summary'])
     expect(action.messageDigest).toMatch(/^[0-9a-f]{64}$/); expect(action.summary.networkFeeIsEstimate).toBe(true)
-    expect('transaction' in action).toBe(false); expect('instruction' in action).toBe(false); expect('messageBytes' in action).toBe(false); expect('blockhash' in action).toBe(false)
+    expect('transaction' in action).toBe(false); expect('instruction' in action).toBe(false); expect('messageBytes' in action).toBe(false); expect('blockhash' in action).toBe(true)
     expect(Object.isFrozen(action.expectation)).toBe(true)
   })
 

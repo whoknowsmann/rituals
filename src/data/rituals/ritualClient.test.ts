@@ -76,11 +76,12 @@ describe('safe Ritual client facade', () => {
 
   it('keeps every facade method hidden and immutable', () => {
     const client = api.createLocalTestRitualClient({ ...rpc, ...prep, ...confirmation }, wallet, LOCAL_PLACEHOLDER_PROGRAM_ID) as unknown as Record<string, unknown>
-    const names = ['getProtocolConfig', 'readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm']
+    const names = ['getProtocolConfig', 'readRitual', 'getRitualBundle', 'getEventBundle', 'prepareCreate', 'prepareFund', 'prepareActivate', 'prepareCancel', 'prepareClose', 'prepareInitializeEvent', 'prepareClaim', 'prepareApprove', 'prepareQuestion', 'prepareFinalize', 'submitPrepared', 'confirmSubmitted', 'submitAndConfirm', 'programId']
     expect(Object.getOwnPropertyNames(client).sort()).toEqual(names.sort())
     expect(Object.isFrozen(client)).toBe(true)
     expect(Object.getPrototypeOf(client)).toBeNull()
-    for (const name of names) expect(Object.getOwnPropertyDescriptor(client, name)).toMatchObject({ enumerable: false, writable: false, configurable: false, value: expect.any(Function) })
+    for (const name of names.filter((name) => name !== 'programId')) expect(Object.getOwnPropertyDescriptor(client, name)).toMatchObject({ enumerable: false, writable: false, configurable: false, value: expect.any(Function) })
+    expect(Object.getOwnPropertyDescriptor(client, 'programId')).toMatchObject({ enumerable: false, writable: false, configurable: false, value: expect.any(PublicKey) })
   })
 
   it('round-trips split submission through one facade with one wallet and confirmation call', async () => {

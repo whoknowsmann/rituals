@@ -11,6 +11,9 @@ import { buildFundingLobbyModel, shortRosterAddress } from '../features/rituals/
 import { validateRitualDraft } from '../features/rituals/create/draftForm'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { useAuthorization } from '../utils/useAuthorization'
+import { useConnection } from '../utils/ConnectionProvider'
+import { usePendingRitualRecovery } from '../features/rituals/recovery/usePendingRitualRecovery'
+import { asyncStoragePendingActionStore } from '../features/rituals/recovery/pendingAction'
 import { useCreateRitual } from '../features/rituals/create/useCreateRitual'
 import { buildCreateRitualDeps } from '../features/rituals/create/buildCreateDeps'
 import { DEMO_CADENCE, describeCadence, nextWeekdayOccurrence } from '../domain/rituals/schedule'
@@ -21,6 +24,8 @@ export function RitualFundingLobbyScreen({ route }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const styles = makeStyles(useTheme())
   const client = useRitualClient()
+  const { connection } = useConnection()
+  const recovery = usePendingRitualRecovery(client, connection, asyncStoragePendingActionStore)
   const { selectedAccount } = useAuthorization()
   const parsed = useMemo(() => parseRitualFundingLobbyRoute(route.params), [route.params])
 
@@ -45,6 +50,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
       draft: draft.value,
       cadence,
       firstEventAt,
+      pendingActionStore: asyncStoragePendingActionStore,
     })
   }, [parsed, client, selectedAccount, cadence])
 
@@ -75,6 +81,17 @@ export function RitualFundingLobbyScreen({ route }: Props) {
     <ScrollView contentContainerStyle={styles.content}>
       <Text variant="headlineMedium" accessibilityRole="header">Funding lobby</Text>
       <Text style={styles.muted}>Everyone reviews the same terms before any onchain funding.</Text>
+
+      {recovery && (
+        <Card style={styles.card} accessibilityLabel="Transaction recovery">
+          <Card.Content>
+            <Text variant="titleMedium">{recovery.title}</Text>
+            <Text style={recovery.resolution.status === 'failed' || recovery.resolution.status === 'expired' ? styles.warning : styles.muted} accessibilityLiveRegion="polite">
+              {recovery.body}
+            </Text>
+          </Card.Content>
+        </Card>
+      )}
 
       <Card style={styles.card} accessibilityLabel="Funding progress">
         <Card.Content>

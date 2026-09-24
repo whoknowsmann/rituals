@@ -16,6 +16,7 @@ import type { PreparedRitualAction } from '../../../data/rituals/ritualPreparedA
 import type { SubmittedRitualActionHandle } from '../../../data/rituals/ritualSubmission'
 import type { CreateRitualDeps } from './runCreateRitual'
 import type { ValidatedRitualDraft } from './draftForm'
+import { makePendingActionRecord, withPendingActionSignature, type PendingActionStore } from '../recovery/pendingAction'
 import { generateRitualNonce } from '../../../domain/rituals/nonce'
 import { generateRitualSchedule, type RitualCadence } from '../../../domain/rituals/schedule'
 import { digestRulesSync, type LockedRitualRules } from '../../../domain/rituals/draft'
@@ -32,12 +33,17 @@ export type CreateDepsParams = Readonly<{
   cadence: RitualCadence
   /** Unix seconds for the first event. Callers pass it so schedules stay deterministic. */
   firstEventAt: number
+  /** Optional durable recovery journal used around wallet handoff. */
+  pendingActionStore?: PendingActionStore
+  now?: () => number
 }>
 
 export class CreateDepsError extends Error {
-  constructor(message: string) {
+  readonly submitted: boolean
+  constructor(message: string, submitted = false) {
     super(message)
     this.name = 'CreateDepsError'
+    this.submitted = submitted
   }
 }
 
@@ -46,7 +52,7 @@ const fail = (message: string): never => {
 }
 
 export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDeps {
-  const { client, creator, members, draft, cadence, firstEventAt } = params
+  const { client, creator, members, draft, cadence, firstEventAt, pendingActionStore, now = () => Date.now() } = params
 
   if (!(creator instanceof PublicKey)) fail('creator must be a PublicKey')
   if (!Array.isArray(members) || members.length !== draft.memberCount) {
@@ -58,6 +64,7 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
   // Held across steps so opaque client objects never enter UI state.
   let prepared: PreparedRitualAction | null = null
   let handle: SubmittedRitualActionHandle | null = null
+  let pendingRecord: ReturnType<typeof makePendingActionRecord> | null = null
 
   return {
     async prepare() {
@@ -100,7 +107,7 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       const ruleDigest = digestRulesSync(rules)
 
       const action = await client.prepareCreate({
-        programId: config.address,
+        programId: client.programId,
         creator,
         stakeMint: config.account.allowedStakeMint,
         feeRecipientToken: config.account.feeRecipient,
@@ -131,7 +138,23 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       const action = prepared
       // Explicit throw (not the fail() helper) so TypeScript narrows the type.
       if (action === null) throw new CreateDepsError('cannot submit before preparing')
-      handle = await client.submitPrepared(action)
+      if (pendingActionStore) {
+        pendingRecord = makePendingActionRecord(action, now())
+        await pendingActionStore.upsert(pendingRecord)
+      }
+      try {
+        handle = await client.submitPrepared(action)
+      } catch (error) {
+        throw error
+      }
+      if (pendingActionStore && pendingRecord) {
+        try {
+          pendingRecord = withPendingActionSignature(pendingRecord, handle.signature)
+          await pendingActionStore.upsert(pendingRecord)
+        } catch {
+          throw new CreateDepsError('transaction submitted but recovery could not be saved', true)
+        }
+      }
       // Opaque handle stays in this closure; the machine only needs an id.
       return { id: action.messageDigest }
     },
@@ -140,6 +163,9 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       const submitted = handle
       if (submitted === null) throw new CreateDepsError('cannot confirm before submitting')
       const result = await client.confirmSubmitted(submitted)
+      if (pendingActionStore && pendingRecord) {
+        try { await pendingActionStore.remove(pendingRecord) } catch { /* recovery can resolve it on the next launch */ }
+      }
       return { signature: result.signature, messageDigest: result.messageDigest }
     },
   }

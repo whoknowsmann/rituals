@@ -85,6 +85,9 @@ export async function runCreateRitual(
   try {
     handle = await deps.submit(prepared)
   } catch (error) {
+    // A wallet-returned signature followed by a local persistence failure is
+    // indistinguishable from any other post-submission uncertainty.
+    if (error !== null && typeof error === 'object' && (error as { submitted?: unknown }).submitted === true) return failWith('confirmation')
     // A rejection is a normal user choice, not a fault; both are pre-network so
     // both stay retryable.
     return failWith(isUserRejection(error) ? 'wallet-rejected' : 'submission')

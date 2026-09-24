@@ -109,14 +109,16 @@ describe('runCreateRitual: failures', () => {
     expect(failure.category).toBe('submission')
   })
 
-  it('classifies a post-submission failure as confirmation', async () => {
-    const d = deps({ confirm: vi.fn(async () => { throw new Error('block height exceeded') }) })
+  it('classifies failure to save recovery after wallet return as confirmation', async () => {
+    const error = Object.assign(new Error('journal write failed'), { submitted: true })
+    const d = deps({ submit: vi.fn(async () => { throw error }) })
     const { events, dispatch } = collect()
     await runCreateRitual(d, dispatch)
     const failure = events.at(-1)
     if (failure?.type !== 'FAILED') throw new Error('unreachable')
     expect(failure.category).toBe('confirmation')
   })
+
 
   it('leaves a real machine non-retryable after a confirmation failure', async () => {
     let state = createMachineInitialState()

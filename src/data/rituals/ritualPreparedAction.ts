@@ -57,6 +57,8 @@ export type PreparedRitualAction = Readonly<{
   programId: PublicKeyText
   ritualAddress: PublicKeyText
   feePayer: PublicKeyText
+  /** The exact recent blockhash bound into the reviewed message. */
+  blockhash: string
   blockhashContextSlot: number
   lastValidBlockHeight: number
   messageDigest: string
@@ -164,7 +166,7 @@ export class RitualActionPreparer {
     const stakeOutflow = u64(outflow.stake, 'stakeOutflow'); const activationFeeOutflow = u64(outflow.activation, 'activationFeeOutflow'); const tokenOutflow = u64(outflow.token, 'tokenOutflow'); if (tokenOutflow !== addU64(stakeOutflow, activationFeeOutflow, 'tokenOutflow')) fail('input', 'tokenOutflow does not equal stakeOutflow plus activationFeeOutflow')
     const internal: Internal = { kind, programId: copyKey(this.programId), feePayer: payer, ritualAddress: ritual, blockhash: recentBlockhash, lastValidBlockHeight, blockhashContextSlot: slot, instruction: ix, messageBytes, messageDigest, expectation }
     const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint: keyText(tokenMint), tokenOutflow, stakeOutflow, activationFeeOutflow, escrowActivationFeeTransfer: u64(outflow.escrow, 'escrowActivationFeeTransfer'), escrowSettlementTransfer: u64(outflow.settlement ?? 0n, 'escrowSettlementTransfer'), protocolForfeitureShare: 0n, estimatedNetworkFeeLamports: networkFee, estimatedRentLamports: rentDebit, estimatedRentCreditLamports: rentCredit, rentCreditRecipient, totalEstimatedLamportOutflow: total, creates, networkFeeIsEstimate: true as const, rentCreditIsEstimate: rentCreditRecipient !== null })
-    const action = Object.freeze({ kind, programId: keyText(this.programId), ritualAddress: keyText(ritual), feePayer: keyText(payer), blockhashContextSlot: slot, lastValidBlockHeight, messageDigest, summary, expectation })
+    const action = Object.freeze({ kind, programId: keyText(this.programId), ritualAddress: keyText(ritual), feePayer: keyText(payer), blockhash: recentBlockhash, blockhashContextSlot: slot, lastValidBlockHeight, messageDigest, summary, expectation })
     this.#snapshots.set(action, internal); return action
   }
 

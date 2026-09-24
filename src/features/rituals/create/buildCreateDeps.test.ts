@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import { buildCreateRitualDeps, CreateDepsError } from './buildCreateDeps'
 import { WEEKLY_CADENCE } from '../../../domain/rituals/schedule'
+import type { PendingActionStore } from '../recovery/pendingAction'
 import type { ValidatedRitualDraft } from './draftForm'
 
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
@@ -36,6 +37,7 @@ const config = {
 
 function client(overrides: Record<string, unknown> = {}) {
   return {
+    programId: PROGRAM,
     getProtocolConfig: vi.fn(async () => config),
     prepareCreate: vi.fn(async () => ({
       kind: 'create',
@@ -140,6 +142,32 @@ describe('buildCreateRitualDeps: step ordering', () => {
     expect(result.signature).toBe('s'.repeat(88))
   })
 
+  it('persists the reviewed action before wallet handoff and adds the signature after return', async () => {
+    const store = {
+      list: vi.fn(async () => []),
+      upsert: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    } as PendingActionStore
+    const c = client({
+      prepareCreate: vi.fn(async () => ({
+        kind: 'create',
+        messageDigest: 'a'.repeat(64),
+        ritualAddress: key(9).toBase58(),
+        blockhash: key(8).toBase58(),
+        lastValidBlockHeight: 77,
+      })),
+      submitPrepared: vi.fn(async () => ({ signature: '1'.repeat(64) })),
+    })
+    const deps = buildCreateRitualDeps(params({ client: c, pendingActionStore: store, now: () => 1234 }))
+    const prepared = await deps.prepare()
+    const handle = await deps.submit(prepared)
+    expect(store.upsert).toHaveBeenCalledTimes(2)
+    expect((store.upsert as ReturnType<typeof vi.fn>).mock.calls[0][0]).not.toHaveProperty('transactionSignature')
+    expect((store.upsert as ReturnType<typeof vi.fn>).mock.calls[1][0]).toMatchObject({ transactionSignature: '1'.repeat(64), lastValidBlockHeight: 77 })
+    await deps.confirm(handle)
+    expect(store.remove).toHaveBeenCalledTimes(1)
+  })
+
   it('never exposes the opaque submission handle to the caller', async () => {
     const deps = buildCreateRitualDeps(params())
     const prepared = await deps.prepare()
@@ -148,3 +176,4 @@ describe('buildCreateRitualDeps: step ordering', () => {
     expect((handle as unknown as Record<string, unknown>).opaque).toBeUndefined()
   })
 })
+
