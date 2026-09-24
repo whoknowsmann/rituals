@@ -8,13 +8,16 @@ import type { RootStackParamList } from '../navigators/AppNavigator'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { decodeRitualInvite, onchainInviteView } from '../features/rituals/invite/inviteCodec'
 import { verifyInvite, type RitualInvite } from '../domain/rituals/invite'
-import { rememberRitual } from '../features/rituals/authoritativeRituals'
+import { rememberRitual, formatAtomic } from '../features/rituals/authoritativeRituals'
+import { useNavigation } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JoinRitual'>
 type JoinState = Readonly<{ status: 'idle' | 'loading' | 'invalid' | 'valid' | 'error'; invite?: RitualInvite; message?: string }>
 
 export function JoinRitualScreen({ route }: Props) {
   const styles = makeStyles(useTheme())
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const client = useRitualClient()
   const [input, setInput] = useState(route.params?.invite ?? '')
   const [state, setState] = useState<JoinState>({ status: 'idle' })
@@ -58,10 +61,10 @@ export function JoinRitualScreen({ route }: Props) {
             <Text variant="titleLarge">{state.invite.rules.title}</Text>
             <Text style={styles.verified}>VERIFIED AGAINST ON-CHAIN DIGEST</Text>
             <Text style={styles.body}>{state.invite.rules.requirement}</Text>
-            <Text style={styles.term}>Stake per member · {state.invite.rules.memberTotalStake.toString()} atomic TEST units</Text>
-            <Text style={styles.term}>Friends confirm · {state.invite.rules.additionalConfirmationThreshold} required</Text>
-            <Text style={styles.muted}>These terms are locked by the confirmed Ritual. Review them before funding; nothing has been submitted.</Text>
-            <Button mode="outlined" disabled accessibilityLabel="Funding unavailable until wallet connection">Continue to funding</Button>
+            <Text style={styles.term}>Stake per member · {formatAtomic(state.invite.rules.memberTotalStake, 6)}</Text>
+            <Text style={styles.term}>Friends confirm · {state.invite.rules.additionalConfirmationThreshold === 0 ? 'honor system' : `${state.invite.rules.additionalConfirmationThreshold} required`}</Text>
+            <Text style={styles.muted}>These terms are locked on-chain. Review them before funding; nothing has been submitted.</Text>
+            <Button mode="contained" onPress={() => navigation.navigate('RitualAction', { ritualId: state.invite!.ritual, phase: 'fund' })} accessibilityLabel="Continue to funding">Continue to funding</Button>
           </Card.Content>
         </Card>
       )}

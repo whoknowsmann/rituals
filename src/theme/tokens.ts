@@ -1,11 +1,11 @@
 /**
  * Rituals design tokens.
  *
- * Direction: friendly competition with money on the line. Dark-first, high
- * contrast, with gold reserved almost exclusively for value and victory.
+ * Direction: a commitment device with your own money behind it. Dark-first,
+ * high contrast, with gold reserved almost exclusively for value — your stake.
  *
  * Gold rather than the usual Solana purple/green for two reasons: it reads as
- * "the pot" without explanation, and it makes the app visually distinct in a
+ * "your stake" without explanation, and it makes the app visually distinct in a
  * dApp Store full of purple gradients.
  */
 
@@ -17,7 +17,7 @@ export const palette = {
   ink600: '#2E2825',
   ink500: '#453D38',
 
-  // Primary: the pot, the stake, the win.
+  // Primary: your stake and what you get back.
   gold500: '#F5B841',
   gold400: '#FFC961',
   gold600: '#D9971B',
