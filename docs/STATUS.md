@@ -3,7 +3,8 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-18** (devnet + physical Seeker + full test run)
+Last verified: **2026-09-24** (devnet app-level lifecycle + full test run; branch
+`overnight/mobile-integration`, not yet merged to main)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -22,29 +23,43 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 
 ## The one-line state
 
-The protocol, the typed client, and the full hero flow are **done and proven on
-devnet with CLI keypairs**. The app installs and runs on the Seeker. The next
-gate is **one Create signed through Mobile Wallet Adapter from the phone** — the
-only unverified link in the chain.
+The protocol, typed client, **and the app's own screen-level lifecycle code** are
+proven on devnet with CLI keypairs: `scripts/smoke-app-lifecycle.ts` drives
+create → fund ×2 → activate → initialize event → claim → friend approves →
+finalize through the same orchestrators and state machines the screens use,
+exit 0. The next gate is still **one Create signed through Mobile Wallet Adapter
+from the phone** — the only unverified link in the chain.
 
 ## Done and verified
 
 - Anchor program deployed to devnet, slot 500137332
 - ProtocolConfig initialized; live state asserted against the client contract
-- Valueless SPL TEST mint (6 decimals), supply 200, mint authority held locally
-- Full hero flow as real transactions on a live validator: create → fund ×2 →
-  activate → initialize event → claim → friend approves → finalize/settle.
-  17/17 assertions, settlement conservation exact, protocol takes nothing
-- Deployment config flipped to `deployed`; client facade opens
-- Funding lobby submits a real Create transaction
+- Valueless SPL TEST mint (6 decimals), mint authority held locally
+- Full hero flow as real transactions (raw builders): 17/17 assertions,
+  settlement conservation exact, protocol takes nothing
+- **2026-09-24: full hero flow through the app-level modules** (Ritual
+  `DywcbrgStUoR3tY6mbtKRCGXy8EWGGenhcJRs8ep1VZm`, finalize
+  `3NpnJJYX…8439e`): pool 2,000,000 / payout 2,000,000 / forfeited 1,000,000 /
+  remaining stake 2,000,000
+- **Reload recovery** for in-flight transactions: pending records journaled at
+  wallet handoff; resolver classifies from chain after a restart. Proven on
+  devnet by `scripts/smoke-reload-recovery.ts`
+- Invite/join (digest-bound, only after confirmed Create; join validates against
+  chain) — unit-tested only
+- Home, detail, claim, confirmation inbox, receipt screens read authoritative
+  chain state (known rituals persisted locally; fixtures are labeled demo-only)
+- Fund, Activate, InitializeEvent, Claim, Approve, Question, Finalize wired
+  through one generalized lifecycle machine with pending-action journaling
+- Transient public-RPC read failures (429, min-context-slot) are retried with
+  bounded backoff; submission is never retried
 - SKR balance read + activation-fee discount branch
 - Ritual suggestions in the template picker (deterministic, on-device)
-- Dark + gold design system and token layer
-- Product reframed as a commitment device (see `docs/PRODUCT.md`)
-- APK installed on a physical Seeker, launches clean, no crashes
+- Dark + gold design system; commitment-device copy
+- APK (first-pass build 9066ad0) built by EAS; earlier build installed on the
+  Seeker and launched clean
 
-Measured: **1,906 JS/TS tests across 65 files**, **180 native program test
-functions**, `tsc --noEmit` clean.
+Measured 2026-09-24: **1,942 JS/TS tests across 70 files**, `tsc --noEmit`
+clean, **180 native program test functions** (not re-run this session).
 
 ## The next gate
 
@@ -83,7 +98,7 @@ The stake asset is the TEST mint, not SOL. Mint authority is local, so TEST can
 be issued on demand — no faucet needed for stake.
 
 Local funding sources: deployer `ETQ9czekQJSebxkWn986Hao15FfEbe1345cZZDrHhXbx`
-(~1.65 SOL, 100 TEST) and a devnet friend keypair
+(~1.5 SOL after 2026-09-24 smokes, holds TEST) and a devnet friend keypair
 `DNZKvXpftZ4PmFAGmSEZJLH3zxURVoZgwJNmcEUYgYsA` (~0.3 SOL) that can act as member
 2 from the CLI. Keys live in `.keys/` and are gitignored.
 
@@ -93,25 +108,28 @@ demo is filmed.
 
 ## After that gate, in order
 
-1. Digest-bound invite generated only after confirmed Create readback
-2. Invite/join flow and member-funding/activation progress
-3. Replace fixture dashboard/detail/claim/receipt reads with authoritative RPC
-4. Stale / rejected / expired / offline / duplicate-tap / reconnect handling
-5. Reload recovery for in-flight transactions (see risk below)
-6. Icon, splash, adaptive icon, accessibility, Seeker-size QA
-7. Signed standalone APK verified on the Seeker
-8. Demo video, pitch deck, screenshots, privacy copy
-9. **Make the repo public** and update the MWA wallet identity URI
-10. Integrated adversarial pass, then ship
+1. Wallet-signed two-wallet lifecycle on the Seeker (invite → join → fund →
+   activate → claim → approve → finalize) — screens are wired, device unproven
+2. Merge `overnight/mobile-integration` to main after the phone run
+3. Icon, splash, adaptive icon, accessibility, Seeker-size QA
+4. Signed standalone APK verified on the Seeker
+5. Demo video, pitch deck, screenshots, privacy copy (drafts on branch
+   `overnight/submission-materials`)
+6. Public-repo cleanup (audit on that branch: no secrets found in history;
+   remove `sketches/`, `spikes/`, internal plans) then **make the repo public**
+   and update the MWA wallet identity URI
+7. Integrated adversarial pass, then ship
 
 ## Open risks
 
-**Reload recovery — highest technical risk.** Submitted-action handles are
-process-local by design and cannot be restored after a reload. MWA leaves the app
-to reach the wallet, so backgrounding mid-transaction is ordinary on Android. A
-user who takes a call while funding must not land in an unrecoverable state. If
-this slips, the demo video must avoid the path that triggers it — and that should
-be known before filming, not during.
+**Public devnet RPC is rate-limited.** Every smoke run sees 429s. Reads now
+retry, but the phone demo should use a dedicated devnet RPC endpoint (needs Jack
+to sign up for a free key). Filming against the public endpoint risks visible
+stalls.
+
+**Reload recovery — now implemented, device-unproven.** Proven on devnet by
+script; the real MWA background/kill path on Android has not been exercised. Test
+it on the Seeker before filming; if it misbehaves, the video must avoid it.
 
 **Organizer questions still unsent.** Two remain, both eligibility rather than
 scoring: is devnet with valueless tokens acceptable as "meaningful interaction
@@ -143,3 +161,13 @@ Mistakes worth not repeating.
   gate flips, update `docs/STATUS.md` in the same commit.
 - Test counts drifted (docs said 1,758/56; actual 1,906/65). Lesson: measure, or
   omit the number.
+- Landed transactions were reported "sent but could not be confirmed" (seen on
+  Approve and Activate). Cause: public devnet load-balances reads, so the
+  post-confirmation readback hit a lagging node (-32016) or a 429 and the client
+  treated one failed read as final. Fixed in 77348d2 with bounded read-only
+  retry. Lesson: before assuming a protocol bug, check the transaction on-chain;
+  here `solana confirm -v` showed `Status: Ok` while the app said failure.
+- The app smoke's settlement assertion failed although settlement was exact:
+  on devnet the host token account is also the fee recipient, so the activation
+  fee skewed the baseline. Lesson: check for account aliasing before trusting a
+  balance-delta assertion.
