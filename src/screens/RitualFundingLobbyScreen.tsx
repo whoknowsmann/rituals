@@ -78,6 +78,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
 
   const confirmed = create.state.status === 'confirmed'
   const invite = confirmed ? create.state.result.invite : undefined
+  const confirmedRitualAddress = confirmed ? create.state.ritualAddress : null
   const copyInvite = useCallback(() => { if (invite) void Clipboard.setStringAsync(invite) }, [invite])
   const shareInvite = useCallback(() => { if (invite) void Share.share({ message: invite }) }, [invite])
 
@@ -157,6 +158,8 @@ export function RitualFundingLobbyScreen({ route }: Props) {
               <Button mode="contained-tonal" onPress={shareInvite} accessibilityLabel="Share ritual invite">Share invite</Button>
             </View>
             <Button mode="text" onPress={() => navigation.navigate('JoinRitual', { invite })}>Preview join terms</Button>
+            <Button mode="contained-tonal" onPress={() => { if (confirmedRitualAddress) navigation.navigate('RitualAction', { ritualId: confirmedRitualAddress, phase: 'fund' }) }}>Fund your stake</Button>
+            <Button mode="outlined" onPress={() => { if (confirmedRitualAddress) navigation.navigate('RitualAction', { ritualId: confirmedRitualAddress, phase: 'activate' }) }}>Activate when everyone is funded</Button>
           </Card.Content>
         </Card>
       )}

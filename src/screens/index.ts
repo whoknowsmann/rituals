@@ -6,6 +6,7 @@ export * from "./ReviewRitualScreen";
 export * from "./RitualRosterScreen";
 export * from './RitualFundingLobbyScreen';
 export * from './JoinRitualScreen';
+export * from './RitualActionScreen';
 export * from "./RitualDetailScreen";
 export * from "./ClaimCompletionScreen";
 export * from "./ConfirmationInboxScreen";
