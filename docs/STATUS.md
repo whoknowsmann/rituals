@@ -21,6 +21,27 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
+## Session 2026-09-24 evening (after WSL restart)
+
+- Local builds work: `artifacts/rituals-local.apk` built from 4a6a2d9 in ~2.5 min
+  (warm cache) and installed on the Seeker 20:32. **Requires JDK 17**: export
+  `JAVA_HOME=~/.local/jdk/jdk-17.0.20.1+1` first — the system Java 21 is a
+  JRE with no `javac` and Gradle rejects it. Expo's API returns intermittent
+  503 "GraphQL request failed"; retry.
+- Fixed on device (97752e8): every valid template reached Review as "This ritual
+  link is invalid" — screens re-validated non-draft shapes. Roster and Lobby
+  had the same defect. Regression test walks the real screen chain.
+- Wallet choice (4a6a2d9): stock MWA's implicit intent always resolved to Seed
+  Vault Wallet on the Seeker, so Phantom was unreachable. A postinstall patch
+  adds `walletPackage` to the native session; every connect point now offers
+  Seed Vault Wallet or Phantom, and later sessions return to the wallet that
+  authorized. Verified: both buttons render on Roster/top bar, and the pinned
+  intent resolves to `app.phantom/.MainActivity`. **Phantom authorization
+  itself is not yet exercised** — that is the next phone step.
+- Tagline restored to "Show up, or pay up." (pinned by test).
+- EAS cloud build 27961a41 (48c4bfd) finished but predates the Review fix — do
+  not use it.
+
 ## Resume here (handoff 2026-09-24, before WSL restart)
 
 Session paused for `wsl --shutdown` to raise the WSL memory cap 8→12 GB. Pick up
