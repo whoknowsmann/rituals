@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "doctor": "expo-doctor"
+    "doctor": "expo-doctor",
+    "postinstall": "node scripts/patch-mwa-wallet-package.mjs"
   },
   "dependencies": {
     "@noble/hashes": "^1.8.0",

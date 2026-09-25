@@ -2,7 +2,8 @@ import { transact, type Web3MobileWallet } from "@solana-mobile/mobile-wallet-ad
 import { Account, useAuthorization } from "./useAuthorization";
 import { PublicKey, Transaction, TransactionSignature, VersionedTransaction } from "@solana/web3.js";
 import { useCallback, useMemo } from "react";
-import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode } from "@solana-mobile/mobile-wallet-adapter-protocol";
+import { associationConfigFor, walletOptionByPackage } from "./walletChoice";
+import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode, type WalletAssociationConfig } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
 export type MobileWalletErrorCategory = "authorization" | "input" | "wallet";
 export class MobileWalletError extends Error {
@@ -57,11 +58,16 @@ export async function authorizeAndSendTransaction(
 }
 
 export function useMobileWallet() {
-  const { authorizeSessionWithSignIn, authorizeSession, deauthorizeSession } = useAuthorization();
-  const connect = useCallback(async (): Promise<Account> => transact(async (wallet) => authorizeSession(wallet)), [authorizeSession]);
-  const signIn = useCallback(async (signInPayload: SignInPayload): Promise<Account> => transact(async (wallet) => authorizeSessionWithSignIn(wallet, signInPayload)), [authorizeSessionWithSignIn]);
-  const disconnect = useCallback(async (): Promise<void> => { await transact(async (wallet) => { await deauthorizeSession(wallet); }); }, [deauthorizeSession]);
-  const signAndSendTransaction = useCallback(async (transaction: Transaction | VersionedTransaction, minContextSlot: number): Promise<TransactionSignature> => await transact((wallet) => authorizeAndSendTransaction(wallet, authorizeSession, transaction, minContextSlot)), [authorizeSession]);
-  const signMessage = useCallback(async (message: Uint8Array): Promise<Uint8Array> => transact(async (wallet) => { const authResult = await authorizeSession(wallet); const signedMessages = await wallet.signMessages({ addresses: [authResult.address], payloads: [message] }); return signedMessages[0]; }), [authorizeSession]);
-  return useMemo(() => ({ connect, signIn, disconnect, signAndSendTransaction, signMessage }), [connect, signIn, disconnect, signAndSendTransaction, signMessage]);
+  const { authorizeSessionWithSignIn, authorizeSession, deauthorizeSession, walletPackage } = useAuthorization();
+  // Every session after connect goes back to the wallet the user chose; a
+  // Phantom-authorized account must never be sent to Seed Vault Wallet.
+  // `walletPackage` is a native extension added by scripts/patch-mwa-wallet-package.mjs; the upstream type only knows baseUri.
+  const session = useCallback(async <T,>(pkg: string | null | undefined, run: (wallet: Web3MobileWallet) => Promise<T>): Promise<T> => await transact(run, associationConfigFor(pkg) as WalletAssociationConfig), []);
+  /** Connect via a specific wallet app (see WALLET_OPTIONS); omit to let Android choose. */
+  const connect = useCallback(async (targetPackage?: string): Promise<Account> => { const pkg = walletOptionByPackage(targetPackage)?.androidPackage ?? null; return session(pkg, async (wallet) => authorizeSession(wallet, pkg)); }, [authorizeSession, session]);
+  const signIn = useCallback(async (signInPayload: SignInPayload): Promise<Account> => session(walletPackage, async (wallet) => authorizeSessionWithSignIn(wallet, signInPayload)), [authorizeSessionWithSignIn, session, walletPackage]);
+  const disconnect = useCallback(async (): Promise<void> => { await session(walletPackage, async (wallet) => { await deauthorizeSession(wallet); }); }, [deauthorizeSession, session, walletPackage]);
+  const signAndSendTransaction = useCallback(async (transaction: Transaction | VersionedTransaction, minContextSlot: number): Promise<TransactionSignature> => await session(walletPackage, (wallet) => authorizeAndSendTransaction(wallet, (w) => authorizeSession(w), transaction, minContextSlot)), [authorizeSession, session, walletPackage]);
+  const signMessage = useCallback(async (message: Uint8Array): Promise<Uint8Array> => session(walletPackage, async (wallet) => { const authResult = await authorizeSession(wallet); const signedMessages = await wallet.signMessages({ addresses: [authResult.address], payloads: [message] }); return signedMessages[0]; }), [authorizeSession, session, walletPackage]);
+  return useMemo(() => ({ connect, signIn, disconnect, signAndSendTransaction, signMessage, walletPackage }), [connect, signIn, disconnect, signAndSendTransaction, signMessage, walletPackage]);
 }

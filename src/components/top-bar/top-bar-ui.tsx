@@ -7,6 +7,7 @@ import { useState } from "react";
 import * as Clipboard from "expo-clipboard";
 import { Linking } from "react-native";
 import { useCluster } from "../cluster/cluster-data-access";
+import { WALLET_OPTIONS, walletNotFound, walletOptionByPackage, type WalletOption } from "../../utils/walletChoice";
 
 export function TopBarWalletButton({
   selectedAccount,
@@ -15,13 +16,12 @@ export function TopBarWalletButton({
   selectedAccount: Account | null;
   openMenu: () => void;
 }) {
-  const { connect } = useMobileWallet();
   return (
     <Button
       icon="wallet"
       mode="contained-tonal"
       style={{ alignSelf: "center" }}
-      onPress={selectedAccount ? openMenu : connect}
+      onPress={openMenu}
     >
       {selectedAccount
         ? ellipsify(selectedAccount.publicKey.toBase58())
@@ -44,12 +44,23 @@ export function TopBarSettingsButton() {
 }
 
 export function TopBarWalletMenu() {
-  const { selectedAccount } = useAuthorization();
+  const { selectedAccount, walletPackage } = useAuthorization();
   const { getExplorerUrl } = useCluster();
   const [visible, setVisible] = useState(false);
   const openMenu = () => setVisible(true);
   const closeMenu = () => setVisible(false);
-  const { disconnect } = useMobileWallet();
+  const { disconnect, connect } = useMobileWallet();
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const connectWith = async (option: WalletOption) => {
+    closeMenu();
+    try {
+      await connect(option.androidPackage);
+      setNotice(null);
+    } catch (error) {
+      setNotice(walletNotFound(error) ? `${option.label} is not installed` : "Connection not completed");
+    }
+  };
 
   const copyAddressToClipboard = async () => {
     if (selectedAccount) {
@@ -79,24 +90,38 @@ export function TopBarWalletMenu() {
         />
       }
     >
-      <Menu.Item
+      {!selectedAccount &&
+        WALLET_OPTIONS.map((option) => (
+          <Menu.Item
+            key={option.id}
+            onPress={() => { void connectWith(option); }}
+            title={option.label}
+            leadingIcon="wallet"
+            accessibilityLabel={`Connect with ${option.label}`}
+          />
+        ))}
+      {!selectedAccount && notice && <Menu.Item title={notice} disabled />}
+      {selectedAccount && walletOptionByPackage(walletPackage) && (
+        <Menu.Item title={`Via ${walletOptionByPackage(walletPackage)?.label}`} leadingIcon="check" disabled />
+      )}
+      {selectedAccount && <Menu.Item
         onPress={copyAddressToClipboard}
         title="Copy address"
         leadingIcon="content-copy"
-      />
-      <Menu.Item
+      />}
+      {selectedAccount && <Menu.Item
         onPress={viewExplorer}
         title="View Explorer"
         leadingIcon="open-in-new"
-      />
-      <Menu.Item
+      />}
+      {selectedAccount && <Menu.Item
         onPress={async () => {
           await disconnect();
           closeMenu();
         }}
         title="Disconnect"
         leadingIcon="link-off"
-      />
+      />}
     </Menu>
   );
 }

@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { StyleSheet } from 'react-native'
-import { Button, Card, Text } from 'react-native-paper'
+import { Card, Text } from 'react-native-paper'
 import { useAuthorization } from '../../utils/useAuthorization'
-import { useMobileWallet } from '../../utils/useMobileWallet'
+import { WalletChoiceButtons } from './WalletChoiceButtons'
 import { palette, radius, space, type } from '../../theme'
 
 /**
@@ -12,22 +12,13 @@ import { palette, radius, space, type } from '../../theme'
  */
 export function ConnectWalletCard({ reason }: { reason: string }) {
   const { selectedAccount } = useAuthorization()
-  const { connect } = useMobileWallet()
-  const [connecting, setConnecting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   if (selectedAccount) return null
-  const onConnect = async () => {
-    setConnecting(true)
-    setError(null)
-    try { await connect() } catch { setError('Wallet connection was not completed. Nothing was sent. Try again.') } finally { setConnecting(false) }
-  }
   return (
     <Card style={styles.card} accessibilityLabel="Connect wallet required">
       <Card.Content style={styles.body}>
         <Text style={styles.title}>Connect your wallet</Text>
         <Text style={styles.muted}>{reason}</Text>
-        {error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
-        <Button mode="contained" onPress={() => { void onConnect() }} loading={connecting} disabled={connecting} accessibilityLabel="Connect wallet">Connect wallet</Button>
+        <WalletChoiceButtons />
       </Card.Content>
     </Card>
   )
@@ -38,5 +29,4 @@ const styles = StyleSheet.create({
   body: { gap: space.sm },
   title: { ...type.heading, color: palette.bone },
   muted: { ...type.body, color: palette.bone70 },
-  error: { ...type.body, color: palette.red500 },
 })

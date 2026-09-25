@@ -127,9 +127,9 @@ describe('Ritual creation journey', () => {
     expect(review.disclosures).toEqual(expect.arrayContaining([
       'Stake remains refundable before activation; after activation each event allocation follows completion/settlement rules.',
       'Activation fee is nonrefundable.',
-      'Network fee: Not estimated in fixture mode; no transaction will be submitted.',
-      'TEST on devnet is a fixture with no real value.',
-      'Nothing is locked or saved in fixture preview.',
+      'Creating the ritual costs about 0.01 devnet SOL in network fees and rent.',
+      'TEST is a devnet token with no real value.',
+      'Nothing is signed or locked until you create the ritual from the funding lobby.',
     ]))
     expect(review.disclosures.join(' ')).not.toMatch(/platform share|forfeit/i)
   })
@@ -185,7 +185,7 @@ describe('Ritual creation journey', () => {
     expect(review).toContain("navigation.navigate('RitualRoster'")
     const roster = readFileSync('src/screens/RitualRosterScreen.tsx', 'utf8')
     const lobby = readFileSync('src/screens/RitualFundingLobbyScreen.tsx', 'utf8')
-    expect(roster).toContain('Connect wallet')
+    expect(roster).toContain('WalletChoiceButtons')
     expect(roster).toContain('Wallet connection was not completed. Try again.')
     expect(roster).toContain('reconcileRosterContext')
     expect(roster).toContain('if (pendingContext.requiresReentry)')
@@ -201,7 +201,7 @@ describe('Ritual creation journey', () => {
     expect(create).toContain('Review terms')
     expect(review).toContain('Ritual terms preview')
     expect(review).toContain('This is a preview. Go back to edit any term before creating it.')
-    expect(review).toContain('not saved')
+    expect(review).toContain('Nothing is signed yet')
     for (const stale of ['cannot be changed after review', 'Review locked', 'Locked ritual', 'Terms are locked for review']) {
       expect(create).not.toContain(stale)
       expect(review).not.toContain(stale)

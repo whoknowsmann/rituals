@@ -13,6 +13,7 @@ import {
 import { toUint8Array } from "js-base64";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
+import { reusableAuthToken } from "./walletChoice";
 
 const CHAIN = "solana";
 const CLUSTER = "devnet";
@@ -28,6 +29,8 @@ type WalletAuthorization = Readonly<{
   accounts: Account[];
   authToken: AuthToken;
   selectedAccount: Account;
+  /** Android package of the wallet that issued authToken; null = implicit default. */
+  walletPackage?: string | null;
 }>;
 
 function getAccountFromAuthorizedAccount(account: AuthorizedAccount): Account {
@@ -39,7 +42,8 @@ function getAccountFromAuthorizedAccount(account: AuthorizedAccount): Account {
 
 function getAuthorizationFromAuthorizationResult(
   authorizationResult: AuthorizationResult,
-  previouslySelectedAccount?: Account
+  previouslySelectedAccount: Account | undefined,
+  walletPackage: string | null
 ): WalletAuthorization {
   let selectedAccount: Account;
   if (
@@ -59,6 +63,7 @@ function getAuthorizationFromAuthorizationResult(
     accounts: authorizationResult.accounts.map(getAccountFromAuthorizedAccount),
     authToken: authorizationResult.auth_token,
     selectedAccount,
+    walletPackage,
   };
 }
 
@@ -117,11 +122,16 @@ export function useAuthorization() {
 
   const handleAuthorizationResult = useCallback(
     async (
-      authorizationResult: AuthorizationResult
+      authorizationResult: AuthorizationResult,
+      walletPackage: string | null
     ): Promise<WalletAuthorization> => {
+      // A different wallet means a different account set; never carry the
+      // previous wallet's selection across.
+      const sameWallet = (authorization?.walletPackage ?? null) === walletPackage;
       const nextAuthorization = getAuthorizationFromAuthorizationResult(
         authorizationResult,
-        authorization?.selectedAccount
+        sameWallet ? authorization?.selectedAccount : undefined,
+        walletPackage
       );
       await setAuthorization(nextAuthorization);
       return nextAuthorization;
@@ -129,26 +139,26 @@ export function useAuthorization() {
     [authorization]
   );
   const authorizeSession = useCallback(
-    async (wallet: AuthorizeAPI) => {
+    async (wallet: AuthorizeAPI, walletPackage: string | null = authorization?.walletPackage ?? null) => {
       const authorizationResult = await wallet.authorize({
         identity: APP_IDENTITY,
         chain: CHAIN_IDENTIFIER,
-        auth_token: authorization?.authToken,
+        auth_token: reusableAuthToken(authorization, walletPackage),
       });
-      return (await handleAuthorizationResult(authorizationResult))
+      return (await handleAuthorizationResult(authorizationResult, walletPackage))
         .selectedAccount;
     },
     [authorization, handleAuthorizationResult]
   );
   const authorizeSessionWithSignIn = useCallback(
-    async (wallet: AuthorizeAPI, signInPayload: SignInPayload) => {
+    async (wallet: AuthorizeAPI, signInPayload: SignInPayload, walletPackage: string | null = authorization?.walletPackage ?? null) => {
       const authorizationResult = await wallet.authorize({
         identity: APP_IDENTITY,
         chain: CHAIN_IDENTIFIER,
-        auth_token: authorization?.authToken,
+        auth_token: reusableAuthToken(authorization, walletPackage),
         sign_in_payload: signInPayload,
       });
-      return (await handleAuthorizationResult(authorizationResult))
+      return (await handleAuthorizationResult(authorizationResult, walletPackage))
         .selectedAccount;
     },
     [authorization, handleAuthorizationResult]
@@ -170,6 +180,7 @@ export function useAuthorization() {
       authorizeSessionWithSignIn,
       deauthorizeSession,
       selectedAccount: authorization?.selectedAccount ?? null,
+      walletPackage: authorization?.walletPackage ?? null,
       isLoading,
     }),
     [authorization, authorizeSession, deauthorizeSession]
