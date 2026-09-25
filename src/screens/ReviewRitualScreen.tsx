@@ -80,7 +80,7 @@ export function ReviewRitualScreen({ route }: Props) {
       >
         Add member wallets
       </Button>
-      <Text style={styles.footer}>Preview only · not saved · no transaction will be submitted</Text>
+      <Text style={styles.footer}>Nothing is signed yet · next, add member wallets</Text>
     </ScrollView>
   )
 }

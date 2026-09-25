@@ -54,9 +54,9 @@ export function buildReviewViewModel(input: unknown): ReviewViewModel | null {
     disclosures: [
       'Stake remains refundable before activation; after activation each event allocation follows completion/settlement rules.',
       'Activation fee is nonrefundable.',
-      'Network fee: Not estimated in fixture mode; no transaction will be submitted.',
-      'TEST on devnet is a fixture with no real value.',
-      'Nothing is locked or saved in fixture preview.',
+      'Creating the ritual costs about 0.01 devnet SOL in network fees and rent.',
+      'TEST is a devnet token with no real value.',
+      'Nothing is signed or locked until you create the ritual from the funding lobby.',
     ],
   }
 }

@@ -124,7 +124,7 @@ export function CreateRitualScreen({ route }: Props) {
       <Button mode="contained" onPress={submit} accessibilityLabel="Review ritual terms">
         Review terms
       </Button>
-      <Text style={styles.disclosure}>Fixture mode only · TEST on devnet has no real value · no wallet or transaction</Text>
+      <Text style={styles.disclosure}>Devnet · TEST has no real value · nothing is signed until you create</Text>
     </ScrollView>
   )
 }
