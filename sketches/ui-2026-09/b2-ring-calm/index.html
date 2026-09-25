@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rituals — B2 · Ring, calmer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root { --bg: #0e0b12; --card: #1a1520; --line: #2c2433; --fg: #fff6ea; --muted: #9b90a3;
+    --gold: #ffb627; --flame: #ff5a1f; --mint: #3cf0a4; --f: "Bricolage Grotesque", system-ui, sans-serif; }
+  html, body { background: var(--bg); }
+  body { font-family: var(--f); color: var(--fg); min-height: 100dvh; display: flex; justify-content: center; -webkit-font-smoothing: antialiased; }
+  .app { width: 100%; max-width: 430px; padding: 18px 20px 40px; position: relative; overflow: hidden; }
+  .glow { position: absolute; width: 520px; height: 520px; left: 50%; top: 20px; transform: translateX(-50%); background: radial-gradient(circle, rgba(255,182,39,.22), transparent 62%); pointer-events: none; transition: background .8s; }
+  .done .glow { background: radial-gradient(circle, rgba(60,240,164,.2), transparent 62%); }
+  header { display: flex; justify-content: space-between; align-items: center; position: relative; }
+  .hi { font-size: 15px; color: var(--muted); } .hi b { color: var(--fg); font-weight: 600; }
+  .streak { background: var(--card); border: 1px solid var(--line); padding: 7px 12px; border-radius: 999px; font-weight: 800; font-size: 14px; }
+
+  .hero { text-align: center; margin-top: 12px; position: relative; }
+  .ringwrap { position: relative; width: 280px; height: 280px; margin: 0 auto; }
+  svg.ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .seg { stroke-linecap: round; transition: stroke .5s, opacity .5s; }
+  /* faces ride the ring: friends are part of the number */
+  .orb { position: absolute; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: #140f18; border: 3px solid var(--bg); transition: transform .4s cubic-bezier(.2,1.8,.4,1); }
+  .orb.ok::after { content: "✓"; position: absolute; right: -6px; bottom: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--mint); color: #043; font-size: 10px; display: grid; place-items: center; border: 2px solid var(--bg); }
+  .orb.wait { filter: saturate(.25) brightness(.65); }
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .amt { font-size: 60px; font-weight: 800; letter-spacing: -3px; line-height: 1; }
+  .amt small { font-size: 17px; letter-spacing: 0; color: var(--muted); font-weight: 600; margin-left: 4px; }
+  .lbl { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; margin-top: 4px; }
+  .req { color: var(--muted); font-size: 15px; margin-top: 4px; }
+
+  .cta { position: relative; width: 100%; margin-top: 24px; border: 0; border-radius: 24px; padding: 21px; font-family: var(--f); font-size: 19px; font-weight: 800; color: #1a0d00; background: var(--gold); box-shadow: 0 5px 0 #a8700a; cursor: pointer; transition: transform .08s, box-shadow .08s, background .4s; }
+  .cta:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8700a; }
+  .done .cta { background: var(--card); color: var(--fg); box-shadow: 0 5px 0 #000; }
+  .hint { text-align: center; color: var(--muted); font-size: 13px; margin-top: 12px; }
+  .next { margin-top: 26px; }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 14px 2px; border-top: 1px solid var(--line); font-size: 15px; }
+  .row span { color: var(--muted); font-size: 13px; }
+  .foot { text-align: center; color: #5a5060; font-size: 12px; margin-top: 22px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="glow"></div>
+  <header><div class="hi">Tuesday, <b>Jack</b></div><div class="streak">Week 3 of 4</div></header>
+
+  <section class="hero">
+    <div class="ringwrap" id="rw">
+      <svg class="ring" viewBox="0 0 100 100"><g id="segs"></g></svg>
+      <div class="center">
+        <div class="amt" id="amt">5<small>TEST</small></div>
+        <div class="lbl" id="lbl">yours to keep this week</div>
+      </div>
+    </div>
+    <h1>Tuesday run</h1>
+    <p class="req">Run, post the route. Sam confirms.</p>
+  </section>
+
+  <button class="cta" id="cta" onclick="claim()">I showed up</button>
+  <p class="hint" id="hint">2 days left · Sam and Maya already did</p>
+
+  <div class="next">
+    <div class="row">Read before bed <span>Maya, Theo · starts Mon</span></div>
+    <div class="row">Call mom <span>honor · Sun</span></div>
+  </div>
+  <p class="foot">Show up, or pay up.</p>
+</div>
+<script>
+  const C = 2*Math.PI*44, n = 4, gap = 5, seg = C/n - gap, g = document.getElementById('segs');
+  const st = ['var(--gold)','var(--gold)','var(--line)','var(--line)'];
+  st.forEach((c,i)=>{ const el=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    Object.entries({cx:50,cy:50,r:44,fill:'none','stroke-width':6,class:'seg',id:'s'+i}).forEach(([k,v])=>el.setAttribute(k,v));
+    el.style.stroke=c; el.setAttribute('stroke-dasharray',`${seg} ${C-seg}`); el.setAttribute('stroke-dashoffset',-(i*C/n)); g.appendChild(el); });
+  // place member orbs on the ring
+  const rw=document.getElementById('rw'), people=[['J','#ffb627','wait','me'],['S','#b89cff','ok'],['M','#6fd3ff','ok']];
+  people.forEach(([l,c,s,id],i)=>{ const a=(-150+i*55)*Math.PI/180, R=140-22+4; const o=document.createElement('div');
+    o.className='orb '+s; o.textContent=l; o.style.background=c; if(id) o.id=id;
+    o.style.left=(140+Math.cos(a)*R-22)+'px'; o.style.top=(140+Math.sin(a)*R-22)+'px'; rw.appendChild(o); });
+  function claim(){ const a=document.getElementById('app'); if(a.classList.contains('done')) return; a.classList.add('done');
+    navigator.vibrate && navigator.vibrate([10,30,10,30,40]);
+    document.getElementById('s2').style.stroke='var(--gold)';
+    const me=document.getElementById('me'); me.className='orb ok'; me.style.transform='scale(1.25)'; setTimeout(()=>me.style.transform='',420);
+    document.getElementById('lbl').textContent='coming back when Sam confirms';
+    document.getElementById('cta').textContent='Checked in ✓'; document.getElementById('hint').textContent='All three of you showed up this week.'; }
+</script>
+</body>
+</html>
