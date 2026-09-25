@@ -1,3 +1,4 @@
+import { logFailure } from '../../utils/diagnostics'
 import type { LifecycleEvent, LifecycleFailureCategory, LifecyclePreparedRef, LifecycleSubmittedRef, LifecycleConfirmedRef } from './lifecycleMachine'
 
 export type LifecycleActionDeps = Readonly<{
@@ -22,10 +23,11 @@ export async function runLifecycleAction(deps: LifecycleActionDeps, dispatch: Di
   const fail = (category: LifecycleFailureCategory): LifecycleOutcome => { dispatch({ type: 'FAILED', category, message: messageFor[category] }); return { ok: false, category } }
   dispatch({ type: 'PREPARE' })
   let prepared: LifecyclePreparedRef
-  try { prepared = await deps.prepare() } catch { return fail('preparation') }
+  try { prepared = await deps.prepare() } catch (error) { logFailure('action.prepare', error); return fail('preparation') }
   dispatch({ type: 'PREPARED', prepared })
   let handle: LifecycleSubmittedRef
   try { handle = await deps.submit(prepared) } catch (error) {
+    logFailure('action.submit', error)
     if (error !== null && typeof error === 'object' && (error as { submitted?: unknown }).submitted === true) return fail('confirmation')
     if (error !== null && typeof error === 'object' && (error as { blockhashExpired?: unknown }).blockhashExpired === true) return fail('blockhash-expired')
     return fail(isRejection(error) ? 'wallet-rejected' : 'submission')
@@ -36,5 +38,5 @@ export async function runLifecycleAction(deps: LifecycleActionDeps, dispatch: Di
     const result = await deps.confirm(handle)
     dispatch({ type: 'CONFIRMED', result })
     return { ok: true, result }
-  } catch { return fail('confirmation') }
+  } catch (error) { logFailure('action.confirm', error); return fail('confirmation') }
 }

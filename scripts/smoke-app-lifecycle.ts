@@ -11,7 +11,7 @@
  * Devnet only. Never uses the Solana CLI default wallet.
  */
 import { readFileSync } from 'node:fs'
-import { withReadRetry } from '../src/features/rituals/client/resilientRead'
+import { feeForMessageAtSlot, withReadRetry } from '../src/features/rituals/client/resilientRead'
 import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js'
 import { getAccount } from '@solana/spl-token'
 import { createCurrentRitualClient, type RitualClientTransport } from '../src/data/rituals/ritualClient'
@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     // Same read-retry wrapper the app transport uses (useRitualClient).
     getMultipleAccountsInfoAndContext: withReadRetry(connection.getMultipleAccountsInfoAndContext.bind(connection)),
     getLatestBlockhashAndContext: withReadRetry(connection.getLatestBlockhashAndContext.bind(connection)),
-    getFeeForMessage: async (message, _config) => connection.getFeeForMessage(message, 'confirmed'),
+    getFeeForMessage: feeForMessageAtSlot(connection.getFeeForMessage.bind(connection) as never) as never,
     getMinimumBalanceForRentExemption: connection.getMinimumBalanceForRentExemption.bind(connection),
     confirmTransaction: async (strategy, commitment) => {
       let lastError: unknown

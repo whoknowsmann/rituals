@@ -68,3 +68,10 @@ describe('authorizeAndSendTransaction', () => {
     await expect(authorizeAndSendTransaction(session, authorize, legacy(), 1)).rejects.toBeInstanceOf(MobileWalletError)
   })
 })
+
+describe('wallet back-out', () => {
+  it('classifies leaving the wallet without approving as a user rejection', async () => {
+    const session = { signAndSendTransactions: vi.fn(async () => { throw new Error('Session not established: Local association cancelled by user') }) }
+    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 1)).rejects.toMatchObject({ category: 'wallet', userRejected: true })
+  })
+})

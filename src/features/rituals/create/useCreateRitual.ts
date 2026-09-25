@@ -12,6 +12,7 @@
  * this hook is deliberately thin.
  */
 
+import { logFailure } from '../../../utils/diagnostics'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import {
   canSubmitCreate,
@@ -60,7 +61,8 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
       try {
         const deps = makeDeps()
         await runCreateRitual(deps, safeDispatch)
-      } catch {
+      } catch (error) {
+        logFailure('create.deps', error)
         // makeDeps itself can reject invalid input before any network work.
         safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the ritual. Nothing was sent.' })
       } finally {

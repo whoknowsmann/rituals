@@ -17,7 +17,11 @@ function isUserRejection(error: unknown): boolean {
   try {
     if (error && typeof error === "object") {
       const value = error as { name?: unknown; code?: unknown };
-      return value.name === "UserRejectedRequestError" || value.code === 4001 || value.code === SolanaMobileWalletAdapterProtocolErrorCode.ERROR_AUTHORIZATION_FAILED || value.code === SolanaMobileWalletAdapterProtocolErrorCode.ERROR_NOT_SIGNED;
+      if (value.name === "UserRejectedRequestError" || value.code === 4001 || value.code === SolanaMobileWalletAdapterProtocolErrorCode.ERROR_AUTHORIZATION_FAILED || value.code === SolanaMobileWalletAdapterProtocolErrorCode.ERROR_NOT_SIGNED) return true;
+      // Backing out of the wallet ends the association: the native layer reports
+      // "Local association cancelled by user". That is a choice, not a fault.
+      const message = (error as { message?: unknown }).message;
+      return typeof message === "string" && /cancel{1,2}ed by user/i.test(message);
     }
   } catch { /* sanitize hostile errors */ }
   return false;

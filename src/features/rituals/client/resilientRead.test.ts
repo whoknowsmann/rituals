@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { isTransientRpcError, withReadRetry } from './resilientRead'
+import { isTransientRpcError, withReadRetry , feeForMessageAtSlot } from './resilientRead'
 
 const noSleep = async () => {}
 
@@ -79,5 +79,26 @@ describe('withReadRetry', () => {
     const wrapped = withReadRetry(read, { attempts: 4, baseDelayMs: 100, sleep: async (ms) => { delays.push(ms) } })
     await expect(wrapped()).rejects.toThrow()
     expect(delays).toEqual([100, 200, 400])
+  })
+})
+
+describe('feeForMessageAtSlot', () => {
+  const noSleep = async () => {}
+  it('re-asks until a node at or past minContextSlot answers', async () => {
+    const slots = [90, 95, 100]
+    const calls: unknown[] = []
+    const getFee = async (_m: unknown, commitment?: string) => { calls.push(commitment); return { context: { slot: slots.shift()! }, value: 5000 } }
+    const fee = feeForMessageAtSlot(getFee, { sleep: noSleep })
+    await expect(fee('msg', { commitment: 'confirmed', minContextSlot: 100 })).resolves.toEqual({ context: { slot: 100 }, value: 5000 })
+    // commitment is passed as a string, the only form web3.js 1.x forwards
+    expect(calls).toEqual(['confirmed', 'confirmed', 'confirmed'])
+  })
+  it('returns the last (stale) answer after bounded attempts so the preparer still fails closed', async () => {
+    const fee = feeForMessageAtSlot(async () => ({ context: { slot: 1 }, value: 5000 }), { sleep: noSleep, attempts: 3 })
+    await expect(fee('msg', { minContextSlot: 10 })).resolves.toMatchObject({ context: { slot: 1 } })
+  })
+  it('passes through when no minimum slot is requested', async () => {
+    const fee = feeForMessageAtSlot(async () => ({ context: { slot: 1 }, value: 1 }), { sleep: noSleep })
+    await expect(fee('msg', 'processed')).resolves.toMatchObject({ value: 1 })
   })
 })

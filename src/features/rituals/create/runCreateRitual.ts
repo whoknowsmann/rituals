@@ -18,6 +18,7 @@ import type {
   CreatePreparedRef,
   CreateSubmittedRef,
 } from './createMachine'
+import { logFailure } from '../../../utils/diagnostics'
 
 export type CreateRitualDeps = Readonly<{
   prepare: () => Promise<CreatePreparedRef>
@@ -77,7 +78,8 @@ export async function runCreateRitual(
   let prepared: CreatePreparedRef
   try {
     prepared = await deps.prepare()
-  } catch {
+  } catch (error) {
+    logFailure('create.prepare', error)
     return failWith('preparation')
   }
   dispatch({ type: 'PREPARED', prepared })
@@ -86,6 +88,7 @@ export async function runCreateRitual(
   try {
     handle = await deps.submit(prepared)
   } catch (error) {
+    logFailure('create.submit', error)
     // A wallet-returned signature followed by a local persistence failure is
     // indistinguishable from any other post-submission uncertainty.
     if (error !== null && typeof error === 'object' && (error as { submitted?: unknown }).submitted === true) return failWith('confirmation')
@@ -100,7 +103,8 @@ export async function runCreateRitual(
   let result: CreateConfirmedRef
   try {
     result = await deps.confirm(handle)
-  } catch {
+  } catch (error) {
+    logFailure('create.confirm', error)
     // Past this point the transaction may already be on-chain. Never retryable.
     return failWith('confirmation')
   }

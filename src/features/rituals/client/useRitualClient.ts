@@ -6,7 +6,7 @@ import { useMobileWallet } from '../../../utils/useMobileWallet'
 import { createCurrentRitualClient, type RitualClient, type RitualClientTransport } from '../../../data/rituals/ritualClient'
 import { RITUALS_CURRENT_CONFIG, RITUALS_PROGRAM_ID } from '../../../data/rituals/programIds'
 import type { RitualWalletSubmissionTransport } from '../../../data/rituals/ritualSubmission'
-import { withReadRetry } from './resilientRead'
+import { feeForMessageAtSlot, withReadRetry } from './resilientRead'
 
 export type RitualDeploymentConfig = Readonly<{ deployment: 'deployed' | 'not-deployed'; programId: unknown }>
 export type RitualClientState =
@@ -32,7 +32,7 @@ function makeTransport(connection: any, signAndSendTransaction: RitualWalletSubm
     // transient public-RPC failures. Submission is never retried.
     getMultipleAccountsInfoAndContext: withReadRetry(connection.getMultipleAccountsInfoAndContext.bind(connection)),
     getLatestBlockhashAndContext: withReadRetry(connection.getLatestBlockhashAndContext.bind(connection)),
-    getFeeForMessage: withReadRetry(connection.getFeeForMessage.bind(connection)),
+    getFeeForMessage: feeForMessageAtSlot(connection.getFeeForMessage.bind(connection)),
     getMinimumBalanceForRentExemption: withReadRetry(connection.getMinimumBalanceForRentExemption.bind(connection)),
     confirmTransaction: withReadRetry(connection.confirmTransaction.bind(connection)),
     signAndSendTransaction,

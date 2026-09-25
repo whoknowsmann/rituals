@@ -40,7 +40,8 @@ function walletFailure(error: unknown): never {
     if (error !== null && typeof error === 'object') {
       const name = (error as { name?: unknown }).name
       const code = (error as { code?: unknown }).code
-      if (name === 'WalletSignAndSendTransactionError' || name === 'UserRejectedRequestError' || code === 4001) return fail('wallet', 'wallet request was rejected')
+      const userRejected = (error as { userRejected?: unknown }).userRejected
+      if (userRejected === true || name === 'WalletSignAndSendTransactionError' || name === 'UserRejectedRequestError' || code === 4001) return fail('wallet', 'wallet request was rejected')
     }
   } catch { /* sanitize hostile errors */ }
   return fail('wallet', 'wallet submission failed')

@@ -70,3 +70,37 @@ export function withReadRetry<A extends unknown[], R>(
     throw lastError
   }
 }
+
+type FeeResponse = Readonly<{ context: { slot: number }; value: number | null }>
+type FeeConfig = Readonly<{ commitment?: string; minContextSlot?: number }> | string | undefined
+
+/**
+ * getFeeForMessage that honours minContextSlot.
+ *
+ * web3.js 1.x takes a commitment string for this call, so a config object's
+ * minContextSlot never reaches the server. Public devnet load-balances reads,
+ * so the fee often comes from a node behind the one that issued the blockhash;
+ * the preparer then (correctly) rejects it as "fee context is stale" and Create
+ * fails before the wallet ever opens. Re-ask until a node at or past the slot
+ * answers. Read-only, so retrying is safe.
+ */
+export function feeForMessageAtSlot(
+  getFee: (message: unknown, commitment?: string) => Promise<FeeResponse>,
+  options: ReadRetryOptions = {},
+): (message: unknown, config?: FeeConfig) => Promise<FeeResponse> {
+  const attempts = Math.max(1, options.attempts ?? 8)
+  const baseDelayMs = options.baseDelayMs ?? 250
+  const sleep = options.sleep ?? defaultSleep
+  const read = withReadRetry(getFee, options)
+  return async (message, config) => {
+    const commitment = typeof config === 'string' ? config : config?.commitment
+    const minSlot = typeof config === 'object' && config !== null ? config.minContextSlot : undefined
+    let last: FeeResponse | undefined
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      last = await read(message, commitment)
+      if (minSlot === undefined || last.context.slot >= minSlot) return last
+      await sleep(baseDelayMs * (attempt + 1))
+    }
+    return last as FeeResponse
+  }
+}
