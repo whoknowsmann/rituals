@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rituals — B · The Ring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg: #0e0b12; --card: #1a1520; --line: #2c2433; --fg: #fff6ea; --muted: #9b90a3;
+    --gold: #ffb627; --flame: #ff5a1f; --mint: #3cf0a4; --f: "Bricolage Grotesque", system-ui, sans-serif; }
+  html, body { background: var(--bg); }
+  body { font-family: var(--f); color: var(--fg); min-height: 100dvh; display: flex; justify-content: center; -webkit-font-smoothing: antialiased; }
+  .app { width: 100%; max-width: 430px; padding: 18px 20px 40px; position: relative; overflow: hidden; }
+  .glow { position: absolute; width: 520px; height: 520px; left: 50%; top: 40px; transform: translateX(-50%); background: radial-gradient(circle, rgba(255,90,31,.28), rgba(255,182,39,.08) 40%, transparent 65%); pointer-events: none; transition: opacity .6s; }
+  header { display: flex; justify-content: space-between; align-items: center; position: relative; }
+  .hi { font-size: 15px; color: var(--muted); } .hi b { color: var(--fg); font-weight: 600; }
+  .streak { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line); padding: 7px 12px; border-radius: 999px; font-weight: 800; }
+  .streak i { font-style: normal; }
+
+  .hero { text-align: center; margin-top: 18px; position: relative; }
+  .ringwrap { position: relative; width: 290px; height: 290px; margin: 0 auto; }
+  svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .track { stroke: var(--line); }
+  .seg { stroke-linecap: round; transition: stroke .5s, stroke-dashoffset 1s cubic-bezier(.2,.9,.2,1); }
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .amt { font-size: 64px; font-weight: 800; letter-spacing: -3px; line-height: 1; }
+  .amt small { font-size: 18px; letter-spacing: 0; color: var(--muted); font-weight: 600; margin-left: 4px; }
+  .lbl { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .pill { margin-top: 12px; font-size: 12px; font-weight: 600; color: var(--flame); background: rgba(255,90,31,.12); padding: 5px 10px; border-radius: 999px; }
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: -1px; margin-top: 8px; }
+  .req { color: var(--muted); font-size: 15px; margin-top: 4px; }
+
+  .faces { display: flex; justify-content: center; gap: 18px; margin: 22px 0 6px; }
+  .face { text-align: center; font-size: 12px; color: var(--muted); }
+  .av { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 20px; color: #140f18; position: relative; margin-bottom: 6px; transition: transform .4s cubic-bezier(.2,1.8,.4,1); }
+  .av.ok::after { content: "✓"; position: absolute; right: -3px; bottom: -3px; width: 22px; height: 22px; border-radius: 50%; background: var(--mint); color: #062; font-size: 12px; display: grid; place-items: center; border: 3px solid var(--bg); }
+  .av.wait { outline: 2px dashed var(--line); outline-offset: 3px; filter: saturate(.3) brightness(.7); }
+
+  .cta { position: relative; width: 100%; margin-top: 22px; border: 0; border-radius: 26px; padding: 22px; font-family: var(--f); font-size: 20px; font-weight: 800; color: #1a0d00; background: linear-gradient(180deg, #ffc34d, #ff8a1f); box-shadow: 0 6px 0 #b8520c, 0 18px 40px -12px rgba(255,120,30,.6); cursor: pointer; transition: transform .08s, box-shadow .08s; }
+  .cta:active { transform: translateY(5px); box-shadow: 0 1px 0 #b8520c; }
+  .hint { text-align: center; color: var(--muted); font-size: 13px; margin-top: 12px; }
+
+  .next { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mini { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px; }
+  .mini b { display: block; font-size: 16px; } .mini span { color: var(--muted); font-size: 12px; }
+  .dots { display: flex; gap: 4px; margin-top: 10px; } .dots i { width: 14px; height: 6px; border-radius: 3px; background: var(--line); } .dots i.on { background: var(--gold); }
+
+  .burst { position: absolute; left: 50%; top: 200px; pointer-events: none; }
+  .p { position: absolute; width: 8px; height: 8px; border-radius: 2px; animation: fly 900ms cubic-bezier(.1,.8,.3,1) forwards; }
+  @keyframes fly { to { transform: translate(var(--x), var(--y)) rotate(540deg); opacity: 0; } }
+  .done .glow { opacity: .4; }
+  .foot { text-align: center; color: #5a5060; font-size: 12px; margin-top: 26px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="glow"></div>
+  <header><div class="hi">Tuesday, <b>Jack</b></div><div class="streak"><i>🔥</i><span id="streak">2</span> weeks</div></header>
+
+  <section class="hero">
+    <div class="ringwrap">
+      <svg viewBox="0 0 100 100">
+        <circle class="track" cx="50" cy="50" r="44" fill="none" stroke-width="7"/>
+        <g id="segs"></g>
+      </svg>
+      <div class="center">
+        <div class="amt" id="amt">5<small>TEST</small></div>
+        <div class="lbl" id="lbl">on the line this week</div>
+        <div class="pill" id="pill">⏳ 2d 14h left</div>
+      </div>
+      <div class="burst" id="burst"></div>
+    </div>
+    <h1>Tuesday run</h1>
+    <p class="req">Run, post the route. Sam confirms.</p>
+  </section>
+
+  <div class="faces">
+    <div class="face"><div class="av wait" id="me" style="background:#ffb627">J</div>You</div>
+    <div class="face"><div class="av ok" style="background:#b89cff">S</div>Sam</div>
+    <div class="face"><div class="av wait" style="background:#6fd3ff">M</div>Maya</div>
+  </div>
+
+  <button class="cta" id="cta" onclick="claim()">I showed up</button>
+  <p class="hint" id="hint">Hold on — Sam has to confirm before you get it back.</p>
+
+  <div class="next">
+    <div class="mini"><b>Read before bed</b><span>Maya, Theo · 8 TEST</span><div class="dots"><i class="on"></i><i></i><i></i><i></i></div></div>
+    <div class="mini"><b>Call mom</b><span>Honor · starts Sun</span><div class="dots"><i></i><i></i><i></i><i></i></div></div>
+  </div>
+  <p class="foot">Show up, or pay up.</p>
+</div>
+<script>
+  const C = 2*Math.PI*44, n = 4, gap = 4, segLen = C/n - gap;
+  const colors = ['var(--gold)','var(--gold)','var(--line)','var(--line)'];
+  const g = document.getElementById('segs');
+  colors.forEach((c,i) => { const el = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    Object.entries({cx:50,cy:50,r:44,fill:'none','stroke-width':7,class:'seg',id:'s'+i}).forEach(([k,v])=>el.setAttribute(k,v));
+    el.style.stroke = c; el.setAttribute('stroke-dasharray', `${segLen} ${C-segLen}`); el.setAttribute('stroke-dashoffset', -(i*C/n)); g.appendChild(el); });
+  document.getElementById('s2').style.stroke = 'var(--flame)'; document.getElementById('s2').style.opacity = .35;
+  function claim(){ const a=document.getElementById('app'); if(a.classList.contains('done')) return; a.classList.add('done');
+    navigator.vibrate && navigator.vibrate([10,30,10,30,40]);
+    const s=document.getElementById('s2'); s.style.opacity=1; s.style.stroke='var(--gold)';
+    document.getElementById('me').className='av ok'; document.getElementById('me').style.transform='scale(1.15)'; setTimeout(()=>document.getElementById('me').style.transform='',400);
+    document.getElementById('streak').textContent='3'; document.getElementById('pill').textContent='👀 waiting on Sam';
+    document.getElementById('lbl').textContent='coming back to you'; document.getElementById('cta').textContent='Nice. Nudge Sam →';
+    document.getElementById('hint').textContent='Streak saved. 5 TEST returns when Sam confirms.';
+    const b=document.getElementById('burst'); const cs=['#ffb627','#ff5a1f','#3cf0a4','#b89cff','#fff6ea'];
+    for(let i=0;i<28;i++){ const p=document.createElement('i'); p.className='p'; const ang=Math.random()*Math.PI*2, r=90+Math.random()*90;
+      p.style.setProperty('--x',Math.cos(ang)*r+'px'); p.style.setProperty('--y',Math.sin(ang)*r+'px'); p.style.background=cs[i%cs.length]; b.appendChild(p); } }
+</script>
+</body>
+</html>

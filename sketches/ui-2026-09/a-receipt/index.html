@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rituals — A · The Receipt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0b0b0a; --paper: #f1ece1; --paper-2: #e6dfd0; --line: #1a1a18;
+    --muted: #6d675c; --red: #d2381f; --serif: "Instrument Serif", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  html, body { background: var(--ink); }
+  body { font-family: var(--mono); color: var(--ink); min-height: 100dvh; display: flex; justify-content: center; -webkit-font-smoothing: antialiased; }
+  .app { width: 100%; max-width: 430px; padding: 22px 18px 40px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; color: var(--paper); margin-bottom: 18px; }
+  .brand { font-family: var(--serif); font-size: 30px; font-style: italic; letter-spacing: -0.5px; }
+  .wallet { font-size: 11px; opacity: .7; border: 1px solid #3a3833; padding: 5px 9px; border-radius: 999px; }
+
+  /* The ticket: your commitment as a physical object */
+  .ticket { background: var(--paper); border-radius: 6px; position: relative; padding: 22px 20px 0; box-shadow: 0 30px 60px -30px rgba(0,0,0,.9); }
+  .ticket::before, .ticket::after { content: ""; position: absolute; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); top: 188px; }
+  .ticket::before { left: -11px; } .ticket::after { right: -11px; }
+  .kicker { font-size: 10px; letter-spacing: 2.2px; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 44px; line-height: .98; letter-spacing: -1.2px; margin: 10px 0 6px; }
+  h1 em { color: var(--red); }
+  .sub { font-size: 12px; color: var(--muted); }
+  .perf { border-top: 2px dashed #bdb4a2; margin: 26px -20px 0; }
+  .rows { padding: 16px 0 6px; }
+  .row { display: flex; justify-content: space-between; font-size: 13px; padding: 7px 0; }
+  .row span:first-child { color: var(--muted); }
+  .row.big { font-size: 13px; padding-top: 12px; border-top: 1px solid var(--line); margin-top: 6px; }
+  .row.big b { font-size: 26px; font-weight: 800; letter-spacing: -1px; }
+  .weeks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 14px 0 18px; }
+  .wk { border: 1.5px solid var(--line); height: 54px; border-radius: 3px; display: flex; flex-direction: column; justify-content: space-between; padding: 6px; font-size: 10px; }
+  .wk.done { background: var(--ink); color: var(--paper); }
+  .wk.now { border-style: dashed; background: repeating-linear-gradient(-45deg, transparent 0 6px, var(--paper-2) 6px 7px); }
+  .wk .s { font-size: 16px; font-weight: 800; }
+  .crew { display: flex; gap: 8px; padding-bottom: 18px; }
+  .m { flex: 1; border-top: 1.5px solid var(--line); padding-top: 8px; font-size: 11px; }
+  .m b { display: block; font-size: 13px; }
+  .m .st { color: var(--muted); } .m .st.ok { color: var(--ink); } .m .st.ok::before { content: "✓ "; }
+
+  .cta { margin: 18px 0 0; width: 100%; border: 0; background: var(--red); color: var(--paper); font-family: var(--mono); font-weight: 800; font-size: 15px; letter-spacing: 1px; text-transform: uppercase; padding: 20px; border-radius: 4px; cursor: pointer; position: relative; overflow: hidden; }
+  .cta small { display: block; font-weight: 400; font-size: 11px; letter-spacing: 0; text-transform: none; opacity: .85; margin-top: 4px; }
+  .cta:active { transform: translateY(1px); }
+  .stamp { position: absolute; right: 18px; top: 70px; font-family: var(--serif); font-style: italic; font-size: 34px; color: var(--red); border: 3px solid var(--red); padding: 2px 14px; border-radius: 6px; transform: rotate(-12deg) scale(2.2); opacity: 0; pointer-events: none; transition: transform .35s cubic-bezier(.2,1.6,.4,1), opacity .2s; mix-blend-mode: multiply; }
+  .claimed .stamp { opacity: .9; transform: rotate(-12deg) scale(1); }
+  .claimed .cta { background: var(--ink); border: 1.5px solid #3a3833; }
+  .claimed .wk.now { background: var(--ink); color: var(--paper); border-style: solid; }
+  .foot { color: #5b574f; font-size: 10px; text-align: center; margin-top: 22px; letter-spacing: 1.5px; text-transform: uppercase; }
+  .more { color: var(--paper); margin-top: 28px; }
+  .more h2 { font-family: var(--serif); font-weight: 400; font-size: 22px; margin-bottom: 10px; }
+  .line { display: flex; justify-content: space-between; border-top: 1px solid #2a2824; padding: 14px 0; font-size: 13px; }
+  .line span:last-child { color: #a39c8e; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header><div class="brand">Rituals</div><div class="wallet">◉ Da59…VmV</div></header>
+
+  <section class="ticket">
+    <div class="kicker"><span>Ritual Nº 0042</span><span>Week 3 of 4</span></div>
+    <h1>Tuesday run<br>with <em>Sam</em>.</h1>
+    <p class="sub">Run, then post the route. One friend confirms.</p>
+    <div class="stamp">Showed up</div>
+
+    <div class="weeks">
+      <div class="wk done"><span>W1</span><span class="s">✓</span></div>
+      <div class="wk done"><span>W2</span><span class="s">✓</span></div>
+      <div class="wk now"><span>W3</span><span class="s" id="w3">·</span></div>
+      <div class="wk"><span>W4</span><span class="s">&nbsp;</span></div>
+    </div>
+
+    <div class="crew">
+      <div class="m"><b>You</b><span class="st" id="you">not yet</span></div>
+      <div class="m"><b>Sam</b><span class="st ok">showed up</span></div>
+      <div class="m"><b>Maya</b><span class="st">not yet</span></div>
+    </div>
+
+    <div class="perf"></div>
+    <div class="rows">
+      <div class="row"><span>Staked</span><span>20.00 TEST</span></div>
+      <div class="row"><span>Back so far</span><span>10.00 TEST</span></div>
+      <div class="row"><span>Window closes</span><span id="clock">2d 14:08:51</span></div>
+      <div class="row big"><span>On the line<br>this week</span><b>5.00</b></div>
+    </div>
+  </section>
+
+  <button class="cta" id="cta" onclick="claim()">I showed up<small>Sam will be asked to confirm</small></button>
+
+  <div class="more">
+    <h2>Other rituals</h2>
+    <div class="line"><span>Read before bed · Maya, Theo</span><span>W1 · 8 TEST</span></div>
+    <div class="line"><span>Call mom · honor</span><span>starts Sun</span></div>
+  </div>
+  <p class="foot">Show up, or pay up.</p>
+</div>
+<script>
+  let t = 2*86400 + 14*3600 + 8*60 + 51;
+  setInterval(() => { t--; const d=Math.floor(t/86400), h=Math.floor(t%86400/3600), m=Math.floor(t%3600/60), s=t%60;
+    document.getElementById('clock').textContent = `${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }, 1000);
+  function claim(){ const a=document.getElementById('app'); if(a.classList.contains('claimed')) return;
+    a.classList.add('claimed'); navigator.vibrate && navigator.vibrate([12,40,18]);
+    document.getElementById('w3').textContent='✓'; document.getElementById('you').textContent='claimed'; document.getElementById('you').className='st ok';
+    document.getElementById('cta').innerHTML='Waiting on Sam<small>You’ll get 5.00 TEST back when Sam confirms</small>'; }
+</script>
+</body>
+</html>
