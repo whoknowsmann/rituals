@@ -19,6 +19,7 @@ import { usePendingRitualRecovery } from '../features/rituals/recovery/usePendin
 import { asyncStoragePendingActionStore } from '../features/rituals/recovery/pendingAction'
 import { useCreateRitual } from '../features/rituals/create/useCreateRitual'
 import { buildCreateRitualDeps } from '../features/rituals/create/buildCreateDeps'
+import { walletHandoffNote, withWalletHandoff } from '../features/rituals/walletHandoff'
 import { DEMO_CADENCE, describeCadence, firstEventStart } from '../domain/rituals/schedule'
 import { rememberRitual } from '../features/rituals/authoritativeRituals'
 import { RITUALS_DEVNET_STAKE_MINT } from '../data/rituals/programIds'
@@ -33,7 +34,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
   const client = useRitualClient()
   const { connection } = useConnection()
   const recovery = usePendingRitualRecovery(client, connection, asyncStoragePendingActionStore)
-  const { selectedAccount } = useAuthorization()
+  const { selectedAccount, walletPackage } = useAuthorization()
   const accountRef = useRef(selectedAccount)
   accountRef.current = selectedAccount
   const parsed = useMemo(() => parseRitualFundingLobbyRoute(route.params), [route.params])
@@ -67,6 +68,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
   }, [parsed, client, selectedAccount, cadence, connection])
 
   const create = useCreateRitual(makeDeps)
+  const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
 
   const confirmed = create.state.status === 'confirmed'
   const invite = confirmed ? create.state.result.invite : undefined
@@ -159,13 +161,13 @@ export function RitualFundingLobbyScreen({ route }: Props) {
         </View>
       </View>
 
-      <View style={[styles.status_, create.copy.tone === 'warning' && styles.statusWarn]} accessibilityLabel="Create status">
+      <View style={[styles.status_, createCopy.tone === 'warning' && styles.statusWarn]} accessibilityLabel="Create status">
         <View style={styles.statusHeader}>
           {create.isBusy && <ActivityIndicator size="small" color={color.fg} accessibilityLabel="Working" />}
-          <RNText style={styles.statusTitle}>{create.copy.title}</RNText>
+          <RNText style={styles.statusTitle}>{createCopy.title}</RNText>
         </View>
-        <RNText style={create.copy.tone === 'warning' ? styles.warning : styles.muted} accessibilityLiveRegion="polite">
-          {create.copy.body}
+        <RNText style={createCopy.tone === 'warning' ? styles.warning : styles.muted} accessibilityLiveRegion="polite">
+          {createCopy.body}
         </RNText>
         {confirmed && create.state.status === 'confirmed' && (
           <RNText style={styles.signature} selectable>
@@ -192,6 +194,10 @@ export function RitualFundingLobbyScreen({ route }: Props) {
 
       {blockedReason && !confirmed && (
         <Text style={styles.muted} accessibilityLiveRegion="polite">{blockedReason}</Text>
+      )}
+
+      {!confirmed && ready && create.state.status === 'idle' && (
+        <RNText style={styles.muted}>{walletHandoffNote(walletPackage)}</RNText>
       )}
 
       {!confirmed && (

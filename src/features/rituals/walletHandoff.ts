@@ -1,0 +1,31 @@
+/**
+ * Wallet handoff copy (B3, found on the Seeker 2026-09-26).
+ *
+ * Mobile Wallet Adapter leaves Rituals and opens the wallet app. Without a
+ * warning, people read the wallet's screen as part of Rituals, get lost, and
+ * swipe Rituals away — which kills the MWA session mid-approval. So: say which
+ * app opens before the tap, and say it again while the wallet is up.
+ */
+import { walletOptionByPackage } from '../../utils/walletChoice'
+
+type Copy = Readonly<{ title: string; body: string; tone: 'neutral' | 'progress' | 'success' | 'warning' }>
+
+export function walletDisplayName(walletPackage: string | null | undefined): string {
+  return walletOptionByPackage(walletPackage)?.label ?? 'your wallet'
+}
+
+/** One line shown next to the button, before anything is tapped. */
+export function walletHandoffNote(walletPackage: string | null | undefined): string {
+  return `This opens ${walletDisplayName(walletPackage)} to approve. When it's done, come back here.`
+}
+
+/** Replaces the generic awaiting-wallet copy; every other state passes through. */
+export function withWalletHandoff(copy: Copy, status: string, walletPackage: string | null | undefined): Copy {
+  if (status !== 'awaiting-wallet') return copy
+  const name = walletDisplayName(walletPackage)
+  return Object.freeze({
+    title: `Opening ${name}…`,
+    body: `Approve in ${name}, then come back to Rituals. Don't swipe Rituals away while ${name} is open. If Android asks about notifications first, answer that, then approve.`,
+    tone: 'progress',
+  })
+}
