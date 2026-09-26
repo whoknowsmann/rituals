@@ -28,7 +28,8 @@ import type { PublicKeyText } from '../../../domain/rituals/types'
 export type CreateDepsParams = Readonly<{
   client: RitualClient
   creator: PublicKey
-  /** Full roster including the creator, in canonical order. */
+  /** Existing creator ATA; when present, create and host funding are atomic. */
+  creatorTokenAccount?: PublicKey
   members: readonly PublicKey[]
   draft: ValidatedRitualDraft
   cadence: RitualCadence
@@ -55,7 +56,7 @@ const fail = (message: string): never => {
 }
 
 export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDeps {
-  const { client, creator, members, draft, cadence, firstEventAt, pendingActionStore, now = () => Date.now(), authorizedActor, getBlockHeight } = params
+  const { client, creator, creatorTokenAccount, members, draft, cadence, firstEventAt, pendingActionStore, now = () => Date.now(), authorizedActor, getBlockHeight } = params
   const assertAuthorized = () => { if (authorizedActor && (!authorizedActor() || !authorizedActor()!.equals(creator))) throw new CreateDepsError('authorized wallet account changed before signing') }
 
   if (!(creator instanceof PublicKey)) fail('creator must be a PublicKey')
@@ -113,25 +114,43 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       const ruleDigest = digestRulesSync(rules)
       lockedRules = rules
 
-      const action = await client.prepareCreate({
-        programId: client.programId,
-        creator,
-        stakeMint: config.account.allowedStakeMint,
-        feeRecipientToken: config.account.feeRecipient,
-        ritual: {
-          nonce: generateRitualNonce(),
-          ruleDigest,
-          members: [...members],
-          memberTotalStake: draft.memberTotalStakeAtomic,
-          schedule: schedule.map((entry) => ({
-            opens: BigInt(entry.claimOpensAt),
-            deadline: BigInt(entry.claimDeadlineAt),
-            resolution: BigInt(entry.resolutionDeadlineAt),
-          })),
-          additionalConfirmationThreshold: draft.additionalConfirmationThreshold,
-          feePayerMode: draft.feePayerMode,
-        },
-      } as never)
+      const action = creatorTokenAccount
+        ? await client.prepareCreateAndFund({
+          programId: client.programId,
+          creator,
+          stakeMint: config.account.allowedStakeMint,
+          feeRecipientToken: config.account.feeRecipient,
+          memberSource: creatorTokenAccount,
+          lockedActivationFee: activationFee,
+          ritual: {
+            nonce: generateRitualNonce(),
+            ruleDigest,
+            members: [...members],
+            memberTotalStake: draft.memberTotalStakeAtomic,
+            schedule: schedule.map((entry) => ({ opens: BigInt(entry.claimOpensAt), deadline: BigInt(entry.claimDeadlineAt), resolution: BigInt(entry.resolutionDeadlineAt) })),
+            additionalConfirmationThreshold: draft.additionalConfirmationThreshold,
+            feePayerMode: draft.feePayerMode,
+          },
+        } as never)
+        : await client.prepareCreate({
+          programId: client.programId,
+          creator,
+          stakeMint: config.account.allowedStakeMint,
+          feeRecipientToken: config.account.feeRecipient,
+          ritual: {
+            nonce: generateRitualNonce(),
+            ruleDigest,
+            members: [...members],
+            memberTotalStake: draft.memberTotalStakeAtomic,
+            schedule: schedule.map((entry) => ({
+              opens: BigInt(entry.claimOpensAt),
+              deadline: BigInt(entry.claimDeadlineAt),
+              resolution: BigInt(entry.resolutionDeadlineAt),
+            })),
+            additionalConfirmationThreshold: draft.additionalConfirmationThreshold,
+            feePayerMode: draft.feePayerMode,
+          },
+        } as never)
 
       prepared = action
       return {

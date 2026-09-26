@@ -49,7 +49,7 @@ export type PendingActionStore = Readonly<{
   remove: (record: PendingActionRecord) => Promise<void>
 }>
 
-const ACTION_KINDS: readonly PendingActionKind[] = ['create', 'fund', 'activate', 'cancel', 'close', 'initialize-event', 'claim', 'approve', 'question', 'finalize']
+const ACTION_KINDS: readonly PendingActionKind[] = ['create', 'fund', 'activate', 'cancel', 'close', 'initialize-event', 'claim', 'approve', 'question', 'finalize', 'create-and-fund', 'initialize-event-and-claim']
 const DIGEST = /^[0-9a-f]{64}$/
 const safeHeight = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 const safeCreatedAt = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0
