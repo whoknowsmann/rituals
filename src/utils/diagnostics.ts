@@ -10,10 +10,13 @@
 export function logFailure(stage: string, error: unknown): void {
   let name = 'unknown'
   let message = ''
+  let code = ''
   try {
+    const raw = error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined
+    if (typeof raw === 'number' || typeof raw === 'string') code = ` [code ${String(raw).slice(0, 40)}]`
     if (error instanceof Error) { name = error.name; message = error.message }
     else if (error && typeof error === 'object') { name = String((error as { code?: unknown }).code ?? 'object'); message = String((error as { message?: unknown }).message ?? '') }
     else { message = String(error) }
   } catch { /* hostile error */ }
-  console.warn(`[rituals] ${stage} failed: ${name}: ${message.slice(0, 300)}`)
+  console.warn(`[rituals] ${stage} failed: ${name}${code}: ${message.slice(0, 300)}`)
 }
