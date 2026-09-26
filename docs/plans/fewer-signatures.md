@@ -55,6 +55,12 @@ signature. Each transaction carries `SetComputeUnitLimit` and
 uses a 12-second first-event delay and spends only TEST tokens plus normal
 account rent/network fees.
 
+The recorded successful proof run used three transactions. Across the three
+pre-C diagnostic/retry runs plus the final proof (nine sent transactions total;
+failed C builds did not broadcast), RPC transaction metadata measured
+`0.03564744 SOL` of payer debits and `0.0000468 SOL` of network fees, below the
+`0.1 SOL` budget. TEST-token movements are valueless.
+
 Bundle D remains **untested**. The final-event state must be created before it
 can be tested cheaply; do not rely on it until a transaction and terminal
 vault readback are recorded.
