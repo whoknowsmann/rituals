@@ -41,7 +41,7 @@ export type RitualSuggestion = Readonly<{
 const KEYWORDS: Readonly<Record<Exclude<SuggestionIntent, 'general'>, readonly string[]>> = {
   movement: ['run', 'running', 'gym', 'walk', 'walking', 'workout', 'train', 'training', 'exercise', 'yoga', 'swim', 'ride', 'hike', 'lift', 'jiu', 'sport'],
   reading: ['read', 'reading', 'book', 'books', 'chapter', 'novel', 'pages'],
-  family: ['family', 'mom', 'mum', 'dad', 'parents', 'sister', 'brother', 'call', 'dinner', 'kids', 'daughter', 'son'],
+  family: ['family', 'mom', 'mum', 'mama', 'dad', 'papa', 'parents', 'sister', 'brother', 'call', 'dinner', 'kids', 'daughter', 'son', 'grandma', 'grandpa', 'grandparents', 'nana', 'granny', 'aunt', 'uncle', 'cousin', 'visit', 'wife', 'husband', 'partner'],
   music: ['music', 'guitar', 'piano', 'sing', 'song', 'practice', 'band', 'drum', 'write'],
   study: ['study', 'studying', 'learn', 'course', 'class', 'exam', 'language', 'spanish', 'homework', 'revise'],
   cooking: ['cook', 'cooking', 'meal', 'bake', 'baking', 'recipe', 'kitchen', 'eat'],
@@ -98,8 +98,8 @@ const BLUEPRINTS: Readonly<Record<SuggestionIntent, readonly Blueprint[]>> = {
     { title: 'New recipe week', requirement: 'Try something you have never cooked before.', events: '6', mode: 'ONE_FRIEND' },
   ],
   general: [
-    { title: 'Weekly ritual', requirement: 'Do the thing you committed to and check in with the group.', events: '4', mode: 'ONE_FRIEND' },
-    { title: 'Keep the streak', requirement: 'Show up each week and tell your friends you did.', events: '6', mode: 'HONOR' },
+    { title: 'Weekly ritual', requirement: 'Do it once this week, then check in.', events: '4', mode: 'ONE_FRIEND' },
+    { title: 'Keep the streak', requirement: 'Once a week. Check in when it’s done.', events: '6', mode: 'HONOR' },
   ],
 }
 

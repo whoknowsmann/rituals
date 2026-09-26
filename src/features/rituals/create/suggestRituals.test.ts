@@ -49,6 +49,7 @@ describe('parseIntent', () => {
 
   it('recognises family language', () => {
     expect(parseIntent('call my mom more often')).toBe('family')
+    expect(parseIntent('visit my grandma every sunday')).toBe('family')
   })
 
   it('recognises creative language', () => {
