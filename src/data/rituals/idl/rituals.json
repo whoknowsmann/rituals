@@ -197,6 +197,11 @@
         {
           "name": "approver",
           "signer": true
+        },
+        {
+          "name": "season",
+          "writable": true,
+          "optional": true
         }
       ],
       "args": [
@@ -370,6 +375,11 @@
           "name": "claimant",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "season",
+          "writable": true,
+          "optional": true
         },
         {
           "name": "system_program",
@@ -763,6 +773,11 @@
         },
         {
           "name": "forfeit_destination"
+        },
+        {
+          "name": "season",
+          "writable": true,
+          "optional": true
         },
         {
           "name": "stake_vault",
@@ -1289,6 +1304,118 @@
       ]
     },
     {
+      "name": "initialize_season",
+      "discriminator": [
+        48,
+        218,
+        111,
+        51,
+        235,
+        207,
+        4,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "season",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  97,
+                  115,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "season_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "season_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "title_digest",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "schedule",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "EventWindow"
+              }
+            }
+          }
+        },
+        {
+          "name": "start_at",
+          "type": "i64"
+        },
+        {
+          "name": "end_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "question_claim",
       "discriminator": [
         50,
@@ -1341,6 +1468,10 @@
         {
           "name": "questioner",
           "signer": true
+        },
+        {
+          "name": "season",
+          "optional": true
         }
       ],
       "args": [
@@ -1402,6 +1533,19 @@
         20,
         94,
         160
+      ]
+    },
+    {
+      "name": "Season",
+      "discriminator": [
+        76,
+        67,
+        93,
+        156,
+        180,
+        157,
+        248,
+        47
       ]
     }
   ],
@@ -1750,6 +1894,41 @@
       "code": 6068,
       "name": "ForfeitDestinationOwnedByParticipant",
       "msg": "forfeit destination cannot be owned by the creator or witness"
+    },
+    {
+      "code": 6069,
+      "name": "ZeroTitleDigest",
+      "msg": "season title digest must be nonzero"
+    },
+    {
+      "code": 6070,
+      "name": "InvalidSeasonBounds",
+      "msg": "season bounds are invalid"
+    },
+    {
+      "code": 6071,
+      "name": "SeasonScheduleOutsideBounds",
+      "msg": "season schedule falls outside its bounds"
+    },
+    {
+      "code": 6072,
+      "name": "SeasonScheduleMismatch",
+      "msg": "solo ritual schedule does not match its season"
+    },
+    {
+      "code": 6073,
+      "name": "SeasonParticipantOverflow",
+      "msg": "season participant count overflowed"
+    },
+    {
+      "code": 6074,
+      "name": "SeasonAccountMismatch",
+      "msg": "season account does not match the ritual"
+    },
+    {
+      "code": 6075,
+      "name": "SeasonCheckInOverflow",
+      "msg": "season check-in counter overflowed"
     }
   ],
   "types": [
@@ -2115,6 +2294,12 @@
             }
           },
           {
+            "name": "season",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
             "name": "forfeit_destination",
             "type": "pubkey"
           },
@@ -2267,6 +2452,79 @@
           },
           {
             "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Season",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "schema_version",
+            "type": "u8"
+          },
+          {
+            "name": "protocol_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "season_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "title_digest",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "schedule",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "EventWindow"
+                }
+              }
+            }
+          },
+          {
+            "name": "start_at",
+            "type": "i64"
+          },
+          {
+            "name": "end_at",
+            "type": "i64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "participant_count",
+            "type": "u32"
+          },
+          {
+            "name": "checked_in_count",
+            "type": {
+              "array": [
+                "u32",
+                16
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }

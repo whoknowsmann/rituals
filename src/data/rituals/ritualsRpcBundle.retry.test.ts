@@ -37,7 +37,7 @@ const ritualScheduleLengthOffset = 261
 const ritualScheduleDataOffset = 265
 const ritualScheduleWindowBytes = 24
 const ritualScalarOffset = ritualScheduleDataOffset + 2 * ritualScheduleWindowBytes
-const ritualUsedBytes = 513
+const ritualUsedBytes = 514
 const fourEventSchedule = [
   [100n, 200n, 300n],
   [400n, 500n, 600n],

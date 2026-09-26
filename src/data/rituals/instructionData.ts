@@ -16,6 +16,7 @@ export const INSTRUCTION_DISCRIMINATORS = Object.freeze({
   fund_member: frozenDiscriminator([234, 156, 207, 252, 148, 24, 162, 238]),
   initialize_current_event: frozenDiscriminator([49, 56, 188, 11, 11, 14, 253, 143]),
   initialize_protocol_config: frozenDiscriminator([28, 50, 43, 233, 244, 98, 123, 118]),
+  initialize_season: frozenDiscriminator([48, 218, 111, 51, 235, 207, 4, 119]),
   question_claim: frozenDiscriminator([50, 41, 214, 168, 245, 45, 251, 152]),
 })
 
@@ -37,6 +38,13 @@ export type InitializeProtocolConfigInput = Readonly<{
   maximumMemberStake: bigint
 }>
 export type EventWindowInput = Readonly<{ opens: bigint; deadline: bigint; resolution: bigint }>
+export type InitializeSeasonInput = Readonly<{
+  seasonId: Uint8Array
+  titleDigest: Uint8Array
+  schedule: readonly EventWindowInput[]
+  startAt: bigint
+  endAt: bigint
+}>
 export type CreateRitualInput = Readonly<{
   nonce: bigint
   ruleDigest: RuleDigest
@@ -88,6 +96,10 @@ function keyBytes(value: unknown, name: string): Uint8Array {
   if (!(value instanceof PublicKey)) throw new RitualInstructionDataError('input', `${name} must be a PublicKey`)
   try { return Uint8Array.from(value.toBytes()) } catch { throw new RitualInstructionDataError('input', `${name} is unreadable`) }
 }
+function fixedBytes(value: unknown, name: string): Uint8Array {
+  if (!(value instanceof Uint8Array) || value.length !== 32) throw new RitualInstructionDataError('input', `${name} must contain exactly 32 bytes`)
+  return Uint8Array.from(value)
+}
 function digestBytes(value: unknown): Uint8Array {
   if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw new RitualInstructionDataError('input', 'ruleDigest must be lowercase 64-character hex')
   const bytes = Uint8Array.from({ length: 32 }, (_, i) => Number.parseInt(value.slice(i * 2, i * 2 + 2), 16))
@@ -125,6 +137,18 @@ export function encodeFinalizeEventData(eventIndex: number): Uint8Array { return
 export function encodeClaimCompletionData(eventIndex: number): Uint8Array { return event('claim_completion', eventIndex) }
 export function encodeApproveClaimData(): Uint8Array { const w = new Writer(9); w.bytes(INSTRUCTION_DISCRIMINATORS.approve_claim); w.u8(CURRENT_CLAIM_VERSION); return w.finish() }
 export function encodeQuestionClaimData(): Uint8Array { const w = new Writer(9); w.bytes(INSTRUCTION_DISCRIMINATORS.question_claim); w.u8(CURRENT_CLAIM_VERSION); return w.finish() }
+
+export function encodeInitializeSeasonData(input: InitializeSeasonInput): Uint8Array {
+  try {
+    const o = record(input); const seasonId = fixedBytes(prop(o, 'seasonId'), 'seasonId'); const titleDigest = fixedBytes(prop(o, 'titleDigest'), 'titleDigest'); if (titleDigest.every(byte => byte === 0)) throw new RitualInstructionDataError('invariant', 'titleDigest must not be all zero')
+    const startAt = bigintValue(prop(o, 'startAt'), 'startAt', true); const endAt = bigintValue(prop(o, 'endAt'), 'endAt', true); if (startAt < 0n || startAt >= endAt) throw new RitualInstructionDataError('invariant', 'season bounds are invalid')
+    const scheduleArray = denseArray<unknown>(prop(o, 'schedule'), 'schedule'); if (scheduleArray.length < 1 || scheduleArray.length > 16) throw new RitualInstructionDataError('invariant', 'schedule must contain 1..16 windows')
+    const schedule = scheduleArray.map((x, i) => { const q = record(x); const opens = bigintValue(prop(q, 'opens'), `schedule[${i}].opens`, true); const deadline = bigintValue(prop(q, 'deadline'), `schedule[${i}].deadline`, true); const resolution = bigintValue(prop(q, 'resolution'), `schedule[${i}].resolution`, true); if (opens < 0n || !(opens < deadline && deadline < resolution)) throw new RitualInstructionDataError('invariant', 'event window ordering is invalid'); return { opens, deadline, resolution } })
+    for (let i = 1; i < schedule.length; i += 1) if (schedule[i - 1].resolution >= schedule[i].opens) throw new RitualInstructionDataError('invariant', 'schedule windows overlap')
+    if (schedule[0].opens < startAt || schedule[schedule.length - 1].resolution > endAt) throw new RitualInstructionDataError('invariant', 'season schedule is outside bounds')
+    const w = new Writer(8 + 32 + 32 + 4 + schedule.length * 24 + 8 + 8); w.bytes(INSTRUCTION_DISCRIMINATORS.initialize_season); w.bytes(seasonId); w.bytes(titleDigest); w.u32(schedule.length); for (const s of schedule) { w.i64(s.opens); w.i64(s.deadline); w.i64(s.resolution) } w.i64(startAt); w.i64(endAt); return w.finish()
+  } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode season') }
+}
 
 export function encodeInitializeProtocolConfigData(input: InitializeProtocolConfigInput): Uint8Array {
   try {

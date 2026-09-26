@@ -22,7 +22,7 @@ const expectCategory = (action: () => unknown, category: string) => {
 }
 const expectReject = (action: () => unknown) => expectCategory(action, 'invariant')
 
-type Offsets = { schema: number; protocol: number; creator: number; digest: number; mint: number; membersLength: number; members: number; memberTotal: number; allocation: number; scheduleLength: number; windows: number; threshold: number; mode: number; fee: number; recipient: number; stakeVault: number; feeVault: number; bitmap: number; count: number; stake: number; fundedFee: number; status: number; current: number; settled: number; created: number; activated: number; cancelled: number; completed: number; closed: number; bump: number; stakeVaultBump: number; feeVaultBump: number }
+type Offsets = { schema: number; protocol: number; creator: number; digest: number; mint: number; membersLength: number; members: number; memberTotal: number; allocation: number; scheduleLength: number; windows: number; threshold: number; mode: number; fee: number; recipient: number; stakeVault: number; feeVault: number; bitmap: number; count: number; stake: number; fundedFee: number; status: number; current: number; settled: number; created: number; activated: number; cancelled: number; completed: number; closed: number; season: number; bump: number; stakeVaultBump: number; feeVaultBump: number }
 function parseOffsets(bytes: Uint8Array): Offsets {
   let o = 8; const take = (n: number) => { const at = o; o += n; return at }
   const schema = take(1); const protocol = take(32); const creator = take(32); take(8); const digest = take(32); const mint = take(32)
@@ -30,9 +30,9 @@ function parseOffsets(bytes: Uint8Array): Offsets {
   const memberTotal = take(8); const allocation = take(8); const scheduleLength = take(4); const eventCount = u32(bytes, scheduleLength); const windows = take(eventCount * 24)
   const threshold = take(1); const mode = take(1); const fee = take(8); take(1); const recipient = take(32); const stakeVault = take(32); const feeVault = take(32)
   const stakeVaultBump = take(1); const feeVaultBump = take(1); const bitmap = take(1); const count = take(1); const stake = take(8); const fundedFee = take(8)
-  const status = take(1); const current = take(1); const settled = take(1); const created = take(8); const activated = take(8); const cancelled = take(8); const completed = take(8); const closed = take(1); const bump = take(1)
+  const status = take(1); const current = take(1); const settled = take(1); const created = take(8); const activated = take(8); const cancelled = take(8); const completed = take(8); const closed = take(1); take(1); const witnessTag = take(1); if (bytes[witnessTag] === 1) take(32); const season = take(1); if (bytes[season] === 1) take(32); take(32); take(1); take(1); const bump = take(1)
   expect(o).toBeLessThanOrEqual(bytes.length)
-  return { schema, protocol, creator, digest, mint, membersLength, members, memberTotal, allocation, scheduleLength, windows, threshold, mode, fee, recipient, stakeVault, feeVault, bitmap, count, stake, fundedFee, status, current, settled, created, activated, cancelled, completed, closed, bump, stakeVaultBump, feeVaultBump }
+  return { schema, protocol, creator, digest, mint, membersLength, members, memberTotal, allocation, scheduleLength, windows, threshold, mode, fee, recipient, stakeVault, feeVault, bitmap, count, stake, fundedFee, status, current, settled, created, activated, cancelled, completed, closed, season, bump, stakeVaultBump, feeVaultBump }
 }
 const offsets = parseOffsets(source())
 const memberCount = () => u32(source(), offsets.membersLength)

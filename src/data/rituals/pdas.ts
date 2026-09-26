@@ -50,6 +50,11 @@ export function feeVaultPda(ritual: PublicKey, programId: PublicKey = LOCAL_PLAC
   return PublicKey.findProgramAddressSync([seed('fee-vault'), requireKey(ritual, 'ritual')], requireProgram(programId))
 }
 
+export function seasonPda(seasonId: Uint8Array, programId: PublicKey = LOCAL_PLACEHOLDER_PROGRAM_ID) {
+  if (!(seasonId instanceof Uint8Array) || seasonId.length !== 32) throw new TypeError('seasonId must be 32 bytes')
+  return PublicKey.findProgramAddressSync([seed('season'), seasonId], requireProgram(programId))
+}
+
 export function eventPda(ritual: PublicKey, eventIndex: number, programId: PublicKey = LOCAL_PLACEHOLDER_PROGRAM_ID) {
   return PublicKey.findProgramAddressSync([seed('event'), requireKey(ritual, 'ritual'), requireIndex(eventIndex, 'eventIndex')], requireProgram(programId))
 }

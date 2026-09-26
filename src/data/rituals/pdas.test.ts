@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import { VECTOR_PROGRAM_ID } from './__fixtures__/vectorProgramId'
-import { claimPda, CURRENT_CLAIM_VERSION, eventPda, feeVaultPda, protocolConfigPda, ritualPda, stakeVaultPda } from './pdas'
+import { claimPda, CURRENT_CLAIM_VERSION, eventPda, feeVaultPda, protocolConfigPda, ritualPda, seasonPda, stakeVaultPda } from './pdas'
 
 const pk = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
 const expected = {
@@ -13,6 +13,7 @@ const expected = {
   event1: ['6NdFN2VzV61wi1bRYz6RATyjumBkhR7M6GfxtW47Nu7u', 255],
   event15: ['H9PGU7zHkDskgyMk2oM6RUzT86pDGkjz7oT9G76Cj84w', 255],
   claim: ['3diycyyrPajbEtpf8dkCNuZsPqHaVWZH7TNswGdqr2TJ', 253],
+  season: ['12vZafX2HFmqzzam9cq3Znv1vnP19sPxfxF8VQC821Lj', 253],
 } as const
 
 describe('canonical Rituals PDAs', () => {
@@ -28,6 +29,7 @@ describe('canonical Rituals PDAs', () => {
     expect([event1[0].toBase58(), event1[1]]).toEqual(expected.event1)
     expect([eventPda(ritual, 15, V)[0].toBase58(), eventPda(ritual, 15, V)[1]]).toEqual(expected.event15)
     expect([claimPda(event1[0], pk(2), CURRENT_CLAIM_VERSION, V)[0].toBase58(), claimPda(event1[0], pk(2), CURRENT_CLAIM_VERSION, V)[1]]).toEqual(expected.claim)
+    expect([seasonPda(new Uint8Array(32).fill(41), V)[0].toBase58(), seasonPda(new Uint8Array(32).fill(41), V)[1]]).toEqual(expected.season)
   })
 
   it('rejects invalid bounds and types, including the retired claim version', () => {
@@ -38,5 +40,6 @@ describe('canonical Rituals PDAs', () => {
     expect(() => eventPda(pk(1), 1.2)).toThrow(/event/i)
     expect(() => claimPda(pk(1), pk(2), 1)).toThrow(/claim version/i)
     expect(() => protocolConfigPda('bad' as never)).toThrow(/PublicKey/i)
+    expect(() => seasonPda(new Uint8Array(31))).toThrow(/seasonId/i)
   })
 })
