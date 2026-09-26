@@ -36,7 +36,10 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
     in one approval, via the app orchestrator: `5utpbQFu…`, re-verified).
     Prompts per 2-person journey now **host 5 (was 7), member 2 (was 3)**.
   - `feat/crew-home` — **merged** (Crew home + HoldButton, not yet wired).
-    Not visually checked on a device yet.
+    Checked on the Seeker 22:46 (empty state): fonts render, wordmark clip
+    and duplicate top-bar title fixed. Screenshot `artifacts/shots/crew-home-2.png`.
+    **APK now on the phone = design/crew (Crew home + bundles A/B/C)**;
+    fallback `rituals-ab55204.apk` in `C:\Users\hound\AppData\Local\Temp\rituals\`.
   - `feat/solo-program` — NOT merged, NOT deployed. `create_solo_ritual`,
     `declare_skip`, solo settlement; native 181/181 (re-run by Hermes).
     Ritual layout 909→977 bytes, so deploying breaks decoding of existing
