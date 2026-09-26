@@ -3,8 +3,8 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-25** (tsc clean, 1,960 tests / 72 files on
-`design/crew` a046dd4; device + devnet checks below)
+Last verified: **2026-09-25 ~21:30 CDT** (tsc clean, 1,971 tests / 73 files on
+`design/crew` f04acf8; device + devnet checks below)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -21,89 +21,78 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
-## RESUME HERE — handoff 2026-09-25 ("lets begin rituals")
+## RESUME HERE — handoff 2026-09-25 late ("lets begin rituals")
 
 ### Branches
 
-- `overnight/mobile-integration` — last stable app. HEAD f91054d (sketches) ←
-  f213f9f (sketches) ← b0023fe (fee fix) ← fd13887 (docs). **The APK on the Seeker was built from
-  b0023fe + the wallet-rejection fix (installed 2026-09-24 21:09).**
-- `design/crew` (a046dd4, branched from the above, pushed) — Crew redesign
-  scaffolding + solo proposal. tsc clean, 1,960 tests pass. **No APK built from it.**
+- `design/crew` — **the working branch.** Crew scaffolding + solo proposal +
+  all MWA fixes below (merged from `fix/mwa-diagnostics`). tsc clean,
+  1,971 tests / 73 files. Pushed.
+- `fix/mwa-diagnostics` — `overnight/mobile-integration` + only the MWA fixes
+  (ab774fd diag, 2a4ec29 compute budget/classification/stale auth, ab55204
+  retry state). The APK on the Seeker (installed 21:06) is 2a4ec29, i.e. it
+  does **not** yet have ab55204.
+- `overnight/mobile-integration` — previous stable app (f91054d).
 - Nothing merged to main yet.
 
-### Decisions Jack made this session
+### Decisions Jack made
 
 - **UI direction: C "Crew"** (light, social feed, friends as the interface),
-  with B "Ring" saved as the alternative. Iterated sketches: `sketches/ui-2026-09/`
-  (C2 = crew + hold-to-check-in; B2 = calmer ring with crew on the ring).
-  Spec: `docs/DESIGN.md`. Research: `docs/plans/ui-direction-2026-09.md`.
-  Jack is asking friends which they prefer.
+  B "Ring" saved as the alternative. Sketches `sketches/ui-2026-09/`, spec
+  `docs/DESIGN.md`, research `docs/plans/ui-direction-2026-09.md`.
 - **Tagline is "Show up, or pay up."** — pinned by test; never replace it.
-- **Solo rituals are now in submission scope.** Jack locked the 5 decisions (§6): solo in submission; default missed-stake destination = cause/charity-style beneficiary; non-staking witness in v1; one declared skip per ritual; cohorts design-only/coming soon for submission. Proposal updated: `docs/plans/solo-rituals.md` (Hub copy: `Solo Rituals Proposal.md`).
+- **Solo rituals in submission scope** (§6 of `docs/plans/solo-rituals.md`):
+  cause/charity-style default destination; non-staking witness; one declared
+  skip per ritual; cohorts design-only / coming soon.
+- Jack's feedback 2026-09-25: **3–4 approval taps per signature is annoying.**
 
-### MWA gate result — 2026-09-25 20:48 CDT
+### MWA gate — 2026-09-25 evening: MWA signing PROVEN on the Seeker
 
-**First Create signed through MWA from the Seeker landed on devnet** — but the
-app reported failure. Tx `4RbVZJqL…teii4FK` (slot 504241004, Status Ok), host
-`Da59…VmV`, Ritual `2KmtR3Mf9C4xfPQqud88aBFrTY3PaN3XDBBX6VgwvQ3g` (created,
-unfunded, not saved on the phone).
+| Time | Result | Cause |
+|---|---|---|
+| 20:33 | nothing sent | Phantom's notification-permission dialog cancelled its biometric unlock; Rituals swiped away killed the MWA session |
+| 20:44 | nothing sent | cached auth token for `Da59…` while Phantom's active account was `2Xrz…m7Xa` → `auth_token not valid for signing` |
+| 20:48 | **landed** (`4RbVZJqL…`, Ritual `2KmtR3…vQ3g`) but app said "Nothing was sent" | Phantom inserted its own ComputeBudget limit+price (it does so whenever a tx has none), signed *its* message; our exact-bytes check rejected it |
+| 21:09 | nothing sent | MWA `Timed out waiting for response` (~2 min). Log shows ~70 s from first biometric to the approve screen, then Seed Vault. Assumed: slow approval exceeded the wallet timeout (not proven) |
+| 21:13 | **landed** (`3PkBnAG7…`, Ritual `7vcEUApV…`), **our** budget ixs, fee 0.0000052 SOL, but screen still showed the old error | retry from a retryable error was ignored by the state machine (fixed ab55204) |
 
-Root cause: **Phantom rewrites the transaction before signing** — it prepends
-ComputeBudget `SetComputeUnitLimit` + `SetComputeUnitPrice` (documented: it
-adds priority fees unless the dapp already includes compute-budget
-instructions). Phantom then signs and sends *its* message; our submission layer
-verifies the returned signature against *our* prepared bytes
-(`ritualSubmission.ts:106`) → "wallet signature does not verify the prepared
-message" → UI says "Nothing was sent… safely try again", which is **false**
-(retrying would create a second ritual). The CLI smokes never hit this because
-keypairs sign our exact bytes.
+Fixes (all tested; RED shown on old code before GREEN):
+- 2a4ec29 — prepared txs carry `SetComputeUnitLimit(200k)` +
+  `SetComputeUnitPrice(1000 µlamports)`; any failure after the wallet returns a
+  signature is marked `submitted` (+signature journaled for recovery) so the UI
+  says "may have gone through"; `auth_token not valid` clears the cached
+  authorization. Devnet: `smoke-app-lifecycle.ts` exit 0 with the budget ixs.
+- ab55204 — Create and lifecycle machines accept PREPARE from a retryable
+  error (the button was enabled but did nothing visible).
 
-Fix (next): include our own ComputeBudget limit + price instructions in every
-prepared transaction so Phantom leaves the message unchanged; update fee
-disclosure; keep the exact-bytes signature check (it caught a real mutation).
-Separately: any post-wallet-return failure must be classified as
-"may have landed", never "nothing was sent".
+Where the 3–4 taps come from (logcat, one signature): Phantom biometric unlock →
+Phantom approve → **Seed Vault** sign screen + biometric (Phantom on Seeker signs
+via Seed Vault) → Phantom biometric again. Rituals itself requests one
+authorize (reused token) + one signAndSend. Levers we control: fewer signatures
+per journey (e.g. Create + host Fund in one tx), and testing Seed Vault Wallet
+directly as the demo wallet.
 
-Also found on the way (both phone-side, no code bug):
-- Phantom's first-run notification-permission dialog cancelled its biometric
-  unlock; swiping Rituals away then killed the MWA session.
-- Rituals had a cached auth token for `Da59…` while Phantom's active account was
-  `2Xrz…m7Xa` → "auth_token not valid for signing". Fixed by clearing app data and
-  reconnecting with the right account active. The app should detect this and
-  prompt to reconnect.
-
-Diagnostics added (e9e59e2): raw MWA errors now log under `[rituals]`
-(`mwa.authorize`, `mwa.signAndSend`, `wallet.raw`). Device driver:
-`scripts/ui.py`. The APK now on the Seeker is `overnight/mobile-integration` +
-that commit (branch `fix/mwa-diagnostics`, installed 20:43).
+Leftover devnet rituals (unfunded, not saved on the phone, harmless):
+`2KmtR3Mf9C4xfPQqud88aBFrTY3PaN3XDBBX6VgwvQ3g`, `7vcEUApV7mMDHuZV688zBWxiUMBcdmtS3yTVLyGHqu1k`.
 
 ### Next steps, in order
 
-1. **MWA gate — superseded by the result above.** Original instructions: open Rituals → Create →
-   template → Add member wallets → Connect with Phantom (host `Da59…VmV`) →
-   friend `DNZKvX…` or test wallet 2 → Create ritual onchain → **approve in
-   Phantom**. Create now reaches Phantom's approval screen (verified); approval
-   itself is unexercised. Then fund from test wallet 2, claim, confirm, settle.
-   Live check 2026-09-25 ~20:30 CDT: Seeker `SM02G40619100656` connected and
-   authorized over USB (debug mode); Phantom present on user 0.
-2. Finish Crew scaffolding on `design/crew`: load fonts in `App.tsx`
-   (`useFonts` with Fraunces_600SemiBold, Fraunces_900Black, Figtree_400Regular,
-   Figtree_600SemiBold, Figtree_800ExtraBold; render nothing until loaded),
-   StatusBar `dark`, navigator header → `color.bg`, `headerTitle: ''`
-   (screens own their hero title), `contentStyle` `color.bg`.
-3. Build approved solo program changes: 1 member when solo, optional non-staking
-   witness, locked cause/charity-style forfeit destination, solo settlement
-   branch, one optional `declare_skip` + native tests + devnet redeploy (we hold
-   upgrade authority `ETQ9…hXbx`). Est. 1.5–2 days.
-4. Rebuild screens **once** in Crew, covering solo + group together: merge
-   Create/Review/Roster into one flow ("Just me / With one witness / With
-   friends" first), home as poster + feed, check-in via HoldButton, fix Suggest
-   (results render below the fold — scroll to them; generate from the user's
-   words; tap again for new ideas), cut all developer/explainer copy.
-5. Friends' share page: one self-contained HTML of all sketches at
-   `sketches/ui-2026-09/rituals-design-options.html` (+ a copy on Jack's Windows
-   Desktop). Was blocked awaiting approval; not built.
+1. **Phone (needs Jack):** install a build containing ab55204, Create once →
+   expect "Ritual created" + invite. Then Fund from test wallet 2, claim,
+   approve, settle. Approve promptly (<~45 s) and stay in Phantom until it
+   returns.
+2. Cut signatures per journey (Create + host Fund combined; evaluate Seed Vault
+   Wallet directly).
+3. Solo program changes (1 member when solo, non-staking witness, locked
+   destination, solo settlement, `declare_skip`) + native tests + devnet
+   redeploy (upgrade authority `ETQ9…hXbx`). See overnight notes below.
+4. Finish Crew scaffolding (fonts in `App.tsx`: Fraunces_600SemiBold,
+   Fraunces_900Black, Figtree_400Regular/600SemiBold/800ExtraBold; StatusBar
+   dark; header `color.bg`, `headerTitle: ''`).
+5. Rebuild screens once in Crew covering solo + group (merged Create flow,
+   "Just me / With one witness / With friends" first; fix Suggest; cut
+   developer copy).
+6. Friends' share page of the sketches (not built).
 
 ### Device / chain facts (verified 2026-09-25)
 
@@ -118,9 +107,9 @@ that commit (branch `fix/mwa-diagnostics`, installed 20:43).
     mint authority, program upgrade authority)
 - A host cannot also be a member: each member must be a distinct wallet
   (that's why Jack needed wallet 2).
-- Tooling for UI checks: `~/.hermes/cache/scratch/ui.py` (dump / tapt "label" /
-  type / swipe / shot); screenshots are now read with vision (Qwen removed from
-  Hermes aux config 2026-09-25).
+- Tooling for UI checks: `scripts/ui.py` (dump / tapt "label" / type / swipe /
+  back / shot → `artifacts/shots/`). Wrap calls in `timeout 30`: a Play Protect
+  dialog on install can block uiautomator. Answer it "Don't send".
 
 ### Local builds
 
@@ -173,8 +162,9 @@ The protocol, typed client, **and the app's own screen-level lifecycle code** ar
 proven on devnet with CLI keypairs: `scripts/smoke-app-lifecycle.ts` drives
 create → fund ×2 → activate → initialize event → claim → friend approves →
 finalize through the same orchestrators and state machines the screens use,
-exit 0. The next gate is still **one Create signed through Mobile Wallet Adapter
-from the phone** — the only unverified link in the chain.
+exit 0. **2026-09-25: Create signed through MWA from the Seeker landed twice on
+devnet** (see RESUME HERE). The remaining unproven link is the full two-wallet
+lifecycle signed on the phone.
 
 ## Done and verified
 
@@ -209,27 +199,15 @@ clean, **180 native program test functions** (not re-run this session).
 
 ## The next gate
 
-**One real Create signed via MWA from the Seeker.**
+**Full two-wallet lifecycle signed via MWA on the Seeker** (Create is proven —
+see RESUME HERE). Host `Da59…VmV` and member test wallet 2 `98W4…WjLa` are both
+Phantom accounts on the personal profile (user 0); Jack switches the active
+account in Phantom between host and member steps, then reconnects in Rituals.
+The app now clears a stale auth token automatically when Phantom rejects it.
 
-Blocked on: a funded devnet wallet account on the phone that is not one of
-Jack's personal wallets.
-
-State of that setup:
-
-- Phantom is installed on the personal profile (user 0) and has 3 accounts.
-  Account 1 is Jack's personal (low value); accounts 2 and 3 are fresh and
-  intended for this.
-- A work profile exists (user 10) but has **neither Phantom nor Rituals**
-  installed. MWA cannot cross the profile boundary, so if demo wallets live in
-  the work profile, Rituals must be installed there too — and adb cannot install
-  into or enumerate user 10, so that is a phone-side task.
-- Current plan: use a fresh account in the personal-profile Phantom, with Jack
-  selecting the account in Phantom's own prompt.
-
-What tooling cannot see: Phantom's storage is app-private
-(`/data/data/app.phantom` permission denied, not debuggable, device unrooted,
-build type `user`). Wallet accounts and addresses must be supplied by Jack. Only
-public addresses — never seed phrases or private keys.
+What tooling cannot see: Phantom's storage is app-private (not debuggable,
+device unrooted). Wallet addresses come from Jack — public addresses only,
+never seed phrases or private keys.
 
 Costs measured on devnet, so nobody over-farms faucets:
 
