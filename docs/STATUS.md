@@ -25,8 +25,8 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 
 ### Branches
 
-- `overnight/mobile-integration` — last stable app. HEAD fd13887 docs → b0023fe
-  (fee fix) → f213f9f/f91054d (sketches). **The APK on the Seeker was built from
+- `overnight/mobile-integration` — last stable app. HEAD f91054d (sketches) ←
+  f213f9f (sketches) ← b0023fe (fee fix) ← fd13887 (docs). **The APK on the Seeker was built from
   b0023fe + the wallet-rejection fix (installed 2026-09-24 21:09).**
 - `design/crew` (a046dd4, branched from the above, pushed) — Crew redesign
   scaffolding + solo proposal. tsc clean, 1,960 tests pass. **No APK built from it.**
@@ -49,7 +49,8 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
    friend `DNZKvX…` or test wallet 2 → Create ritual onchain → **approve in
    Phantom**. Create now reaches Phantom's approval screen (verified); approval
    itself is unexercised. Then fund from test wallet 2, claim, confirm, settle.
-   Current live check 2026-09-25 evening: no authorized ADB device connected.
+   Live check 2026-09-25 ~20:30 CDT: Seeker `SM02G40619100656` connected and
+   authorized over USB (debug mode); Phantom present on user 0.
 2. Finish Crew scaffolding on `design/crew`: load fonts in `App.tsx`
    (`useFonts` with Fraunces_600SemiBold, Fraunces_900Black, Figtree_400Regular,
    Figtree_600SemiBold, Figtree_800ExtraBold; render nothing until loaded),
