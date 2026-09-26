@@ -112,5 +112,21 @@ competes with the redesign and the MWA gate.
 1. MWA gate: one Create signed in Phantom (needs Jack, ~5 min).
 2. Finish the Crew redesign scaffolding (theme, fonts, kit — mostly done).
 3. Solo program change + tests + devnet redeploy.
-4. Build Create/Home/Check-in screens once, in the new design, covering solo
+4. Rebuild Create/Home/Check-in screens once, in the new design, covering solo
    and group together, instead of redesigning the old group screens first.
+
+## 8. On-chain implementation status
+
+The program slice is implemented on `feat/solo-program` without deployment.
+`create_solo_ritual` creates one-member rituals with an optional witness and
+locks a same-mint token-account beneficiary. `declare_skip` is creator-only,
+valid only before the current claim window, and can succeed once per ritual.
+Solo finalization refunds confirmed or unresolved claims and sends an entirely
+unclaimed event allocation to the locked beneficiary; witnesses never fund or
+receive settlement payouts. Group instructions and settlement remain on their
+existing path.
+
+The `Ritual` account now includes `kind`, `witness`, `forfeit_destination`,
+`skip_declared`, and `skip_event_index`, increasing its allocated size from 909
+to 977 bytes. The frozen TypeScript IDL remains unchanged until the client
+adapter is updated; see `docs/plans/solo-program-client-delta.md`.

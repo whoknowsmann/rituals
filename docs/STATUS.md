@@ -94,6 +94,25 @@ Leftover devnet rituals (unfunded, not saved on the phone, harmless):
    developer copy).
 6. Friends' share page of the sketches (not built).
 
+### Solo program changes — `feat/solo-program`
+
+- Implemented additive solo instructions: `create_solo_ritual` and
+  `declare_skip`.
+- Solo rituals persist one host member, an optional non-staking witness, a
+  locked token-account destination for missed stake, and one declared skip.
+  Solo settlement refunds confirmed check-ins, refunds unresolved/questioned
+  claims, and routes an unclaimed event allocation to the locked destination.
+- Group lifecycle paths remain covered by the existing native suite.
+- Measured native result: `cd program-tests && cargo test --locked` — **181
+  passed, 0 failed** across 15 test binaries; focused `solo_ritual` — **5
+  passed, 0 failed**. The pre-change baseline was **176 passed, 0 failed**.
+- `anchor build` passed and emitted `target/deploy/rituals.so` (675,592 bytes).
+  No deploy, upgrade, or cluster transaction was run.
+- The generated IDL adds two instructions and `RitualKind`, and extends
+  `Ritual` from 909 to 977 bytes. The frozen TypeScript IDL was not overwritten;
+  the exact client work is recorded in
+  `docs/plans/solo-program-client-delta.md`.
+
 ### Device / chain facts (verified 2026-09-25)
 
 - Seeker `SM02G40619100656` on USB, dev mode; always drive it via
