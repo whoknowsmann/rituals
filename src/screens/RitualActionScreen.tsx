@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, Text as RNText, View } from 'react-native'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { Button, Card, Text, useTheme, type MD3Theme } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import { PublicKey } from '@solana/web3.js'
 import type { NativeStackScreenProps, NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -16,17 +15,22 @@ import { useRitualAction } from '../features/rituals/useRitualAction'
 import type { RitualRead } from '../data/rituals/ritualsRpc'
 import { walletHandoffNote, withWalletHandoff } from '../features/rituals/walletHandoff'
 import { ConnectWalletCard } from '../components/wallet/ConnectWalletCard'
+import { fundingPeople } from '../features/rituals/crewView'
+import { formatAtomic } from '../features/rituals/authoritativeRituals'
+import { ActionButton, ErrorLine, Footnote, PeopleList, Section } from '../components/crew'
+import { color, radius, space, type } from '../theme'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RitualAction'>
-const labels: Record<Props['route']['params']['phase'], string> = { fund: 'Fund your stake', activate: 'Activate ritual', 'initialize-event': 'Open current event', claim: 'Claim completion', approve: 'Confirm showed up', question: 'Question this claim', finalize: 'Settle event' }
+// Button labels. Deliberately different from the headings so on-device automation (tapt) can't hit the title instead of the button.
+const labels: Record<Props['route']['params']['phase'], string> = { fund: 'Approve my stake', activate: 'Start ritual', 'initialize-event': 'Open week', claim: 'Claim completion', approve: 'Confirm showed up', question: 'Question this claim', finalize: 'Settle week' }
 
 export function RitualActionScreen({ route }: Props) {
-  const styles = makeStyles(useTheme()); const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>(); const client = useRitualClient(); const { selectedAccount, walletPackage } = useAuthorization(); const { connection } = useConnection()
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>(); const client = useRitualClient(); const { selectedAccount, walletPackage } = useAuthorization(); const { connection } = useConnection()
   const [read, setRead] = useState<RitualRead | null>(null); const [chainNow, setChainNow] = useState<number | null>(null); const [readError, setReadError] = useState<string | null>(null); const [reload, setReload] = useState(0); const mounted = useRef(true); const accountRef = useRef(selectedAccount); accountRef.current = selectedAccount
   const ritualAddress = useMemo(() => { try { return new PublicKey(route.params.ritualId) } catch { return null } }, [route.params.ritualId]); const kind = route.params.phase
   useEffect(() => () => { mounted.current = false }, [])
   useEffect(() => {
-    if (client.status !== 'ready' || !ritualAddress) { setReadError(client.status === 'ready' ? 'This Ritual address is invalid.' : client.reason); return }
+    if (client.status !== 'ready' || !ritualAddress) { setReadError(client.status === 'ready' ? 'invalid address' : client.reason); return }
     setReadError(null); setChainNow(null)
     void (async () => {
       try {
@@ -40,7 +44,7 @@ export function RitualActionScreen({ route }: Props) {
         setRead(value)
         setChainNow(timestamp)
       } catch {
-        if (mounted.current) setReadError('The Ritual could not be read from devnet. Check your connection and try again.')
+        if (mounted.current) setReadError('read failed')
       }
     })()
   }, [client, ritualAddress, reload, kind, connection])
@@ -52,8 +56,66 @@ export function RitualActionScreen({ route }: Props) {
     const destinationTokenAccounts = kind === 'finalize' ? read.account.members.map((member) => getAssociatedTokenAddressSync(read.account.stakeMint, member)) : undefined
     return buildRitualActionDeps({ client: client.client, ritualAddress, actor: selectedAccount.publicKey, kind, memberSource, eventIndex, claimant, destinationTokenAccounts, pendingActionStore: asyncStoragePendingActionStore, authorizedActor: () => accountRef.current?.publicKey ?? null, getBlockHeight: () => connection.getBlockHeight('confirmed'), getUnixTimestamp: async () => { const slot = await connection.getSlot('confirmed'); const timestamp = await connection.getBlockTime(slot); if (timestamp === null) throw new Error('chain clock is unavailable'); return timestamp }, getTokenAccountAmount: async (address) => BigInt((await connection.getTokenAccountBalance(address, 'confirmed')).value.amount) })
   }, [client, selectedAccount, read, ritualAddress, route.params, kind, connection])
-  const action = useRitualAction(makeDeps); const actionCopy = withWalletHandoff(action.copy, action.state.status, walletPackage); const lastMemberWillStart = kind === 'fund' && Boolean(read && selectedAccount && chainNow !== null && canBundleFundAndActivate(read.account, selectedAccount.publicKey, chainNow)); const label = lastMemberWillStart ? 'Fund & start ritual' : labels[kind]; const progress = read ? `${read.account.fundedMemberCount}/${read.account.members.length} members funded` : 'Reading current Ritual state…'; const ready = client.status === 'ready' && Boolean(selectedAccount) && Boolean(read); const done = action.state.status === 'confirmed'
-  const body = lastMemberWillStart ? 'You are the last member to fund. This approval also starts the ritual in one transaction.' : 'Read the current Ritual before every action. Stake, show up, get it back, friends confirm.'
-  return <ScrollView contentContainerStyle={styles.content}><Text variant="headlineMedium" accessibilityRole="header">{label}</Text><Text style={styles.muted}>{body}</Text><ConnectWalletCard reason="This step is signed by your wallet. You will review it in your wallet before anything is sent." /><Card style={styles.card} accessibilityLabel="Authoritative Ritual state"><Card.Content><Text variant="titleLarge">{progress}</Text><Text>{read ? `Status · ${read.account.status}` : 'No authoritative read yet.'}</Text>{read?.account.members.map((member, index) => <View key={member.toBase58()} style={styles.row}><Text>Member {index + 1} · {member.toBase58().slice(0, 5)}…</Text><Text>{(read.account.fundedMembersBitmap & (1 << index)) !== 0 ? 'Funded' : 'Waiting'}</Text></View>)}{readError && <><Text style={styles.error} accessibilityLiveRegion="polite">{readError}</Text><Button mode="outlined" onPress={() => setReload((value) => value + 1)}>Try again</Button></>}</Card.Content></Card><Card style={styles.card}><Card.Content><Text variant="titleMedium">{actionCopy.title}</Text><Text style={actionCopy.tone === 'warning' ? styles.error : styles.muted} accessibilityLiveRegion="polite">{actionCopy.body}</Text>{action.state.status === 'error' && action.state.retryable && <Button mode="outlined" onPress={action.reset}>Try again</Button>}{done && <Text style={styles.success}>Authoritative readback complete.</Text>}</Card.Content></Card>{!done && action.state.status === 'idle' && <Text style={styles.muted}>{walletHandoffNote(walletPackage)}</Text>}{!done && <Button mode="contained" onPress={action.start} disabled={!ready || !action.canSubmit || action.isBusy} loading={action.isBusy}>{action.isBusy ? 'Working…' : label}</Button>}{done && <Button mode="contained" onPress={() => navigation.navigate('RitualsHome')}>Done</Button>}<Text style={styles.disclosure}>DEVNET · TEST TOKENS HAVE NO REAL VALUE</Text></ScrollView>
+  const action = useRitualAction(makeDeps)
+  const actionCopy = withWalletHandoff(action.copy, action.state.status, walletPackage)
+  const lastMemberWillStart = kind === 'fund' && Boolean(read && selectedAccount && chainNow !== null && canBundleFundAndActivate(read.account, selectedAccount.publicKey, chainNow))
+  const label = lastMemberWillStart ? 'Fund & start ritual' : labels[kind]
+  const heading = lastMemberWillStart ? "You're the last one in" : headings[kind]
+  const ready = client.status === 'ready' && Boolean(selectedAccount) && Boolean(read)
+  const done = action.state.status === 'confirmed'
+  const people = read ? fundingPeople(read.account, selectedAccount?.publicKey ?? null) : []
+  const body = lastMemberWillStart ? 'Putting in your stake also starts the ritual. One approval.' : bodies[kind]
+  const showPeople = kind === 'fund' || kind === 'activate'
+  return (
+    <ScrollView style={s.screen} contentContainerStyle={s.content}>
+      <RNText style={s.title} accessibilityRole="header">{heading}</RNText>
+      <RNText style={s.muted}>{body}</RNText>
+      <ConnectWalletCard reason="You approve this in your wallet. Nothing is sent until you do." />
+      {showPeople && read && (
+        <>
+          <Section title="Your crew" aside={`${read.account.fundedMemberCount} of ${read.account.members.length} in`} />
+          <PeopleList people={people} />
+          {kind === 'fund' && <RNText style={s.note}>Your stake: {formatAtomic(read.account.memberTotalStake, read.account.stakeDecimals)}</RNText>}
+        </>
+      )}
+      {!read && !readError && <RNText style={s.muted}>Opening this ritual…</RNText>}
+      {readError && <><ErrorLine>We couldn't load this ritual. Check your connection and try again.</ErrorLine><ActionButton tone="quiet" label="Try again" onPress={() => setReload((value) => value + 1)} /></>}
+      {action.state.status !== 'idle' && (
+        <View style={[s.statusCard, actionCopy.tone === 'warning' && s.statusWarn]}>
+          <RNText style={s.statusTitle}>{actionCopy.title}</RNText>
+          <RNText style={s.muted} accessibilityLiveRegion="polite">{done ? doneCopy[kind] : actionCopy.body}</RNText>
+        </View>
+      )}
+      {action.state.status === 'error' && action.state.retryable && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
+      {!done && action.state.status === 'idle' && ready && <RNText style={s.note}>{walletHandoffNote(walletPackage)}</RNText>}
+      {!done && <ActionButton label={action.isBusy ? 'Working…' : label} onPress={action.start} disabled={!ready || !action.canSubmit || action.isBusy} loading={action.isBusy} accessibilityLabel={label} />}
+      {done && <ActionButton tone="dark" label="Done" onPress={() => navigation.navigate('RitualsHome')} />}
+      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+    </ScrollView>
+  )
 }
-const makeStyles = (theme: MD3Theme) => StyleSheet.create({ content: { padding: 20, gap: 14 }, card: { borderRadius: 18 }, muted: { color: theme.colors.onSurfaceVariant, lineHeight: 20, marginTop: 8 }, progress: { fontSize: 24, fontWeight: '800', marginVertical: 12 }, row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, gap: 10 }, error: { color: theme.colors.error, lineHeight: 20, marginTop: 8 }, success: { color: theme.colors.primary, fontWeight: '700', marginTop: 10 }, disclosure: { color: theme.colors.onSurfaceVariant, fontSize: 11, textAlign: 'center' } })
+
+const headings: Record<Props['route']['params']['phase'], string> = { fund: 'Put in your stake', activate: 'Start the ritual', 'initialize-event': 'Open this week', claim: 'Check in', approve: 'They made it', question: 'Not sure they made it', finalize: 'Settle this week' }
+const bodies: Record<Props['route']['params']['phase'], string> = {
+  fund: "Your stake is held by the ritual, not by Rituals. Show up and it comes back to you.",
+  activate: 'Everyone is in. Starting locks the schedule.',
+  'initialize-event': 'Opens this week so everyone can check in.',
+  claim: 'Tell your crew you showed up.',
+  approve: 'Confirm your friend showed up.',
+  question: 'Say you are not sure. Your crew decides.',
+  finalize: 'Closes this week and sends stakes where the rules say.',
+}
+const doneCopy: Record<Props['route']['params']['phase'], string> = {
+  fund: "You're in.", activate: 'The ritual has started.', 'initialize-event': 'This week is open.', claim: 'Checked in.', approve: 'Confirmed.', question: 'Questioned.', finalize: 'This week is settled.',
+}
+
+const s = StyleSheet.create({
+  screen: { backgroundColor: color.bg },
+  content: { padding: space.screen, paddingBottom: 48, gap: space.md },
+  title: { ...type.display, color: color.fg },
+  muted: { ...type.body, color: color.muted },
+  note: { ...type.caption, color: color.muted, paddingHorizontal: 2 },
+  statusCard: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs },
+  statusWarn: { borderColor: color.danger, backgroundColor: color.dangerSoft },
+  statusTitle: { ...type.heading, color: color.fg },
+})

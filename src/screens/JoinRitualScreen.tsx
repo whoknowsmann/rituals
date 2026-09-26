@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { ScrollView, StyleSheet } from 'react-native'
+import { ScrollView, StyleSheet, Text as RNText, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { Button, Card, Text, TextInput, useTheme, type MD3Theme } from 'react-native-paper'
+import { TextInput } from 'react-native-paper'
 import { PublicKey } from '@solana/web3.js'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
@@ -11,12 +11,13 @@ import { verifyInvite, type RitualInvite } from '../domain/rituals/invite'
 import { rememberRitual, formatAtomic } from '../features/rituals/authoritativeRituals'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import { ActionButton, ErrorLine, Footnote, Poster, PosterLine } from '../components/crew'
+import { color, memberColor, radius, space, type } from '../theme'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JoinRitual'>
-type JoinState = Readonly<{ status: 'idle' | 'loading' | 'invalid' | 'valid' | 'error'; invite?: RitualInvite; message?: string }>
+type JoinState = Readonly<{ status: 'idle' | 'loading' | 'valid' | 'error'; invite?: RitualInvite; message?: string }>
 
 export function JoinRitualScreen({ route }: Props) {
-  const styles = makeStyles(useTheme())
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const client = useRitualClient()
   const [input, setInput] = useState(route.params?.invite ?? '')
@@ -24,62 +25,83 @@ export function JoinRitualScreen({ route }: Props) {
 
   const loadClipboard = async () => {
     const value = await Clipboard.getStringAsync()
-    setInput(value)
+    setInput(value.trim())
     setState({ status: 'idle' })
   }
 
   const verify = async () => {
     setState({ status: 'loading' })
     try {
-      if (client.status !== 'ready') throw new Error('Rituals are not available on this network.')
-      const invite = decodeRitualInvite(input.trim())
+      if (client.status !== 'ready') throw new JoinError("Rituals isn't reachable right now. Try again in a moment.")
+      let invite: RitualInvite
+      try { invite = decodeRitualInvite(input.trim()) } catch { throw new JoinError("That doesn't look like a Rituals invite. Ask your friend to send it again.") }
       const read = await client.client.readRitual(new PublicKey(invite.ritual))
       const result = verifyInvite(invite, onchainInviteView(read))
-      if (!result.ok) throw new Error(`This invite could not be verified (${result.reason}).`)
+      if (!result.ok) throw new JoinError("This invite doesn't match the ritual it points to. Ask your friend for a fresh one.")
       await rememberRitual({ address: invite.ritual, title: invite.rules.title, requirement: invite.rules.requirement })
       setState({ status: 'valid', invite })
     } catch (error) {
-      setState({ status: 'error', message: error instanceof Error ? error.message : 'This invite could not be verified.' })
+      setState({ status: 'error', message: error instanceof JoinError ? error.message : "We couldn't open this invite. Check your connection and try again." })
     }
   }
 
+  const invite = state.status === 'valid' ? state.invite : undefined
+
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text variant="headlineMedium" accessibilityRole="header">Join a ritual</Text>
-      <Text style={styles.muted}>Paste the invite. We read the Ritual from devnet and verify its digest before showing terms.</Text>
-      <Card style={styles.card} accessibilityLabel="Invite input">
-        <Card.Content>
-          <TextInput label="Invite link" value={input} onChangeText={(value) => { setInput(value); setState({ status: 'idle' }) }} multiline accessibilityLabel="Invite link" />
-          <Button mode="text" onPress={() => { void loadClipboard() }}>Paste from clipboard</Button>
-          <Button mode="contained" onPress={() => { void verify() }} loading={state.status === 'loading'} disabled={!input.trim() || state.status === 'loading'}>Verify invite</Button>
-          {state.status === 'error' && <Text style={styles.error} accessibilityLiveRegion="polite">{state.message}</Text>}
-        </Card.Content>
-      </Card>
-      {state.status === 'valid' && state.invite && (
-        <Card style={styles.card} accessibilityLabel="Verified ritual terms">
-          <Card.Content>
-            <Text variant="titleLarge">{state.invite.rules.title}</Text>
-            <Text style={styles.verified}>VERIFIED AGAINST ON-CHAIN DIGEST</Text>
-            <Text style={styles.body}>{state.invite.rules.requirement}</Text>
-            <Text style={styles.term}>Stake per member · {formatAtomic(state.invite.rules.memberTotalStake, 6)}</Text>
-            <Text style={styles.term}>Friends confirm · {state.invite.rules.additionalConfirmationThreshold === 0 ? 'honor system' : `${state.invite.rules.additionalConfirmationThreshold} required`}</Text>
-            <Text style={styles.muted}>These terms are locked on-chain. Review them before funding; nothing has been submitted.</Text>
-            <Button mode="contained" onPress={() => navigation.navigate('RitualAction', { ritualId: state.invite!.ritual, phase: 'fund' })} accessibilityLabel="Continue to funding">Continue to funding</Button>
-          </Card.Content>
-        </Card>
+    <ScrollView style={s.screen} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+      <RNText style={s.title} accessibilityRole="header">Join a ritual</RNText>
+
+      {!invite && (
+        <>
+          <View style={s.field} accessibilityLabel="Invite input">
+            <TextInput
+              mode="outlined"
+              label="Invite"
+              value={input}
+              onChangeText={(value) => { setInput(value); setState({ status: 'idle' }) }}
+              numberOfLines={1}
+              autoCorrect={false}
+              autoCapitalize="none"
+              accessibilityLabel="Invite link"
+              style={s.input}
+            />
+          </View>
+          <View style={s.row}>
+            <ActionButton tone="quiet" label="Paste" onPress={() => { void loadClipboard() }} accessibilityLabel="Paste from clipboard" style={s.half} />
+            <ActionButton label="Open invite" onPress={() => { void verify() }} loading={state.status === 'loading'} disabled={!input.trim() || state.status === 'loading'} accessibilityLabel="Verify invite" style={s.half} />
+          </View>
+          {state.status === 'error' && <ErrorLine>{state.message}</ErrorLine>}
+        </>
       )}
-      <Text style={styles.disclosure}>DEVNET · TEST TOKENS HAVE NO REAL VALUE</Text>
+
+      {invite && (
+        <View accessibilityLabel="Verified ritual terms" style={s.terms}>
+          <Poster tint={memberColor(0)} kicker="You're invited" title={invite.rules.title}>
+            <PosterLine label="Each person puts in" value={formatAtomic(invite.rules.memberTotalStake, 6)} />
+            <PosterLine label="Check-ins" value={invite.rules.additionalConfirmationThreshold === 0 ? 'Honor system' : `${invite.rules.additionalConfirmationThreshold} friend${invite.rules.additionalConfirmationThreshold === 1 ? '' : 's'} confirm`} />
+          </Poster>
+          <RNText style={s.body}>{invite.rules.requirement}</RNText>
+          <RNText style={s.note}>These rules are locked. Nothing happens until you approve your stake.</RNText>
+          <ActionButton label="Continue" onPress={() => navigation.navigate('RitualAction', { ritualId: invite.ritual, phase: 'fund' })} accessibilityLabel="Continue to funding" />
+        </View>
+      )}
+
+      <Footnote>Devnet · TEST tokens have no real value</Footnote>
     </ScrollView>
   )
 }
 
-const makeStyles = (theme: MD3Theme) => StyleSheet.create({
-  content: { padding: 20, gap: 14 },
-  card: { borderRadius: 18 },
-  muted: { color: theme.colors.onSurfaceVariant, lineHeight: 20, marginTop: 8 },
-  body: { lineHeight: 22, marginTop: 12 },
-  term: { fontWeight: '700', marginTop: 10 },
-  verified: { color: theme.colors.primary, fontSize: 11, fontWeight: '700', marginTop: 8 },
-  error: { color: theme.colors.error, marginTop: 10 },
-  disclosure: { color: theme.colors.onSurfaceVariant, fontSize: 11, textAlign: 'center', marginVertical: 10 },
+class JoinError extends Error {}
+
+const s = StyleSheet.create({
+  screen: { backgroundColor: color.bg },
+  content: { padding: space.screen, paddingBottom: 48, gap: space.md },
+  title: { ...type.display, color: color.fg },
+  field: { backgroundColor: color.card, borderRadius: radius.lg },
+  input: { backgroundColor: color.card },
+  row: { flexDirection: 'row', gap: space.sm },
+  half: { flex: 1 },
+  terms: { gap: space.md },
+  body: { ...type.body, color: color.fg },
+  note: { ...type.caption, color: color.muted },
 })

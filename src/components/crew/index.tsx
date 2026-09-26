@@ -142,6 +142,24 @@ export function DropIn({ children }: { children: React.ReactNode }) {
   return <Animated.View style={{ opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-14, 0] }) }] }}>{children}</Animated.View>
 }
 
+/** Funding roster in Crew language: tile, name, short address, In / Not in yet. */
+export function PeopleList({ people }: { people: readonly { index: number; name: string; short: string; status: string }[] }) {
+  return (
+    <View style={s.people} accessibilityLabel="Who is in">
+      {people.map((person, i) => (
+        <View key={person.index} style={[s.person, i < people.length - 1 && s.personRule]} accessibilityLabel={`${person.name}, ${person.status}`}>
+          <MemberTile index={person.index} label={person.name} ok={person.status === 'In'} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.personName}>{person.name}</Text>
+            <Text style={s.personAddress}>{person.short}</Text>
+          </View>
+          <Text style={s.personStatus}>{person.status}</Text>
+        </View>
+      ))}
+    </View>
+  )
+}
+
 export function Footnote({ children }: { children: React.ReactNode }) {
   return <Text style={s.footnote}>{children}</Text>
 }
@@ -151,6 +169,12 @@ export function ErrorLine({ children }: { children: React.ReactNode }) {
 }
 
 const s = StyleSheet.create({
+  people: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, paddingHorizontal: space.lg },
+  person: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  personRule: { borderBottomWidth: 1, borderBottomColor: color.line },
+  personName: { ...type.heading, color: color.fg },
+  personAddress: { ...type.caption, color: color.faint, marginTop: 1 },
+  personStatus: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.muted },
   hero: { marginTop: space.sm, marginBottom: space.lg, gap: space.xs },
   heroKicker: { ...type.label, color: color.muted },
   heroText: { ...type.display, color: color.fg },
