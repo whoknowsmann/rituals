@@ -1,7 +1,6 @@
 # Solo rituals — design proposal (2026-09-25)
 
-Status: **proposal, needs Jack's decisions (§6)**. Supersedes the "P1, not P0"
-note in the Hub's `Product and MVP Scope.md` if approved.
+Status: **approved for submission scope (2026-09-25)**. Jack chose: solo in submission; default missed-stake destination = cause/charity-style beneficiary; non-staking witness in v1; one declared skip per ritual; cohorts design-only/coming soon for submission. Supersedes the "P1, not P0" note in the Hub's `Product and MVP Scope.md`.
 
 ## 1. Why
 
@@ -100,16 +99,13 @@ Rough effort: program + tests + redeploy **1.5–2 days**, client + screens
 **1–1.5 days**. The deadline is 2026-10-09 (14 days), so it fits, but it
 competes with the redesign and the MWA gate.
 
-## 6. Decisions needed from Jack
+## 6. Jack's decisions (2026-09-25)
 
-1. **Solo at submission, or after?** Recommendation: at submission. It's the
-   biggest audience and judges will ask "what if I don't have friends?"
-2. **Default destination for misses**: a cause, or a person you pick? (Both is
-   fine; one must be the default.)
-3. **Witness in v1?** Recommendation: yes. It's the most on-brand solo mode.
-4. **Declared skip in v1?** Recommendation: yes, one per ritual.
-5. **Cohorts**: agree to design-only for submission (a "coming soon" card),
-   built after?
+1. **Solo at submission:** yes. It is now in hackathon scope.
+2. **Default destination for misses:** cause/charity-style beneficiary.
+3. **Witness in v1:** yes, as a non-staking witness option.
+4. **Declared skip in v1:** yes, one per ritual.
+5. **Cohorts:** design-only / "coming soon" for submission; build after.
 
 ## 7. Sequencing proposal
 

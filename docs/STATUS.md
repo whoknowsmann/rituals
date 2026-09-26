@@ -40,37 +40,31 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
   Spec: `docs/DESIGN.md`. Research: `docs/plans/ui-direction-2026-09.md`.
   Jack is asking friends which they prefer.
 - **Tagline is "Show up, or pay up."** — pinned by test; never replace it.
-- **Solo rituals must be robust and first-class** (many users have no crew).
-  Proposal written: `docs/plans/solo-rituals.md` (Hub copy: `Solo Rituals
-  Proposal.md`). **Awaiting Jack's 5 decisions** (§6): solo at submission?
-  default miss destination (cause vs person)? witness in v1? declared skip?
-  cohorts design-only? Recommendation: solo at submission, witness yes, one
-  skip, cohorts teased only.
+- **Solo rituals are now in submission scope.** Jack locked the 5 decisions (§6): solo in submission; default missed-stake destination = cause/charity-style beneficiary; non-staking witness in v1; one declared skip per ritual; cohorts design-only/coming soon for submission. Proposal updated: `docs/plans/solo-rituals.md` (Hub copy: `Solo Rituals Proposal.md`).
 
 ### Next steps, in order
 
-1. **Ask Jack the 5 solo decisions** (they change the program, so they gate
-   screen work).
-2. **MWA gate (needs Jack at the phone, ~5 min):** open Rituals → Create →
+1. **MWA gate (needs Jack at the phone, ~5 min):** open Rituals → Create →
    template → Add member wallets → Connect with Phantom (host `Da59…VmV`) →
    friend `DNZKvX…` or test wallet 2 → Create ritual onchain → **approve in
    Phantom**. Create now reaches Phantom's approval screen (verified); approval
    itself is unexercised. Then fund from test wallet 2, claim, confirm, settle.
-3. Finish Crew scaffolding on `design/crew`: load fonts in `App.tsx`
+   Current live check 2026-09-25 evening: no authorized ADB device connected.
+2. Finish Crew scaffolding on `design/crew`: load fonts in `App.tsx`
    (`useFonts` with Fraunces_600SemiBold, Fraunces_900Black, Figtree_400Regular,
    Figtree_600SemiBold, Figtree_800ExtraBold; render nothing until loaded),
    StatusBar `dark`, navigator header → `color.bg`, `headerTitle: ''`
    (screens own their hero title), `contentStyle` `color.bg`.
-4. If solo is approved: program change (1 member when solo, optional non-staking
-   witness, locked forfeit destination, solo settlement branch, optional
-   declare_skip) + native tests + devnet redeploy (we hold upgrade authority
-   `ETQ9…hXbx`). Est. 1.5–2 days.
-5. Rebuild screens **once** in Crew, covering solo + group together: merge
+3. Build approved solo program changes: 1 member when solo, optional non-staking
+   witness, locked cause/charity-style forfeit destination, solo settlement
+   branch, one optional `declare_skip` + native tests + devnet redeploy (we hold
+   upgrade authority `ETQ9…hXbx`). Est. 1.5–2 days.
+4. Rebuild screens **once** in Crew, covering solo + group together: merge
    Create/Review/Roster into one flow ("Just me / With one witness / With
    friends" first), home as poster + feed, check-in via HoldButton, fix Suggest
    (results render below the fold — scroll to them; generate from the user's
    words; tap again for new ideas), cut all developer/explainer copy.
-6. Friends' share page: one self-contained HTML of all sketches at
+5. Friends' share page: one self-contained HTML of all sketches at
    `sketches/ui-2026-09/rituals-design-options.html` (+ a copy on Jack's Windows
    Desktop). Was blocked awaiting approval; not built.
 
