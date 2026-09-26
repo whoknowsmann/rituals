@@ -28,8 +28,19 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 - `design/crew` — **the working branch.** Crew scaffolding + solo proposal +
   all MWA fixes below (merged from `fix/mwa-diagnostics`) + fbe363f (fonts
   actually loaded, light shell). tsc clean, 1,973 tests / 74 files. Pushed.
-- Overnight 2026-09-25 agent branches (not merged; review first):
-  `feat/solo-program`, `feat/fewer-signatures`, `feat/crew-home`.
+- Overnight 2026-09-25 agent branches:
+  - `feat/fewer-signatures` — **merged** (bundles A create+host-fund, C
+    init-event+claim; host prompts 7→5). Devnet proofs: A `4GhDiJM9…`,
+    B `2CctpZh9…`, C `t2x5kJTb…` (all 1 signer, Status Ok, re-verified).
+  - `feat/crew-home` — **merged** (Crew home + HoldButton, not yet wired).
+    Not visually checked on a device yet.
+  - `feat/fund-activate` — in progress (bundle B: last member fund+activate).
+  - `feat/solo-program` — NOT merged, NOT deployed. `create_solo_ritual`,
+    `declare_skip`, solo settlement; native 181/181 (re-run by Hermes).
+    Ritual layout 909→977 bytes, so deploying breaks decoding of existing
+    devnet rituals and the current APK — needs Jack's go-ahead. Follow-up in
+    progress: self-forfeit guard (host can't route misses to own account),
+    negative tests, TS client adoption, rollout plan.
 - `fix/mwa-diagnostics` — `overnight/mobile-integration` + only the MWA fixes
   (ab774fd diag, 2a4ec29 compute budget/classification/stale auth, ab55204
   retry state). **The APK on the Seeker (installed 21:47) is ab55204** — ready
