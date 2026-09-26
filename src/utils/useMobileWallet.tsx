@@ -3,6 +3,7 @@ import { Account, useAuthorization } from "./useAuthorization";
 import { PublicKey, Transaction, TransactionSignature, VersionedTransaction } from "@solana/web3.js";
 import { useCallback, useMemo } from "react";
 import { associationConfigFor, walletOptionByPackage } from "./walletChoice";
+import { logFailure } from "./diagnostics";
 import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode, type WalletAssociationConfig } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
 export type MobileWalletErrorCategory = "authorization" | "input" | "wallet";
@@ -45,7 +46,7 @@ export async function authorizeAndSendTransaction(
   catch (error) { if (error instanceof MobileWalletError) throw error; inputFailure("transaction fee payer is missing"); }
   let authorized: Account;
   try { authorized = await authorizeSession(wallet as Web3MobileWallet); }
-  catch (error) { const rejected = isUserRejection(error); throw new MobileWalletError("authorization", rejected ? "wallet authorization was rejected" : "wallet authorization failed", rejected); }
+  catch (error) { logFailure("mwa.authorize", error); const rejected = isUserRejection(error); throw new MobileWalletError("authorization", rejected ? "wallet authorization was rejected" : "wallet authorization failed", rejected); }
   let authorizedKey: PublicKey;
   try {
     const candidate = authorized?.publicKey;
@@ -56,7 +57,7 @@ export async function authorizeAndSendTransaction(
   let signatures: unknown;
   try {
     signatures = await wallet.signAndSendTransactions({ transactions: [transaction], minContextSlot, commitment: "confirmed", skipPreflight: false, maxRetries: 3, waitForCommitmentToSendNextTransaction: true });
-  } catch (error) { const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected); }
+  } catch (error) { logFailure("mwa.signAndSend", error); const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected); }
   if (!Array.isArray(signatures) || typeof signatures[0] !== "string" || signatures[0].length === 0) throw new MobileWalletError("wallet", "wallet returned no transaction signature");
   return signatures[0] as TransactionSignature;
 }

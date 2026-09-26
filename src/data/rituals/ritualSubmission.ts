@@ -5,6 +5,7 @@ import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { canonicalBase58Signature, decodeCanonicalBase58Signature } from './base58Signature'
 import { RitualActionPreparer, type PreparedExpectation, type PreparedRitualAction } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualActionExpectation, type ConfirmedRitualAction, type SubmittedRitualAction } from './ritualConfirmation'
+import { logFailure } from '../../utils/diagnostics'
 
 export type RitualWalletSubmissionTransport = Readonly<{
   signAndSendTransaction: (transaction: Transaction, minContextSlot: number) => Promise<unknown>
@@ -36,6 +37,7 @@ function expectation(value: PreparedExpectation): RitualActionExpectation {
   return Object.freeze({ kind: value.kind, eventIndex: value.eventIndex, expectedEventStatus: value.expectedEventStatus, expectedVoidReason: value.expectedVoidReason, expectedRitualStatus: value.expectedRitualStatus, expectedCurrentEventIndex: value.expectedCurrentEventIndex, expectedSettledEventCount: value.expectedSettledEventCount })
 }
 function walletFailure(error: unknown): never {
+  logFailure('wallet.raw', error)
   try {
     if (error !== null && typeof error === 'object') {
       const name = (error as { name?: unknown }).name
