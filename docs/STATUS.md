@@ -42,9 +42,45 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 - **Tagline is "Show up, or pay up."** — pinned by test; never replace it.
 - **Solo rituals are now in submission scope.** Jack locked the 5 decisions (§6): solo in submission; default missed-stake destination = cause/charity-style beneficiary; non-staking witness in v1; one declared skip per ritual; cohorts design-only/coming soon for submission. Proposal updated: `docs/plans/solo-rituals.md` (Hub copy: `Solo Rituals Proposal.md`).
 
+### MWA gate result — 2026-09-25 20:48 CDT
+
+**First Create signed through MWA from the Seeker landed on devnet** — but the
+app reported failure. Tx `4RbVZJqL…teii4FK` (slot 504241004, Status Ok), host
+`Da59…VmV`, Ritual `2KmtR3Mf9C4xfPQqud88aBFrTY3PaN3XDBBX6VgwvQ3g` (created,
+unfunded, not saved on the phone).
+
+Root cause: **Phantom rewrites the transaction before signing** — it prepends
+ComputeBudget `SetComputeUnitLimit` + `SetComputeUnitPrice` (documented: it
+adds priority fees unless the dapp already includes compute-budget
+instructions). Phantom then signs and sends *its* message; our submission layer
+verifies the returned signature against *our* prepared bytes
+(`ritualSubmission.ts:106`) → "wallet signature does not verify the prepared
+message" → UI says "Nothing was sent… safely try again", which is **false**
+(retrying would create a second ritual). The CLI smokes never hit this because
+keypairs sign our exact bytes.
+
+Fix (next): include our own ComputeBudget limit + price instructions in every
+prepared transaction so Phantom leaves the message unchanged; update fee
+disclosure; keep the exact-bytes signature check (it caught a real mutation).
+Separately: any post-wallet-return failure must be classified as
+"may have landed", never "nothing was sent".
+
+Also found on the way (both phone-side, no code bug):
+- Phantom's first-run notification-permission dialog cancelled its biometric
+  unlock; swiping Rituals away then killed the MWA session.
+- Rituals had a cached auth token for `Da59…` while Phantom's active account was
+  `2Xrz…m7Xa` → "auth_token not valid for signing". Fixed by clearing app data and
+  reconnecting with the right account active. The app should detect this and
+  prompt to reconnect.
+
+Diagnostics added (e9e59e2): raw MWA errors now log under `[rituals]`
+(`mwa.authorize`, `mwa.signAndSend`, `wallet.raw`). Device driver:
+`scripts/ui.py`. The APK now on the Seeker is `overnight/mobile-integration` +
+that commit (branch `fix/mwa-diagnostics`, installed 20:43).
+
 ### Next steps, in order
 
-1. **MWA gate (needs Jack at the phone, ~5 min):** open Rituals → Create →
+1. **MWA gate — superseded by the result above.** Original instructions: open Rituals → Create →
    template → Add member wallets → Connect with Phantom (host `Da59…VmV`) →
    friend `DNZKvX…` or test wallet 2 → Create ritual onchain → **approve in
    Phantom**. Create now reaches Phantom's approval screen (verified); approval
