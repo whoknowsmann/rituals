@@ -153,7 +153,20 @@ async function main(): Promise<void> {
 
   const runFund = async (actor: Keypair, source: PublicKey) => runAction(
     `fund ${actor.publicKey.equals(host.publicKey) ? 'host' : 'friend'}`,
-    buildRitualActionDeps({ client, ritualAddress, actor: actor.publicKey, kind: 'fund', memberSource: source }),
+    buildRitualActionDeps({
+      client,
+      ritualAddress,
+      actor: actor.publicKey,
+      kind: 'fund',
+      memberSource: source,
+      getUnixTimestamp: async () => {
+        const slot = await connection.getSlot('confirmed')
+        const timestamp = await connection.getBlockTime(slot)
+        if (timestamp === null) throw new Error('chain clock is unavailable')
+        return timestamp
+      },
+      getTokenAccountAmount: (address) => tokenAmount(connection, address),
+    }),
     (state) => { if (state.status !== 'confirmed') throw new Error('fund did not reach confirmed state') },
   )
   const fundHostSignature = await runFund(host, hostToken)
@@ -165,22 +178,13 @@ async function main(): Promise<void> {
 
   const fundFriendSignature = await runFund(friend, friendToken)
   read = await client.readRitual(ritualAddress)
-  if (read.account.fundedMembersBitmap !== 3 || read.account.fundedMemberCount !== 2 || read.account.fundedStakeTotal !== MEMBER_STAKE * 2n || read.account.fundedFeeTotal !== read.account.lockedActivationFee) throw new Error('friend fund authoritative readback mismatch')
+  if (read.account.status !== 'Active' || read.account.fundedMembersBitmap !== 3 || read.account.fundedMemberCount !== 2 || read.account.fundedStakeTotal !== MEMBER_STAKE * 2n || read.account.fundedFeeTotal !== read.account.lockedActivationFee) throw new Error('friend fund+activate authoritative readback mismatch')
   const friendAfterFund = await tokenAmount(connection, friendToken)
   if (friendBefore - friendAfterFund !== MEMBER_STAKE) throw new Error('friend token balance delta mismatch')
-  console.log('fund friend:', fundFriendSignature)
-
-  const activateSignature = await runAction(
-    'activate',
-    buildRitualActionDeps({ client, ritualAddress, actor: host.publicKey, kind: 'activate' }),
-    (state) => { if (state.status !== 'confirmed') throw new Error('activate did not reach confirmed state') },
-  )
-  read = await client.readRitual(ritualAddress)
-  if (read.account.status !== 'Active' || read.account.fundedFeeTotal !== read.account.lockedActivationFee) throw new Error('activate authoritative readback mismatch')
   const feeRecipientAfter = await tokenAmount(connection, read.protocolConfig.feeRecipient)
   if (feeRecipientAfter - hostAfterFund !== read.account.lockedActivationFee) throw new Error('activation fee recipient balance mismatch')
-  console.log('activate:', activateSignature)
-  console.log('APP FUND/ACTIVATE VERIFIED ON DEVNET')
+  console.log('fund friend + activate:', fundFriendSignature)
+  console.log('APP FUND+ACTIVATE VERIFIED ON DEVNET')
 
   const eventIndex = 0
   const eventReady = async () => {
