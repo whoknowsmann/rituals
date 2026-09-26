@@ -1,0 +1,250 @@
+/**
+ * Crew UI kit. Spec: docs/DESIGN.md. Plain RN primitives on purpose: these are
+ * the brand, so they are not Paper components wearing a theme.
+ */
+import React, { useEffect, useRef, useState } from 'react'
+import { Animated, Easing, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import * as Haptics from 'expo-haptics'
+import Svg, { Circle } from 'react-native-svg'
+import { color, memberColor, radius, space, type } from '../../theme'
+
+export const haptic = {
+  light: () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}) },
+  success: () => { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}) },
+  warning: () => { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}) },
+}
+
+export function Hero({ children, kicker }: { children: React.ReactNode; kicker?: string }) {
+  return (
+    <View style={s.hero}>
+      {kicker ? <Text style={s.heroKicker}>{kicker}</Text> : null}
+      <Text style={s.heroText} accessibilityRole="header">{children}</Text>
+    </View>
+  )
+}
+
+export function Section({ title, aside, children }: { title: string; aside?: string; children?: React.ReactNode }) {
+  return (
+    <View style={s.section}>
+      <View style={s.sectionHead}>
+        <Text style={s.sectionTitle} accessibilityRole="header">{title}</Text>
+        {aside ? <Text style={s.sectionAside}>{aside}</Text> : null}
+      </View>
+      {children}
+    </View>
+  )
+}
+
+export function Poster({ tint, kicker, title, children }: { tint: string; kicker?: string; title: string; children?: React.ReactNode }) {
+  return (
+    <View style={[s.poster, { backgroundColor: tint }]} accessibilityLabel={`${title}${kicker ? `, ${kicker}` : ''}`}>
+      <View style={s.posterOrb} />
+      {kicker ? <Text style={s.posterKicker}>{kicker}</Text> : null}
+      <Text style={s.posterTitle}>{title}</Text>
+      {children}
+    </View>
+  )
+}
+
+export function PosterLine({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={s.posterLine}>
+      <Text style={s.posterLineLabel}>{label}</Text>
+      <Text style={s.posterLineValue}>{value}</Text>
+    </View>
+  )
+}
+
+export type WeekCell = 'done' | 'now' | 'future' | 'missed'
+
+export function WeekStrip({ cells, tint }: { cells: readonly WeekCell[]; tint: string }) {
+  return (
+    <View style={s.strip} accessibilityLabel={`${cells.filter((c) => c === 'done').length} of ${cells.length} done`}>
+      {cells.map((cell, i) => (
+        <View key={i} style={[s.cell, cell === 'done' && s.cellDone, cell === 'now' && s.cellNow, cell === 'missed' && s.cellMissed]}>
+          <Text style={[s.cellText, cell === 'done' && { color: tint }]}>{cell === 'done' ? '✓' : cell === 'missed' ? '–' : `W${i + 1}`}</Text>
+        </View>
+      ))}
+    </View>
+  )
+}
+
+export function MemberTile({ index, label, ok, size = 42 }: { index: number; label: string; ok?: boolean; size?: number }) {
+  const initial = (label.trim()[0] ?? '?').toUpperCase()
+  return (
+    <View style={{ width: size, height: size }}>
+      <View style={[s.tile, { width: size, height: size, borderRadius: size * 0.36, backgroundColor: memberColor(index) }]}>
+        <Text style={[s.tileText, { fontSize: size * 0.42 }]}>{initial}</Text>
+      </View>
+      {ok ? <View style={s.tick}><Text style={s.tickText}>✓</Text></View> : null}
+    </View>
+  )
+}
+
+export function Chip({ children, ok, onPress, accessibilityLabel }: { children: React.ReactNode; ok?: boolean; onPress?: () => void; accessibilityLabel?: string }) {
+  const body = <Text style={s.chipText}>{children}</Text>
+  if (!onPress) return <View style={[s.chip, ok && s.chipOk]}>{body}</View>
+  return (
+    <Pressable onPress={() => { haptic.light(); onPress() }} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={({ pressed }) => [s.chip, ok && s.chipOk, pressed && { transform: [{ scale: 0.95 }] }]}>
+      {body}
+    </Pressable>
+  )
+}
+
+/** A row in a feed: member tile + name + what happened + optional chips. */
+export function FeedRow({ index, name, action, when, faded, children }: { index: number; name: string; action: string; when?: string; faded?: boolean; children?: React.ReactNode }) {
+  return (
+    <View style={[s.feedRow, faded && { opacity: 0.5 }]}>
+      <MemberTile index={index} label={name} />
+      <View style={{ flex: 1 }}>
+        <Text style={s.feedText}><Text style={s.feedName}>{name}</Text> {action}</Text>
+        {when ? <Text style={s.feedWhen}>{when}</Text> : null}
+        {children ? <View style={s.chips}>{children}</View> : null}
+      </View>
+    </View>
+  )
+}
+
+/** Primary action. `go` = lime, `dark` = ink. Never more than one per screen. */
+export function ActionButton({ label, onPress, tone = 'go', disabled, loading, accessibilityLabel, style }: { label: string; onPress: () => void; tone?: 'go' | 'dark' | 'quiet'; disabled?: boolean; loading?: boolean; accessibilityLabel?: string; style?: StyleProp<ViewStyle> }) {
+  const off = disabled || loading
+  return (
+    <Pressable
+      onPress={() => { if (off) return; haptic.light(); onPress() }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: !!off, busy: !!loading }}
+      style={({ pressed }) => [s.btn, tone === 'go' && s.btnGo, tone === 'dark' && s.btnDark, tone === 'quiet' && s.btnQuiet, off && { opacity: 0.45 }, pressed && !off && { transform: [{ scale: 0.97 }] }, style]}
+    >
+      <Text style={[s.btnText, tone === 'dark' && { color: color.onDark }]}>{loading ? '…' : label}</Text>
+    </Pressable>
+  )
+}
+
+export function Dock({ title, body, children }: { title: string; body?: string; children?: React.ReactNode }) {
+  return (
+    <View style={s.dock}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.dockTitle}>{title}</Text>
+        {body ? <Text style={s.dockBody}>{body}</Text> : null}
+      </View>
+      {children}
+    </View>
+  )
+}
+
+const HOLD_MS = 800
+const R = 32
+const CIRC = 2 * Math.PI * R
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
+
+/**
+ * Press-and-hold commitment button. Releasing early cancels; completing fires
+ * a success haptic and onComplete. The hold is the "are you sure" — no dialog.
+ */
+export function HoldButton({ onComplete, disabled, label = 'Hold', doneLabel = '✓', done }: { onComplete: () => void; disabled?: boolean; label?: string; doneLabel?: string; done?: boolean }) {
+  const progress = useRef(new Animated.Value(0)).current
+  const [holding, setHolding] = useState(false)
+  const anim = useRef<Animated.CompositeAnimation | null>(null)
+  useEffect(() => { if (done) progress.setValue(1) }, [done, progress])
+  const start = () => {
+    if (disabled || done) return
+    setHolding(true)
+    haptic.light()
+    anim.current = Animated.timing(progress, { toValue: 1, duration: HOLD_MS, easing: Easing.linear, useNativeDriver: false })
+    anim.current.start(({ finished }) => {
+      setHolding(false)
+      if (finished) { haptic.success(); onComplete() }
+    })
+  }
+  const cancel = () => {
+    if (done) return
+    anim.current?.stop()
+    setHolding(false)
+    Animated.timing(progress, { toValue: 0, duration: 200, useNativeDriver: false }).start()
+  }
+  const dashoffset = progress.interpolate({ inputRange: [0, 1], outputRange: [CIRC, 0] })
+  return (
+    <Pressable onPressIn={start} onPressOut={cancel} disabled={disabled} accessibilityRole="button" accessibilityLabel="Hold to check in" accessibilityHint="Press and hold until the ring fills" style={[s.hold, disabled && { opacity: 0.4 }]}>
+      <Svg width={74} height={74} style={StyleSheet.absoluteFill}>
+        <Circle cx={37} cy={37} r={R} stroke="rgba(255,255,255,0.15)" strokeWidth={5} fill="none" />
+        <AnimatedCircle cx={37} cy={37} r={R} stroke={color.go} strokeWidth={5} fill="none" strokeLinecap="round" strokeDasharray={`${CIRC} ${CIRC}`} strokeDashoffset={dashoffset as unknown as number} transform="rotate(-90 37 37)" />
+      </Svg>
+      <View style={[s.holdCore, holding && { transform: [{ scale: 0.9 }] }, done && { backgroundColor: color.white }]}>
+        <Text style={s.holdText}>{done ? doneLabel : label}</Text>
+      </View>
+    </Pressable>
+  )
+}
+
+/** Fade + drop-in for content that just appeared because the user did something. */
+export function DropIn({ children }: { children: React.ReactNode }) {
+  const v = useRef(new Animated.Value(0)).current
+  useEffect(() => { Animated.spring(v, { toValue: 1, useNativeDriver: true, friction: 6, tension: 90 }).start() }, [v])
+  return <Animated.View style={{ opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-14, 0] }) }] }}>{children}</Animated.View>
+}
+
+export function Footnote({ children }: { children: React.ReactNode }) {
+  return <Text style={s.footnote}>{children}</Text>
+}
+
+export function ErrorLine({ children }: { children: React.ReactNode }) {
+  return <Text style={s.error} accessibilityLiveRegion="polite">{children}</Text>
+}
+
+const s = StyleSheet.create({
+  hero: { marginTop: space.sm, marginBottom: space.lg, gap: space.xs },
+  heroKicker: { ...type.label, color: color.muted },
+  heroText: { ...type.display, color: color.fg },
+  section: { marginTop: space.xl },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: space.sm, paddingHorizontal: 2 },
+  sectionTitle: { ...type.section, color: color.fg },
+  sectionAside: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.muted },
+
+  poster: { borderRadius: radius.poster, padding: space.xl, overflow: 'hidden' },
+  posterOrb: { position: 'absolute', right: -70, top: -70, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,255,255,0.14)' },
+  posterKicker: { ...type.label, color: color.white, opacity: 0.9 },
+  posterTitle: { ...type.hero, color: color.white, marginTop: space.sm, marginBottom: space.lg, maxWidth: '88%' },
+  posterLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: space.md },
+  posterLineLabel: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.white, opacity: 0.92 },
+  posterLineValue: { ...type.moneySm, color: color.white },
+
+  strip: { flexDirection: 'row', gap: 6 },
+  cell: { flex: 1, height: 34, borderRadius: 12, backgroundColor: color.scrim, alignItems: 'center', justifyContent: 'center' },
+  cellDone: { backgroundColor: color.white },
+  cellNow: { backgroundColor: color.glass, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.75)' },
+  cellMissed: { backgroundColor: 'rgba(0,0,0,0.28)' },
+  cellText: { ...type.caption, fontFamily: type.heading.fontFamily, color: color.white },
+
+  tile: { alignItems: 'center', justifyContent: 'center' },
+  tileText: { fontFamily: type.heading.fontFamily, color: color.white },
+  tick: { position: 'absolute', right: -4, bottom: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: color.go, borderWidth: 2, borderColor: color.bg, alignItems: 'center', justifyContent: 'center' },
+  tickText: { fontSize: 10, fontFamily: type.heading.fontFamily, color: color.goInk },
+
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: space.sm },
+  chip: { backgroundColor: color.card, borderWidth: 1, borderColor: color.line, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 11 },
+  chipOk: { backgroundColor: color.go, borderColor: color.goDeep },
+  chipText: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.fg },
+
+  feedRow: { flexDirection: 'row', gap: space.md, paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: color.line },
+  feedText: { ...type.body, color: color.fg },
+  feedName: { fontFamily: type.heading.fontFamily },
+  feedWhen: { ...type.caption, color: color.muted, marginTop: 2 },
+
+  btn: { borderRadius: radius.lg, paddingVertical: 17, paddingHorizontal: space.xl, alignItems: 'center', justifyContent: 'center' },
+  btnGo: { backgroundColor: color.go, borderWidth: 1, borderColor: color.goDeep },
+  btnDark: { backgroundColor: color.fg },
+  btnQuiet: { backgroundColor: color.card, borderWidth: 1, borderColor: color.line },
+  btnText: { ...type.heading, color: color.fg },
+
+  dock: { position: 'absolute', left: 12, right: 12, bottom: 14, backgroundColor: color.fg, borderRadius: radius.poster, paddingVertical: 14, paddingLeft: space.xl, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 14, elevation: 12, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  dockTitle: { ...type.heading, color: color.onDark },
+  dockBody: { ...type.caption, color: color.onDarkMuted, marginTop: 2 },
+
+  hold: { width: 74, height: 74, alignItems: 'center', justifyContent: 'center' },
+  holdCore: { width: 56, height: 56, borderRadius: 28, backgroundColor: color.go, alignItems: 'center', justifyContent: 'center' },
+  holdText: { ...type.caption, fontFamily: type.heading.fontFamily, color: color.fg, textAlign: 'center' },
+
+  footnote: { ...type.caption, color: color.faint, textAlign: 'center', marginTop: space.xl },
+  error: { ...type.body, color: color.danger, marginTop: space.sm },
+})
