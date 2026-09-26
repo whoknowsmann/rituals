@@ -31,7 +31,13 @@ describe('indexed event confirmation contracts', () => {
     expect(result.indexedBundle).toBe(result.bundle)
     expect(Object.keys(result)).toEqual(['signature', 'confirmationSlot', 'bundle', 'indexedBundle', 'expectationKind'])
   })
-  it.each(['Pending', 'Confirmed', 'Questioned'] as const)('accepts a Pending claim expectation at later status %s', async (status) => {
+  it('confirms a bundled initialize-and-claim through the indexed reader once', async () => {
+    const reader = new EventReader(bundle('Pending'))
+    const result = await new RitualConfirmationVerifier(reader, new FakeConfirm()).confirmAndReadRitual(action({ kind: 'bundle', expectations: [{ kind: 'event-initialized', eventIndex: 0 }, { kind: 'claimed', claimant: member, eventIndex: 0, expectedClaimStatus: 'Pending' }] }))
+    expect(reader.calls).toEqual([{ index: 0, options: { minContextSlot: 50 } }])
+    expect(result.expectationKind).toBe('bundle')
+  })
+  it.each(['Pending', 'Confirmed', 'Questioned'] as const)('accepts a Pending claim at later status %s', async (status) => {
     const result = await new RitualConfirmationVerifier(new EventReader(bundle(status)), new FakeConfirm()).confirmAndReadRitual(action({ kind: 'claimed', claimant: member, eventIndex: 0, expectedClaimStatus: 'Pending' }))
     expect(result.bundle.claims[0].account?.status).toBe(status)
   })

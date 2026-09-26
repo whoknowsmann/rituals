@@ -2,7 +2,7 @@ import { PublicKey } from '@solana/web3.js'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { RitualsRpcReader, type ReadOptions, type RitualRead, type RitualBundleRead, type RitualRpcTransport } from './ritualsRpc'
 import type { ProtocolConfigAccountView } from './accounts'
-import { RitualActionPreparer, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
+import { RitualActionPreparer, type BuildCreateAndFundArgs, type BuildInitializeAndClaimArgs, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualConfirmationTransport } from './ritualConfirmation'
 import { RitualActionSubmitter, type RitualWalletSubmissionTransport, type RitualSubmissionResult, type SubmittedRitualActionHandle } from './ritualSubmission'
 import type { BuildCreateRitualArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs } from './instructionsLifecycle'
@@ -25,11 +25,13 @@ export interface RitualClient {
   getRitualBundle(address: PublicKey, options?: ReadOptions): Promise<RitualBundleRead>
   getEventBundle(address: PublicKey, eventIndex: number, options?: ReadOptions): Promise<RitualBundleRead>
   prepareCreate(args: BuildCreateRitualArgs): Promise<PreparedRitualAction>
+  prepareCreateAndFund(args: BuildCreateAndFundArgs): Promise<PreparedRitualAction>
   prepareFund(args: BuildFundMemberArgs): Promise<PreparedRitualAction>
   prepareActivate(args: BuildActivateRitualArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction>
   prepareCancel(args: BuildCancelUnactivatedArgs): Promise<PreparedRitualAction>
   prepareClose(args: BuildCloseTerminalVaultsArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction>
   prepareInitializeEvent(args: BuildInitializeCurrentEventArgs): Promise<PreparedRitualAction>
+  prepareInitializeAndClaim(args: BuildInitializeAndClaimArgs): Promise<PreparedRitualAction>
   prepareClaim(args: BuildClaimCompletionArgs): Promise<PreparedRitualAction>
   prepareApprove(args: BuildApproveClaimArgs): Promise<PreparedRitualAction>
   prepareQuestion(args: BuildQuestionClaimArgs): Promise<PreparedRitualAction>
@@ -53,11 +55,13 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
     getRitualBundle: reader.getRitualBundle.bind(reader),
     getEventBundle: reader.getEventBundle.bind(reader),
     prepareCreate: preparer.prepareCreate.bind(preparer),
+    prepareCreateAndFund: preparer.prepareCreateAndFund.bind(preparer),
     prepareFund: preparer.prepareFund.bind(preparer),
     prepareActivate: preparer.prepareActivate.bind(preparer),
     prepareCancel: preparer.prepareCancel.bind(preparer),
     prepareClose: preparer.prepareClose.bind(preparer),
     prepareInitializeEvent: preparer.prepareInitializeEvent.bind(preparer),
+    prepareInitializeAndClaim: preparer.prepareInitializeAndClaim.bind(preparer),
     prepareClaim: preparer.prepareClaim.bind(preparer),
     prepareApprove: preparer.prepareApprove.bind(preparer),
     prepareQuestion: preparer.prepareQuestion.bind(preparer),

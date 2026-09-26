@@ -29,6 +29,7 @@ export type RitualActionExpectation =
   | Readonly<{ kind: 'approved'; claimant: PublicKey; approver: PublicKey; eventIndex: number; expectedApprovalCount: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
   | Readonly<{ kind: 'questioned'; claimant: PublicKey; questioner: PublicKey; eventIndex: number }>
   | Readonly<{ kind: 'finalized'; eventIndex: number; expectedEventStatus: 'Settled' | 'Voided'; expectedVoidReason: 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims'; expectedRitualStatus: 'Active' | 'Completed'; expectedCurrentEventIndex: number; expectedSettledEventCount: number }>
+  | Readonly<{ kind: 'bundle'; expectations: readonly RitualActionExpectation[] }>
 
 export type SubmittedRitualAction = Readonly<{
   signature: string
@@ -87,6 +88,11 @@ function canonicalSignature(value: unknown): string { try { return canonicalBase
 function snapshotExpectation(value: unknown): RitualActionExpectation {
   if (!isRecord(value)) fail('input', 'Ritual expectation is invalid')
   const kind = read<unknown>(value as object, 'kind')
+  if (kind === 'bundle') {
+    const raw = read<readonly unknown[]>(value as object, 'expectations')
+    if (!Array.isArray(raw) || raw.length < 2) fail('input', 'Ritual bundle expectation is invalid')
+    return Object.freeze({ kind: 'bundle' as const, expectations: Object.freeze(raw.map(snapshotExpectation)) })
+  }
   if (kind === 'activated' || kind === 'cancelled' || kind === 'vaults-closed') return Object.freeze({ kind })
   if (kind === 'created') {
     const creator = cloneKey(read<unknown>(value as object, 'creator'), 'creator'); const nonce = read<unknown>(value as object, 'nonce')
@@ -143,6 +149,10 @@ function expired(error: unknown): boolean {
 function mismatch(): never { return fail('readback', 'Ritual state did not match the submitted action') }
 
 function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionExpectation): void {
+  if (expectation.kind === 'bundle') {
+    for (const nested of expectation.expectations) verifyExpectation(bundle, nested)
+    return
+  }
   const account = bundle.ritual.account
   if (expectation.kind === 'created') {
     if (account.status !== 'Funding' || !account.creator.equals(expectation.creator) || account.nonce !== expectation.nonce) mismatch()
@@ -172,6 +182,15 @@ function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionEx
   } else if (expectation.kind === 'finalized') {
     if (!bundle.event || bundle.event.account.eventIndex !== expectation.eventIndex || bundle.event.account.status !== expectation.expectedEventStatus || bundle.event.account.voidReason !== expectation.expectedVoidReason || account.status !== expectation.expectedRitualStatus || account.currentEventIndex !== expectation.expectedCurrentEventIndex || account.settledEventCount !== expectation.expectedSettledEventCount) mismatch()
   } else if ((account.status !== 'Completed' && account.status !== 'Cancelled') || !account.vaultsClosed) mismatch()
+}
+
+function eventExpectation(value: RitualActionExpectation): { eventIndex: number } | null {
+  if (value.kind === 'bundle') {
+    for (const nested of value.expectations) { const found = eventExpectation(nested); if (found) return found }
+    return null
+  }
+  if (value.kind === 'event-initialized' || value.kind === 'claimed' || value.kind === 'approved' || value.kind === 'questioned' || value.kind === 'finalized') return { eventIndex: value.eventIndex }
+  return null
 }
 
 export class RitualConfirmationVerifier {
@@ -206,9 +225,10 @@ export class RitualConfirmationVerifier {
     if (!isRecord(value) || !owns(value, 'err')) fail('confirmation', 'transaction confirmation value is malformed')
     if (readConfirmation<unknown>(value as object, 'err') !== null) fail('confirmation', 'transaction failed')
     let bundle!: RitualBundleRead
+    const nestedEvent = eventExpectation(snapshot.expectation)
     try {
-      bundle = ['event-initialized', 'claimed', 'approved', 'questioned', 'finalized'].includes(snapshot.expectation.kind)
-        ? await this.#reader.getEventBundle(snapshot.ritualAddress, (snapshot.expectation as { eventIndex: number }).eventIndex, { minContextSlot: confirmationSlot })
+      bundle = nestedEvent
+        ? await this.#reader.getEventBundle(snapshot.ritualAddress, nestedEvent.eventIndex, { minContextSlot: confirmationSlot })
         : await this.#reader.getRitualBundle(snapshot.ritualAddress, { minContextSlot: confirmationSlot })
     } catch (error) {
       if (error instanceof RitualRpcError) fail(error.category === 'rpc' ? 'rpc' : 'readback', 'Ritual authoritative readback failed')
@@ -216,7 +236,7 @@ export class RitualConfirmationVerifier {
     }
     if (!bundle || !safeSlot(bundle.slot) || bundle.slot < confirmationSlot) fail('readback', 'Ritual authoritative readback is stale')
     verifyExpectation(bundle, snapshot.expectation)
-    return Object.freeze({ signature: snapshot.strategy.signature, confirmationSlot, bundle, ...( ['event-initialized', 'claimed', 'approved', 'questioned', 'finalized'].includes(snapshot.expectation.kind) ? { indexedBundle: bundle } : {}), expectationKind: snapshot.expectation.kind })
+    return Object.freeze({ signature: snapshot.strategy.signature, confirmationSlot, bundle, ...(nestedEvent ? { indexedBundle: bundle } : {}), expectationKind: snapshot.expectation.kind })
   }
 }
 

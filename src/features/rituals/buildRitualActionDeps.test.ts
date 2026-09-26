@@ -36,6 +36,16 @@ describe('buildRitualActionDeps', () => {
     expect(store.remove).toHaveBeenCalledTimes(1)
   })
 
+  it('bundles initialization when a claim is the first event action', async () => {
+    const client = fakeClient({
+      getEventBundle: vi.fn(async () => ({ event: null, claims: [] })),
+      prepareInitializeAndClaim: vi.fn(async () => ({ ...prepared, kind: 'initialize-event-and-claim' as const })),
+    })
+    const deps = buildRitualActionDeps({ client, ritualAddress: ritual, actor, kind: 'claim', claimant: actor })
+    const ref = await deps.prepare()
+    expect(ref.kind).toBe('claim')
+    expect(client.prepareInitializeAndClaim).toHaveBeenCalledWith(expect.objectContaining({ payer: actor, claimant: actor, eventIndex: 0 }))
+  })
   it('uses activate preparation without a token source', async () => {
     const client = fakeClient()
     const deps = buildRitualActionDeps({ client, ritualAddress: ritual, actor, kind: 'activate' })

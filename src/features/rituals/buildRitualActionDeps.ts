@@ -50,16 +50,18 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
           prepared = await client.prepareInitializeEvent({ programId: client.programId, ritual: { address: read.address, account: read.account }, eventIndex, payer: actor })
         } else {
           const bundle = await client.getEventBundle(ritualAddress, eventIndex)
-          if (!bundle.event) throw new Error('the current event is not initialized')
-          const event = { address: bundle.event.address, account: bundle.event.account }
+          if (!bundle.event && kind !== 'claim') throw new Error('the current event is not initialized')
+          const event = bundle.event ? { address: bundle.event.address, account: bundle.event.account } : null
           if (kind === 'claim') {
-            prepared = await client.prepareClaim({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, claimant })
+            prepared = event
+              ? await client.prepareClaim({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, claimant })
+              : await client.prepareInitializeAndClaim({ programId: client.programId, ritual: { address: read.address, account: read.account }, eventIndex, payer: actor, claimant })
           } else {
             const claimEntry = bundle.claims.find((entry) => entry.member.equals(claimant) && entry.account !== null)
             if ((kind === 'approve' || kind === 'question') && (!claimEntry || !claimEntry.account)) throw new Error('the claim is not available')
-            if (kind === 'approve') prepared = await client.prepareApprove({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, claim: { address: claimEntry!.address, account: claimEntry!.account! }, approver: actor })
-            else if (kind === 'question') prepared = await client.prepareQuestion({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, claim: { address: claimEntry!.address, account: claimEntry!.account! }, questioner: actor })
-            else prepared = await client.prepareFinalize({ programId: client.programId, ritual: { address: read.address, account: read.account }, event, destinationTokenAccounts, feePayer: actor })
+            if (kind === 'approve') prepared = await client.prepareApprove({ programId: client.programId, ritual: { address: read.address, account: read.account }, event: event!, claim: { address: claimEntry!.address, account: claimEntry!.account! }, approver: actor })
+            else if (kind === 'question') prepared = await client.prepareQuestion({ programId: client.programId, ritual: { address: read.address, account: read.account }, event: event!, claim: { address: claimEntry!.address, account: claimEntry!.account! }, questioner: actor })
+            else prepared = await client.prepareFinalize({ programId: client.programId, ritual: { address: read.address, account: read.account }, event: event!, destinationTokenAccounts, feePayer: actor })
           }
         }
       }

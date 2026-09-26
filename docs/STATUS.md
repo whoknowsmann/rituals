@@ -3,8 +3,8 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-25 ~21:30 CDT** (tsc clean, 1,971 tests / 73 files on
-`design/crew` f04acf8; device + devnet checks below)
+Last verified: **2026-09-25 22:03 CDT** (tsc clean, 1,978 tests / 75 files on
+`feat/fewer-signatures`; device + devnet checks below)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -45,6 +45,16 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
   cause/charity-style default destination; non-staking witness; one declared
   skip per ritual; cohorts design-only / coming soon.
 - Jack's feedback 2026-09-25: **3–4 approval taps per signature is annoying.**
+
+### Fewer-signatures checkpoint — 2026-09-25
+
+`feat/fewer-signatures` proves atomic A/B/C bundles on devnet in
+`scripts/smoke-bundled-actions.ts` and implements A (Create + host Fund) and C
+(initialize event + first Claim) in the prepared-action client. The measured
+journey prompt count drops from host 7/member 3 to host 5/member 3 with A+C;
+B is proven but not yet wired into the client. See
+`docs/plans/fewer-signatures.md` for signatures, readbacks, risks, and the
+remaining D proof.
 
 ### MWA gate — 2026-09-25 evening: MWA signing PROVEN on the Seeker
 

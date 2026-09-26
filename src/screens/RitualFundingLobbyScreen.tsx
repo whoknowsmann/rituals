@@ -4,6 +4,7 @@ import * as Clipboard from 'expo-clipboard'
 import { ActivityIndicator, Button, Card, Divider, Text, useTheme, type MD3Theme } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import { PublicKey } from '@solana/web3.js'
+import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { buildReviewViewModel } from '../features/rituals/create/reviewViewModel'
@@ -19,6 +20,7 @@ import { useCreateRitual } from '../features/rituals/create/useCreateRitual'
 import { buildCreateRitualDeps } from '../features/rituals/create/buildCreateDeps'
 import { DEMO_CADENCE, describeCadence, nextWeekdayOccurrence } from '../domain/rituals/schedule'
 import { rememberRitual } from '../features/rituals/authoritativeRituals'
+import { RITUALS_DEVNET_STAKE_MINT } from '../data/rituals/programIds'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RitualFundingLobby'>
 
@@ -50,6 +52,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
     return buildCreateRitualDeps({
       client: client.client,
       creator: selectedAccount.publicKey,
+      creatorTokenAccount: getAssociatedTokenAddressSync(RITUALS_DEVNET_STAKE_MINT, selectedAccount.publicKey),
       members,
       draft: draft.value,
       cadence,
