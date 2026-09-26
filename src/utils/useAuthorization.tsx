@@ -173,9 +173,11 @@ export function useAuthorization() {
     },
     [authorization]
   );
+  const clearAuthorization = useCallback(async () => { await persistAuthorization(null); queryClient.invalidateQueries({ queryKey: ["wallet-authorization"] }); }, [queryClient]);
   return useMemo(
     () => ({
       accounts: authorization?.accounts ?? null,
+      clearAuthorization,
       authorizeSession,
       authorizeSessionWithSignIn,
       deauthorizeSession,
@@ -183,6 +185,6 @@ export function useAuthorization() {
       walletPackage: authorization?.walletPackage ?? null,
       isLoading,
     }),
-    [authorization, authorizeSession, deauthorizeSession]
+    [authorization, authorizeSession, clearAuthorization, deauthorizeSession]
   );
 }

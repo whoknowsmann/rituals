@@ -257,3 +257,20 @@ describe('create machine: immutability', () => {
     expect(createMachineReducer(state, null)).toBe(state)
   })
 })
+
+describe('create machine: starting again from a retryable error', () => {
+  // Seeker 2026-09-25: the Create button stays enabled on a retryable error
+  // (canSubmitCreate), but PREPARE was ignored in 'error', so a second attempt
+  // that landed on devnet left the screen showing the old failure.
+  const failed = () => reduce(createMachineInitialState(), { type: 'PREPARE' }, { type: 'PREPARED', prepared: PREPARED }, { type: 'FAILED', category: 'submission', message: 'x' })
+  it('a retry started directly from a retryable error runs through to confirmed', () => {
+    const start = failed(); expect(canSubmitCreate(start)).toBe(true)
+    const state = reduce(start, { type: 'PREPARE' }, { type: 'PREPARED', prepared: PREPARED }, { type: 'SUBMITTED', handle: HANDLE }, { type: 'CONFIRMING' }, { type: 'CONFIRMED', result: RESULT })
+    expect(state.status).toBe('confirmed')
+  })
+  it('a post-submission error still cannot be restarted', () => {
+    const state = reduce(createMachineInitialState(), { type: 'PREPARE' }, { type: 'PREPARED', prepared: PREPARED }, { type: 'SUBMITTED', handle: HANDLE }, { type: 'FAILED', category: 'confirmation', message: 'x' })
+    expect(canSubmitCreate(state)).toBe(false)
+    expect(reduce(state, { type: 'PREPARE' })).toBe(state)
+  })
+})

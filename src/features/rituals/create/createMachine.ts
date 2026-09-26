@@ -174,7 +174,13 @@ export function createMachineReducer(
 
     case 'error':
       // Only a retryable error may be reset; post-submission errors dead-end.
-      return event.type === 'RESET' && state.retryable ? createMachineInitialState() : state
+      if (event.type === 'RESET' && state.retryable) return createMachineInitialState()
+      // canSubmitCreate() allows starting again straight from a retryable error
+      // (the Create button stays enabled). That attempt must drive the machine;
+      // ignoring PREPARE here once let a real Create land on devnet while the
+      // screen kept showing the previous "Could not create" error.
+      if (event.type === 'PREPARE' && state.retryable) return freeze({ status: 'preparing' as const })
+      return state
 
     case 'confirmed':
       return state

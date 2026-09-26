@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { lifecycleInitialState, lifecycleReducer, type LifecycleEvent } from './lifecycleMachine'
+import { lifecycleCanSubmit, lifecycleInitialState, lifecycleReducer, type LifecycleEvent } from './lifecycleMachine'
 import { runLifecycleAction, type LifecycleActionDeps } from './runLifecycleAction'
 
 const prepared = { kind: 'fund' as const, messageDigest: 'a'.repeat(64), ritualAddress: 'ritual' }
@@ -40,5 +40,16 @@ describe('runLifecycleAction', () => {
     let state = lifecycleInitialState()
     await runLifecycleAction(deps({ submit: vi.fn(async () => { throw new Error('User rejected the request') }) }), (event: LifecycleEvent) => { state = lifecycleReducer(state, event) })
     expect(state).toMatchObject({ status: 'error', category: 'wallet-rejected', retryable: true })
+  })
+})
+
+describe('lifecycle machine: starting again from a retryable error', () => {
+  it('PREPARE from a retryable error advances; from a post-submission error it does not', () => {
+    const prepared = { kind: 'fund' as const, messageDigest: 'a'.repeat(64), ritualAddress: 'R' }
+    const retryable = [{ type: 'PREPARE' as const }, { type: 'PREPARED' as const, prepared }, { type: 'FAILED' as const, category: 'submission' as const, message: 'x' }].reduce(lifecycleReducer, lifecycleInitialState())
+    expect(lifecycleCanSubmit(retryable)).toBe(true)
+    expect(lifecycleReducer(retryable, { type: 'PREPARE' }).status).toBe('preparing')
+    const stuck = [{ type: 'PREPARE' as const }, { type: 'PREPARED' as const, prepared }, { type: 'SUBMITTED' as const, handle: { id: 'h' } }, { type: 'FAILED' as const, category: 'confirmation' as const, message: 'x' }].reduce(lifecycleReducer, lifecycleInitialState())
+    expect(lifecycleReducer(stuck, { type: 'PREPARE' })).toBe(stuck)
   })
 })

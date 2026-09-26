@@ -20,7 +20,15 @@ export type RitualSubmissionResult = Readonly<{
 export type RitualSubmissionErrorCategory = 'input' | 'wallet' | 'signature' | 'deployment'
 export class RitualSubmissionError extends Error {
   readonly category: RitualSubmissionErrorCategory
-  constructor(category: RitualSubmissionErrorCategory, message: string) { super(message); this.name = 'RitualSubmissionError'; this.category = category }
+  /**
+   * True when the wallet already returned a signature before this failure.
+   * The wallet may have broadcast the transaction, so callers must treat the
+   * outcome as unknown (never "nothing was sent") and let recovery check chain.
+   */
+  readonly submitted: boolean
+  /** The wallet-returned signature, when it was canonical; lets recovery look it up. */
+  readonly signature: string | undefined
+  constructor(category: RitualSubmissionErrorCategory, message: string, submitted = false, signature?: string) { super(message); this.name = 'RitualSubmissionError'; this.category = category; this.submitted = submitted; this.signature = signature }
 }
 const fail = (category: RitualSubmissionErrorCategory, message: string): never => { throw new RitualSubmissionError(category, message) }
 const hex = (bytes: Uint8Array): string => Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
@@ -92,18 +100,33 @@ export class RitualActionSubmitter {
     this.#preparer.assertWalletTransactionUnchanged(prepared, walletAction.transaction)
     let returned: unknown
     try { returned = await Promise.resolve().then(() => this.#wallet(walletAction.transaction, scalar.submittedContextSlot)) } catch (error) { return walletFailure(error) }
-    this.#preparer.assertWalletTransactionUnchanged(prepared, walletAction.transaction)
-    let signature: string
-    try { signature = canonicalBase58Signature(returned) } catch { return fail('signature', 'wallet returned an invalid transaction signature') }
-    const reconstructed = this.#preparer.getTransactionForWallet(prepared)
-    this.#preparer.assertWalletTransactionUnchanged(prepared, reconstructed.transaction)
-    const message = Uint8Array.from(reconstructed.transaction.serializeMessage())
-    const digest = hex(sha256(message))
-    if (digest !== scalar.expectedMessageDigest) fail('signature', 'prepared message digest changed')
-    const compiled = reconstructed.transaction.compileMessage()
-    if (compiled.header.numRequiredSignatures !== 1 || compiled.accountKeys.length === 0 || !compiled.accountKeys[0].equals(reconstructed.transaction.feePayer as PublicKey)) fail('signature', 'prepared transaction does not have exactly one fee-payer signer')
-    try { reconstructed.transaction.addSignature(compiled.accountKeys[0], Buffer.from(decodeCanonicalBase58Signature(signature))) } catch { return fail('signature', 'wallet signature could not be attached') }
-    try { if (reconstructed.transaction.verifySignatures(true) !== true) fail('signature', 'wallet signature does not verify the prepared message') } catch (error) { if (error instanceof RitualSubmissionError) throw error; return fail('signature', 'wallet signature does not verify the prepared message') }
+    // From here on the wallet has answered with a signature and may have
+    // broadcast. Any failure is post-submission: never report "nothing was sent".
+    let returnedSignature: string | undefined
+    let signature!: string
+    let digest!: string
+    try {
+      this.#preparer.assertWalletTransactionUnchanged(prepared, walletAction.transaction)
+      try { signature = canonicalBase58Signature(returned); returnedSignature = signature } catch { throw new RitualSubmissionError('signature', 'wallet returned an invalid transaction signature', true) }
+      const reconstructed = this.#preparer.getTransactionForWallet(prepared)
+      this.#preparer.assertWalletTransactionUnchanged(prepared, reconstructed.transaction)
+      const message = Uint8Array.from(reconstructed.transaction.serializeMessage())
+      digest = hex(sha256(message))
+      if (digest !== scalar.expectedMessageDigest) fail('signature', 'prepared message digest changed')
+      const compiled = reconstructed.transaction.compileMessage()
+      if (compiled.header.numRequiredSignatures !== 1 || compiled.accountKeys.length === 0 || !compiled.accountKeys[0].equals(reconstructed.transaction.feePayer as PublicKey)) fail('signature', 'prepared transaction does not have exactly one fee-payer signer')
+      try { reconstructed.transaction.addSignature(compiled.accountKeys[0], Buffer.from(decodeCanonicalBase58Signature(signature))) } catch { return fail('signature', 'wallet signature could not be attached') }
+      try { if (reconstructed.transaction.verifySignatures(true) !== true) fail('signature', 'wallet signature does not verify the prepared message') } catch (error) { if (error instanceof RitualSubmissionError) throw error; return fail('signature', 'wallet signature does not verify the prepared message') }
+    } catch (error) {
+      // Keep the original error (and its category, e.g. the preparer's
+      // 'mutation') and only mark it as post-submission.
+      let marked = false
+      if (error !== null && typeof error === 'object') {
+        try { Object.defineProperty(error, 'submitted', { value: true, enumerable: true }); Object.defineProperty(error, 'signature', { value: returnedSignature, enumerable: true }); marked = true } catch { /* frozen/hostile: fall back below */ }
+      }
+      if (marked) throw error
+      throw new RitualSubmissionError('signature', 'wallet result could not be verified', true, returnedSignature)
+    }
     const ritualAddress = copyKey(scalar.ritualAddress, 'ritualAddress').toBase58()
     const submitted: SubmittedRitualAction = Object.freeze({ signature, blockhash: scalar.blockhash, lastValidBlockHeight: scalar.lastValidBlockHeight, submittedContextSlot: scalar.submittedContextSlot, ritualAddress: new PublicKey(ritualAddress), expectation: expectation(scalar.expectation) })
     const metadata = SubmittedRitualActionHandle.create(Object.freeze({ signature, messageDigest: digest, actionKind: scalar.kind, expectationKind: submitted.expectation.kind, ritualAddress }))

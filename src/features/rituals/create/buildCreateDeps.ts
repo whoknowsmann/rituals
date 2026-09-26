@@ -157,6 +157,12 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       try {
         handle = await client.submitPrepared(action)
       } catch (error) {
+        // The wallet answered but verification failed: it may have broadcast.
+        // Journal its signature so recovery can resolve the outcome from chain.
+        const sig = submittedSignatureOf(error)
+        if (sig && pendingActionStore && pendingRecord) {
+          try { await pendingActionStore.upsert(withPendingActionSignature(pendingRecord, sig)) } catch { /* resolver still has the unsigned record */ }
+        }
         throw error
       }
       if (pendingActionStore && pendingRecord) {
@@ -188,4 +194,13 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
       return { signature: result.signature, messageDigest: result.messageDigest, ...(invite === undefined ? {} : { invite }) }
     },
   }
+}
+
+/** Signature a wallet returned before a post-submission failure, if any. */
+function submittedSignatureOf(error: unknown): string | null {
+  try {
+    if (error === null || typeof error !== 'object') return null
+    const e = error as { submitted?: unknown; signature?: unknown }
+    return e.submitted === true && typeof e.signature === 'string' && e.signature.length > 0 ? e.signature : null
+  } catch { return null }
 }

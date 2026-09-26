@@ -76,7 +76,13 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
         record = makePendingActionRecord(prepared, now())
         await pendingActionStore.upsert(record)
       }
-      handle = await client.submitPrepared(prepared)
+      try { handle = await client.submitPrepared(prepared) } catch (error) {
+        const e = error as { submitted?: unknown; signature?: unknown } | null
+        if (e && typeof e === 'object' && e.submitted === true && typeof e.signature === 'string' && pendingActionStore && record) {
+          try { await pendingActionStore.upsert(withPendingActionSignature(record, e.signature)) } catch { /* resolver still has the unsigned record */ }
+        }
+        throw error
+      }
       if (pendingActionStore && record) {
         try {
           record = withPendingActionSignature(record, handle.signature)
