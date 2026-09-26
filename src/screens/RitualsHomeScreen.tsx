@@ -4,7 +4,7 @@ import { ActivityIndicator, Button, Text, useTheme, type MD3Theme } from 'react-
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
-import { ActionButton, Chip, FeedRow, Footnote, Hero, Poster, PosterLine, Section, WeekStrip, type WeekCell } from '../components/crew'
+import { ActionButton, Chip, FeedRow, Footnote, Poster, PosterLine, Section, WeekStrip, type WeekCell } from '../components/crew'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { loadKnownRitualBundles, formatAtomic, statusLabel, type KnownRitual } from '../features/rituals/authoritativeRituals'
 import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
@@ -67,7 +67,7 @@ export function RitualsHomeScreen() {
   const goJoin = () => navigation.navigate('JoinRitual', {})
 
   return <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Rituals home">
-    <Hero><Text style={styles.wordmark}>Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></Hero>
+    <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>
     {!ritual ? <EmptyCrew onCreate={goCreate} onJoin={goJoin} styles={styles} /> : <>
       <View key={ritual.id}>
         <CrewPoster ritual={ritual} styles={styles} />
@@ -152,8 +152,11 @@ export const safeErrorMessage = (_error: unknown): string => 'Unable to load rit
 
 const makeStyles = (theme: MD3Theme) => StyleSheet.create({
   content: { paddingHorizontal: space.screen, paddingTop: space.sm, paddingBottom: space.xxl, backgroundColor: theme.colors.background },
-  wordmark: { ...type.display, color: palette.bone },
-  tagline: { ...type.body, color: palette.bone70, marginTop: space.xs },
+  // Wordmark and tagline are separate Text nodes: nesting them in one header
+  // Text shared a line box, which clipped the display face's ascenders on device.
+  hero: { marginTop: space.lg, marginBottom: space.lg },
+  wordmark: { ...type.display, color: color.fg, includeFontPadding: false },
+  tagline: { ...type.body, color: color.muted, marginTop: space.xs },
   requirement: { ...type.body, color: color.white, marginTop: space.lg, opacity: 0.92 },
   openButton: { marginTop: space.sm },
   actions: { gap: space.sm, marginTop: space.xl },

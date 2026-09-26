@@ -22,7 +22,8 @@ describe('RitualsHomeScreen safety and accessibility structure', () => {
     // Colours must come from the shared palette so the theme stays the single
     // source of truth. Raw hex in a screen is how a design system rots.
     expect(source).toContain("from '../theme'")
-    expect(source).toContain('palette.')
+    // Crew tokens (color.*) or legacy palette aliases — either way, named tokens.
+    expect(source).toMatch(/\b(color|palette)\.[a-zA-Z]/)
     expect(source).not.toMatch(/color:\s*'#[0-9a-fA-F]{3,8}'/)
     expect(source).not.toMatch(/backgroundColor:\s*'#[0-9a-fA-F]{3,8}'/)
   })
