@@ -19,7 +19,7 @@ import { usePendingRitualRecovery } from '../features/rituals/recovery/usePendin
 import { asyncStoragePendingActionStore } from '../features/rituals/recovery/pendingAction'
 import { useCreateRitual } from '../features/rituals/create/useCreateRitual'
 import { buildCreateRitualDeps } from '../features/rituals/create/buildCreateDeps'
-import { DEMO_CADENCE, describeCadence, nextWeekdayOccurrence } from '../domain/rituals/schedule'
+import { DEMO_CADENCE, describeCadence, firstEventStart } from '../domain/rituals/schedule'
 import { rememberRitual } from '../features/rituals/authoritativeRituals'
 import { RITUALS_DEVNET_STAKE_MINT } from '../data/rituals/programIds'
 import { ActionButton, Footnote, MemberTile, Poster, PosterLine, Section, haptic } from '../components/crew'
@@ -50,7 +50,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
     if (!selectedAccount) throw new Error('wallet not connected')
 
     const members = parsed.value.members.map((address) => new PublicKey(address))
-    const firstEventAt = nextWeekdayOccurrence(Math.floor(Date.now() / 1000), new Date().getUTCDay())
+    const firstEventAt = firstEventStart({ cadence, referenceSeconds: Math.floor(Date.now() / 1000), memberCount: members.length })
 
     return buildCreateRitualDeps({
       client: client.client,

@@ -12,6 +12,9 @@ import {
   generateRitualSchedule,
   describeCadence,
   localOffsetLabel,
+  firstEventStart,
+  DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS,
+  DEMO_GROUP_FIRST_EVENT_LEAD_SECONDS,
 } from './schedule'
 
 const MONDAY = 1
@@ -226,5 +229,39 @@ describe('disclosure helpers', () => {
 
   it('rejects a non-finite offset', () => {
     expect(() => localOffsetLabel(Number.NaN)).toThrow()
+  })
+})
+
+describe('firstEventStart (B1: demo speed must open week 1 in minutes, not next week)', () => {
+  const now = Date.UTC(2026, 8, 26, 20, 0, 0) / 1000
+
+  it('opens a demo solo ritual within five minutes and strictly in the future', () => {
+    const at = firstEventStart({ cadence: DEMO_CADENCE, referenceSeconds: now, memberCount: 1 })
+    expect(at).toBeGreaterThan(now)
+    expect(at - now).toBeLessThanOrEqual(5 * 60)
+    expect(at - now).toBe(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS)
+  })
+
+  it('gives a demo group enough lead for friends to fund before week 1 opens (activation requires now < opens)', () => {
+    const at = firstEventStart({ cadence: DEMO_CADENCE, referenceSeconds: now, memberCount: 2 })
+    expect(at - now).toBe(DEMO_GROUP_FIRST_EVENT_LEAD_SECONDS)
+    expect(at - now).toBeGreaterThanOrEqual(5 * 60)
+    expect(at - now).toBeLessThanOrEqual(15 * 60)
+  })
+
+  it('never uses the next-weekday rule for the accelerated cadence', () => {
+    const at = firstEventStart({ cadence: DEMO_CADENCE, referenceSeconds: now, memberCount: 3 })
+    expect(at).toBeLessThan(nextWeekdayOccurrence(now, new Date(now * 1000).getUTCDay()))
+  })
+
+  it('keeps the real weekly cadence on the next same weekday', () => {
+    const at = firstEventStart({ cadence: WEEKLY_CADENCE, referenceSeconds: now, memberCount: 2 })
+    expect(at).toBe(now + WEEK)
+  })
+
+  it('rejects invalid member counts and reference times', () => {
+    expect(() => firstEventStart({ cadence: DEMO_CADENCE, referenceSeconds: now, memberCount: 0 })).toThrow()
+    expect(() => firstEventStart({ cadence: DEMO_CADENCE, referenceSeconds: now, memberCount: 7 })).toThrow()
+    expect(() => firstEventStart({ cadence: DEMO_CADENCE, referenceSeconds: -1, memberCount: 1 })).toThrow()
   })
 })
