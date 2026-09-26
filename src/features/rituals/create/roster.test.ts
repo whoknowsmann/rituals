@@ -89,11 +89,12 @@ describe('member roster contract', () => {
   it('builds an unfunded HOST/SPLIT lobby with exact progress and preview activation requirements', () => {
     const model = buildFundingLobbyModel({ members: [host, friend1], memberTotalStake: '20', activationFee: '0.8', feePayerMode: 'SPLIT' })
     expect(model.rows).toEqual([
-      { index: 0, address: host, role: 'Host', funding: 'Not funded' },
-      { index: 1, address: friend1, role: 'Member', funding: 'Not funded' },
+      { index: 0, address: host, role: 'Host', name: 'You', funding: 'Not in yet' },
+      { index: 1, address: friend1, role: 'Member', name: 'Friend 2', funding: 'Not in yet' },
     ])
-    expect(model.progress).toBe('0 of 2 funded')
-    expect(model.activation).toBe('Activation would require every member to fund onchain')
+    expect(model.progress).toBe('0 of 2 in')
+    expect(model.activation).toBe('Starts once everyone has put in their stake')
+    expect(model.activation.toLowerCase()).not.toContain('onchain')
     expect(model.stake).toBe('20 TEST per member')
     expect(model.fee).toContain('Split')
     expect(model.fee).toContain('0.8 TEST')

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rituals · Solo first</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Figtree:wght@400;600;800&family=Fraunces:opsz,wght@9..144,600;9..144,900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--paper:#f4efe6;--card:#fffdf8;--ink:#1d1a16;--muted:#7a7166;--line:#e3dbcd;--lime:#c8f169;--lime-deep:#8fbf2a;--orange:#ff7a59;--blue:#2f7bff;--purple:#9b6bff;--teal:#16a085;--gold:#f2a516;--pink:#e84393;--red:#d6452b;--serif:Fraunces,Georgia,serif;--sans:Figtree,system-ui,sans-serif;--hand:Caveat,cursive}
+html,body{margin:0;background:#c5cbc9;color:var(--ink);font-family:var(--sans)}
+body{min-height:100vh;padding:24px 14px 56px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E")}
+button,input{font:inherit}button{cursor:pointer}
+.studio{max-width:430px;margin:auto}.studio-head{display:flex;justify-content:space-between;align-items:center;margin:0 3px 12px;color:#3e4846}.studio-head b{font-size:12px;letter-spacing:1.2px;text-transform:uppercase}.studio-head span{font:600 15px var(--hand);transform:rotate(-2deg)}
+.rail{display:flex;gap:6px;overflow:auto;padding:2px 2px 12px;scrollbar-width:none}.rail::-webkit-scrollbar{display:none}.rail button{white-space:nowrap;border:1px solid #aeb9b5;background:#f5f5ef;color:#3a4542;border-radius:999px;padding:8px 11px;font:600 12px var(--sans)}.rail button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.phone{width:390px;height:844px;max-width:100%;margin:auto;border:10px solid #1d1a16;border-radius:37px;background:var(--paper);overflow:hidden;box-shadow:0 22px 40px #263b3a48;position:relative}.screen{height:100%;overflow:auto;padding:28px 18px 116px;position:relative;background:var(--paper);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.055'/%3E%3C/svg%3E")}.view{display:none}.view.active{display:block}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.brand{font:900 26px/1 var(--serif);letter-spacing:-.8px}.avatar{width:32px;height:32px;border-radius:11px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:13px;font-weight:800}.back{border:0;background:none;padding:0;color:var(--muted);font-weight:800;font-size:20px}.eyebrow{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}h1,h2,h3,p{margin:0}h1,h2,h3{font-family:var(--serif);line-height:1}.hero-title{font-size:35px;letter-spacing:-1.2px;margin:9px 0 18px}.question{font-size:31px;letter-spacing:-1px;margin:10px 0 22px}.section-head{display:flex;align-items:baseline;justify-content:space-between;margin:20px 0 10px}.section-head h3{font-size:18px}.section-head span{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}.tiny{font-size:12px;line-height:1.45;color:var(--muted)}.scribble{font:600 17px var(--hand);color:#5c5246;transform:rotate(-3deg);display:inline-block}.ink-note{font:600 17px var(--hand);color:#625648;transform:rotate(-4deg);display:inline-block}.muted{color:var(--muted)}
+.poster{border-radius:27px;padding:20px 18px 16px;color:#fff;position:relative;overflow:hidden;margin-bottom:14px;box-shadow:0 5px 0 #0000000e}.poster.coral{background:var(--orange)}.poster.blue{background:var(--blue)}.poster.purple{background:var(--purple)}.poster.teal{background:var(--teal)}.poster:after{content:"";position:absolute;width:150px;height:150px;border:1px solid #ffffff45;border-radius:50%;right:-48px;top:-40px;transform:rotate(16deg)}.poster .eyebrow{color:#fff9;font-size:10px}.poster h2{font-size:28px;letter-spacing:-.7px;margin:8px 0 14px;max-width:245px}.poster .scribble{color:#fff;opacity:.9;margin-bottom:13px}.poster-meta{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800}.people{display:flex;align-items:center}.person-dot{width:26px;height:26px;border-radius:9px;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;border:2px solid #ffffffaa;margin-right:-5px}.week-strip{display:flex;gap:6px;margin:8px 0 13px}.week{height:35px;flex:1;border-radius:11px;background:#ffffff30;display:grid;place-items:center;font-size:11px;font-weight:800;position:relative}.week.done{background:#fff;color:var(--ink)}.week.now{border:2px dashed #fff;background:#ffffff18}.week.now:after{content:"TODAY";position:absolute;top:-15px;font-size:8px;letter-spacing:.7px;color:#fff}.money-line{display:flex;justify-content:space-between;border-top:1px solid #ffffff45;padding-top:11px;font-size:12px}.money-line b{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:19px;padding:15px 15px;box-shadow:0 5px 0 #6d5b4310}.card + .card{margin-top:10px}.card h3{font-size:20px;margin-bottom:6px}.card p{font-size:13px;line-height:1.4;color:var(--muted)}.card-row{display:flex;justify-content:space-between;align-items:center;gap:10px}.accent-left{border-left:6px solid var(--orange)}.accent-blue{border-left:6px solid var(--blue)}.accent-purple{border-left:6px solid var(--purple)}
+.action,.ghost,.mini-button{border-radius:999px;border:1px solid var(--ink);font-weight:800;transition:transform .15s,background .15s}.action{background:var(--lime);color:var(--ink);padding:12px 16px;box-shadow:0 3px 0 var(--lime-deep)}.action:active{transform:translateY(2px);box-shadow:none}.ghost{background:transparent;color:var(--ink);padding:11px 15px}.mini-button{background:var(--card);padding:8px 11px;font-size:11px}.full{width:100%}.small-action{padding:9px 12px;font-size:12px}.dock{position:absolute;left:18px;right:18px;bottom:15px;background:var(--ink);color:var(--paper);border-radius:22px;padding:11px 12px 11px 15px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 8px 18px #1d1a1633}.dock strong{font-size:13px}.dock p{font-size:11px;color:#d9d1c3;margin-top:2px}.dock .action{padding:10px 14px;white-space:nowrap}
+.input-wrap{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:11px 14px;display:flex;align-items:center;gap:8px;margin-bottom:14px}.input-wrap span{color:var(--muted);font-size:17px}.input-wrap input{border:0;outline:0;background:transparent;width:100%;font-size:16px;color:var(--ink);font-weight:600}.prompt{font:600 17px var(--hand);color:var(--muted);margin:0 0 15px 6px;transform:rotate(-2deg)}.suggestion{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--orange);border-radius:18px;padding:15px;margin:10px 0}.suggestion h3{font-size:21px}.suggestion p{font-size:12px;color:var(--muted);margin:5px 0 13px}.suggestion-foot{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:800;color:var(--muted)}
+.stepper{display:flex;gap:5px;margin:5px 0 18px}.stepper i{height:4px;border-radius:99px;flex:1;background:var(--line)}.stepper i.on{background:var(--ink)}.choice{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:17px;padding:14px;margin:9px 0;text-align:left;position:relative}.choice.selected{border:2px solid var(--ink);padding:13px;background:#fbf6ec}.choice .radio{width:18px;height:18px;border:1.5px solid var(--muted);border-radius:50%;display:grid;place-items:center;flex:none}.choice.selected .radio{border:5px solid var(--ink)}.choice-copy{flex:1}.choice-copy b{display:block;font-size:15px}.choice-copy small{display:block;color:var(--muted);font-size:11px;line-height:1.35;margin-top:3px}.choice-mark{font:600 18px var(--hand);color:var(--muted)}.proof-row{display:flex;gap:8px}.proof-row .choice{flex:1;display:block;padding:12px}.proof-row .choice.selected{padding:11px}.proof-row .radio{margin-bottom:8px}.proof-row b{font-size:13px}.proof-row small{font-size:10px}.witness-input{display:none;background:#f4efe6;border:1px dashed #cbbfae;border-radius:13px;padding:9px 11px;margin:-3px 0 11px 30px}.witness-input.show{display:block}.witness-input input{border:0;background:transparent;outline:0;width:100%;font-size:13px}
+.signature{background:#eee6d8;border-radius:20px;padding:16px;margin-top:15px;position:relative}.signature:before{content:"";position:absolute;left:18px;right:18px;top:46px;border-bottom:1px solid #9e9384}.signature-line{height:45px;display:flex;align-items:flex-end;justify-content:space-between}.signature-line b{font:600 24px var(--hand);transform:rotate(-5deg)}.signature small{font-size:11px;color:var(--muted)}.stamp{width:116px;height:116px;border:3px solid currentColor;border-radius:50%;display:grid;place-items:center;text-align:center;font:900 17px/1 var(--sans);letter-spacing:1px;transform:rotate(-9deg);color:var(--ink);position:relative}.stamp:after{content:"";position:absolute;inset:6px;border:1px solid currentColor;border-radius:50%;opacity:.6}.stamp.lime{color:#5a7b13}.stamp.orange{color:#b44d35}.commit-success{display:none;align-items:center;gap:14px;background:#edf6cf;border:1px solid #c7da9c;border-radius:19px;padding:15px;margin-top:15px}.commit-success.show{display:flex}.commit-success p{font-size:12px;line-height:1.35}.checkline{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:12px 0}.checkline input{accent-color:var(--ink);width:16px;height:16px}
+.hold-panel{background:var(--ink);color:var(--paper);border-radius:25px;padding:20px 18px 17px;text-align:center;margin-top:19px}.hold-panel h2{font-size:25px;margin:7px 0}.hold-panel p{font-size:12px;color:#d9d1c4;line-height:1.4}.hold-ring{width:155px;height:155px;border-radius:50%;margin:17px auto 10px;border:2px dashed #f4efe688;display:grid;place-items:center;position:relative;background:#2b2823;overflow:hidden}.hold-ring:before{content:"";position:absolute;inset:11px;border:1px solid #fff2;border-radius:50%}.hold-ring .hold-fill{position:absolute;inset:0;background:conic-gradient(var(--lime) 0deg,transparent 0deg);opacity:.9}.hold-ring.after .hold-fill{background:conic-gradient(var(--lime) 360deg,var(--lime) 360deg)}.hold-button{width:112px;height:112px;border-radius:50%;border:2px solid var(--lime);background:var(--lime);color:var(--ink);font:900 17px var(--serif);position:relative;z-index:1}.hold-button:active{transform:scale(.97)}.hold-ring.after .hold-button{background:#fff;border-color:#fff}.hold-caption{font-size:11px;color:#bdb5a9}.state-toggle{display:flex;background:#e9e1d4;border-radius:999px;padding:3px;margin:12px 0}.state-toggle button{flex:1;border:0;background:transparent;border-radius:999px;padding:8px;color:var(--muted);font-size:11px;font-weight:800}.state-toggle button.on{background:var(--card);color:var(--ink);box-shadow:0 2px 5px #00000012}
+.proof-card{background:var(--card);border:1px solid var(--line);border-radius:21px;padding:15px;margin-top:15px}.proof-card .proof-top{display:flex;justify-content:space-between;align-items:center}.proof-card h3{font-size:23px}.proof-photo{height:100px;border-radius:14px;margin:13px 0;background:linear-gradient(145deg,#a8b8ae,#526d68);position:relative;overflow:hidden}.proof-photo:after{content:"OPEN MAT · 6:42 PM";position:absolute;left:10px;bottom:9px;color:white;font-size:10px;font-weight:800;letter-spacing:.7px}.confirm-quote{font:600 17px/1.25 var(--hand);color:#5c5145;background:#f0e8dc;border-radius:13px;padding:11px;transform:rotate(-1deg);margin:12px 0}.reaction{display:inline-block;background:#f0e8dc;border:1px solid var(--line);padding:8px 9px;border-radius:999px;font-size:11px;font-weight:800;margin:4px 3px 0 0}
+.skip-card{background:#e9f2d3;border:1px solid #c6d79b;border-radius:21px;padding:17px}.skip-card h2{font-size:25px;margin:7px 0}.skip-card p{font-size:12px;line-height:1.4;color:#596345}.skip-badge{display:inline-flex;background:var(--lime);border-radius:999px;padding:7px 10px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}.miss-card{background:#ebe1d2;border-radius:22px;padding:18px;position:relative}.miss-card h2{font-size:27px;margin:8px 0}.miss-card p{font-size:13px;color:#675e54;line-height:1.45}.miss-card .stamp{position:absolute;right:16px;top:22px;width:75px;height:75px;font-size:10px;opacity:.7}.recovery-note{font:600 18px var(--hand);color:#655949;margin:17px 4px;transform:rotate(-3deg)}
+.season-hero{background:var(--purple);color:#fff;border-radius:27px;padding:20px 18px 18px;position:relative;overflow:hidden}.season-hero:after{content:"RUN";position:absolute;right:-13px;top:49px;font:900 95px var(--serif);opacity:.1;transform:rotate(-12deg)}.season-hero h1{font-size:32px;margin:9px 0 7px;max-width:250px}.season-hero p{font-size:12px;color:#fff;opacity:.88;max-width:220px;line-height:1.4}.live-counter{display:flex;align-items:end;justify-content:space-between;margin-top:19px;border-top:1px solid #fff5;padding-top:13px}.live-counter strong{font:900 37px var(--serif);line-height:.9}.live-counter span{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px}.season-status{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-top:12px}.status-dot{width:12px;height:12px;border-radius:50%;background:var(--lime-deep);box-shadow:0 0 0 4px #e6f3c5}.season-status b{font-size:13px}.season-status span{display:block;font-size:11px;color:var(--muted);margin-top:2px}.no-leaderboard{font:600 17px var(--hand);color:var(--muted);margin:18px 4px;transform:rotate(-2deg)}
+.receipt{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px 16px;margin-top:15px;position:relative}.receipt .receipt-top{display:flex;align-items:center;justify-content:space-between}.receipt h2{font-size:27px;margin:8px 0 3px}.receipt .center{font-size:10px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase}.receipt-row{display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line);font-size:12px}.receipt-row:first-of-type{margin-top:15px}.receipt-row b{font-size:13px}.receipt .receipt-top>div:first-child{padding-right:82px}.receipt .stamp{position:absolute;right:14px;top:18px;width:80px;height:80px;font-size:10px;opacity:.82}.cause-callout{background:#f7e7e1;color:#8e3c2c;border-radius:16px;padding:12px;font-size:12px;line-height:1.4;margin-top:12px}.variant-tabs{display:flex;gap:6px;margin:14px 0}.variant-tabs button{flex:1;border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 6px;font-size:10px;font-weight:800}.variant-tabs button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.group-card{background:var(--orange);color:#fff;border-radius:27px;padding:20px 18px;position:relative;overflow:hidden}.group-card:after{content:"WITH FRIENDS";position:absolute;right:-29px;bottom:27px;font:900 29px var(--serif);opacity:.16;transform:rotate(-9deg)}.group-card h1{font-size:31px;max-width:235px;margin:9px 0 9px}.group-card p{font-size:13px;line-height:1.4;max-width:235px;color:#fff}.group-card .action{margin-top:19px}.secondary-tag{display:inline-block;border:1px solid #ffffff80;border-radius:999px;padding:6px 9px;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}.friend-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #ffffff45;font-size:12px}.friend-row:last-child{border-bottom:0}.friend-avatar{width:29px;height:29px;border-radius:10px;display:grid;place-items:center;font-weight:800;color:#fff;font-size:11px}.secondary-callout{background:var(--card);border:1px dashed #bdb19f;border-radius:18px;padding:14px;margin-top:14px}.secondary-callout h3{font-size:18px;margin-bottom:5px}.secondary-callout p{font-size:12px;color:var(--muted);line-height:1.4}
+.footnote{font-size:10px;color:var(--muted);text-align:center;margin-top:18px}.hidden{display:none!important}
+@media(max-width:410px){body{padding-left:5px;padding-right:5px}.studio-head{margin-left:7px;margin-right:7px}.phone{width:390px}}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="studio-head"><b>Rituals / solo first</b><span>paper, promise, proof</span></div>
+  <nav class="rail" aria-label="Sketch screens">
+    <button class="on" data-go="empty">01 Empty home</button>
+    <button data-go="step1">02 Start</button>
+    <button data-go="step2">03 Honest</button>
+    <button data-go="step3">04 Promise</button>
+    <button data-go="active">05 Home</button>
+    <button data-go="checkin">06 Check-in</button>
+    <button data-go="witness">07 Witness</button>
+    <button data-go="skip">08 Skip / miss</button>
+    <button data-go="season">09 Season</button>
+    <button data-go="receipt">10 Receipt</button>
+    <button data-go="groups">11 Groups</button>
+  </nav>
+  <div class="phone"><main class="screen">
+
+    <section class="view active" id="empty">
+      <div class="top"><div class="brand">Rituals</div><div class="avatar">J</div></div>
+      <div class="eyebrow">A small promise, kept</div>
+      <h1 class="hero-title">Show up,<br>or pay up.</h1>
+      <div class="card accent-left" style="padding:18px 16px;margin-bottom:14px">
+        <span class="eyebrow">Your board is clear</span><h3 style="font-size:24px;margin:8px 0 6px">Make one promise to yourself.</h3><p>Choose the thing. Set your stake. Show up in your own time.</p>
+        <button class="action full" style="margin-top:16px" data-go="step1">Make a promise</button>
+      </div>
+      <div class="section-head"><h3>Happening together</h3><span>live now</span></div>
+      <div class="season-hero" style="padding:16px">
+        <div class="eyebrow" style="color:#fff9">Season · October</div><h1 style="font-size:25px;margin:8px 0">October Run Club</h1><p>Everyone runs solo. The only thing shared is the nudge.</p>
+        <div class="live-counter"><strong>3</strong><span>people showed up today</span></div>
+        <button class="ghost" style="color:#fff;border-color:#fff9;margin-top:14px" data-go="season">See + join the season</button>
+      </div>
+      <div class="footnote">You can join a season without joining a crew.</div>
+      <div class="dock"><div><strong>Start with just you</strong><p>Add a witness later if you want one.</p></div><button class="action" data-go="step1">Begin</button></div>
+    </section>
+
+    <section class="view" id="step1">
+      <button class="back" data-go="empty">←</button>
+      <div class="eyebrow" style="margin-top:23px">Make it yours · 1 of 3</div><div class="stepper"><i class="on"></i><i></i><i></i></div>
+      <h1 class="question">What do you keep meaning to do?</h1>
+      <div class="input-wrap"><span>✎</span><input id="intention" value="call Mom" aria-label="Your intention"></div>
+      <div class="prompt">say it in your own words</div>
+      <div id="suggestions">
+        <div class="suggestion"><h3 id="suggestion-main">Call Mom</h3><p>Once a week · a small call that counts.</p><div class="suggestion-foot"><span>Your stake · 2 TEST</span><button class="action small-action" data-go="step2">Make it mine</button></div></div>
+        <div class="suggestion" style="border-left-color:var(--blue)"><h3 id="suggestion-alt">Read 20 pages</h3><p>Before bed · keep the promise quiet.</p><div class="suggestion-foot"><span>Once a week · your words</span><button class="ghost small-action" data-go="step2">Use this</button></div></div>
+      </div>
+      <div class="section-head"><h3>Already know?</h3><span>start from scratch</span></div><button class="ghost full" data-go="step2" style="text-align:left">＋ Write my own ritual</button>
+      <p class="footnote">No template will change your words. This is yours.</p>
+    </section>
+
+    <section class="view" id="step2">
+      <button class="back" data-go="step1">←</button>
+      <div class="eyebrow" style="margin-top:23px">Make it yours · 2 of 3</div><div class="stepper"><i class="on"></i><i class="on"></i><i></i></div>
+      <h1 class="question">Who keeps you honest?</h1>
+      <button class="choice selected" data-choice="me"><span class="radio"></span><span class="choice-copy"><b>Just me</b><small>Honor system · you check in inside the window.</small></span><span class="choice-mark">quiet &amp; true</span></button>
+      <button class="choice" data-choice="witness"><span class="radio"></span><span class="choice-copy"><b>Me + one witness</b><small>A friend, partner, or coach confirms. They never stake.</small></span></button>
+      <div class="witness-input" id="witness-input"><input value="Sam · coach" aria-label="Witness name"></div>
+      <button class="choice" data-choice="friends"><span class="radio"></span><span class="choice-copy"><b>With friends</b><small>2–6 people each stake and confirm one another.</small></span><span class="choice-mark">secondary</span></button>
+      <div class="section-head"><h3>Proof, if you want it</h3><span>optional</span></div>
+      <div class="proof-row"><button class="choice selected" data-proof="none"><span class="radio"></span><b>None</b><small>Your word is enough.</small></button><button class="choice" data-proof="photo"><span class="radio"></span><b>Photo or note</b><small>Keep a private trace.</small></button></div>
+      <div class="dock"><div><strong>Just me</strong><p>You can add a witness later.</p></div><button class="action" data-go="step3">Next</button></div>
+    </section>
+
+    <section class="view" id="step3">
+      <button class="back" data-go="step2">←</button>
+      <div class="eyebrow" style="margin-top:23px">Make it yours · 3 of 3</div><div class="stepper"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <h1 class="question">Put a little weight behind it.</h1>
+      <div class="card" style="padding:14px 15px"><div class="card-row"><div><span class="eyebrow">Your stake · each week</span><h3 style="font-size:25px;margin-top:6px">5 TEST</h3></div><span class="ink-note">enough to notice</span></div></div>
+      <div class="section-head"><h3>If I miss, it goes to</h3><span>locked before you start</span></div>
+      <button class="choice selected" data-destination="cause"><span class="radio"></span><span class="choice-copy"><b>A cause</b><small>Northside Food Bank · selected first</small></span><span class="choice-mark">good place</span></button>
+      <button class="choice" data-destination="person"><span class="radio"></span><span class="choice-copy"><b>A person you pick</b><small>Choose someone you want to support.</small></span></button>
+      <div class="checkline"><input type="checkbox" checked id="skip-rule"><label for="skip-rule"><b>One declared skip</b> · call it before the week opens and that week comes back to you.</label></div>
+      <div class="signature"><span class="eyebrow">The promise</span><p style="font:600 16px/1.25 var(--serif);margin-top:8px">I’ll show up for <b>Call Mom</b> each Sunday.</p><div class="signature-line"><b>Jack</b><small>signing for himself</small></div></div>
+      <button class="action full" id="commit-button" style="margin-top:15px">Approve &amp; make it real</button>
+      <div class="commit-success" id="commit-success"><div class="stamp lime" style="width:72px;height:72px;font-size:10px">PROMISE<br>MADE</div><p><b>Locked in.</b><br>Your first Sunday is waiting.</p></div>
+      <div class="footnote">The destination is fixed before your first week. Rituals never receives a missed stake.</div>
+    </section>
+
+    <section class="view" id="active">
+      <div class="top"><div class="brand">Rituals</div><div class="avatar">J</div></div>
+      <div class="eyebrow">Your week, in your hands</div><h1 class="hero-title" style="font-size:31px">Keep showing up.</h1>
+      <div class="poster coral"><div class="eyebrow">Sunday · just you · week 2 of 4</div><h2>Call Mom</h2><span class="scribble">small call, big deal →</span><div class="week-strip"><div class="week done">✓</div><div class="week now">SUN</div><div class="week">W3</div><div class="week">W4</div></div><div class="money-line"><span>Your stake, waiting</span><b>5 TEST</b></div></div>
+      <div class="card accent-blue"><div class="card-row"><div><span class="eyebrow">Thursday · solo</span><h3>Open mat Thursdays</h3><p>Next up · Thursday at 6:30 PM</p></div><button class="mini-button" data-go="checkin">Open</button></div></div>
+      <div class="section-head"><h3>People nearby</h3><span>3 showed today</span></div>
+      <div class="card" style="padding:12px 14px"><div class="card-row"><div class="people"><span class="person-dot" style="background:var(--blue)">M</span><span class="person-dot" style="background:var(--purple)">S</span><span class="person-dot" style="background:var(--teal)">D</span><span style="font-size:12px;margin-left:10px"><b>October Run Club</b><br><span class="muted">a season, not a scoreboard</span></span></div><button class="mini-button" data-go="season">View</button></div></div>
+      <div class="section-head"><h3>Recent</h3><span>just now</span></div><div class="card" style="padding:12px 14px"><div class="card-row"><span style="font-size:12px"><b>Your promise is ready</b><br><span class="muted">Next call opens Sunday morning.</span></span><span class="ink-note">keep it small</span></div></div>
+      <div class="dock"><div><strong>Thursday is yours</strong><p>Hold when you’re on the mat.</p></div><button class="action" data-go="checkin">Check in</button></div>
+    </section>
+
+    <section class="view" id="checkin">
+      <button class="back" data-go="active">←</button>
+      <div class="eyebrow" style="margin-top:23px">Thursday · Open mat</div><h1 class="question" style="margin-bottom:11px">You made it to the mat.</h1>
+      <div class="state-toggle"><button class="on" data-check-state="before">Before</button><button data-check-state="after">After the stamp</button></div>
+      <div id="check-before">
+        <p class="tiny">A small check-in tells the future you that you kept your word.</p>
+        <div class="hold-panel"><div class="eyebrow" style="color:#d7d0c7">Make it official</div><h2>Hold to show up</h2><p>Keep your thumb down for a moment. Let go to cancel.</p><div class="hold-ring" id="hold-ring"><div class="hold-fill"></div><button class="hold-button" id="hold-button">HOLD</button></div><div class="hold-caption">700 ms · one satisfying press</div></div>
+      </div>
+      <div id="check-after" class="hidden">
+        <div class="card" style="background:#edf6cf;border-color:#c7da9c;text-align:center;padding:18px 15px"><span class="eyebrow" style="color:#62782c">Thursday · 6:42 PM</span><h2 style="font-size:30px;margin:9px 0">You showed up.</h2><div class="stamp lime" style="margin:11px auto 15px">SHOWED<br>UP</div><p style="font-size:13px;line-height:1.4">The week is marked. Your stake is still yours.</p></div><div class="confirm-quote">“That’s the part you’ll remember.”</div><div class="card-row"><span class="reaction">✓ saved to this week</span><span class="ink-note">nice work, Jack</span></div></div>
+      <div class="footnote">Haptic on hold · photo or note stays optional.</div>
+    </section>
+
+    <section class="view" id="witness">
+      <button class="back" data-go="active">←</button><div class="eyebrow" style="margin-top:23px">Sam · witness view</div><h1 class="question">Did Jack make it?</h1>
+      <div class="proof-card"><div class="proof-top"><div><span class="eyebrow">Open mat Thursdays</span><h3>Jack showed up</h3></div><span class="reaction" style="background:var(--lime)">today</span></div><div class="proof-photo"></div><p class="tiny">Jack checked in at 6:42 PM. He asked you to confirm the moment, not judge it.</p><div class="confirm-quote">“I saw you finish the last round.” — Sam</div><button class="action full" id="confirm-button">I saw it · confirm Jack</button></div>
+      <div class="reaction-row" style="text-align:center;margin-top:12px"><span class="reaction">👏 I saw you</span><span class="reaction">🥋 Nice work</span><span class="reaction">💚 Proud of you</span></div>
+      <div id="confirmed-note" class="card hidden" style="background:#edf6cf;border-color:#c7da9c;text-align:center;margin-top:16px"><b>You confirmed Jack.</b><p style="font-size:12px;color:var(--muted);margin-top:4px">His stake can come back when the week settles.</p></div>
+      <div class="footnote">Witnesses never stake and never receive money.</div>
+    </section>
+
+    <section class="view" id="skip">
+      <button class="back" data-go="active">←</button><div class="eyebrow" style="margin-top:23px">One humane exception</div><h1 class="question">Leave room for real life.</h1>
+      <div class="state-toggle"><button class="on" data-skip-state="declared">Declared skip</button><button data-skip-state="missed">Missed week</button></div>
+      <div id="skip-declared"><div class="skip-card"><span class="skip-badge">skip saved · week 3</span><h2>Take the week off.</h2><p>You called it before the window opened. Your 5 TEST comes back to you, and Sunday stays quiet.</p><div class="signature" style="background:#f7f3e9;margin-top:14px"><span class="eyebrow">Jack declared</span><div class="signature-line"><b>this week</b><small>before it began</small></div></div></div><p class="recovery-note">A promise should bend before it breaks.</p><button class="ghost full" data-go="active">Back to my rituals</button></div>
+      <div id="skip-missed" class="hidden"><div class="miss-card"><span class="eyebrow">Call Mom · week 2</span><h2>You missed this one.</h2><p>That’s a week, not a verdict. The next call is still waiting, and this ritual is still yours.</p><div class="stamp orange">ONE<br>WEEK</div></div><div class="card" style="margin-top:12px"><div class="card-row"><span style="font-size:12px"><b>What happened?</b><br><span class="muted">No check-in reached us before Sunday closed.</span></span><span class="reaction" style="background:#f5ebe3;color:#8e3c2c">5 TEST → cause</span></div></div><p class="recovery-note">Keep the next promise small enough to carry.</p><button class="action full" data-go="active">Start next week</button></div>
+    </section>
+
+    <section class="view" id="season">
+      <button class="back" data-go="active">←</button><div class="eyebrow" style="margin-top:23px">Season · open to anyone</div>
+      <div class="season-hero" style="margin-top:12px"><span class="eyebrow" style="color:#fff9">October · 01—31</span><h1>October Run Club</h1><p>Run three times a week. Everyone keeps their own promise, in their own way.</p><div class="live-counter"><strong id="season-count">3</strong><span>people ran today</span></div></div>
+      <div class="season-status"><span class="status-dot"></span><div><b id="season-status-title">Your ritual is not joined</b><span id="season-status-copy">Join the season, then choose your own stake and destination.</span></div></div>
+      <button class="action full" id="join-season" style="margin-top:12px">Join this season</button>
+      <div class="section-head"><h3>How it feels</h3><span>solo, not alone</span></div><div class="card"><div class="card-row"><div class="people"><span class="person-dot" style="background:var(--blue)">M</span><span class="person-dot" style="background:var(--teal)">D</span><span class="person-dot" style="background:var(--gold)">A</span></div><p style="flex:1;margin-left:10px">See a living count of people who showed up. No leaderboard. No shared stake.</p></div></div>
+      <div class="no-leaderboard">three honest people is enough to make a season feel alive.</div>
+      <div class="footnote">Each participant has their own stake and destination. Forfeits are never pooled.</div>
+    </section>
+
+    <section class="view" id="receipt">
+      <button class="back" data-go="active">←</button><div class="eyebrow" style="margin-top:23px">A small paper trail</div><h1 class="question">Week closed.</h1>
+      <div class="variant-tabs"><button class="on" data-receipt="kept">Kept your word</button><button data-receipt="cause">Went to a cause</button></div>
+      <div id="receipt-kept"><div class="receipt"><div class="receipt-top"><div><span class="center">Call Mom · week 2</span><h2>Stake returned</h2><span class="center">Sunday · 4:12 PM</span></div><div class="stamp lime">KEPT<br>YOUR<br>WORD</div></div><div class="receipt-row"><span>Your stake</span><b>5 TEST · back to Jack</b></div><div class="receipt-row"><span>Check-in</span><b>✓ just me</b></div><div class="receipt-row"><span>Network fee</span><b>quietly separate</b></div></div><p class="recovery-note">Put it back in the jar.</p><button class="ghost full" data-go="active">Back to my rituals</button></div>
+      <div id="receipt-cause" class="hidden"><div class="receipt"><div class="receipt-top"><div><span class="center">Call Mom · week 2</span><h2>Week settled</h2><span class="center">Sunday · 11:59 PM</span></div><div class="stamp orange">KEPT<br>THE<br>RULE</div></div><div class="receipt-row"><span>Missed stake</span><b>5 TEST</b></div><div class="receipt-row"><span>Destination</span><b>Northside Food Bank</b></div><div class="receipt-row"><span>Why</span><b>No check-in by close</b></div></div><div class="cause-callout"><b>Nothing came to Rituals.</b><br>This week’s stake followed the destination you chose before you started.</div><p class="recovery-note">A week slipped. The promise stays.</p><button class="ghost full" data-go="active">Back to my rituals</button></div>
+    </section>
+
+    <section class="view" id="groups">
+      <button class="back" data-go="empty">←</button><div class="eyebrow" style="margin-top:23px">A second way in</div><h1 class="question">Bring your people.</h1>
+      <div class="group-card"><span class="secondary-tag">With friends · secondary</span><h1>Make the promise together.</h1><p>Everyone puts in their own stake. Friends confirm one another. Nobody profits from a miss.</p><button class="action" data-go="step1">Start with friends</button></div>
+      <div class="section-head"><h3>What changes?</h3><span>2—6 people</span></div><div class="card" style="background:var(--orange);color:#fff;border:0"><div class="friend-row"><span class="friend-avatar" style="background:var(--ink)">J</span><span><b>You</b><br><small>set the rhythm</small></span></div><div class="friend-row"><span class="friend-avatar" style="background:var(--blue)">S</span><span><b>Sam</b><br><small>confirms your check-in</small></span></div><div class="friend-row"><span class="friend-avatar" style="background:var(--purple)">M</span><span><b>Maya</b><br><small>keeps the thread warm</small></span></div></div>
+      <div class="secondary-callout"><h3>Solo is still the front door.</h3><p>Not ready to gather a crew? Start with <b>Just me</b>. Add one witness later, or keep it yours.</p><button class="ghost full" style="margin-top:12px" data-go="step1">Make a solo promise</button></div>
+      <div class="footnote">Friends confirm. They do not become a prize or a judge.</div>
+    </section>
+
+  </main></div>
+</div>
+<script>
+const views=[...document.querySelectorAll('.view')];
+const rail=[...document.querySelectorAll('.rail button')];
+function go(id){views.forEach(v=>v.classList.toggle('active',v.id===id));rail.forEach(b=>b.classList.toggle('on',b.dataset.go===id));document.querySelector('.screen').scrollTop=0}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b){go(b.dataset.go)}});
+const intention=document.getElementById('intention');
+const mainSuggestion=document.getElementById('suggestion-main');
+const altSuggestion=document.getElementById('suggestion-alt');
+intention.addEventListener('input',()=>{const raw=intention.value.trim();if(!raw)return;const title=raw.charAt(0).toUpperCase()+raw.slice(1);mainSuggestion.textContent=title;altSuggestion.textContent=raw.toLowerCase().includes('run')?'Call Mom':'Read 20 pages'});
+document.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-choice]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');document.getElementById('witness-input').classList.toggle('show',b.dataset.choice==='witness')}));
+document.querySelectorAll('[data-proof]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-proof]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected')}));
+document.querySelectorAll('[data-destination]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-destination]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected')}));
+document.getElementById('commit-button').addEventListener('click',()=>{document.getElementById('commit-button').textContent='Promise locked';document.getElementById('commit-button').disabled=true;document.getElementById('commit-success').classList.add('show')});
+function showCheckState(state){document.querySelectorAll('[data-check-state]').forEach(b=>b.classList.toggle('on',b.dataset.checkState===state));document.getElementById('check-before').classList.toggle('hidden',state!=='before');document.getElementById('check-after').classList.toggle('hidden',state!=='after');document.getElementById('hold-ring').classList.toggle('after',state==='after')}
+document.querySelectorAll('[data-check-state]').forEach(b=>b.addEventListener('click',()=>showCheckState(b.dataset.checkState)));
+let holdTimer;const holdButton=document.getElementById('hold-button');const ring=document.getElementById('hold-ring');function finishHold(){clearTimeout(holdTimer);showCheckState('after')}holdButton.addEventListener('pointerdown',()=>{holdTimer=setTimeout(finishHold,700)});holdButton.addEventListener('pointerup',()=>{if(!ring.classList.contains('after'))clearTimeout(holdTimer)});holdButton.addEventListener('pointerleave',()=>{if(!ring.classList.contains('after'))clearTimeout(holdTimer)});holdButton.addEventListener('click',()=>{if(!ring.classList.contains('after'))finishHold()});
+document.getElementById('confirm-button').addEventListener('click',e=>{e.currentTarget.textContent='✓ Confirmed · send a little love';e.currentTarget.style.background='#edf6cf';document.getElementById('confirmed-note').classList.remove('hidden')});
+document.querySelectorAll('[data-skip-state]').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.skipState;document.querySelectorAll('[data-skip-state]').forEach(x=>x.classList.toggle('on',x.dataset.skipState===s));document.getElementById('skip-declared').classList.toggle('hidden',s!=='declared');document.getElementById('skip-missed').classList.toggle('hidden',s!=='missed')}));
+document.getElementById('join-season').addEventListener('click',e=>{e.currentTarget.textContent='Joined · make your ritual';e.currentTarget.style.background='#edf6cf';document.getElementById('season-status-title').textContent='You joined October Run Club';document.getElementById('season-status-copy').textContent='Choose your own stake and destination when you make the ritual.';document.getElementById('season-count').textContent='4'});
+document.querySelectorAll('[data-receipt]').forEach(b=>b.addEventListener('click',()=>{const r=b.dataset.receipt;document.querySelectorAll('[data-receipt]').forEach(x=>x.classList.toggle('on',x.dataset.receipt===r));document.getElementById('receipt-kept').classList.toggle('hidden',r!=='kept');document.getElementById('receipt-cause').classList.toggle('hidden',r!=='cause')}));
+</script>
+</body></html>

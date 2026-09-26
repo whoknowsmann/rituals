@@ -107,6 +107,28 @@ competes with the redesign and the MWA gate.
 4. **Declared skip in v1:** yes, one per ritual.
 5. **Cohorts:** design-only / "coming soon" for submission; build after.
 
+## 6b. Jack's decisions (2026-09-26) — solo FIRST
+
+Supersedes "solo in scope" with "solo is the product":
+
+1. **Solo is the primary path.** Assume the user has no crew. Groups stay as a
+   secondary create option ("With friends").
+2. **Default check-in is honor** ("Just me"): hold → stamp. Optional
+   accountability on any solo ritual: one non-staking witness, or photo/note
+   proof.
+3. **Miss destination:** offer both, **cause selected first**, person second.
+4. **Seasons at submission: real.** A live counter ("N people ran today") and
+   join-a-season, backed by real onchain state. Each participant is solo with
+   their own stake and destination; forfeits never pooled; participants never
+   confirm each other; no money leaderboards. Small honest numbers are fine.
+5. **Visual direction:** Proof & people structure + Hand-made texture/stamps
+   (handwriting only at commitment moments). Combined sketch:
+   `sketches/ui-2026-09-26-solo/`.
+
+Implication: Seasons need something onchain to count (a season id on the
+ritual and/or a season account). Since the solo deploy already changes the
+Ritual layout, add it in the **same** redeploy so we break devnet data once.
+
 ## 7. Sequencing proposal
 
 1. MWA gate: one Create signed in Phantom (needs Jack, ~5 min).

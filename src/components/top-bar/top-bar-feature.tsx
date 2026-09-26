@@ -1,4 +1,5 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { color, space } from "../../theme";
 import { Appbar } from "react-native-paper";
 import { TopBarWalletMenu } from "./top-bar-ui";
 import { useNavigation } from "@react-navigation/core";
@@ -8,7 +9,8 @@ export function TopBar() {
   return (
     <Appbar.Header mode="small" style={styles.topBar}>
       <TopBarWalletMenu />
-      <Appbar.Content title="Rituals" subtitle="Devnet · TEST tokens" />
+      {/* The screen owns the wordmark; the bar carries only wallet + settings. */}
+      <View style={styles.spacer} />
 
       <Appbar.Action
         icon="cog"
@@ -24,7 +26,10 @@ export function TopBar() {
 
 const styles = StyleSheet.create({
   topBar: {
-    justifyContent: "flex-end",
+    backgroundColor: color.bg,
+    paddingHorizontal: space.sm,
     alignItems: "center",
+    elevation: 0,
   },
+  spacer: { flex: 1 },
 });

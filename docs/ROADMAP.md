@@ -3,6 +3,10 @@
 > Current state and the next gate live in `docs/STATUS.md`, which is measured and
 > re-verified. This file is the longer completed/remaining breakdown. If the two
 > disagree, STATUS.md wins.
+>
+> **2026-09-26: direction changed to SOLO FIRST.** The active plan is
+> `docs/plans/solo-first-2026-09-26.md` (phases A–E). The "Explicitly deferred"
+> note about solo below is obsolete.
 
 Status labels describe observed implementation, not aspiration. Rituals is the sole product in this repository. An earlier, unrelated prototype was fully removed from active source; it survives only under the `archive/*` Git tags and is not part of this submission.
 
@@ -84,8 +88,10 @@ Compute policy for the remaining build:
 - [x] Initialize and verify ProtocolConfig against the client contract
 - [x] Verify the complete lifecycle on devnet with CLI keypairs (17/17 assertions)
 - [x] Install and launch the APK on Jack's physical Seeker
-- [ ] **NEXT GATE:** sign a real Create through Mobile Wallet Adapter from the Seeker
-- [ ] Verify the complete two-wallet lifecycle with wallet-signed transactions
+- [x] Sign a real Create through Mobile Wallet Adapter from the Seeker (2026-09-25 `3PkBnAG7…`; 2026-09-26 bundled Create+fund `23Hwtf2h…`)
+- [x] Last-member Fund+Activate in one approval on the Seeker (2026-09-26 `5qdDRUw6…`)
+- [ ] **NEXT GATE:** solo honor ritual on the Seeker: create → stamp check-in → settle → receipt (after Phase A–C of the solo-first plan)
+- [ ] Group claim/approve/settle on the Seeker (blocked by bug B1: demo first event opens a week out)
 - [ ] Build, sign, install, and verify the standalone release APK
 - [ ] Run a broader integrated adversarial/security audit after the complete app is wired
 - [ ] Capture demo video, screenshots, pitch, privacy copy, and submission materials
@@ -93,8 +99,8 @@ Compute policy for the remaining build:
 
 ## Explicitly deferred
 
-- Solo rituals are a P1 candidate after the private-group P0 loop.
-- Public discovery, feeds, leaderboards, stranger betting, and sponsor pools are outside P0.
+- ~~Solo rituals are a P1 candidate~~ → solo is now the primary product (2026-09-26).
+- Seasons ship as honest counts + join only. Public feeds with names, leaderboards, stranger betting, and sponsor pools stay out.
 - AI and reminders are optional follow-on work.
 - Mainnet and valuable-token support are not part of the hackathon acceptance path.
 

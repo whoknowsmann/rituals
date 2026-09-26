@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollView, Share, StyleSheet, View } from 'react-native'
+import { Pressable, ScrollView, Share, StyleSheet, Text as RNText, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { ActivityIndicator, Button, Card, Divider, Text, useTheme, type MD3Theme } from 'react-native-paper'
+import { ActivityIndicator, Button, Card, Text, useTheme, type MD3Theme } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import { PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
@@ -22,6 +22,8 @@ import { buildCreateRitualDeps } from '../features/rituals/create/buildCreateDep
 import { DEMO_CADENCE, describeCadence, nextWeekdayOccurrence } from '../domain/rituals/schedule'
 import { rememberRitual } from '../features/rituals/authoritativeRituals'
 import { RITUALS_DEVNET_STAKE_MINT } from '../data/rituals/programIds'
+import { ActionButton, Footnote, MemberTile, Poster, PosterLine, Section, haptic } from '../components/crew'
+import { color, memberColor, radius, space, type } from '../theme'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RitualFundingLobby'>
 
@@ -108,9 +110,11 @@ export function RitualFundingLobbyScreen({ route }: Props) {
   const shareInvite = useCallback(() => { if (invite) void Share.share({ message: invite }) }, [invite])
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text variant="headlineMedium" accessibilityRole="header">Funding lobby</Text>
-      <Text style={styles.muted}>Everyone reviews the same terms before any onchain funding.</Text>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Poster tint={memberColor(0)} kicker={confirmed ? 'Waiting for your crew' : 'Ready to start'} title={parsed.value.title}>
+        <PosterLine label="Each person puts in" value={model.stake.replace(' per member', '')} />
+        <PosterLine label="Schedule" value={describeCadence(cadence).split(' · ')[0]} />
+      </Poster>
 
       {recovery && (
         <Card style={styles.card} accessibilityLabel="Transaction recovery">
@@ -123,54 +127,52 @@ export function RitualFundingLobbyScreen({ route }: Props) {
         </Card>
       )}
 
-      <Card style={styles.card} accessibilityLabel="Funding progress">
-        <Card.Content>
-          <Text variant="titleLarge">{model.progress}</Text>
-          <Text style={styles.locked}>{model.activation}</Text>
-        </Card.Content>
-      </Card>
-
-      <Card style={styles.card} accessibilityLabel="Member funding roster">
-        <Card.Content>
+      <View accessibilityLabel="Member funding roster">
+        <Section title="Your crew" aside={model.progress} />
+        <View style={styles.crew} accessibilityLabel="Funding progress">
           {model.rows.map((row) => (
-            <View key={row.index} style={styles.row}>
+            <Pressable
+              key={row.index}
+              onPress={() => { haptic.light(); void Clipboard.setStringAsync(row.address) }}
+              accessibilityRole="button"
+              accessibilityLabel={`${row.name}, ${row.funding}. Tap to copy wallet address`}
+              style={({ pressed }) => [styles.person, pressed && styles.pressed]}
+            >
+              <MemberTile index={row.index} label={row.name} />
               <View style={styles.identity}>
-                <Text variant="labelLarge">{row.role}</Text>
-                <Text style={styles.address}>{shortRosterAddress(row.address)}</Text>
+                <RNText style={styles.name}>{row.name}</RNText>
+                <RNText style={styles.address}>{shortRosterAddress(row.address)}</RNText>
               </View>
-              <Text style={styles.status}>{row.funding}</Text>
-            </View>
+              <RNText style={styles.status}>{confirmed && row.index === 0 ? 'In' : row.funding}</RNText>
+            </Pressable>
           ))}
-        </Card.Content>
-      </Card>
+        </View>
+        <RNText style={styles.note}>{model.activation}</RNText>
+      </View>
 
-      <Card style={styles.card} accessibilityLabel="Funding terms">
-        <Card.Content>
-          <Text variant="titleMedium">Terms</Text>
-          <Text style={styles.term}>{model.stake}</Text>
-          <Text style={styles.term}>{model.fee}</Text>
-          <Divider style={styles.divider} />
-          <Text variant="labelLarge">Schedule</Text>
-          <Text style={styles.muted}>{describeCadence(cadence)}</Text>
-        </Card.Content>
-      </Card>
+      <View accessibilityLabel="Funding terms">
+        <Section title="The deal" />
+        <View style={styles.terms}>
+          <TermRow label="Your stake" value={model.stake.replace(' per member', '')} />
+          <TermRow label="Activation fee" value={model.fee.split(' · ')[1] ?? model.fee} hint={model.fee.split(' · ')[0]} />
+          <TermRow label="Schedule" value={describeCadence(cadence)} last />
+        </View>
+      </View>
 
-      <Card style={styles.card} accessibilityLabel="Create status">
-        <Card.Content>
-          <View style={styles.statusHeader}>
-            {create.isBusy && <ActivityIndicator size="small" accessibilityLabel="Working" />}
-            <Text variant="titleMedium">{create.copy.title}</Text>
-          </View>
-          <Text style={create.copy.tone === 'warning' ? styles.warning : styles.muted} accessibilityLiveRegion="polite">
-            {create.copy.body}
-          </Text>
-          {confirmed && create.state.status === 'confirmed' && (
-            <Text style={styles.signature} selectable>
-              {shortRosterAddress(create.state.ritualAddress)}
-            </Text>
-          )}
-        </Card.Content>
-      </Card>
+      <View style={[styles.status_, create.copy.tone === 'warning' && styles.statusWarn]} accessibilityLabel="Create status">
+        <View style={styles.statusHeader}>
+          {create.isBusy && <ActivityIndicator size="small" color={color.fg} accessibilityLabel="Working" />}
+          <RNText style={styles.statusTitle}>{create.copy.title}</RNText>
+        </View>
+        <RNText style={create.copy.tone === 'warning' ? styles.warning : styles.muted} accessibilityLiveRegion="polite">
+          {create.copy.body}
+        </RNText>
+        {confirmed && create.state.status === 'confirmed' && (
+          <RNText style={styles.signature} selectable>
+            {shortRosterAddress(create.state.ritualAddress)}
+          </RNText>
+        )}
+      </View>
 
       {invite && (
         <Card style={styles.card} accessibilityLabel="Ritual invite">
@@ -193,33 +195,50 @@ export function RitualFundingLobbyScreen({ route }: Props) {
       )}
 
       {!confirmed && (
-        <Button
-          mode="contained"
+        <ActionButton
+          label={create.isBusy ? 'Working…' : 'Create ritual'}
           onPress={create.start}
           disabled={!ready || !create.canSubmit || create.isBusy}
           loading={create.isBusy}
           accessibilityLabel="Create ritual onchain"
-        >
-          {create.isBusy ? 'Working…' : 'Create ritual'}
-        </Button>
+        />
       )}
 
       {create.state.status === 'error' && create.canSubmit && (
-        <Button mode="outlined" onPress={create.reset} accessibilityLabel="Try again">Try again</Button>
+        <ActionButton label="Try again" tone="quiet" onPress={create.reset} accessibilityLabel="Try again" />
       )}
 
       {confirmed && (
-        <Button mode="contained" onPress={() => navigation.navigate('RitualsHome')}>Done</Button>
+        <ActionButton label="Done" tone="dark" onPress={() => navigation.navigate('RitualsHome')} />
       )}
 
-      <Text style={styles.muted}>
-        Devnet · TEST tokens have no real value. The invite link becomes available only after onchain creation.
-      </Text>
+      {!confirmed && <Button mode="text" textColor={color.muted} onPress={() => navigation.goBack()}>Edit member wallets</Button>}
 
-      {!confirmed && <Button mode="outlined" onPress={() => navigation.goBack()}>Edit member wallets</Button>}
+      <Footnote>Devnet · TEST tokens have no real value</Footnote>
     </ScrollView>
   )
 }
+
+function TermRow({ label, value, hint, last }: { label: string; value: string; hint?: string; last?: boolean }) {
+  return (
+    <View style={[termStyles.row, !last && termStyles.rule]}>
+      <RNText style={termStyles.label}>{label}</RNText>
+      <View style={termStyles.right}>
+        <RNText style={termStyles.value}>{value}</RNText>
+        {hint ? <RNText style={termStyles.hint}>{hint}</RNText> : null}
+      </View>
+    </View>
+  )
+}
+
+const termStyles = StyleSheet.create({
+  row: { flexDirection: 'row', justifyContent: 'space-between', gap: space.lg, paddingVertical: 14 },
+  rule: { borderBottomWidth: 1, borderBottomColor: color.line },
+  label: { ...type.body, color: color.muted },
+  right: { flexShrink: 1, alignItems: 'flex-end' },
+  value: { ...type.bodyStrong, color: color.fg, textAlign: 'right' },
+  hint: { ...type.caption, color: color.muted, textAlign: 'right', marginTop: 2 },
+})
 
 function InvalidLobby({ message, onHome, styles }: { message: string; onHome: () => void; styles: ReturnType<typeof makeStyles> }) {
   return (
@@ -236,20 +255,26 @@ function InvalidLobby({ message, onHome, styles }: { message: string; onHome: ()
 }
 
 const makeStyles = (theme: MD3Theme) => StyleSheet.create({
-  content: { padding: 20, gap: 14 },
+  screen: { backgroundColor: color.bg },
+  content: { padding: space.screen, paddingBottom: 48, gap: space.md },
   card: { borderRadius: 18 },
   notice: { borderRadius: 18 },
-  muted: { color: theme.colors.onSurfaceVariant, lineHeight: 20 },
-  warning: { color: theme.colors.error, lineHeight: 20, fontWeight: '600' },
-  locked: { color: theme.colors.error, marginTop: 8, fontWeight: '700' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 10, flexWrap: 'wrap' },
-  identity: { minWidth: 0, flexShrink: 1 },
-  address: { fontWeight: '700', marginTop: 3 },
-  status: { color: theme.colors.onSurfaceVariant },
-  term: { fontWeight: '700', marginTop: 10 },
-  divider: { marginVertical: 12 },
+  muted: { ...type.body, color: color.muted },
+  warning: { ...type.bodyStrong, color: theme.colors.error },
+  crew: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, paddingHorizontal: space.lg },
+  person: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  pressed: { opacity: 0.6 },
+  identity: { minWidth: 0, flex: 1 },
+  name: { ...type.heading, color: color.fg },
+  address: { ...type.caption, color: color.faint, marginTop: 1 },
+  status: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.muted },
+  note: { ...type.caption, color: color.muted, marginTop: space.sm, paddingHorizontal: 2 },
+  terms: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, paddingHorizontal: space.lg },
+  status_: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, marginTop: space.md, gap: space.xs },
+  statusWarn: { borderColor: color.danger, backgroundColor: color.dangerSoft },
   statusHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  signature: { marginTop: 10, fontWeight: '700' },
+  statusTitle: { ...type.heading, color: color.fg },
+  signature: { ...type.caption, color: color.muted, marginTop: space.sm },
   invite: { marginTop: 10, fontSize: 12, lineHeight: 18 },
   buttonRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', marginTop: 10 },
 })

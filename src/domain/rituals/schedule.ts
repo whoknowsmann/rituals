@@ -172,7 +172,8 @@ export function describeCadence(cadence: RitualCadence): string {
     const graceHours = Math.round(cadence.resolutionGraceSeconds / HOUR)
     return `Every week · ${claimHours}h to check in · ${graceHours}h for friends to confirm`
   }
-  return `DEMO MODE · accelerated: every ${cadence.periodSeconds}s · ${cadence.claimWindowSeconds}s to check in · ${cadence.resolutionGraceSeconds}s to confirm`
+  const period = cadence.periodSeconds % 60 === 0 ? `${cadence.periodSeconds / 60} min` : `${cadence.periodSeconds} s`
+  return `Demo speed · a new week every ${period} · ${cadence.claimWindowSeconds} s to check in · ${cadence.resolutionGraceSeconds} s to confirm`
 }
 
 /**

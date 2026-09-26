@@ -3,8 +3,9 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-25 22:35 CDT** (tsc clean, 1,996 tests / 77 files on
-`feat/fund-activate`; client orchestrator fund+activate proof on devnet below)
+Last verified: **2026-09-26 15:00 CDT** (design/crew: tsc clean, 2,011 tests /
+79 files; feat/solo-program: native 186/186; full lifecycle green on devnet by
+script; group Create + Fund&Activate signed on the Seeker by Jack)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -21,7 +22,32 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
-## RESUME HERE — handoff 2026-09-25 late ("lets begin rituals")
+## RESUME HERE — handoff 2026-09-26 afternoon ("lets begin rituals")
+
+**Plan of record: `docs/plans/solo-first-2026-09-26.md`.** Read it first. It
+has Jack's decisions (solo is the product, honor default + stamp, cause-first
+destination, real Seasons, Proof&people+Hand-made look), the bug table from
+today's phone run (B1–B8), phases A–E, and the phone-test runbook.
+
+Start here, in order:
+1. Re-verify (commands above). Expect design/crew @ ≥57fed01, 2,011 tests.
+2. **Phase A** on `design/crew`: fix B1 (demo first week opens in ~2 min, not
+   next week), B2 (Phantom shows "github.com" → Rituals identity), B3 ("Opening
+   Phantom…" handoff), B4–B6 (funding-state detail, join wall-of-text, fund
+   screen copy). RED tests first. Build APK, install, screenshot.
+3. **Phase B** in `~/projects/preflight-solo`: merge design/crew, add Season
+   support, cause account, tests, **redeploy devnet (Jack approved)**, smoke.
+4. **Phase C**: solo screens from `sketches/ui-2026-09-26-solo/`.
+5. **Phase D**: solo phone test — Hermes drives, Jack only fingerprints.
+
+Today's device proof (group path, Jack's fingerprints): Create+host-fund
+`23Hwtf2h…` and last-member Fund+Activate `5qdDRUw6…` on Ritual
+`CGw8DYbw…Gmu7S` → Active 2/2. Claim/settle blocked by B1 (event 0 opens
++7 days). APK on the Seeker = c8355c1 (Suggest + Crew lobby). Phantom
+Account 2 = host `Da59…`, Account 3 = wallet 2 `98W4…`; Rituals currently
+connected as `98W4…`.
+
+## Previous handoff — 2026-09-25 late
 
 ### Branches
 
@@ -36,13 +62,18 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
     in one approval, via the app orchestrator: `5utpbQFu…`, re-verified).
     Prompts per 2-person journey now **host 5 (was 7), member 2 (was 3)**.
   - `feat/crew-home` — **merged** (Crew home + HoldButton, not yet wired).
-    Not visually checked on a device yet.
+    Checked on the Seeker 22:46 (empty state): fonts render, wordmark clip
+    and duplicate top-bar title fixed. Screenshot `artifacts/shots/crew-home-2.png`.
+    **APK now on the phone = design/crew (Crew home + bundles A/B/C)**;
+    fallback `rituals-ab55204.apk` in `C:\Users\hound\AppData\Local\Temp\rituals\`.
   - `feat/solo-program` — NOT merged, NOT deployed. `create_solo_ritual`,
     `declare_skip`, solo settlement; native 181/181 (re-run by Hermes).
     Ritual layout 909→977 bytes, so deploying breaks decoding of existing
-    devnet rituals and the current APK — needs Jack's go-ahead. Follow-up in
-    progress: self-forfeit guard (host can't route misses to own account),
-    negative tests, TS client adoption, rollout plan.
+    devnet rituals and the current APK — needs Jack's go-ahead.
+    2026-09-26: self-forfeit guard (6068 `ForfeitDestinationOwnedByParticipant`),
+    5 negative tests, TS client adoption committed + pushed (55509ba, f5a0ff2);
+    native **186/186**, tsc clean, 1,996 TS tests. Remaining: rollout plan,
+    then Jack's go-ahead to redeploy.
 - `fix/mwa-diagnostics` — `overnight/mobile-integration` + only the MWA fixes
   (ab774fd diag, 2a4ec29 compute budget/classification/stale auth, ab55204
   retry state). **The APK on the Seeker (installed 21:47) is ab55204** — ready
@@ -102,6 +133,24 @@ Leftover devnet rituals (unfunded, not saved on the phone, harmless):
 `2KmtR3Mf9C4xfPQqud88aBFrTY3PaN3XDBBX6VgwvQ3g`, `7vcEUApV7mMDHuZV688zBWxiUMBcdmtS3yTVLyGHqu1k`.
 
 ### Next steps, in order
+
+0. **2026-09-26 morning (Hermes, Jack away):**
+   - Suggest fixed + on the Seeker (c146762, a490455): titles in the user's own
+     words, button always responds, results scroll into view, quiet chips.
+   - Funding lobby rebuilt in Crew (c8355c1): poster, "You / Friend 2" tiles,
+     no red waiting state, "Demo speed" instead of DEMO MODE. On the Seeker.
+   - `smoke-app-lifecycle.ts` full lifecycle green on devnet (ritual
+     `5Yi3kod7…`, finalize `29b2cR9J…`, both Finalized).
+   - Phone MWA Create reached Phantom's biometric; cancel → "Nothing was sent…
+     safely try again" (correct). Phantom then sat on "Unlock Phantom" and
+     ignored Back; relaunching Rituals recovered. The fingerprint run still
+     needs Jack.
+   - Research: `docs/plans/hackathon-winners-2026-09-26.md`,
+     `docs/plans/ui-warmth-research-2026-09-26.md`. Sketches (3 warmer takes):
+     `sketches/ui-2026-09-26/` (per-screen PNGs in `shots/`). Awaiting Jack's pick.
+   - Note: `react-native-reanimated` and any camera/image-picker module are
+     NOT installed (the design notes assume reanimated). Motion today = RN
+     `Animated`; photo proof needs a new native dep + Jack's approval.
 
 1. **Phone (needs Jack):** install a build containing ab55204, Create once →
    expect "Ritual created" + invite. Then Fund from test wallet 2, claim,

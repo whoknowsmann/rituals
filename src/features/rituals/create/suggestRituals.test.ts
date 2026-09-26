@@ -3,9 +3,39 @@ import {
   suggestRituals,
   SUGGESTION_INTENTS,
   parseIntent,
+  titleFromIntention,
   type RitualSuggestion,
 } from './suggestRituals'
 import { validateRitualDraft } from './draftForm'
+
+describe('titleFromIntention', () => {
+  it('turns what the user typed into a title in their own words', () => {
+    expect(titleFromIntention('call my mom')).toBe('Call Mom')
+    expect(titleFromIntention('run with my brother')).toBe('Run with my brother')
+    expect(titleFromIntention('finally finish this book')).toBe('Finish the book')
+    expect(titleFromIntention('I want to practice guitar every week')).toBe('Practice guitar')
+    expect(titleFromIntention('  learn Spanish!!  ')).toBe('Learn Spanish')
+  })
+
+  it('keeps a lone trailing "more" rather than leaving a one-word stub', () => {
+    expect(titleFromIntention('read more')).toBe('Read more')
+    expect(titleFromIntention('call my dad more often')).toBe('Call Dad')
+  })
+
+  it('returns null when there is nothing usable', () => {
+    expect(titleFromIntention('')).toBeNull()
+    expect(titleFromIntention('   ?!  ')).toBeNull()
+    // @ts-expect-error deliberate hostile input
+    expect(titleFromIntention(null)).toBeNull()
+  })
+
+  it('caps long input on a word boundary so the title stays a title', () => {
+    const title = titleFromIntention('walk the dog around the whole neighbourhood every single morning before work')
+    expect(title).not.toBeNull()
+    expect(title!.length).toBeLessThanOrEqual(40)
+    expect(title!.endsWith(' ')).toBe(false)
+  })
+})
 
 describe('parseIntent', () => {
   it('recognises movement language', () => {
@@ -19,6 +49,7 @@ describe('parseIntent', () => {
 
   it('recognises family language', () => {
     expect(parseIntent('call my mom more often')).toBe('family')
+    expect(parseIntent('visit my grandma every sunday')).toBe('family')
   })
 
   it('recognises creative language', () => {
@@ -53,8 +84,29 @@ describe('suggestRituals', () => {
     expect(suggestRituals('').length).toBeGreaterThan(0)
   })
 
+  it('uses the user\'s own words as the title, not a canned one', () => {
+    for (const s of suggestRituals('call my mom')) expect(s.draft.title).toBe('Call Mom')
+    for (const s of suggestRituals('visit grandma')) expect(s.draft.title).toBe('Visit grandma')
+  })
+
+  it('gives different inputs in the same category different results', () => {
+    expect(suggestRituals('call my mom')[0].draft.title).not.toBe(suggestRituals('sunday dinner with the kids')[0].draft.title)
+  })
+
+  it('offers genuinely different shapes, each labelled', () => {
+    const suggestions = suggestRituals('run with my brother')
+    const shapes = suggestions.map((s) => `${s.draft.confirmationMode}/${s.draft.eventCount}`)
+    expect(new Set(shapes).size).toBe(suggestions.length)
+    for (const s of suggestions) expect(s.shape.length).toBeGreaterThan(0)
+  })
+
+  it('leads with the lighter-touch honor shape for family rituals', () => {
+    expect(suggestRituals('call my mom')[0].draft.confirmationMode).toBe('HONOR')
+    expect(suggestRituals('run with my brother')[0].draft.confirmationMode).toBe('ONE_FRIEND')
+  })
+
   it('returns suggestions whose drafts all pass real validation', () => {
-    for (const text of ['run with friends', 'read a book', 'call family', '', 'qqqq']) {
+    for (const text of ['run with friends', 'read a book', 'call family', '', 'qqqq', 'x'.repeat(200)]) {
       expect(allValid(suggestRituals(text))).toBe(true)
     }
   })
@@ -65,8 +117,8 @@ describe('suggestRituals', () => {
   })
 
   it('returns distinct suggestions', () => {
-    const titles = suggestRituals('read more').map((s) => s.draft.title)
-    expect(new Set(titles).size).toBe(titles.length)
+    const shapes = suggestRituals('read more').map((s) => s.shape)
+    expect(new Set(shapes).size).toBe(shapes.length)
   })
 
   it('caps the number of suggestions so the UI stays scannable', () => {
