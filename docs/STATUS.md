@@ -108,6 +108,24 @@ Leftover devnet rituals (unfunded, not saved on the phone, harmless):
 
 ### Next steps, in order
 
+0. **2026-09-26 morning (Hermes, Jack away):**
+   - Suggest fixed + on the Seeker (c146762, a490455): titles in the user's own
+     words, button always responds, results scroll into view, quiet chips.
+   - Funding lobby rebuilt in Crew (c8355c1): poster, "You / Friend 2" tiles,
+     no red waiting state, "Demo speed" instead of DEMO MODE. On the Seeker.
+   - `smoke-app-lifecycle.ts` full lifecycle green on devnet (ritual
+     `5Yi3kod7…`, finalize `29b2cR9J…`, both Finalized).
+   - Phone MWA Create reached Phantom's biometric; cancel → "Nothing was sent…
+     safely try again" (correct). Phantom then sat on "Unlock Phantom" and
+     ignored Back; relaunching Rituals recovered. The fingerprint run still
+     needs Jack.
+   - Research: `docs/plans/hackathon-winners-2026-09-26.md`,
+     `docs/plans/ui-warmth-research-2026-09-26.md`. Sketches (3 warmer takes):
+     `sketches/ui-2026-09-26/` (per-screen PNGs in `shots/`). Awaiting Jack's pick.
+   - Note: `react-native-reanimated` and any camera/image-picker module are
+     NOT installed (the design notes assume reanimated). Motion today = RN
+     `Animated`; photo proof needs a new native dep + Jack's approval.
+
 1. **Phone (needs Jack):** install a build containing ab55204, Create once →
    expect "Ritual created" + invite. Then Fund from test wallet 2, claim,
    approve, settle. Approve promptly (<~45 s) and stay in Phantom until it
