@@ -43,9 +43,11 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
   - `feat/solo-program` — NOT merged, NOT deployed. `create_solo_ritual`,
     `declare_skip`, solo settlement; native 181/181 (re-run by Hermes).
     Ritual layout 909→977 bytes, so deploying breaks decoding of existing
-    devnet rituals and the current APK — needs Jack's go-ahead. Follow-up in
-    progress: self-forfeit guard (host can't route misses to own account),
-    negative tests, TS client adoption, rollout plan.
+    devnet rituals and the current APK — needs Jack's go-ahead.
+    2026-09-26: self-forfeit guard (6068 `ForfeitDestinationOwnedByParticipant`),
+    5 negative tests, TS client adoption committed + pushed (55509ba, f5a0ff2);
+    native **186/186**, tsc clean, 1,996 TS tests. Remaining: rollout plan,
+    then Jack's go-ahead to redeploy.
 - `fix/mwa-diagnostics` — `overnight/mobile-integration` + only the MWA fixes
   (ab774fd diag, 2a4ec29 compute budget/classification/stale auth, ab55204
   retry state). **The APK on the Seeker (installed 21:47) is ab55204** — ready
