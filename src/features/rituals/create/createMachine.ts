@@ -205,7 +205,7 @@ export function createStatusCopy(state: CreateMachineState): CreateStatusCopy {
     case 'idle':
       return freeze({
         title: 'Ready to create',
-        body: 'Review every term. Creating locks the rules and opens funding.',
+        body: 'Review every term. Creating locks the rules and puts in your own stake and the activation fee in the same approval.',
         tone: 'neutral' as const,
       })
     case 'preparing':
@@ -235,7 +235,7 @@ export function createStatusCopy(state: CreateMachineState): CreateStatusCopy {
     case 'confirmed':
       return freeze({
         title: 'Ritual created',
-        body: 'Confirmed on-chain. You can now invite your members and start funding.',
+        body: 'Confirmed on-chain, and your stake is in. Invite your crew so they can put in theirs.',
         tone: 'success' as const,
       })
     case 'error': {

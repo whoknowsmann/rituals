@@ -171,7 +171,6 @@ export function RitualFundingLobbyScreen({ route }: Props) {
               <Button mode="contained-tonal" onPress={shareInvite} accessibilityLabel="Share ritual invite">Share invite</Button>
             </View>
             <Button mode="text" onPress={() => navigation.navigate('JoinRitual', { invite })}>Preview join terms</Button>
-            <Button mode="contained-tonal" onPress={() => { if (confirmedRitualAddress) navigation.navigate('RitualAction', { ritualId: confirmedRitualAddress, phase: 'fund' }) }}>Fund your stake</Button>
             <Button mode="outlined" onPress={() => { if (confirmedRitualAddress) navigation.navigate('RitualAction', { ritualId: confirmedRitualAddress, phase: 'activate' }) }}>Activate when everyone is funded</Button>
           </Card.Content>
         </Card>

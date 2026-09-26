@@ -194,6 +194,10 @@ describe('Ritual creation journey', () => {
     expect(lobby).toContain('useCreateRitual')
     expect(lobby).toContain('buildCreateRitualDeps')
     expect(lobby).toContain('Create ritual')
+    // Create is bundled with the host's own funding (feat/fewer-signatures), so
+    // the lobby must not offer a second, separate host "Fund your stake" step.
+    expect(lobby).toContain('creatorTokenAccount')
+    expect(lobby).not.toContain('Fund your stake')
     // Demo cadence acceleration must stay disclosed, never silent.
     expect(lobby).toContain('describeCadence')
     // Devnet/no-real-value disclosure must survive.
