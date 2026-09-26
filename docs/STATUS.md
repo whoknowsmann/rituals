@@ -3,8 +3,8 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-25 22:03 CDT** (tsc clean, 1,978 tests / 75 files on
-`feat/fewer-signatures`; device + devnet checks below)
+Last verified: **2026-09-25 22:35 CDT** (tsc clean, 1,996 tests / 77 files on
+`feat/fund-activate`; client orchestrator fund+activate proof on devnet below)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -30,6 +30,10 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
   actually loaded, light shell). tsc clean, 1,973 tests / 74 files. Pushed.
 - Overnight 2026-09-25 agent branches (not merged; review first):
   `feat/solo-program`, `feat/fewer-signatures`, `feat/crew-home`.
+- `feat/fund-activate` — **current feature branch.** Bundle B is wired into
+  the client and proven through the app orchestrator on devnet; not merged.
+- `feat/fewer-signatures` — prior A/B/C bundle implementation and raw devnet
+  proof; B was not wired there.
 - `fix/mwa-diagnostics` — `overnight/mobile-integration` + only the MWA fixes
   (ab774fd diag, 2a4ec29 compute budget/classification/stale auth, ab55204
   retry state). **The APK on the Seeker (installed 21:47) is ab55204** — ready
@@ -51,13 +55,13 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 
 ### Fewer-signatures checkpoint — 2026-09-25
 
-`feat/fewer-signatures` proves atomic A/B/C bundles on devnet in
-`scripts/smoke-bundled-actions.ts` and implements A (Create + host Fund) and C
-(initialize event + first Claim) in the prepared-action client. The measured
-journey prompt count drops from host 7/member 3 to host 5/member 3 with A+C;
-B is proven but not yet wired into the client. See
-`docs/plans/fewer-signatures.md` for signatures, readbacks, risks, and the
-remaining D proof.
+`feat/fund-activate` wires Bundle B into the prepared-action client. The last
+unfunded member is selected from the authoritative funding bitmap only before
+the first window opens and after stake/fee vault checks; their one-signer
+transaction is Fund + Activate with combined readback. The host Activate action
+remains available as a standalone fallback for rituals funded by an older build.
+The measured two-person journey is now host **5** prompts / member **2** prompts
+with A+B+C; see `docs/plans/fewer-signatures.md` for signatures and cost.
 
 ### MWA gate — 2026-09-25 evening: MWA signing PROVEN on the Seeker
 
