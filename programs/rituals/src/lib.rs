@@ -7,7 +7,7 @@ declare_id!("2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p");
 pub mod state {
     pub use super::{
         ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, ProtocolConfig,
-        Ritual, RitualEvent, RitualStatus, SettlementPlan, VoidReason,
+        Ritual, RitualEvent, RitualKind, RitualStatus, SettlementPlan, VoidReason,
     };
 }
 
@@ -167,7 +167,154 @@ pub mod rituals {
         ritual.cancelled_at = 0;
         ritual.completed_at = 0;
         ritual.vaults_closed = false;
+        ritual.kind = RitualKind::Group;
+        ritual.witness = None;
+        ritual.forfeit_destination = Pubkey::default();
+        ritual.skip_declared = false;
+        ritual.skip_event_index = 0;
         ritual.bump = ctx.bumps.ritual;
+        Ok(())
+    }
+
+    pub fn create_solo_ritual(
+        ctx: Context<CreateSoloRitual>,
+        nonce: u64,
+        rule_digest: [u8; 32],
+        member_total_stake: u64,
+        schedule: Vec<EventWindow>,
+        witness: Option<Pubkey>,
+    ) -> Result<()> {
+        let config = &ctx.accounts.protocol_config;
+        require!(!config.paused, RitualsError::ProtocolPaused);
+        require!(
+            ctx.accounts.creator.key() != Pubkey::default(),
+            RitualsError::DefaultMember
+        );
+        require!(
+            witness != Some(ctx.accounts.creator.key()),
+            RitualsError::InvalidWitness
+        );
+        if let Some(witness) = witness {
+            require!(witness != Pubkey::default(), RitualsError::InvalidWitness);
+        }
+        require!(
+            !rule_digest.iter().all(|byte| *byte == 0),
+            RitualsError::ZeroRuleDigest
+        );
+        require!(
+            (1..=config.max_events as usize).contains(&schedule.len()),
+            RitualsError::InvalidScheduleCount
+        );
+        for (index, window) in schedule.iter().enumerate() {
+            require!(
+                window.opens >= 0
+                    && window.opens < window.deadline
+                    && window.deadline < window.resolution,
+                RitualsError::InvalidEventWindow
+            );
+            if let Some(previous) = index.checked_sub(1).and_then(|i| schedule.get(i)) {
+                require!(
+                    window.opens > previous.resolution,
+                    RitualsError::ScheduleNotChronological
+                );
+            }
+        }
+        require!(
+            member_total_stake > 0 && member_total_stake <= config.maximum_member_stake,
+            RitualsError::InvalidMemberStake
+        );
+        require!(
+            member_total_stake % schedule.len() as u64 == 0,
+            RitualsError::StakeNotDivisible
+        );
+        let per_event_allocation = member_total_stake / schedule.len() as u64;
+        require!(
+            per_event_allocation > 0,
+            RitualsError::InvalidPerEventAllocation
+        );
+        require!(
+            ctx.accounts.forfeit_destination.mint == ctx.accounts.stake_mint.key(),
+            RitualsError::InvalidForfeitDestination
+        );
+        let fee_raw = (member_total_stake as u128)
+            .checked_mul(config.fee_basis_points as u128)
+            .ok_or(RitualsError::FeeCalculationOverflow)?
+            / 10_000;
+        let fee: u64 = fee_raw
+            .try_into()
+            .map_err(|_| RitualsError::FeeCalculationOverflow)?;
+        let locked_activation_fee = fee.clamp(config.minimum_fee, config.maximum_fee);
+        let clock = Clock::get()?;
+        let ritual = &mut ctx.accounts.ritual;
+        ritual.schema_version = 1;
+        ritual.protocol_config = config.key();
+        ritual.creator = ctx.accounts.creator.key();
+        ritual.nonce = nonce;
+        ritual.rule_digest = rule_digest;
+        ritual.stake_mint = ctx.accounts.stake_mint.key();
+        ritual.members = vec![ctx.accounts.creator.key()];
+        ritual.member_total_stake = member_total_stake;
+        ritual.per_event_allocation = per_event_allocation;
+        ritual.schedule = schedule;
+        ritual.additional_confirmation_threshold = u8::from(witness.is_some());
+        ritual.fee_payer_mode = FeePayerMode::Host;
+        ritual.locked_activation_fee = locked_activation_fee;
+        ritual.stake_decimals = ctx.accounts.stake_mint.decimals;
+        ritual.locked_fee_recipient = ctx.accounts.fee_recipient_token.key();
+        ritual.stake_vault = ctx.accounts.stake_vault.key();
+        ritual.fee_vault = ctx.accounts.fee_vault.key();
+        ritual.stake_vault_bump = ctx.bumps.stake_vault;
+        ritual.fee_vault_bump = ctx.bumps.fee_vault;
+        ritual.funded_members_bitmap = 0;
+        ritual.funded_member_count = 0;
+        ritual.funded_stake_total = 0;
+        ritual.funded_fee_total = 0;
+        ritual.status = RitualStatus::Funding;
+        ritual.current_event_index = 0;
+        ritual.settled_event_count = 0;
+        ritual.created_at = clock.unix_timestamp;
+        ritual.activated_at = 0;
+        ritual.cancelled_at = 0;
+        ritual.completed_at = 0;
+        ritual.vaults_closed = false;
+        ritual.kind = RitualKind::Solo;
+        ritual.witness = witness;
+        ritual.forfeit_destination = ctx.accounts.forfeit_destination.key();
+        ritual.skip_declared = false;
+        ritual.skip_event_index = 0;
+        ritual.bump = ctx.bumps.ritual;
+        Ok(())
+    }
+
+    pub fn declare_skip(ctx: Context<DeclareSkip>, event_index: u8) -> Result<()> {
+        let ritual = &mut ctx.accounts.ritual;
+        require!(
+            ritual.kind == RitualKind::Solo,
+            RitualsError::SoloOnlyInstruction
+        );
+        require!(
+            ritual.status == RitualStatus::Active,
+            RitualsError::InvalidRitualStatus
+        );
+        require!(
+            ctx.accounts.member.key() == ritual.creator,
+            RitualsError::MemberNotFound
+        );
+        require!(!ritual.skip_declared, RitualsError::SkipAlreadyDeclared);
+        require!(
+            ritual.current_event_index == event_index,
+            RitualsError::InvalidCurrentEvent
+        );
+        let window = ritual
+            .schedule
+            .get(event_index as usize)
+            .ok_or(RitualsError::InvalidCurrentEvent)?;
+        require!(
+            Clock::get()?.unix_timestamp < window.opens,
+            RitualsError::SkipWindowClosed
+        );
+        ritual.skip_declared = true;
+        ritual.skip_event_index = event_index;
         Ok(())
     }
 
@@ -603,17 +750,34 @@ pub mod rituals {
             ctx.accounts.claim.status == ClaimStatus::Pending,
             RitualsError::InvalidClaimState
         );
-        let approver_index =
-            eligible_member_index(&ctx.accounts.ritual, ctx.accounts.approver.key())?;
-        require!(
-            approver_index != ctx.accounts.claim.member_index as usize,
-            RitualsError::SelfApproval
-        );
-        let bit = 1u8 << approver_index;
-        require!(
-            ctx.accounts.claim.approvals_bitmap & bit == 0,
-            RitualsError::DuplicateApproval
-        );
+        let approver_index = if ctx.accounts.ritual.is_solo() {
+            require!(
+                ctx.accounts.ritual.witness == Some(ctx.accounts.approver.key()),
+                RitualsError::ApprovalNotEligible
+            );
+            None
+        } else {
+            Some(eligible_member_index(
+                &ctx.accounts.ritual,
+                ctx.accounts.approver.key(),
+            )?)
+        };
+        if let Some(approver_index) = approver_index {
+            require!(
+                approver_index != ctx.accounts.claim.member_index as usize,
+                RitualsError::SelfApproval
+            );
+            let bit = 1u8 << approver_index;
+            require!(
+                ctx.accounts.claim.approvals_bitmap & bit == 0,
+                RitualsError::DuplicateApproval
+            );
+        } else {
+            require!(
+                ctx.accounts.claim.approval_count == 0 && ctx.accounts.claim.approvals_bitmap == 0,
+                RitualsError::DuplicateApproval
+            );
+        }
         let next_count = ctx
             .accounts
             .claim
@@ -624,7 +788,9 @@ pub mod rituals {
             next_count <= ctx.accounts.claim.required_additional_confirmations,
             RitualsError::ClaimStateInconsistent
         );
-        ctx.accounts.claim.approvals_bitmap |= bit;
+        if let Some(approver_index) = approver_index {
+            ctx.accounts.claim.approvals_bitmap |= 1u8 << approver_index;
+        }
         ctx.accounts.claim.approval_count = next_count;
         if now > ctx.accounts.event.window.deadline {
             ctx.accounts.event.status = EventStatus::Resolving;
@@ -649,17 +815,34 @@ pub mod rituals {
             ctx.accounts.claim.status == ClaimStatus::Pending,
             RitualsError::InvalidClaimState
         );
-        let questioner_index =
-            eligible_member_index(&ctx.accounts.ritual, ctx.accounts.questioner.key())?;
-        require!(
-            questioner_index != ctx.accounts.claim.member_index as usize,
-            RitualsError::SelfApproval
-        );
-        let questioner_bit = 1u8 << questioner_index;
-        require!(
-            ctx.accounts.claim.approvals_bitmap & questioner_bit == 0,
-            RitualsError::ConflictingAttestation
-        );
+        let questioner_index = if ctx.accounts.ritual.is_solo() {
+            require!(
+                ctx.accounts.ritual.witness == Some(ctx.accounts.questioner.key()),
+                RitualsError::ApprovalNotEligible
+            );
+            None
+        } else {
+            Some(eligible_member_index(
+                &ctx.accounts.ritual,
+                ctx.accounts.questioner.key(),
+            )?)
+        };
+        if let Some(questioner_index) = questioner_index {
+            require!(
+                questioner_index != ctx.accounts.claim.member_index as usize,
+                RitualsError::SelfApproval
+            );
+            let questioner_bit = 1u8 << questioner_index;
+            require!(
+                ctx.accounts.claim.approvals_bitmap & questioner_bit == 0,
+                RitualsError::ConflictingAttestation
+            );
+        } else {
+            require!(
+                ctx.accounts.claim.approval_count == 0,
+                RitualsError::ConflictingAttestation
+            );
+        }
         ctx.accounts.claim.status = ClaimStatus::Questioned;
         ctx.accounts.event.questioned_members_bitmap |= 1u8 << ctx.accounts.claim.member_index;
         ctx.accounts.event.status = EventStatus::Resolving;
@@ -727,23 +910,39 @@ pub mod rituals {
                 && event.confirmed_members_bitmap & event.questioned_members_bitmap == 0,
             RitualsError::EventBitmapInconsistent
         );
-        let plan = derive_event_settlement_plan(
-            event.member_count,
-            ritual.per_event_allocation,
-            event.claimed_members_bitmap,
-            event.confirmed_members_bitmap,
-            event.questioned_members_bitmap,
-        )?;
+        let plan = if ritual.is_solo() {
+            derive_solo_event_settlement_plan(
+                ritual.per_event_allocation,
+                event.claimed_members_bitmap,
+                event.confirmed_members_bitmap,
+                event.questioned_members_bitmap,
+                ritual.skip_declared && ritual.skip_event_index == event_index,
+            )?
+        } else {
+            derive_event_settlement_plan(
+                event.member_count,
+                ritual.per_event_allocation,
+                event.claimed_members_bitmap,
+                event.confirmed_members_bitmap,
+                event.questioned_members_bitmap,
+            )?
+        };
         require!(
             ctx.accounts.stake_vault.amount >= ritual.funded_stake_total,
             RitualsError::FinalizeStakeVaultShort
         );
+        let destination_count = ritual.members.len() + usize::from(ritual.is_solo());
         require!(
-            ctx.remaining_accounts.len() == ritual.members.len(),
+            ctx.remaining_accounts.len() == destination_count,
             RitualsError::InvalidFinalizeDestinationCount
         );
         let mut destinations = Vec::with_capacity(ritual.members.len());
-        for (index, destination) in ctx.remaining_accounts.iter().enumerate() {
+        for (index, destination) in ctx
+            .remaining_accounts
+            .iter()
+            .take(ritual.members.len())
+            .enumerate()
+        {
             require!(
                 destination.is_writable
                     && destination.owner == &spl_token::ID
@@ -763,6 +962,28 @@ pub mod rituals {
             );
             destinations.push(destination.clone());
         }
+        let forfeit_destination = if ritual.is_solo() {
+            let destination = &ctx.remaining_accounts[ritual.members.len()];
+            require!(
+                destination.is_writable
+                    && destination.key == &ritual.forfeit_destination
+                    && !destinations
+                        .iter()
+                        .any(|previous| previous.key == destination.key),
+                RitualsError::InvalidFinalizeDestination
+            );
+            let mut raw_data: &[u8] = &destination.data.borrow();
+            let parsed = TokenAccount::try_deserialize(&mut raw_data)
+                .map_err(|_| error!(RitualsError::InvalidFinalizeDestination))?;
+            require!(
+                parsed.state != spl_token::state::AccountState::Uninitialized
+                    && parsed.mint == ritual.stake_mint,
+                RitualsError::InvalidFinalizeDestination
+            );
+            Some(destination.clone())
+        } else {
+            None
+        };
         let event_pool = plan.event_pool;
         let next_remaining = ritual
             .funded_stake_total
@@ -776,16 +997,22 @@ pub mod rituals {
             .current_event_index
             .checked_add(1)
             .ok_or(RitualsError::SettlementAccountingOverflow)?;
+        let payout_sum = plan
+            .payouts
+            .iter()
+            .try_fold(0u64, |sum, amount| sum.checked_add(*amount))
+            .ok_or(RitualsError::SettlementAccountingOverflow)?;
         let transfer_sum = if plan.status == EventStatus::Voided {
             ritual
                 .per_event_allocation
                 .checked_mul(ritual.members.len() as u64)
                 .ok_or(RitualsError::SettlementAccountingOverflow)?
-        } else {
-            plan.payouts
-                .iter()
-                .try_fold(0u64, |sum, amount| sum.checked_add(*amount))
+        } else if ritual.is_solo() {
+            payout_sum
+                .checked_add(plan.forfeited_total)
                 .ok_or(RitualsError::SettlementAccountingOverflow)?
+        } else {
+            payout_sum
         };
         require!(
             transfer_sum == event_pool,
@@ -825,6 +1052,25 @@ pub mod rituals {
                 amount,
                 ritual.stake_decimals,
             )?;
+        }
+        if let Some(destination) = forfeit_destination {
+            if plan.forfeited_total > 0 {
+                let cpi_accounts = token::TransferChecked {
+                    from: ctx.accounts.stake_vault.to_account_info(),
+                    mint: ctx.accounts.stake_mint.to_account_info(),
+                    to: destination,
+                    authority: ctx.accounts.ritual.to_account_info(),
+                };
+                token::transfer_checked(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        cpi_accounts,
+                        &[signer_seeds],
+                    ),
+                    plan.forfeited_total,
+                    ritual.stake_decimals,
+                )?;
+            }
         }
         let ritual = &mut ctx.accounts.ritual;
         let event = &mut ctx.accounts.event;
@@ -913,6 +1159,7 @@ pub enum VoidReason {
     None,
     NoConfirmedMembers,
     UnresolvedClaims,
+    DeclaredSkip,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -1014,6 +1261,74 @@ pub fn derive_event_settlement_plan(
     })
 }
 
+pub fn derive_solo_event_settlement_plan(
+    allocation: u64,
+    claimed: u8,
+    confirmed: u8,
+    questioned: u8,
+    skipped: bool,
+) -> Result<SettlementPlan> {
+    require!(allocation > 0, RitualsError::InvalidPerEventAllocation);
+    require!(
+        claimed & !1 == 0 && confirmed & !1 == 0 && questioned & !1 == 0,
+        RitualsError::EventBitmapInconsistent
+    );
+    require!(
+        confirmed & !claimed == 0 && questioned & !claimed == 0 && confirmed & questioned == 0,
+        RitualsError::EventBitmapInconsistent
+    );
+    let event_pool = allocation;
+    if skipped {
+        return Ok(SettlementPlan {
+            payouts: [0; 6],
+            status: EventStatus::Voided,
+            void_reason: VoidReason::DeclaredSkip,
+            event_pool,
+            forfeited_total: 0,
+            payout_total: 0,
+            refunded_total: event_pool,
+            confirmed_member_count: 0,
+            remainder_units: 0,
+        });
+    }
+    if questioned != 0 || (claimed != 0 && confirmed == 0) {
+        return Ok(SettlementPlan {
+            payouts: [0; 6],
+            status: EventStatus::Voided,
+            void_reason: VoidReason::UnresolvedClaims,
+            event_pool,
+            forfeited_total: 0,
+            payout_total: 0,
+            refunded_total: event_pool,
+            confirmed_member_count: 0,
+            remainder_units: 0,
+        });
+    }
+    if claimed == 0 {
+        return Ok(SettlementPlan {
+            payouts: [0; 6],
+            status: EventStatus::Settled,
+            void_reason: VoidReason::None,
+            event_pool,
+            forfeited_total: allocation,
+            payout_total: 0,
+            refunded_total: 0,
+            confirmed_member_count: 0,
+            remainder_units: 0,
+        });
+    }
+    Ok(SettlementPlan {
+        payouts: [allocation, 0, 0, 0, 0, 0],
+        status: EventStatus::Settled,
+        void_reason: VoidReason::None,
+        event_pool,
+        forfeited_total: 0,
+        payout_total: allocation,
+        refunded_total: 0,
+        confirmed_member_count: 1,
+        remainder_units: 0,
+    })
+}
 fn eligible_member_index(ritual: &Ritual, signer: Pubkey) -> Result<usize> {
     let index = ritual
         .members
@@ -1080,17 +1395,24 @@ fn validate_claim_action(
         RitualsError::ClaimStateInconsistent
     );
     require!(
-        claim.approvals_bitmap & !mask == 0
-            && claim.approvals_bitmap & claimant_bit == 0
-            && claim.approval_count == claim.approvals_bitmap.count_ones() as u8,
+        if ritual.is_solo() {
+            claim.approvals_bitmap == 0
+                && claim.approval_count <= claim.required_additional_confirmations
+        } else {
+            claim.approvals_bitmap & !mask == 0
+                && claim.approvals_bitmap & claimant_bit == 0
+                && claim.approval_count == claim.approvals_bitmap.count_ones() as u8
+        },
         RitualsError::ClaimStateInconsistent
     );
-    for index in 0..ritual.members.len() {
-        if claim.approvals_bitmap & (1u8 << index) != 0 {
-            require!(
-                ritual.funded_members_bitmap & (1u8 << index) != 0,
-                RitualsError::ClaimStateInconsistent
-            );
+    if !ritual.is_solo() {
+        for index in 0..ritual.members.len() {
+            if claim.approvals_bitmap & (1u8 << index) != 0 {
+                require!(
+                    ritual.funded_members_bitmap & (1u8 << index) != 0,
+                    RitualsError::ClaimStateInconsistent
+                );
+            }
         }
     }
     validate_claim_status_invariants(
@@ -1142,7 +1464,7 @@ fn validate_claim_status_invariants(
 
 fn event_member_mask(member_count: usize) -> Result<u8> {
     require!(
-        (2..=6).contains(&member_count),
+        (1..=6).contains(&member_count),
         RitualsError::EventBitmapInconsistent
     );
     Ok(((1u16 << member_count) - 1) as u8)
@@ -1348,6 +1670,11 @@ mod tests {
             cancelled_at: 0,
             completed_at: 0,
             vaults_closed: false,
+            kind: RitualKind::Group,
+            witness: None,
+            forfeit_destination: Pubkey::default(),
+            skip_declared: false,
+            skip_event_index: 0,
             bump: 1,
         }
     }
@@ -1424,6 +1751,51 @@ pub struct CreateRitual<'info> {
     pub fee_vault: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(nonce: u64)]
+pub struct CreateSoloRitual<'info> {
+    #[account(seeds = [b"protocol-config"], bump = protocol_config.bump)]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(init, payer = creator, space = 8 + Ritual::INIT_SPACE, seeds = [b"ritual", creator.key().as_ref(), &nonce.to_le_bytes()], bump)]
+    pub ritual: Account<'info, Ritual>,
+    #[account(mut)]
+    pub creator: Signer<'info>,
+    #[account(address = protocol_config.allowed_stake_mint)]
+    pub stake_mint: Account<'info, Mint>,
+    #[account(address = protocol_config.fee_recipient)]
+    #[account(constraint = fee_recipient_token.mint == stake_mint.key())]
+    pub fee_recipient_token: Account<'info, TokenAccount>,
+    #[account(constraint = forfeit_destination.mint == stake_mint.key())]
+    pub forfeit_destination: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = creator,
+        seeds = [b"stake-vault", ritual.key().as_ref()],
+        bump,
+        token::mint = stake_mint,
+        token::authority = ritual,
+    )]
+    pub stake_vault: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = creator,
+        seeds = [b"fee-vault", ritual.key().as_ref()],
+        bump,
+        token::mint = stake_mint,
+        token::authority = ritual,
+    )]
+    pub fee_vault: Account<'info, TokenAccount>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct DeclareSkip<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
+    pub ritual: Account<'info, Ritual>,
+    pub member: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1571,6 +1943,12 @@ pub enum FeePayerMode {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
+pub enum RitualKind {
+    Group,
+    Solo,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
 pub enum RitualStatus {
     Funding,
     Active,
@@ -1674,10 +2052,19 @@ pub struct Ritual {
     pub cancelled_at: i64,
     pub completed_at: i64,
     pub vaults_closed: bool,
+    pub kind: RitualKind,
+    pub witness: Option<Pubkey>,
+    pub forfeit_destination: Pubkey,
+    pub skip_declared: bool,
+    pub skip_event_index: u8,
     pub bump: u8,
 }
 
 impl Ritual {
+    fn is_solo(&self) -> bool {
+        self.kind == RitualKind::Solo && self.members.len() == 1
+    }
+
     /// Validate the immutable funding and identity invariants required by
     /// operations that read or mutate the current event.
     fn validate_active_state(&self, ritual_key: Pubkey) -> Result<()> {
@@ -1769,7 +2156,7 @@ impl Ritual {
     fn validate_common_state(&self) -> Result<()> {
         let member_count = self.members.len();
         require!(
-            self.schema_version == 1 && (2..=6).contains(&member_count),
+            self.schema_version == 1 && (1..=6).contains(&member_count),
             RitualsError::ActivationStateInconsistent
         );
         require!(
@@ -1811,8 +2198,24 @@ impl Ritual {
             RitualsError::ActivationStateInconsistent
         );
         require!(
-            self.additional_confirmation_threshold <= (member_count - 1) as u8
-                && !self.rule_digest.iter().all(|byte| *byte == 0)
+            if self.is_solo() {
+                member_count == 1
+                    && self.kind == RitualKind::Solo
+                    && self.witness != Some(self.creator)
+                    && self.additional_confirmation_threshold == u8::from(self.witness.is_some())
+                    && self.forfeit_destination != Pubkey::default()
+            } else {
+                member_count >= 2
+                    && self.kind == RitualKind::Group
+                    && self.witness.is_none()
+                    && self.forfeit_destination == Pubkey::default()
+                    && !self.skip_declared
+                    && self.additional_confirmation_threshold <= (member_count - 1) as u8
+            },
+            RitualsError::ActivationStateInconsistent
+        );
+        require!(
+            !self.rule_digest.iter().all(|byte| *byte == 0)
                 && self.locked_activation_fee > 0
                 && self.locked_fee_recipient != Pubkey::default(),
             RitualsError::ActivationStateInconsistent
@@ -1884,7 +2287,7 @@ impl Ritual {
             RitualsError::CancellationStateInconsistent
         );
         require!(
-            self.schema_version == 1 && (2..=6).contains(&member_count),
+            self.schema_version == 1 && (1..=6).contains(&member_count),
             RitualsError::CancellationStateInconsistent
         );
         require!(
@@ -2142,4 +2545,14 @@ pub enum RitualsError {
     TerminalStateInconsistent,
     #[msg("terminal vaults have already been closed")]
     TerminalVaultsAlreadyClosed,
+    #[msg("witness is invalid")]
+    InvalidWitness,
+    #[msg("solo instruction is only valid for solo rituals")]
+    SoloOnlyInstruction,
+    #[msg("forfeit destination is invalid")]
+    InvalidForfeitDestination,
+    #[msg("a skip has already been declared")]
+    SkipAlreadyDeclared,
+    #[msg("skip must be declared before the claim window opens")]
+    SkipWindowClosed,
 }
