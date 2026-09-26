@@ -33,8 +33,9 @@ export class RitualSubmissionError extends Error {
 const fail = (category: RitualSubmissionErrorCategory, message: string): never => { throw new RitualSubmissionError(category, message) }
 const hex = (bytes: Uint8Array): string => Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
 const copyKey = (text: string, name: string): PublicKey => { try { const key = new PublicKey(text); if (key.toBase58() !== text || key.equals(PublicKey.default)) fail('input', `${name} is invalid`); return new PublicKey(key.toBytes()) } catch (error) { if (error instanceof RitualSubmissionError) throw error; return fail('input', `${name} is invalid`) } }
-const copyExpectation = (value: PreparedExpectation): PreparedExpectation => Object.freeze({ ...value })
+const copyExpectation = (value: PreparedExpectation): PreparedExpectation => value.kind === 'bundle' ? Object.freeze({ kind: 'bundle', expectations: Object.freeze(value.expectations.map(copyExpectation)) }) : Object.freeze({ ...value })
 function expectation(value: PreparedExpectation): RitualActionExpectation {
+  if (value.kind === 'bundle') return Object.freeze({ kind: 'bundle', expectations: Object.freeze(value.expectations.map(expectation)) })
   if (value.kind === 'created') return Object.freeze({ kind: value.kind, creator: copyKey(value.creator, 'creator'), nonce: value.nonce })
   if (value.kind === 'funded') return Object.freeze({ kind: value.kind, member: copyKey(value.member, 'member'), expectedFundedMemberCount: value.expectedFundedMemberCount, expectedFundedStakeTotal: value.expectedFundedStakeTotal, expectedFundedFeeTotal: value.expectedFundedFeeTotal })
   if (value.kind === 'activated' || value.kind === 'cancelled' || value.kind === 'vaults-closed') return Object.freeze({ kind: value.kind })

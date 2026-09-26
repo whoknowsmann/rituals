@@ -12,8 +12,7 @@ import React from "react";
 import { Appearance, useColorScheme } from "react-native";
 import * as Screens from "../screens";
 import { HomeNavigator } from "./HomeNavigator";
-import { ritualsNavigationTheme, palette } from "../theme";
-import { StatusBar } from "expo-status-bar";
+import { ritualsNavigationTheme, color, fonts } from "../theme";
 import {
   MD3DarkTheme,
   MD3LightTheme,
@@ -74,11 +73,11 @@ const AppStack = () => {
     <Stack.Navigator
       initialRouteName="RitualsHome"
       screenOptions={{
-        headerStyle: { backgroundColor: palette.ink900 },
-        headerTitleStyle: { color: palette.bone, fontWeight: '700' },
-        headerTintColor: palette.gold500,
+        headerStyle: { backgroundColor: color.bg },
+        headerTitleStyle: { color: color.fg, fontFamily: fonts.heavy },
+        headerTintColor: color.fg,
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: palette.ink900 },
+        contentStyle: { backgroundColor: color.bg },
       }}
     >
       <Stack.Screen
@@ -111,7 +110,6 @@ export const AppNavigator = (props: NavigationProps) => {
       theme={ritualsNavigationTheme}
       {...props}
     >
-      <StatusBar />
       <AppStack />
     </NavigationContainer>
   );

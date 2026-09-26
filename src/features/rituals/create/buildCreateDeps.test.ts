@@ -81,6 +81,14 @@ describe('buildCreateRitualDeps: authoritative sourcing', () => {
     expect(call.programId.equals(PROGRAM)).toBe(true)
   })
 
+  it('uses the atomic create-and-fund preparation when the creator ATA is available', async () => {
+    const c = client({ prepareCreateAndFund: vi.fn(async () => ({ kind: 'create-and-fund', messageDigest: 'a'.repeat(64), ritualAddress: key(9).toBase58() })) })
+    const deps = buildCreateRitualDeps(params({ client: c, creatorTokenAccount: key(7) }))
+    await deps.prepare()
+    expect((c as never as { prepareCreateAndFund: { mock: { calls: unknown[][] } } }).prepareCreateAndFund.mock.calls[0][0]).toMatchObject({ creator: CREATOR, memberSource: key(7), lockedActivationFee: expect.any(BigInt) })
+    expect((c as never as { prepareCreate: { mock: { calls: unknown[][] } } }).prepareCreate).toBeDefined()
+  })
+
   it('refuses to prepare while the protocol is paused', async () => {
     const paused = client({
       getProtocolConfig: vi.fn(async () => ({ ...config, account: { ...config.account, paused: true } })),

@@ -3,8 +3,8 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-25 ~21:30 CDT** (tsc clean, 1,971 tests / 73 files on
-`design/crew` f04acf8; device + devnet checks below)
+Last verified: **2026-09-25 22:03 CDT** (tsc clean, 1,978 tests / 75 files on
+`feat/fewer-signatures`; device + devnet checks below)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -26,12 +26,26 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 ### Branches
 
 - `design/crew` — **the working branch.** Crew scaffolding + solo proposal +
-  all MWA fixes below (merged from `fix/mwa-diagnostics`). tsc clean,
-  1,971 tests / 73 files. Pushed.
+  all MWA fixes below (merged from `fix/mwa-diagnostics`) + fbe363f (fonts
+  actually loaded, light shell). tsc clean, 1,973 tests / 74 files. Pushed.
+- Overnight 2026-09-25 agent branches:
+  - `feat/fewer-signatures` — **merged** (bundles A create+host-fund, C
+    init-event+claim; host prompts 7→5). Devnet proofs: A `4GhDiJM9…`,
+    B `2CctpZh9…`, C `t2x5kJTb…` (all 1 signer, Status Ok, re-verified).
+  - `feat/crew-home` — **merged** (Crew home + HoldButton, not yet wired).
+    Not visually checked on a device yet.
+  - `feat/fund-activate` — in progress (bundle B: last member fund+activate).
+  - `feat/solo-program` — NOT merged, NOT deployed. `create_solo_ritual`,
+    `declare_skip`, solo settlement; native 181/181 (re-run by Hermes).
+    Ritual layout 909→977 bytes, so deploying breaks decoding of existing
+    devnet rituals and the current APK — needs Jack's go-ahead. Follow-up in
+    progress: self-forfeit guard (host can't route misses to own account),
+    negative tests, TS client adoption, rollout plan.
 - `fix/mwa-diagnostics` — `overnight/mobile-integration` + only the MWA fixes
   (ab774fd diag, 2a4ec29 compute budget/classification/stale auth, ab55204
-  retry state). The APK on the Seeker (installed 21:06) is 2a4ec29, i.e. it
-  does **not** yet have ab55204.
+  retry state). **The APK on the Seeker (installed 21:47) is ab55204** — ready
+  for the next phone session; also saved as
+  `C:\Users\hound\AppData\Local\Temp\rituals\rituals-ab55204.apk`.
 - `overnight/mobile-integration` — previous stable app (f91054d).
 - Nothing merged to main yet.
 
@@ -45,6 +59,16 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
   cause/charity-style default destination; non-staking witness; one declared
   skip per ritual; cohorts design-only / coming soon.
 - Jack's feedback 2026-09-25: **3–4 approval taps per signature is annoying.**
+
+### Fewer-signatures checkpoint — 2026-09-25
+
+`feat/fewer-signatures` proves atomic A/B/C bundles on devnet in
+`scripts/smoke-bundled-actions.ts` and implements A (Create + host Fund) and C
+(initialize event + first Claim) in the prepared-action client. The measured
+journey prompt count drops from host 7/member 3 to host 5/member 3 with A+C;
+B is proven but not yet wired into the client. See
+`docs/plans/fewer-signatures.md` for signatures, readbacks, risks, and the
+remaining D proof.
 
 ### MWA gate — 2026-09-25 evening: MWA signing PROVEN on the Seeker
 
@@ -86,9 +110,8 @@ Leftover devnet rituals (unfunded, not saved on the phone, harmless):
 3. Solo program changes (1 member when solo, non-staking witness, locked
    destination, solo settlement, `declare_skip`) + native tests + devnet
    redeploy (upgrade authority `ETQ9…hXbx`). See overnight notes below.
-4. Finish Crew scaffolding (fonts in `App.tsx`: Fraunces_600SemiBold,
-   Fraunces_900Black, Figtree_400Regular/600SemiBold/800ExtraBold; StatusBar
-   dark; header `color.bg`, `headerTitle: ''`).
+4. ~~Finish Crew scaffolding~~ done fbe363f (fonts, dark StatusBar, `color.bg`
+   chrome). `headerTitle: ''` deferred until screens own hero titles.
 5. Rebuild screens once in Crew covering solo + group (merged Create flow,
    "Just me / With one witness / With friends" first; fix Suggest; cut
    developer copy).
@@ -214,7 +237,8 @@ lifecycle signed on the phone.
   Seeker and launched clean
 
 Measured 2026-09-24: **1,942 JS/TS tests across 70 files**, `tsc --noEmit`
-clean, **180 native program test functions** (not re-run this session).
+clean, **180 native program test functions**; `cargo test` re-run
+2026-09-25: 176 passed, 0 failed (count of executed tests).
 
 ## The next gate
 
