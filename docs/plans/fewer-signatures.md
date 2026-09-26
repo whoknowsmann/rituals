@@ -10,7 +10,7 @@ instructions, recovery journaling, and authoritative readback.
 
 The product-owner baseline is measured as wallet prompts per two-person journey:
 
-| Role | Before | After A+C (implemented) | After A+B+C (B proven, not wired) | Candidate A+B+C+D |
+| Role | Before | After A+C | After A+B+C (client wired) | Candidate A+B+C+D |
 |---|---:|---:|---:|---:|
 | Host | 7 | **5** | **5** | 4*
 | Member | 3 | **3** | **2** | 2*
@@ -20,8 +20,11 @@ The product-owner baseline is measured as wallet prompts per two-person journey:
 - **A:** Create + host Fund is one host-signed transaction: host saves one
   prompt.
 - **B:** last member Fund + Activate is one member-signed transaction: member
-  saves one prompt. `activate_ritual` has no ritual-member signer; the last
-  member can be the fee payer.
+  saves one prompt. The client selects it only when the authoritative bitmap
+  shows this member completes funding and chain time is before the first event
+  window; it also checks the stake/fee vault balances and Host/Split fee share.
+  `activate_ritual` has no ritual-member signer; the last member can be the fee
+  payer.
 - **C:** Initialize Event + first Claim is one claimant-signed transaction:
   whoever claims first opens the event and saves one prompt.
 - **D:** Finalize + Close would save one host prompt only when the final event is
@@ -65,9 +68,30 @@ Bundle D remains **untested**. The final-event state must be created before it
 can be tested cheaply; do not rely on it until a transaction and terminal
 vault readback are recorded.
 
+The client orchestrator proof was rerun on **2026-09-25 22:30 CDT** with
+`buildRitualActionDeps` and `runLifecycleAction` for the friend’s last-member
+fund. The friend’s Fund and Activate landed atomically and the full accelerated
+lifecycle read back successfully:
+
+| Action | Signature |
+|---|---|
+| Create | `2tGLPKQCoVJRQTXUviLnngeLNLcubtc2GHdgi3d28CVBPvr4qPV2xpsTjFsD8wnQJuabHreLizsqD1tnc6MeE2hv` |
+| Host Fund | `5KbsVddCi2U3nX9dR1j4VgWe227oTJrTfQcamygxw7S7F44HfymLkQhDnhozh34UsX83a5MRk3ywpoA9ZNBaPVh2` |
+| Friend Fund + Activate | `5utpbQFu4GfmKs444o6aMZyFrE1qtnLBSCtbqkjxkSrZjNZbDoaoBb9k4yAxsRstzeGpWnD69EzwUSxD111E2Kee` |
+| Initialize Event | `37ax263oGmBMwDXhRkYtCatvr5FDBEZ6qhM1xqW1XL5cReQGwnUHLtyt7pvQDYUKNSUgDUYaQHQ1KzDKpepnEgek` |
+| Claim | `2oUbvknUnwbyS1keoRSZDYXmq7NUzQJTAdTpfQMcUttkejTMzPMpCDs9PpdkfqvCEYVgXa6gs6o3pqSzwjX6GSRd` |
+| Approve | `3Lch4z5TxEvzfidDwsL5pW1JxtCorcC4gGkFEUNDWVMhqVk8EypCdT7BVZeCmUumEZVjSatkXVjMb1QLqd2wPRYt` |
+| Finalize | `5NHm6htr1c5hJRQaYXy4gYicLX9KnfhRodMXs7t2mgdSV9sKoCSMTnqmBsr1T8vXV8W7A9P1QNfhTSnsEaEfHcBP` |
+
+Readback was `Active`, bitmap `3`, funded count `2`, full activation fee
+transferred, then settlement pool `2,000,000`, payout `2,000,000`, forfeiture
+`1,000,000`, remaining stake `2,000,000`. The seven payer debits totaled
+`0.01090252 SOL` (`0.0000364 SOL` network fees), below the `0.05 SOL` budget.
+
 ## Client implementation
 
-Implemented on `feat/fewer-signatures`:
+Implemented on `feat/fund-activate` (A and C are inherited from
+`feat/fewer-signatures`):
 
 - `RitualActionPreparer` accepts an ordered instruction list and still hashes
   the exact transaction message. Compute-budget instructions remain in the
@@ -78,12 +102,17 @@ Implemented on `feat/fewer-signatures`:
 - Bundle A is selected when Create has an existing creator ATA. The screen
   derives the authorized devnet TEST ATA; if an ATA is absent, the chain will
   reject the bundle rather than creating a token account implicitly.
+- Bundle B is selected for the last unfunded member from the authoritative
+  `fundedMembersBitmap`, before the first window opens, only when both ritual
+  vault balances can satisfy `activate_ritual`; otherwise Fund stays standalone.
+  Its ordered expectation is Funded + Activated, with one fee-payer signer, and
+  Host/Split fee accounting is preserved.
 - Bundle C is selected when Claim is the first event action and the event is
   absent. An already initialized event keeps the existing standalone Claim
   path.
-- New action kinds are accepted by the recovery journal. The journal is written
-  before wallet handoff and updated with the returned signature, exactly as for
-  standalone actions.
+- New action kinds, including `fund-and-activate`, are accepted by the recovery
+  journal. The journal is written before wallet handoff and updated with the
+  returned signature, exactly as for standalone actions.
 
 ## Risks and safeguards
 

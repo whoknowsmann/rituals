@@ -3,8 +3,8 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-25 22:03 CDT** (tsc clean, 1,978 tests / 75 files on
-`feat/fewer-signatures`; device + devnet checks below)
+Last verified: **2026-09-25 22:35 CDT** (tsc clean, 1,996 tests / 77 files on
+`feat/fund-activate`; client orchestrator fund+activate proof on devnet below)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -27,14 +27,16 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 
 - `design/crew` — **the working branch.** Crew scaffolding + solo proposal +
   all MWA fixes below (merged from `fix/mwa-diagnostics`) + fbe363f (fonts
-  actually loaded, light shell). tsc clean, 1,973 tests / 74 files. Pushed.
+  actually loaded, light shell) + bundles A/B/C. tsc clean, 1,996 tests / 77 files. Pushed.
 - Overnight 2026-09-25 agent branches:
   - `feat/fewer-signatures` — **merged** (bundles A create+host-fund, C
-    init-event+claim; host prompts 7→5). Devnet proofs: A `4GhDiJM9…`,
-    B `2CctpZh9…`, C `t2x5kJTb…` (all 1 signer, Status Ok, re-verified).
+    init-event+claim). Devnet proofs: A `4GhDiJM9…`, B `2CctpZh9…`,
+    C `t2x5kJTb…` (all 1 signer, Status Ok, re-verified by Hermes).
+  - `feat/fund-activate` — **merged** (bundle B: last member's fund+activate
+    in one approval, via the app orchestrator: `5utpbQFu…`, re-verified).
+    Prompts per 2-person journey now **host 5 (was 7), member 2 (was 3)**.
   - `feat/crew-home` — **merged** (Crew home + HoldButton, not yet wired).
     Not visually checked on a device yet.
-  - `feat/fund-activate` — in progress (bundle B: last member fund+activate).
   - `feat/solo-program` — NOT merged, NOT deployed. `create_solo_ritual`,
     `declare_skip`, solo settlement; native 181/181 (re-run by Hermes).
     Ritual layout 909→977 bytes, so deploying breaks decoding of existing
@@ -62,13 +64,13 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 
 ### Fewer-signatures checkpoint — 2026-09-25
 
-`feat/fewer-signatures` proves atomic A/B/C bundles on devnet in
-`scripts/smoke-bundled-actions.ts` and implements A (Create + host Fund) and C
-(initialize event + first Claim) in the prepared-action client. The measured
-journey prompt count drops from host 7/member 3 to host 5/member 3 with A+C;
-B is proven but not yet wired into the client. See
-`docs/plans/fewer-signatures.md` for signatures, readbacks, risks, and the
-remaining D proof.
+`feat/fund-activate` wires Bundle B into the prepared-action client. The last
+unfunded member is selected from the authoritative funding bitmap only before
+the first window opens and after stake/fee vault checks; their one-signer
+transaction is Fund + Activate with combined readback. The host Activate action
+remains available as a standalone fallback for rituals funded by an older build.
+The measured two-person journey is now host **5** prompts / member **2** prompts
+with A+B+C; see `docs/plans/fewer-signatures.md` for signatures and cost.
 
 ### MWA gate — 2026-09-25 evening: MWA signing PROVEN on the Seeker
 

@@ -9,12 +9,14 @@ const ritual = key(2)
 const mint = key(3)
 const account = { stakeMint: mint, members: [actor], status: 'Funding', fundedMemberCount: 0, fundedMembersBitmap: 0 }
 const prepared = { kind: 'fund' as const, messageDigest: 'a'.repeat(64), ritualAddress: ritual.toBase58(), blockhash: key(4).toBase58(), lastValidBlockHeight: 100 }
+const bundledPrepared = { ...prepared, kind: 'fund-and-activate' as const }
 
 function fakeClient(overrides: Record<string, unknown> = {}): any {
   return {
     programId: key(5),
     readRitual: vi.fn(async () => ({ address: ritual, account })),
     prepareFund: vi.fn(async () => prepared),
+    prepareFundAndActivate: vi.fn(async () => bundledPrepared),
     prepareActivate: vi.fn(async () => ({ ...prepared, kind: 'activate' as const })),
     submitPrepared: vi.fn(async () => ({ signature: '1'.repeat(64) })),
     confirmSubmitted: vi.fn(async () => ({ signature: '1'.repeat(64), messageDigest: prepared.messageDigest })),
@@ -46,6 +48,45 @@ describe('buildRitualActionDeps', () => {
     expect(ref.kind).toBe('claim')
     expect(client.prepareInitializeAndClaim).toHaveBeenCalledWith(expect.objectContaining({ payer: actor, claimant: actor, eventIndex: 0 }))
   })
+  it('selects fund plus activate for the last member only after vault and clock checks', async () => {
+    const bundleAccount = {
+      ...account,
+      creator: actor,
+      lockedActivationFee: 10n,
+      memberTotalStake: 20n,
+      fundedStakeTotal: 20n,
+      fundedFeeTotal: 10n,
+      feePayerMode: 'Host',
+      members: [actor, key(6)],
+      fundedMembersBitmap: 1,
+      fundedMemberCount: 1,
+      schedule: [{ opens: 100n, deadline: 200n, resolution: 300n }],
+      stakeVault: key(7),
+      feeVault: key(8),
+    }
+    const prepareFundAndActivate = vi.fn(async () => bundledPrepared)
+    const prepareFund = vi.fn(async () => prepared)
+    const upsert = vi.fn(async () => undefined)
+    const client = fakeClient({ readRitual: vi.fn(async () => ({ address: ritual, account: bundleAccount })), prepareFundAndActivate, prepareFund })
+    const store = { list: vi.fn(async () => []), upsert, remove: vi.fn(async () => undefined) } as PendingActionStore
+    const deps = buildRitualActionDeps({ client, ritualAddress: ritual, actor: key(6), kind: 'fund', memberSource: key(9), pendingActionStore: store, getUnixTimestamp: async () => 99, getTokenAccountAmount: async (address) => address.equals(key(7)) ? 20n : 10n })
+    const ref = await deps.prepare()
+    await deps.submit(ref)
+    expect(prepareFundAndActivate).toHaveBeenCalledTimes(1)
+    expect(prepareFund).not.toHaveBeenCalled()
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ actionKind: 'fund-and-activate' }))
+  })
+
+  it('keeps standalone funding when the first window has opened', async () => {
+    const bundleAccount = { ...account, creator: actor, lockedActivationFee: 10n, memberTotalStake: 20n, fundedStakeTotal: 20n, fundedFeeTotal: 10n, feePayerMode: 'Host', members: [actor, key(6)], fundedMembersBitmap: 1, fundedMemberCount: 1, schedule: [{ opens: 100n, deadline: 200n, resolution: 300n }], stakeVault: key(7), feeVault: key(8) }
+    const prepareFund = vi.fn(async () => prepared)
+    const client = fakeClient({ readRitual: vi.fn(async () => ({ address: ritual, account: bundleAccount })), prepareFund })
+    const deps = buildRitualActionDeps({ client, ritualAddress: ritual, actor: key(6), kind: 'fund', memberSource: key(9), getUnixTimestamp: async () => 100, getTokenAccountAmount: async () => 10n })
+    await deps.prepare()
+    expect(prepareFund).toHaveBeenCalledTimes(1)
+    expect(client.prepareFundAndActivate).not.toHaveBeenCalled()
+  })
+
   it('uses activate preparation without a token source', async () => {
     const client = fakeClient()
     const deps = buildRitualActionDeps({ client, ritualAddress: ritual, actor, kind: 'activate' })

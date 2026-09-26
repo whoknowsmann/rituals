@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, Share, StyleSheet, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { ActivityIndicator, Button, Card, Divider, Text, useTheme, type MD3Theme } from 'react-native-paper'
@@ -7,6 +7,7 @@ import { PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
+import type { RitualRead } from '../data/rituals/ritualsRpc'
 import { buildReviewViewModel } from '../features/rituals/create/reviewViewModel'
 import { draftFieldsOf, parseRitualFundingLobbyRoute } from '../features/rituals/create/routeHelpers'
 import { buildFundingLobbyModel, shortRosterAddress } from '../features/rituals/create/roster'
@@ -68,10 +69,21 @@ export function RitualFundingLobbyScreen({ route }: Props) {
   const confirmed = create.state.status === 'confirmed'
   const invite = confirmed ? create.state.result.invite : undefined
   const confirmedRitualAddress = confirmed ? create.state.ritualAddress : null
+  const [confirmedRitual, setConfirmedRitual] = useState<RitualRead | null>(null)
+  useEffect(() => {
+    if (!confirmedRitualAddress || client.status !== 'ready') { setConfirmedRitual(null); return }
+    let active = true
+    const refresh = () => { void client.client.readRitual(new PublicKey(confirmedRitualAddress)).then((value) => { if (active) setConfirmedRitual(value) }).catch(() => undefined) }
+    refresh()
+    const interval = setInterval(refresh, 3000)
+    return () => { active = false; clearInterval(interval) }
+  }, [confirmedRitualAddress, client])
   useEffect(() => {
     if (!confirmedRitualAddress || !parsed.ok) return
     void rememberRitual({ address: confirmedRitualAddress, title: parsed.value.title, requirement: parsed.value.requirement })
   }, [confirmedRitualAddress, parsed])
+  const activateFallbackVisible = Boolean(confirmedRitual && confirmedRitual.account.status === 'Funding' && confirmedRitual.account.fundedMemberCount === confirmedRitual.account.members.length && confirmedRitual.account.fundedMembersBitmap === (1 << confirmedRitual.account.members.length) - 1)
+
 
   if (!parsed.ok) return <InvalidLobby message={parsed.error} onHome={() => navigation.navigate('RitualsHome')} styles={styles} />
   const draft = validateRitualDraft(draftFieldsOf(parsed.value))
@@ -171,7 +183,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
               <Button mode="contained-tonal" onPress={shareInvite} accessibilityLabel="Share ritual invite">Share invite</Button>
             </View>
             <Button mode="text" onPress={() => navigation.navigate('JoinRitual', { invite })}>Preview join terms</Button>
-            <Button mode="outlined" onPress={() => { if (confirmedRitualAddress) navigation.navigate('RitualAction', { ritualId: confirmedRitualAddress, phase: 'activate' }) }}>Activate when everyone is funded</Button>
+            {activateFallbackVisible && <Button mode="outlined" onPress={() => { if (confirmedRitualAddress) navigation.navigate('RitualAction', { ritualId: confirmedRitualAddress, phase: 'activate' }) }}>Activate when everyone is funded</Button>}
           </Card.Content>
         </Card>
       )}
