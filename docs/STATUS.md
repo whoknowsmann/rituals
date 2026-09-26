@@ -26,12 +26,15 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 ### Branches
 
 - `design/crew` — **the working branch.** Crew scaffolding + solo proposal +
-  all MWA fixes below (merged from `fix/mwa-diagnostics`). tsc clean,
-  1,971 tests / 73 files. Pushed.
+  all MWA fixes below (merged from `fix/mwa-diagnostics`) + fbe363f (fonts
+  actually loaded, light shell). tsc clean, 1,973 tests / 74 files. Pushed.
+- Overnight 2026-09-25 agent branches (not merged; review first):
+  `feat/solo-program`, `feat/fewer-signatures`, `feat/crew-home`.
 - `fix/mwa-diagnostics` — `overnight/mobile-integration` + only the MWA fixes
   (ab774fd diag, 2a4ec29 compute budget/classification/stale auth, ab55204
-  retry state). The APK on the Seeker (installed 21:06) is 2a4ec29, i.e. it
-  does **not** yet have ab55204.
+  retry state). **The APK on the Seeker (installed 21:47) is ab55204** — ready
+  for the next phone session; also saved as
+  `C:\Users\hound\AppData\Local\Temp\rituals\rituals-ab55204.apk`.
 - `overnight/mobile-integration` — previous stable app (f91054d).
 - Nothing merged to main yet.
 
@@ -86,9 +89,8 @@ Leftover devnet rituals (unfunded, not saved on the phone, harmless):
 3. Solo program changes (1 member when solo, non-staking witness, locked
    destination, solo settlement, `declare_skip`) + native tests + devnet
    redeploy (upgrade authority `ETQ9…hXbx`). See overnight notes below.
-4. Finish Crew scaffolding (fonts in `App.tsx`: Fraunces_600SemiBold,
-   Fraunces_900Black, Figtree_400Regular/600SemiBold/800ExtraBold; StatusBar
-   dark; header `color.bg`, `headerTitle: ''`).
+4. ~~Finish Crew scaffolding~~ done fbe363f (fonts, dark StatusBar, `color.bg`
+   chrome). `headerTitle: ''` deferred until screens own hero titles.
 5. Rebuild screens once in Crew covering solo + group (merged Create flow,
    "Just me / With one witness / With friends" first; fix Suggest; cut
    developer copy).
@@ -195,7 +197,8 @@ lifecycle signed on the phone.
   Seeker and launched clean
 
 Measured 2026-09-24: **1,942 JS/TS tests across 70 files**, `tsc --noEmit`
-clean, **180 native program test functions** (not re-run this session).
+clean, **180 native program test functions**; `cargo test` re-run
+2026-09-25: 176 passed, 0 failed (count of executed tests).
 
 ## The next gate
 
