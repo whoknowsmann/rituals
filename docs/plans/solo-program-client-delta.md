@@ -16,6 +16,7 @@ is intentionally unchanged in this program-only branch.
   - arg: `event_index: u8`
   - accounts: writable `ritual`, signer `member`.
 - New enum type `RitualKind { Group, Solo }`.
+- Existing enum `VoidReason` gains `DeclaredSkip` as its final variant.
 
 ## Existing account layout change
 
@@ -39,13 +40,14 @@ locked missed-stake destination, and one-shot skip state. `ProtocolConfig`,
 
 1. Replace the frozen `Ritual` decoder/model with the new field order and decode
    `RitualKind`, `Option<Pubkey>`, destination, skip flag, and skip index.
-2. Add builders/codecs for `create_solo_ritual` and `declare_skip`, including the
+2. Update the `VoidReason` decoder/union for the appended `DeclaredSkip` variant.
+3. Add builders/codecs for `create_solo_ritual` and `declare_skip`, including the
    exact new discriminators and account metas from the generated IDL.
-3. Update solo finalization account assembly: `finalize_event` still has no
+4. Update solo finalization account assembly: `finalize_event` still has no
    typed IDL argument for remaining accounts, but a solo call must append exactly
    one member destination followed by the locked `forfeit_destination` token
    account. Group finalization remains unchanged.
-4. Update account-size/layout fixtures and add Rust↔TypeScript vectors for the
+5. Update account-size/layout fixtures and add Rust↔TypeScript vectors for the
    new `Ritual` layout and both new instruction encodings.
-5. Run `npx tsc --noEmit` and `npx vitest run` after the client changes. They were
+6. Run `npx tsc --noEmit` and `npx vitest run` after the client changes. They were
    not run for this on-chain-only branch.
