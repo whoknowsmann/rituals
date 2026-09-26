@@ -3,10 +3,12 @@
  * the brand, so they are not Paper components wearing a theme.
  */
 import React, { useEffect, useRef, useState } from 'react'
-import { Animated, Easing, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import Svg, { Circle } from 'react-native-svg'
 import { color, memberColor, radius, space, type } from '../../theme'
+import { HoldButton } from './HoldButton'
+
+export { HoldButton }
 
 export const haptic = {
   light: () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}) },
@@ -130,50 +132,6 @@ export function Dock({ title, body, children }: { title: string; body?: string; 
       </View>
       {children}
     </View>
-  )
-}
-
-const HOLD_MS = 800
-const R = 32
-const CIRC = 2 * Math.PI * R
-const AnimatedCircle = Animated.createAnimatedComponent(Circle)
-
-/**
- * Press-and-hold commitment button. Releasing early cancels; completing fires
- * a success haptic and onComplete. The hold is the "are you sure" — no dialog.
- */
-export function HoldButton({ onComplete, disabled, label = 'Hold', doneLabel = '✓', done }: { onComplete: () => void; disabled?: boolean; label?: string; doneLabel?: string; done?: boolean }) {
-  const progress = useRef(new Animated.Value(0)).current
-  const [holding, setHolding] = useState(false)
-  const anim = useRef<Animated.CompositeAnimation | null>(null)
-  useEffect(() => { if (done) progress.setValue(1) }, [done, progress])
-  const start = () => {
-    if (disabled || done) return
-    setHolding(true)
-    haptic.light()
-    anim.current = Animated.timing(progress, { toValue: 1, duration: HOLD_MS, easing: Easing.linear, useNativeDriver: false })
-    anim.current.start(({ finished }) => {
-      setHolding(false)
-      if (finished) { haptic.success(); onComplete() }
-    })
-  }
-  const cancel = () => {
-    if (done) return
-    anim.current?.stop()
-    setHolding(false)
-    Animated.timing(progress, { toValue: 0, duration: 200, useNativeDriver: false }).start()
-  }
-  const dashoffset = progress.interpolate({ inputRange: [0, 1], outputRange: [CIRC, 0] })
-  return (
-    <Pressable onPressIn={start} onPressOut={cancel} disabled={disabled} accessibilityRole="button" accessibilityLabel="Hold to check in" accessibilityHint="Press and hold until the ring fills" style={[s.hold, disabled && { opacity: 0.4 }]}>
-      <Svg width={74} height={74} style={StyleSheet.absoluteFill}>
-        <Circle cx={37} cy={37} r={R} stroke="rgba(255,255,255,0.15)" strokeWidth={5} fill="none" />
-        <AnimatedCircle cx={37} cy={37} r={R} stroke={color.go} strokeWidth={5} fill="none" strokeLinecap="round" strokeDasharray={`${CIRC} ${CIRC}`} strokeDashoffset={dashoffset as unknown as number} transform="rotate(-90 37 37)" />
-      </Svg>
-      <View style={[s.holdCore, holding && { transform: [{ scale: 0.9 }] }, done && { backgroundColor: color.white }]}>
-        <Text style={s.holdText}>{done ? doneLabel : label}</Text>
-      </View>
-    </Pressable>
   )
 }
 

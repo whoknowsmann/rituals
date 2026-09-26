@@ -70,5 +70,9 @@ Screen padding 18. Sticky primary actions live in a dark bottom **dock**.
 - `MemberTile` — colour square + initial; optional ✓ badge.
 - `Chip` — pill; `ok` variant uses go.
 - `Dock` — dark sticky bar with a one-line prompt and one action.
-- `HoldButton` — press-and-hold ring (800 ms) for check-in; releases early cancel.
+- `HoldButton` — press-and-hold ring (700 ms) for check-in; releases early cancel.
 - `Screen` — bg + padding + optional hero title; no subtitle by default.
+
+## Implemented
+
+The Rituals home screen now follows C2: it uses the host-colour poster, a claim/check-in feed sourced from the existing authoritative bundles, honest empty/loading/error states, and Crew-styled create/join actions. `HoldButton` is available as an accessible, screen-reader-safe reusable component, but remains deliberately unwired until the claim flow is ready. Solo rituals are not presented as available.
