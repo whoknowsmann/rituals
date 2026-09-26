@@ -6,7 +6,8 @@ pub(crate) use anchor_lang::{
 };
 pub(crate) use anchor_spl::token::spl_token;
 pub(crate) use rituals::{
-    ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, RitualEvent, RitualStatus,
+    ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, RitualEvent,
+    RitualStatus, Season,
 };
 pub(crate) use solana_program_test::{processor, ProgramTest, ProgramTestContext};
 pub(crate) use solana_sdk::program_pack::Pack;
@@ -140,6 +141,7 @@ pub(crate) fn claim_completion_ix(
         event,
         claim: claim_pda(&event, &claimant, claim_version),
         claimant,
+        season: None,
         system_program: system_program::ID,
     };
     Instruction {
@@ -165,6 +167,7 @@ pub(crate) fn approve_claim_ix(
         event,
         claim,
         approver,
+        season: None,
     };
     Instruction {
         program_id: PROGRAM_ID,
@@ -188,6 +191,7 @@ pub(crate) fn question_claim_ix(
         event,
         claim,
         questioner,
+        season: None,
     };
     Instruction {
         program_id: PROGRAM_ID,
@@ -210,6 +214,7 @@ pub(crate) fn approve_claim_ix_with_accounts(
         event,
         claim,
         approver,
+        season: None,
     };
     Instruction {
         program_id: PROGRAM_ID,
@@ -233,6 +238,7 @@ pub(crate) fn question_claim_ix_with_accounts(
         event,
         claim,
         questioner,
+        season: None,
     };
     Instruction {
         program_id: PROGRAM_ID,
@@ -252,6 +258,34 @@ pub(crate) fn deserialize_claim(data: &[u8]) -> CompletionClaim {
     let mut data = data;
     CompletionClaim::try_deserialize(&mut data).unwrap()
 }
+pub(crate) fn deserialize_season(data: &[u8]) -> Season {
+    let mut data = data;
+    Season::try_deserialize(&mut data).unwrap()
+}
+pub(crate) async fn replace_season<F: FnOnce(&mut Season)>(
+    context: &mut ProgramTestContext,
+    address: Pubkey,
+    mutate: F,
+) {
+    let original = get_account(context, address).await;
+    let mut bytes: &[u8] = &original.data;
+    let mut value = Season::try_deserialize(&mut bytes).unwrap();
+    mutate(&mut value);
+    let mut data = Vec::with_capacity(original.data.len());
+    value.try_serialize(&mut data).unwrap();
+    data.resize(original.data.len(), 0);
+    context.set_account(
+        &address,
+        &AccountSharedData::from(Account {
+            lamports: original.lamports,
+            data,
+            owner: original.owner,
+            executable: original.executable,
+            rent_epoch: original.rent_epoch,
+        }),
+    );
+}
+
 pub(crate) fn ritual_pda(creator: &Pubkey, nonce: u64) -> Pubkey {
     Pubkey::find_program_address(
         &[b"ritual", creator.as_ref(), &nonce.to_le_bytes()],

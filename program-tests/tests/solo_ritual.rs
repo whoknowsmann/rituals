@@ -17,6 +17,7 @@ fn create_solo_ix(
         stake_mint: MINT,
         fee_recipient_token: RECIPIENT,
         forfeit_destination: destination,
+        season: None,
         stake_vault: vault_pda(b"stake-vault", &ritual),
         fee_vault: vault_pda(b"fee-vault", &ritual),
         system_program: system_program::ID,
@@ -200,14 +201,7 @@ async fn solo_create_rejects_creator_owned_forfeit_destination() {
             &mut context,
             vec![
                 initialize_ix(creator.pubkey()),
-                create_solo_ix(
-                    creator.pubkey(),
-                    9107,
-                    None,
-                    source_for_member(0),
-                    100,
-                    100,
-                ),
+                create_solo_ix(creator.pubkey(), 9107, None, source_for_member(0), 100, 100),
             ],
             &[&creator],
         )
@@ -456,12 +450,7 @@ async fn solo_finalize_requires_locked_destination_and_forfeit_account() {
     assert_error(
         submit(
             &mut context,
-            vec![finalize_solo_ix(
-                ritual,
-                0,
-                source_for_member(0),
-                OUTSIDER,
-            )],
+            vec![finalize_solo_ix(ritual, 0, source_for_member(0), OUTSIDER)],
             &[],
         )
         .await,
@@ -530,8 +519,18 @@ async fn declare_skip_rejects_open_windows_and_group_rituals() {
     submit(
         &mut context,
         vec![
-            fund_ix(creator.pubkey(), 9114, creator.pubkey(), Pubkey::new_from_array([21; 32])),
-            fund_ix(creator.pubkey(), 9114, other.pubkey(), Pubkey::new_from_array([22; 32])),
+            fund_ix(
+                creator.pubkey(),
+                9114,
+                creator.pubkey(),
+                Pubkey::new_from_array([21; 32]),
+            ),
+            fund_ix(
+                creator.pubkey(),
+                9114,
+                other.pubkey(),
+                Pubkey::new_from_array([22; 32]),
+            ),
             activate_ix_default(creator.pubkey(), 9114),
         ],
         &[&creator, &other],
@@ -548,7 +547,6 @@ async fn declare_skip_rejects_open_windows_and_group_rituals() {
         6064,
     );
 }
-
 
 #[tokio::test]
 async fn witness_cannot_fund_or_claim() {

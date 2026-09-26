@@ -148,7 +148,31 @@ unclaimed event allocation to the locked beneficiary; witnesses never fund or
 receive settlement payouts. Group instructions and settlement remain on their
 existing path.
 
-The `Ritual` account now includes `kind`, `witness`, `forfeit_destination`,
+The pre-Season `Ritual` account included `kind`, `witness`, `forfeit_destination`,
 `skip_declared`, and `skip_event_index`, increasing its allocated size from 909
-to 977 bytes. The frozen TypeScript IDL remains unchanged until the client
-adapter is updated; see `docs/plans/solo-program-client-delta.md`.
+to 977 bytes. Phase B adds the optional `season` field, bringing the current
+allocation to 1010 bytes; the checked-in IDL and client adapter are updated
+accordingly.
+
+### Season implementation (Phase B)
+
+Seasons use the on-chain PDA `seeds = [b"season", season_id]`. `Season` stores the
+protocol config, 32-byte season id and title digest, up to 16 template event
+windows, inclusive start/end bounds, authority, a `u32 participant_count`, and
+16 `u32 checked_in_count` slots plus its bump. The allocated account size is
+610 bytes including the Anchor discriminator. Only the protocol-config
+authority may initialize a season.
+
+`Ritual.season` is an optional `Pubkey`; only `create_solo_ritual` accepts a
+season account. Creation validates the complete schedule against the Season
+template and increments `participant_count`. Group rituals cannot attach a
+season in this phase. A season check-in counter increments in the same
+instruction that makes a claim `Confirmed`: honor claims increment during
+`claim_completion`, while witness claims increment only when `approve_claim`
+reaches the required confirmation threshold. Replay claims fail before the
+counter mutation, and season code never moves tokens.
+
+Adding `Ritual.season` changes the Ritual allocation from 977 to 1010 bytes,
+and invalidates old devnet Ritual layouts as accepted for the solo redeploy.
+The Season TypeScript decoder, PDA helper, instruction encoder/builders, and
+frozen IDL snapshot track this layout.

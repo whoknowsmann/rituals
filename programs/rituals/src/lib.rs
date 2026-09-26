@@ -7,7 +7,7 @@ declare_id!("2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p");
 pub mod state {
     pub use super::{
         ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, ProtocolConfig,
-        Ritual, RitualEvent, RitualKind, RitualStatus, SettlementPlan, VoidReason,
+        Ritual, RitualEvent, RitualKind, RitualStatus, Season, SettlementPlan, VoidReason,
     };
 }
 
@@ -51,6 +51,50 @@ pub mod rituals {
         config.max_events = 16;
         config.paused = false;
         config.bump = ctx.bumps.protocol_config;
+        Ok(())
+    }
+
+    pub fn initialize_season(
+        ctx: Context<InitializeSeason>,
+        season_id: [u8; 32],
+        title_digest: [u8; 32],
+        schedule: Vec<EventWindow>,
+        start_at: i64,
+        end_at: i64,
+    ) -> Result<()> {
+        let config = &ctx.accounts.protocol_config;
+        require!(
+            !title_digest.iter().all(|byte| *byte == 0),
+            RitualsError::ZeroTitleDigest
+        );
+        require!(
+            start_at >= 0 && start_at < end_at,
+            RitualsError::InvalidSeasonBounds
+        );
+        validate_schedule(&schedule, config.max_events)?;
+        require!(
+            schedule
+                .first()
+                .map(|window| window.opens >= start_at)
+                .unwrap_or(false)
+                && schedule
+                    .last()
+                    .map(|window| window.resolution <= end_at)
+                    .unwrap_or(false),
+            RitualsError::SeasonScheduleOutsideBounds
+        );
+        let season = &mut ctx.accounts.season;
+        season.schema_version = 1;
+        season.protocol_config = config.key();
+        season.season_id = season_id;
+        season.title_digest = title_digest;
+        season.schedule = schedule;
+        season.start_at = start_at;
+        season.end_at = end_at;
+        season.authority = ctx.accounts.authority.key();
+        season.participant_count = 0;
+        season.checked_in_count = [0; 16];
+        season.bump = ctx.bumps.season;
         Ok(())
     }
 
@@ -169,6 +213,7 @@ pub mod rituals {
         ritual.vaults_closed = false;
         ritual.kind = RitualKind::Group;
         ritual.witness = None;
+        ritual.season = None;
         ritual.forfeit_destination = Pubkey::default();
         ritual.skip_declared = false;
         ritual.skip_event_index = 0;
@@ -240,6 +285,21 @@ pub mod rituals {
             ctx.accounts.forfeit_destination.owner != ctx.accounts.creator.key(),
             RitualsError::ForfeitDestinationOwnedByParticipant
         );
+        let season_key = ctx.accounts.season.as_ref().map(|season| season.key());
+        if let Some(season) = ctx.accounts.season.as_ref() {
+            let (canonical_season, _) =
+                Pubkey::find_program_address(&[b"season", season.season_id.as_ref()], &crate::ID);
+            require!(
+                season.key() == canonical_season,
+                RitualsError::SeasonAccountMismatch
+            );
+            require!(
+                season.protocol_config == config.key()
+                    && season.schedule == schedule
+                    && season.participant_count < u32::MAX,
+                RitualsError::SeasonScheduleMismatch
+            );
+        }
         if let Some(witness) = witness {
             require!(
                 ctx.accounts.forfeit_destination.owner != witness,
@@ -289,7 +349,14 @@ pub mod rituals {
         ritual.vaults_closed = false;
         ritual.kind = RitualKind::Solo;
         ritual.witness = witness;
+        ritual.season = season_key;
         ritual.forfeit_destination = ctx.accounts.forfeit_destination.key();
+        if let Some(season) = ctx.accounts.season.as_mut() {
+            season.participant_count = season
+                .participant_count
+                .checked_add(1)
+                .ok_or(RitualsError::SeasonParticipantOverflow)?;
+        }
         ritual.skip_declared = false;
         ritual.skip_event_index = 0;
         ritual.bump = ctx.bumps.ritual;
@@ -742,6 +809,7 @@ pub mod rituals {
         event.claimed_members_bitmap |= bit;
         if confirmed {
             event.confirmed_members_bitmap |= bit;
+            record_season_check_in(ritual, ctx.accounts.season.as_mut(), event_index)?;
         }
         event.status = EventStatus::Claiming;
         Ok(())
@@ -808,6 +876,11 @@ pub mod rituals {
         if next_count == ctx.accounts.claim.required_additional_confirmations {
             ctx.accounts.claim.status = ClaimStatus::Confirmed;
             ctx.accounts.event.confirmed_members_bitmap |= 1u8 << ctx.accounts.claim.member_index;
+            record_season_check_in(
+                &ctx.accounts.ritual,
+                ctx.accounts.season.as_mut(),
+                ctx.accounts.claim.event_index,
+            )?;
         }
         Ok(())
     }
@@ -1682,6 +1755,7 @@ mod tests {
             vaults_closed: false,
             kind: RitualKind::Group,
             witness: None,
+            season: None,
             forfeit_destination: Pubkey::default(),
             skip_declared: false,
             skip_event_index: 0,
@@ -1723,6 +1797,18 @@ pub struct InitializeProtocolConfig<'info> {
     #[account(init, payer = authority, space = 8 + ProtocolConfig::INIT_SPACE, seeds = [b"protocol-config"], bump)]
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(season_id: [u8; 32])]
+pub struct InitializeSeason<'info> {
+    #[account(seeds = [b"protocol-config"], bump = protocol_config.bump)]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(init, payer = authority, space = 8 + Season::INIT_SPACE, seeds = [b"season", season_id.as_ref()], bump)]
+    pub season: Account<'info, Season>,
+    #[account(mut, address = protocol_config.authority)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
@@ -1779,6 +1865,8 @@ pub struct CreateSoloRitual<'info> {
     pub fee_recipient_token: Account<'info, TokenAccount>,
     #[account(constraint = forfeit_destination.mint == stake_mint.key())]
     pub forfeit_destination: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub season: Option<Account<'info, Season>>,
     #[account(
         init,
         payer = creator,
@@ -1894,6 +1982,8 @@ pub struct ClaimCompletion<'info> {
     pub claim: Account<'info, CompletionClaim>,
     #[account(mut)]
     pub claimant: Signer<'info>,
+    #[account(mut)]
+    pub season: Option<Account<'info, Season>>,
     pub system_program: Program<'info, System>,
 }
 
@@ -1907,6 +1997,8 @@ pub struct ApproveClaim<'info> {
     #[account(mut, seeds = [b"claim", event.key().as_ref(), claim.claimant.as_ref(), &[claim_version]], bump = claim.bump)]
     pub claim: Account<'info, CompletionClaim>,
     pub approver: Signer<'info>,
+    #[account(mut)]
+    pub season: Option<Account<'info, Season>>,
 }
 
 #[derive(Accounts)]
@@ -1919,6 +2011,7 @@ pub struct QuestionClaim<'info> {
     #[account(mut, seeds = [b"claim", event.key().as_ref(), claim.claimant.as_ref(), &[claim_version]], bump = claim.bump)]
     pub claim: Account<'info, CompletionClaim>,
     pub questioner: Signer<'info>,
+    pub season: Option<Account<'info, Season>>,
 }
 
 #[account]
@@ -1939,11 +2032,75 @@ pub struct ProtocolConfig {
     pub bump: u8,
 }
 
+#[account]
+#[derive(InitSpace)]
+pub struct Season {
+    pub schema_version: u8,
+    pub protocol_config: Pubkey,
+    pub season_id: [u8; 32],
+    pub title_digest: [u8; 32],
+    #[max_len(16)]
+    pub schedule: Vec<EventWindow>,
+    pub start_at: i64,
+    pub end_at: i64,
+    pub authority: Pubkey,
+    pub participant_count: u32,
+    pub checked_in_count: [u32; 16],
+    pub bump: u8,
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
 pub struct EventWindow {
     pub opens: i64,
     pub deadline: i64,
     pub resolution: i64,
+}
+
+fn validate_schedule(schedule: &[EventWindow], max_events: u8) -> Result<()> {
+    require!(
+        (1..=max_events as usize).contains(&schedule.len()),
+        RitualsError::InvalidScheduleCount
+    );
+    for (index, window) in schedule.iter().enumerate() {
+        require!(
+            window.opens >= 0
+                && window.opens < window.deadline
+                && window.deadline < window.resolution,
+            RitualsError::InvalidEventWindow
+        );
+        if let Some(previous) = index.checked_sub(1).and_then(|i| schedule.get(i)) {
+            require!(
+                window.opens > previous.resolution,
+                RitualsError::ScheduleNotChronological
+            );
+        }
+    }
+    Ok(())
+}
+
+fn record_season_check_in(
+    ritual: &Ritual,
+    season: Option<&mut Account<Season>>,
+    event_index: u8,
+) -> Result<()> {
+    match ritual.season {
+        Some(expected_season) => {
+            let season = season.ok_or(RitualsError::SeasonAccountMismatch)?;
+            require!(
+                season.key() == expected_season
+                    && season.protocol_config == ritual.protocol_config
+                    && season.schedule == ritual.schedule
+                    && (event_index as usize) < season.schedule.len(),
+                RitualsError::SeasonAccountMismatch
+            );
+            season.checked_in_count[event_index as usize] = season.checked_in_count
+                [event_index as usize]
+                .checked_add(1)
+                .ok_or(RitualsError::SeasonCheckInOverflow)?;
+        }
+        None => require!(season.is_none(), RitualsError::SeasonAccountMismatch),
+    }
+    Ok(())
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
@@ -2064,6 +2221,7 @@ pub struct Ritual {
     pub vaults_closed: bool,
     pub kind: RitualKind,
     pub witness: Option<Pubkey>,
+    pub season: Option<Pubkey>,
     pub forfeit_destination: Pubkey,
     pub skip_declared: bool,
     pub skip_event_index: u8,
@@ -2567,4 +2725,18 @@ pub enum RitualsError {
     SkipWindowClosed,
     #[msg("forfeit destination cannot be owned by the creator or witness")]
     ForfeitDestinationOwnedByParticipant,
+    #[msg("season title digest must be nonzero")]
+    ZeroTitleDigest,
+    #[msg("season bounds are invalid")]
+    InvalidSeasonBounds,
+    #[msg("season schedule falls outside its bounds")]
+    SeasonScheduleOutsideBounds,
+    #[msg("solo ritual schedule does not match its season")]
+    SeasonScheduleMismatch,
+    #[msg("season participant count overflowed")]
+    SeasonParticipantOverflow,
+    #[msg("season account does not match the ritual")]
+    SeasonAccountMismatch,
+    #[msg("season check-in counter overflowed")]
+    SeasonCheckInOverflow,
 }

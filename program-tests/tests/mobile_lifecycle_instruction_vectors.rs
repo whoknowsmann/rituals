@@ -10,8 +10,8 @@ use anchor_lang::{prelude::Pubkey, InstructionData, ToAccountMetas};
 /// Keeping them decoupled means redeploying the program under a new address
 /// does not invalidate hundreds of reviewed vectors. Do NOT change this value.
 const VECTOR_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
-    117, 149, 230, 54, 107, 213, 43, 204, 240, 50, 45, 105, 246, 31, 246, 5,
-    215, 74, 146, 204, 85, 199, 191, 123, 231, 253, 195, 215, 31, 14, 177, 70,
+    117, 149, 230, 54, 107, 213, 43, 204, 240, 50, 45, 105, 246, 31, 246, 5, 215, 74, 146, 204, 85,
+    199, 191, 123, 231, 253, 195, 215, 31, 14, 177, 70,
 ]);
 
 fn key(byte: u8) -> Pubkey {

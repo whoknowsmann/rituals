@@ -10,8 +10,8 @@ use anchor_lang::{prelude::Pubkey, InstructionData, ToAccountMetas};
 /// Keeping them decoupled means redeploying the program under a new address
 /// does not invalidate hundreds of reviewed vectors. Do NOT change this value.
 const VECTOR_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
-    117, 149, 230, 54, 107, 213, 43, 204, 240, 50, 45, 105, 246, 31, 246, 5,
-    215, 74, 146, 204, 85, 199, 191, 123, 231, 253, 195, 215, 31, 14, 177, 70,
+    117, 149, 230, 54, 107, 213, 43, 204, 240, 50, 45, 105, 246, 31, 246, 5, 215, 74, 146, 204, 85,
+    199, 191, 123, 231, 253, 195, 215, 31, 14, 177, 70,
 ]);
 
 fn key(byte: u8) -> Pubkey {
@@ -67,6 +67,7 @@ fn event_instruction_manifests_are_frozen() {
         event,
         claim,
         claimant,
+        season: None,
         system_program,
     };
     let approve = rituals::accounts::ApproveClaim {
@@ -74,12 +75,14 @@ fn event_instruction_manifests_are_frozen() {
         event,
         claim,
         approver,
+        season: None,
     };
     let question = rituals::accounts::QuestionClaim {
         ritual,
         event,
         claim,
         questioner: key(13),
+        season: None,
     };
     let finalize = rituals::accounts::FinalizeEvent {
         ritual,
@@ -139,9 +142,9 @@ fn event_instruction_manifests_are_frozen() {
     ];
     let expected = [
         "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;Fh4bNphB4uxFYJpA3UTmWtJKqYmFVub5RbrqDZczoLaY:w/n;k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn:w/s;11111111111111111111111111111111:r/n;3138bc0b0b0efd8f00",
-        "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;Fh4bNphB4uxFYJpA3UTmWtJKqYmFVub5RbrqDZczoLaY:w/n;6AcMTbYaS2abPh8orVbkxD88nCYvCYhQV5WiPifgPKaN:w/n;p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV:w/s;11111111111111111111111111111111:r/n;59095345b0037a240000",
-        "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;Fh4bNphB4uxFYJpA3UTmWtJKqYmFVub5RbrqDZczoLaY:w/n;6AcMTbYaS2abPh8orVbkxD88nCYvCYhQV5WiPifgPKaN:w/n;swqrv48gsrwpBFbftEwnP2vB4jckpvfGJfXkwaniLCC:r/s;4ae4d33f8cff45d200",
-        "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;Fh4bNphB4uxFYJpA3UTmWtJKqYmFVub5RbrqDZczoLaY:w/n;6AcMTbYaS2abPh8orVbkxD88nCYvCYhQV5WiPifgPKaN:w/n;swqrv48gsrwpBFbftEwnP2vB4jckpvfGJfXkwaniLCC:r/s;3229d6a8f52dfb9800",
+        "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;Fh4bNphB4uxFYJpA3UTmWtJKqYmFVub5RbrqDZczoLaY:w/n;6AcMTbYaS2abPh8orVbkxD88nCYvCYhQV5WiPifgPKaN:w/n;p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV:w/s;2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p:r/n;11111111111111111111111111111111:r/n;59095345b0037a240000",
+        "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;Fh4bNphB4uxFYJpA3UTmWtJKqYmFVub5RbrqDZczoLaY:w/n;6AcMTbYaS2abPh8orVbkxD88nCYvCYhQV5WiPifgPKaN:w/n;swqrv48gsrwpBFbftEwnP2vB4jckpvfGJfXkwaniLCC:r/s;2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p:r/n;4ae4d33f8cff45d200",
+        "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;Fh4bNphB4uxFYJpA3UTmWtJKqYmFVub5RbrqDZczoLaY:w/n;6AcMTbYaS2abPh8orVbkxD88nCYvCYhQV5WiPifgPKaN:w/n;swqrv48gsrwpBFbftEwnP2vB4jckpvfGJfXkwaniLCC:r/s;2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p:r/n;3229d6a8f52dfb9800",
         "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;Fh4bNphB4uxFYJpA3UTmWtJKqYmFVub5RbrqDZczoLaY:w/n;2VDW9dFE1ZXz4zWAbaBDQFynNVdRpQ73HyfSHMzBSL6Z:r/n;9sVTY4gFK7piEre3wE6scUtxqeqsYWXpnwQUbXVdDgFv:w/n;TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA:r/n;3mg7sM6RFEBHiiFotFNfvteH1WdFcc9cujKuPaqZdfDz:w/n;3qbR1eZRqXUWroWKKYhbDmR3FfqTHfqSU8zZSxtANzYh:w/n;3uWi9x2SRpmjztkpkr2WWeBoVq3exjXG2YfDWLvm8KsQ:w/n;58f67b696494aaec00",
         "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;9sVTY4gFK7piEre3wE6scUtxqeqsYWXpnwQUbXVdDgFv:w/n;6DqHBBYAkcekni6GR3YBSzscQ75P2bCRGk3wsW7AngRY:w/n;k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn:w/n;TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA:r/n;e50aa451c77bdb15",
     ];
