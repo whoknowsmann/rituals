@@ -20,6 +20,7 @@ const bundle = (claimStatus: 'Pending' | 'Confirmed' | 'Questioned' = 'Pending',
 class EventReader extends RitualsRpcReader {
   calls: Array<{ index: number; options: unknown }> = []
   constructor(private readonly result: RitualBundleRead) { super({ getMultipleAccountsInfoAndContext: async () => ({ context: { slot: 1 }, value: [] }) }, new PublicKey(new Uint8Array(32).fill(9))) }
+  override async getRitualBundle(_address: PublicKey, _options?: { minContextSlot?: number }) { return this.result }
   override async getEventBundle(_address: PublicKey, index: number, options?: { minContextSlot?: number }) { this.calls.push({ index, options }); return this.result }
 }
 
@@ -31,6 +32,17 @@ describe('indexed event confirmation contracts', () => {
     expect(result.indexedBundle).toBe(result.bundle)
     expect(Object.keys(result)).toEqual(['signature', 'confirmationSlot', 'bundle', 'indexedBundle', 'expectationKind'])
   })
+  it('confirms a bundled fund-and-activate readback after activation', async () => {
+    const account = lifecycleContext({ status: 'Active', currentEventIndex: 0, activatedAt: 1n, fundedMembersBitmap: 7, fundedMemberCount: 3, fundedStakeTotal: lifecycleSource.memberTotalStake * 3n, fundedFeeTotal: lifecycleSource.lockedActivationFee }).account
+    const reader = new EventReader(bundle('Pending', account))
+    const result = await new RitualConfirmationVerifier(reader, new FakeConfirm()).confirmAndReadRitual(action({ kind: 'bundle', expectations: [
+      { kind: 'funded', member, expectedFundedMemberCount: 3, expectedFundedStakeTotal: lifecycleSource.memberTotalStake * 3n, expectedFundedFeeTotal: lifecycleSource.lockedActivationFee },
+      { kind: 'activated' },
+    ] }))
+    expect(result.expectationKind).toBe('bundle')
+    expect(result.bundle.ritual.account.status).toBe('Active')
+  })
+
   it('confirms a bundled initialize-and-claim through the indexed reader once', async () => {
     const reader = new EventReader(bundle('Pending'))
     const result = await new RitualConfirmationVerifier(reader, new FakeConfirm()).confirmAndReadRitual(action({ kind: 'bundle', expectations: [{ kind: 'event-initialized', eventIndex: 0 }, { kind: 'claimed', claimant: member, eventIndex: 0, expectedClaimStatus: 'Pending' }] }))

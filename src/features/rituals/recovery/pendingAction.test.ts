@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
-import { resolvePendingAction, type PendingActionRecord } from './pendingAction'
+import { parsePendingAction, resolvePendingAction, type PendingActionRecord } from './pendingAction'
 
 const ritual = new PublicKey(new Uint8Array(32).fill(7)).toBase58()
 const signature = '1'.repeat(64)
@@ -13,6 +13,12 @@ const base: PendingActionRecord = Object.freeze({
   blockhash: new PublicKey(new Uint8Array(32).fill(8)).toBase58(),
   lastValidBlockHeight: 100,
   createdAt: 1_700_000_000,
+})
+
+describe('pending action records', () => {
+  it('persists the fund-and-activate recovery journal kind', () => {
+    expect(parsePendingAction({ ...base, actionKind: 'fund-and-activate' })?.actionKind).toBe('fund-and-activate')
+  })
 })
 
 describe('resolvePendingAction', () => {

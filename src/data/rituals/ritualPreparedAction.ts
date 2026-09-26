@@ -23,7 +23,7 @@ export type RitualPreparationTransport = {
   getFeeForMessage: (message: Message, config: Readonly<{ commitment: 'confirmed'; minContextSlot: number }>) => Promise<unknown>
   getMinimumBalanceForRentExemption: (dataLength: number, commitment: 'confirmed') => Promise<unknown>
 }
-type ActionKind = 'create' | 'fund' | 'activate' | 'cancel' | 'close' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'finalize' | 'create-and-fund' | 'initialize-event-and-claim'
+type ActionKind = 'create' | 'fund' | 'fund-and-activate' | 'activate' | 'cancel' | 'close' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'finalize' | 'create-and-fund' | 'initialize-event-and-claim'
 export type PreparedExpectation =
   | Readonly<{ kind: 'created'; creator: PublicKeyText; nonce: bigint }>
   | Readonly<{ kind: 'funded'; member: PublicKeyText; expectedFundedMemberCount: number; expectedFundedStakeTotal: bigint; expectedFundedFeeTotal: bigint }>
@@ -155,6 +155,7 @@ function readBigint(value: unknown, name: string): bigint { if (typeof value !==
 function readU64(value: unknown, name: string): bigint { return u64(readBigint(value, name), name) }
 
 export type BuildCreateAndFundArgs = BuildCreateRitualArgs & Readonly<{ memberSource: PublicKey; lockedActivationFee: bigint }>
+export type BuildFundAndActivateArgs = BuildFundMemberArgs
 export type BuildInitializeAndClaimArgs = BuildInitializeCurrentEventArgs & Readonly<{ claimant: PublicKey }>
 
 export class RitualActionPreparer {
@@ -253,6 +254,36 @@ export class RitualActionPreparer {
       return this.prepare('fund', instruction, member, ritual.address, account.stakeMint, Object.freeze({ kind: 'funded', member: keyText(member), expectedFundedMemberCount: expectedCount, expectedFundedStakeTotal: stakeTotal, expectedFundedFeeTotal: feeTotal }), { token: walletTokenOutflow, stake: account.memberTotalStake, activation: share, escrow: 0n }, [], null, null)
     } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Fund Ritual inputs') }
   }
+  async prepareFundAndActivate(args: BuildFundAndActivateArgs): Promise<PreparedRitualAction> {
+    try {
+      const ritual = ritualSnapshot(inputProperty(args, 'ritual'))
+      const member = copyKey(inputProperty(args, 'member') as PublicKey)
+      const memberSource = copyKey(inputProperty(args, 'memberSource') as PublicKey)
+      const account = ritual.account
+      const index = account.members.findIndex((item) => item.equals(member))
+      if (index < 0) fail('input', 'member is not in ritual')
+      const memberMask = (1 << account.members.length) - 1
+      if (account.status !== 'Funding' || (account.fundedMembersBitmap & (1 << index)) !== 0 || (account.fundedMembersBitmap | (1 << index)) !== memberMask) fail('input', 'fund and activate requires the last unfunded member')
+      const share = account.feePayerMode === 'Host'
+        ? (member.equals(account.creator) ? account.lockedActivationFee : 0n)
+        : account.lockedActivationFee / BigInt(account.members.length) + (BigInt(index) < account.lockedActivationFee % BigInt(account.members.length) ? 1n : 0n)
+      const expectedCount = account.fundedMemberCount + 1
+      const expectedStake = addU64(account.fundedStakeTotal, account.memberTotalStake, 'expected stake total')
+      const expectedFee = addU64(account.fundedFeeTotal, share, 'expected fee total')
+      const fund = buildFundMemberInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, member, memberSource })
+      const activated = {
+        address: ritual.address,
+        account: { ...account, status: 'Funding' as const, fundedMembersBitmap: memberMask, fundedMemberCount: account.members.length, fundedStakeTotal: expectedStake, fundedFeeTotal: expectedFee },
+      } as RitualAccountContext
+      const activate = buildActivateRitualInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual: activated })
+      const expectation: PreparedExpectation = Object.freeze({ kind: 'bundle' as const, expectations: Object.freeze([
+        { kind: 'funded' as const, member: keyText(member), expectedFundedMemberCount: expectedCount, expectedFundedStakeTotal: expectedStake, expectedFundedFeeTotal: expectedFee },
+        { kind: 'activated' as const },
+      ]) })
+      return this.prepare('fund-and-activate', [fund, activate], member, ritual.address, account.stakeMint, expectation, { token: addU64(account.memberTotalStake, share, 'tokenOutflow'), stake: account.memberTotalStake, activation: share, escrow: account.lockedActivationFee }, [], null, null)
+    } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Fund and Activate inputs') }
+  }
+
   async prepareActivate(args: BuildActivateRitualArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction> {
     try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const payer = copyKey(inputProperty(args, 'feePayer') as PublicKey); if (payer.equals(PublicKey.default)) fail('input', 'feePayer must not be default'); const instruction = buildActivateRitualInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual }); return this.prepare('activate', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'activated' }), { token: 0n, stake: 0n, activation: 0n, escrow: ritual.account.lockedActivationFee }, [], null, null) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Activate Ritual inputs') }
   }
