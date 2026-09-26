@@ -3,6 +3,7 @@ import type { RitualClient } from '../../data/rituals/ritualClient'
 import type { PreparedRitualAction } from '../../data/rituals/ritualPreparedAction'
 import type { SubmittedRitualActionHandle } from '../../data/rituals/ritualSubmission'
 import { makePendingActionRecord, withPendingActionSignature, type PendingActionStore } from './recovery/pendingAction'
+import { canBundleFundAndActivate } from './fundActivationSelection'
 import type { LifecycleActionDeps } from './runLifecycleAction'
 import type { LifecycleActionKind } from './lifecycleMachine'
 
@@ -21,16 +22,36 @@ export type RitualActionDepsParams = Readonly<{
   authorizedActor?: () => PublicKey | null
   /** Optional blockheight reader used to reject stale prepared messages before signing. */
   getBlockHeight?: () => Promise<number>
+  /** Chain clock used to avoid bundling after the first event window opens. */
+  getUnixTimestamp?: () => Promise<number>
+  /** Token-account raw amount reader used to check activation vault preconditions. */
+  getTokenAccountAmount?: (address: PublicKey) => Promise<bigint>
 }>
 
 const sameActor = (expected: PublicKey, actual: PublicKey | null): boolean => actual !== null && actual.equals(expected)
 const preSubmissionError = (message: string, blockhashExpired = false): Error & { blockhashExpired?: boolean } => Object.assign(new Error(message), blockhashExpired ? { blockhashExpired: true } : {})
 
 export function buildRitualActionDeps(params: RitualActionDepsParams): LifecycleActionDeps {
-  const { client, ritualAddress, actor, kind, memberSource, eventIndex = 0, claimant = actor, destinationTokenAccounts = [], pendingActionStore, now = () => Date.now(), authorizedActor, getBlockHeight } = params
+  const { client, ritualAddress, actor, kind, memberSource, eventIndex = 0, claimant = actor, destinationTokenAccounts = [], pendingActionStore, now = () => Date.now(), authorizedActor, getBlockHeight, getUnixTimestamp, getTokenAccountAmount } = params
   let prepared: PreparedRitualAction | null = null
   let handle: SubmittedRitualActionHandle | null = null
   let record: ReturnType<typeof makePendingActionRecord> | null = null
+  const shouldBundleFunding = async (read: Awaited<ReturnType<RitualClient['readRitual']>>): Promise<boolean> => {
+    if (!getUnixTimestamp || !getTokenAccountAmount) return false
+    try {
+      if (!canBundleFundAndActivate(read.account, actor, await getUnixTimestamp())) return false
+      const index = read.account.members.findIndex((member) => member.equals(actor))
+      if (index < 0) return false
+      const feeShare = read.account.feePayerMode === 'Host'
+        ? (actor.equals(read.account.creator) ? read.account.lockedActivationFee : 0n)
+        : read.account.lockedActivationFee / BigInt(read.account.members.length) + (BigInt(index) < read.account.lockedActivationFee % BigInt(read.account.members.length) ? 1n : 0n)
+      const [stakeVaultAmount, feeVaultAmount] = await Promise.all([
+        getTokenAccountAmount(read.account.stakeVault),
+        getTokenAccountAmount(read.account.feeVault),
+      ])
+      return stakeVaultAmount >= read.account.fundedStakeTotal && feeVaultAmount >= read.account.lockedActivationFee - feeShare
+    } catch { return false }
+  }
   const assertAuthorized = () => {
     if (authorizedActor && !sameActor(actor, authorizedActor())) throw preSubmissionError('authorized wallet account changed before signing')
   }
@@ -41,7 +62,9 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
       if (kind === 'fund' || kind === 'activate') {
         if (kind === 'fund') {
           if (!(memberSource instanceof PublicKey)) throw new Error('member token account is unavailable')
-          prepared = await client.prepareFund({ programId: client.programId, ritual: { address: read.address, account: read.account }, member: actor, memberSource })
+          prepared = await (await shouldBundleFunding(read)
+            ? client.prepareFundAndActivate({ programId: client.programId, ritual: { address: read.address, account: read.account }, member: actor, memberSource })
+            : client.prepareFund({ programId: client.programId, ritual: { address: read.address, account: read.account }, member: actor, memberSource }))
         } else {
           prepared = await client.prepareActivate({ programId: client.programId, ritual: { address: read.address, account: read.account }, feePayer: actor })
         }

@@ -158,7 +158,7 @@ function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionEx
     if (account.status !== 'Funding' || !account.creator.equals(expectation.creator) || account.nonce !== expectation.nonce) mismatch()
   } else if (expectation.kind === 'funded') {
     const index = account.members.findIndex(member => member.equals(expectation.member))
-    if (account.status !== 'Funding' || index < 0 || (account.fundedMembersBitmap & (1 << index)) === 0 || account.fundedMemberCount !== expectation.expectedFundedMemberCount || account.fundedStakeTotal !== expectation.expectedFundedStakeTotal || account.fundedFeeTotal !== expectation.expectedFundedFeeTotal) mismatch()
+    if (!['Funding', 'Active'].includes(account.status) || index < 0 || (account.fundedMembersBitmap & (1 << index)) === 0 || account.fundedMemberCount !== expectation.expectedFundedMemberCount || account.fundedStakeTotal !== expectation.expectedFundedStakeTotal || account.fundedFeeTotal !== expectation.expectedFundedFeeTotal) mismatch()
   } else if (expectation.kind === 'activated') {
     if (account.status !== 'Active' || account.activatedAt <= 0n || account.fundedMemberCount !== account.members.length || account.fundedMembersBitmap !== (1 << account.members.length) - 1) mismatch()
   } else if (expectation.kind === 'cancelled') {
