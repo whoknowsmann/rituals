@@ -3,8 +3,8 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-24** (devnet app-level lifecycle + full test run; branch
-`overnight/mobile-integration`, not yet merged to main)
+Last verified: **2026-09-25** (tsc clean, 1,960 tests / 72 files on
+`design/crew` a046dd4; device + devnet checks below)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -21,57 +21,120 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
-## Session 2026-09-24 evening (after WSL restart)
+## RESUME HERE — handoff 2026-09-25 ("lets begin rituals")
 
-- Local builds work: `artifacts/rituals-local.apk` built from 4a6a2d9 in ~2.5 min
-  (warm cache) and installed on the Seeker 20:32. **Requires JDK 17**: export
-  `JAVA_HOME=~/.local/jdk/jdk-17.0.20.1+1` first — the system Java 21 is a
-  JRE with no `javac` and Gradle rejects it. Expo's API returns intermittent
-  503 "GraphQL request failed"; retry.
-- Fixed on device (97752e8): every valid template reached Review as "This ritual
-  link is invalid" — screens re-validated non-draft shapes. Roster and Lobby
-  had the same defect. Regression test walks the real screen chain.
-- Wallet choice (4a6a2d9): stock MWA's implicit intent always resolved to Seed
-  Vault Wallet on the Seeker, so Phantom was unreachable. A postinstall patch
-  adds `walletPackage` to the native session; every connect point now offers
-  Seed Vault Wallet or Phantom, and later sessions return to the wallet that
-  authorized. Verified: both buttons render on Roster/top bar, and the pinned
-  intent resolves to `app.phantom/.MainActivity`. **Phantom authorization
-  itself is not yet exercised** — that is the next phone step.
-- Tagline restored to "Show up, or pay up." (pinned by test).
-- EAS cloud build 27961a41 (48c4bfd) finished but predates the Review fix — do
-  not use it.
+### Branches
 
-## Resume here (handoff 2026-09-24, before WSL restart)
+- `overnight/mobile-integration` — last stable app. HEAD fd13887 docs → b0023fe
+  (fee fix) → f213f9f/f91054d (sketches). **The APK on the Seeker was built from
+  b0023fe + the wallet-rejection fix (installed 2026-09-24 21:09).**
+- `design/crew` (a046dd4, branched from the above, pushed) — Crew redesign
+  scaffolding + solo proposal. tsc clean, 1,960 tests pass. **No APK built from it.**
+- Nothing merged to main yet.
 
-Session paused for `wsl --shutdown` to raise the WSL memory cap 8→12 GB. Pick up
-in this order:
+### Decisions Jack made this session
 
-1. Verify the restart took: `free -g` shows ~12 GB total; `echo $ANDROID_HOME`
-   is `~/Android/Sdk`.
-2. First **local** build (replaces the slow EAS free queue):
-   `cd ~/projects/preflight && npx eas-cli build --local --profile preview --platform android --output artifacts/rituals-local.apk`
-   SDK (platform 35, build-tools 35.0.0, NDK 26.1.10909125, CMake 3.22.1) is
-   installed; Gradle limits are in `~/.gradle/gradle.properties`. JDK 21 is
-   present; if Gradle rejects it, install a JDK 17 under `~` (no sudo). If the
-   build OOMs, raise `.wslconfig` to 14–16 GB (Jack runs the shutdown).
-3. Also check EAS cloud build `27961a41-1e75-4242-b598-9210590363e3` (commit
-   48c4bfd) — its background watcher died with the restart. Use whichever APK
-   is ready first.
-4. Install over USB with `./scripts/adb.sh install -r "$(wslpath -w <apk>)"` —
-   always the Windows adb wrapper, never the SDK's Linux `adb` (they fight over
-   USB).
-5. **Phone session with Jack — the MWA gate.** Seeker is set up; Phantom is on
-   devnet with public address `Da59UWdaoBej5xdX9atiaZahMYLxJNsdXHVY6GMh8VmV`
-   funded with 0.1 SOL + 200 TEST. Flow: template → 2 members (Phantom host +
-   CLI friend `DNZKvX…`) → Connect wallet on Roster (first approval is sticky;
-   pick the right account) → Create → approve in Phantom → confirm in app. Then
-   Fund from phone, fund friend from CLI, and continue claim → approve → settle.
+- **UI direction: C "Crew"** (light, social feed, friends as the interface),
+  with B "Ring" saved as the alternative. Iterated sketches: `sketches/ui-2026-09/`
+  (C2 = crew + hold-to-check-in; B2 = calmer ring with crew on the ring).
+  Spec: `docs/DESIGN.md`. Research: `docs/plans/ui-direction-2026-09.md`.
+  Jack is asking friends which they prefer.
+- **Tagline is "Show up, or pay up."** — pinned by test; never replace it.
+- **Solo rituals must be robust and first-class** (many users have no crew).
+  Proposal written: `docs/plans/solo-rituals.md` (Hub copy: `Solo Rituals
+  Proposal.md`). **Awaiting Jack's 5 decisions** (§6): solo at submission?
+  default miss destination (cause vs person)? witness in v1? declared skip?
+  cohorts design-only? Recommendation: solo at submission, witness yes, one
+  skip, cohorts teased only.
 
-Branch state: all work on `overnight/mobile-integration` (HEAD 48c4bfd, pushed,
-**not merged to main**). Submission drafts on `overnight/submission-materials`.
-Jack's standing direction: **build it, then make it perfect** — ship visible app
-behavior, no new adversarial test matrices.
+### Next steps, in order
+
+1. **Ask Jack the 5 solo decisions** (they change the program, so they gate
+   screen work).
+2. **MWA gate (needs Jack at the phone, ~5 min):** open Rituals → Create →
+   template → Add member wallets → Connect with Phantom (host `Da59…VmV`) →
+   friend `DNZKvX…` or test wallet 2 → Create ritual onchain → **approve in
+   Phantom**. Create now reaches Phantom's approval screen (verified); approval
+   itself is unexercised. Then fund from test wallet 2, claim, confirm, settle.
+3. Finish Crew scaffolding on `design/crew`: load fonts in `App.tsx`
+   (`useFonts` with Fraunces_600SemiBold, Fraunces_900Black, Figtree_400Regular,
+   Figtree_600SemiBold, Figtree_800ExtraBold; render nothing until loaded),
+   StatusBar `dark`, navigator header → `color.bg`, `headerTitle: ''`
+   (screens own their hero title), `contentStyle` `color.bg`.
+4. If solo is approved: program change (1 member when solo, optional non-staking
+   witness, locked forfeit destination, solo settlement branch, optional
+   declare_skip) + native tests + devnet redeploy (we hold upgrade authority
+   `ETQ9…hXbx`). Est. 1.5–2 days.
+5. Rebuild screens **once** in Crew, covering solo + group together: merge
+   Create/Review/Roster into one flow ("Just me / With one witness / With
+   friends" first), home as poster + feed, check-in via HoldButton, fix Suggest
+   (results render below the fold — scroll to them; generate from the user's
+   words; tap again for new ideas), cut all developer/explainer copy.
+6. Friends' share page: one self-contained HTML of all sketches at
+   `sketches/ui-2026-09/rituals-design-options.html` (+ a copy on Jack's Windows
+   Desktop). Was blocked awaiting approval; not built.
+
+### Device / chain facts (verified 2026-09-25)
+
+- Seeker `SM02G40619100656` on USB, dev mode; always drive it via
+  `./scripts/adb.sh` (Windows adb.exe), never Linux `adb`.
+- Wallets (devnet; all hold 0 mainnet value):
+  - Phantom host `Da59UWdaoBej5xdX9atiaZahMYLxJNsdXHVY6GMh8VmV` — 0.1 SOL, 200 TEST
+  - **Phantom test wallet 2** `98W4zJfQDk9F5qjtLTgWTYBRdETT3JgUqY7dBNT9WjLa` —
+    funded 2026-09-25: 0.1 SOL, 200 TEST (from the Hub Roadmap note)
+  - CLI friend `DNZKvXpftZ4PmFAGmSEZJLH3zxURVoZgwJNmcEUYgYsA` (`.keys/`)
+  - Deployer `ETQ9czekQJSebxkWn986Hao15FfEbe1345cZZDrHhXbx` (~1.34 SOL, TEST
+    mint authority, program upgrade authority)
+- A host cannot also be a member: each member must be a distinct wallet
+  (that's why Jack needed wallet 2).
+- Tooling for UI checks: `~/.hermes/cache/scratch/ui.py` (dump / tapt "label" /
+  type / swipe / shot); screenshots are now read with vision (Qwen removed from
+  Hermes aux config 2026-09-25).
+
+### Local builds
+
+```bash
+cd ~/projects/preflight
+export JAVA_HOME=$HOME/.local/jdk/jdk-17.0.20.1+1 PATH=$HOME/.local/jdk/jdk-17.0.20.1+1/bin:$PATH
+EAS_LOCAL_BUILD_WORKINGDIR=$HOME/.cache/eas-local-build \
+  npx eas-cli build --local --profile preview --platform android --non-interactive \
+  --output artifacts/rituals-local.apk      # ~2.5 min warm; retry on "GraphQL request failed"
+cp artifacts/rituals-local.apk /mnt/c/Users/hound/AppData/Local/Temp/rituals/
+./scripts/adb.sh install -r 'C:\Users\hound\AppData\Local\Temp\rituals\rituals-local.apk'
+```
+
+JDK 17 is required (system Java 21 has no javac). Install from a Windows path
+(a `\\wsl$` path hangs adb). Stop Gradle with `./gradlew --stop` in the build
+dir, never `pkill -f GradleDaemon` (it kills the agent's own shell).
+
+### Fixed this session (all on device)
+
+- 97752e8 — every template showed "This ritual link is invalid" (screens
+  re-validated non-draft shapes); regression test walks the real screen chain.
+- 4a6a2d9 — wallet choice: stock MWA always opened Seed Vault Wallet; a
+  postinstall patch (`scripts/patch-mwa-wallet-package.mjs`) pins the intent to
+  the chosen wallet. Seed Vault + Phantom offered at every connect point.
+- 7fb437e — tagline restored; stale "fixture mode" copy removed.
+- b0023fe — **Create failed before Phantom opened ("fee context is stale")**:
+  web3.js 1.x drops `minContextSlot` on getFeeForMessage; fixed with
+  `feeForMessageAtSlot`. Added `[rituals]` failure logging
+  (`adb logcat | grep '\[rituals\]'`). Wallet back-out now reads as "declined".
+
+### Known UX debt (Jack's feedback)
+
+"Clunky, a lot going on, very AI coded." Title shown twice per screen, narration
+under everything, red for normal states, developer strings (DEMO MODE,
+Deployment ready), addresses instead of people, four screens to create one
+ritual, Suggest looks broken (results below the fold, canned). All addressed by
+the Crew rebuild in step 5.
+
+## History
+
+### Session 2026-09-24 evening (after WSL restart)
+
+- First local builds; JDK 17 requirement discovered. Review-invalid bug fixed.
+  Wallet choice added. Tagline restored. EAS cloud build 27961a41 (48c4bfd)
+  predates the Review fix — do not use it.
 
 ## The one-line state
 
@@ -223,3 +286,13 @@ Mistakes worth not repeating.
   on devnet the host token account is also the fee recipient, so the activation
   fee skewed the baseline. Lesson: check for account aliasing before trusting a
   balance-delta assertion.
+- Create failed on every phone attempt with "Could not create the ritual.
+  Nothing was sent." The UI hid the cause by design, so it looked like a wallet
+  problem. Real cause (found only after adding `[rituals]` logging): web3.js 1.x
+  silently drops `minContextSlot` on `getFeeForMessage`, a lagging devnet node
+  answered, and the preparer correctly rejected the stale fee. The CLI smoke
+  never exercised that path. Lesson: log the real error name at every failure
+  point; a smoke that bypasses the app's transport proves nothing about it.
+- Unit tests per route helper all passed while the real Create → Review →
+  Roster → Lobby chain failed on device. Lesson: test the hand-offs between
+  screens, through a JSON round trip, not each helper alone.
