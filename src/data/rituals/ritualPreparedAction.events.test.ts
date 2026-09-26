@@ -38,7 +38,7 @@ describe('Ritual event prepared actions: exact source-derived contract', () => {
     expectInstruction(action, INSTRUCTION_DISCRIMINATORS.initialize_current_event)
     expect(transport.rentLengths).toEqual([ACCOUNT_DATA_LENGTHS.RitualEvent])
     expect(action.expectation).toEqual({ kind: 'event-initialized', eventIndex: 0 })
-    expect(wallet.transaction.instructions).toHaveLength(1)
+    expect(wallet.transaction.instructions).toHaveLength(3) // program ix + explicit compute limit + price
     expect(Array.from(wallet.transaction.instructions[0].data)).toEqual([...INSTRUCTION_DISCRIMINATORS.initialize_current_event, 0])
     expect(wallet.transaction.instructions[0].keys[0].pubkey.equals(eventRitual(action))).toBe(true)
     expect(wallet.transaction.feePayer?.equals(sourceCreator)).toBe(true)

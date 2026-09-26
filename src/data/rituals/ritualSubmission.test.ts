@@ -147,7 +147,7 @@ describe('Ritual action submission', () => {
     const prepared = await preparer.prepareCreate(args)
     const verifier = new CapturingVerifier()
     const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async (transaction: Transaction) => { transaction.recentBlockhash = key(8).toBase58(); return '11111111111111111111111111111111111111111111111111111111111111111' } })
-    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ category: 'mutation' })
+    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ category: 'mutation', submitted: true })
     expect(verifier.actions).toHaveLength(0)
   })
 
@@ -284,5 +284,24 @@ describe('Ritual action submission', () => {
     expect((api as Record<string, unknown>).RitualActionSubmitter).toBeUndefined()
     expect((api as Record<string, unknown>).createRitualActionSubmitter).toBeUndefined()
     expect(api.RitualSubmissionError).toBeTypeOf('function')
+  })
+})
+
+describe('post-wallet failures are never reported as "nothing was sent"', () => {
+  it('a signature that does not verify our message is marked submitted and carries the signature', async () => {
+    // Phantom-style: wallet signs a different (rewritten) message and returns that signature.
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    const verifier = new CapturingVerifier()
+    const sig = '4RbVZJqLgpusoPskgbuCzYxJqq4crFB44kBks58nzQGw6eQjMthqBkt5UY8oENB5h6UPNFAdP3GuhaXAkteii4FK'
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async () => sig })
+    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ category: 'signature', submitted: true, signature: sig })
+    expect(verifier.actions).toHaveLength(0)
+  })
+  it('a wallet error before any signature stays pre-submission', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    const submitter = new RitualActionSubmitter(preparer, new CapturingVerifier(), { signAndSendTransaction: async () => { throw new Error('auth_token not valid for signing') } })
+    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ category: 'wallet', submitted: false })
   })
 })

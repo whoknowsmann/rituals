@@ -10,8 +10,10 @@ export type MobileWalletErrorCategory = "authorization" | "input" | "wallet";
 export class MobileWalletError extends Error {
   readonly category: MobileWalletErrorCategory;
   readonly userRejected: boolean;
-  constructor(category: MobileWalletErrorCategory, message: string, userRejected = false) {
-    super(message); this.name = "MobileWalletError"; this.category = category; this.userRejected = userRejected;
+  /** The wallet no longer honours our saved auth token (e.g. the user switched accounts in Phantom). */
+  readonly staleAuthorization: boolean;
+  constructor(category: MobileWalletErrorCategory, message: string, userRejected = false, staleAuthorization = false) {
+    super(message); this.name = "MobileWalletError"; this.category = category; this.userRejected = userRejected; this.staleAuthorization = staleAuthorization;
   }
 }
 function isUserRejection(error: unknown): boolean {
@@ -26,6 +28,10 @@ function isUserRejection(error: unknown): boolean {
     }
   } catch { /* sanitize hostile errors */ }
   return false;
+}
+/** Phantom answers "auth_token not valid for signing" when its active account differs from the one we authorized. */
+export function isStaleAuthorization(error: unknown): boolean {
+  try { const m = (error as { message?: unknown } | null)?.message; return typeof m === "string" && /auth_token not valid/i.test(m); } catch { return false; }
 }
 function inputFailure(message: string): never { throw new MobileWalletError("input", message); }
 function feePayerOf(transaction: Transaction | VersionedTransaction): PublicKey | undefined {
@@ -57,13 +63,13 @@ export async function authorizeAndSendTransaction(
   let signatures: unknown;
   try {
     signatures = await wallet.signAndSendTransactions({ transactions: [transaction], minContextSlot, commitment: "confirmed", skipPreflight: false, maxRetries: 3, waitForCommitmentToSendNextTransaction: true });
-  } catch (error) { logFailure("mwa.signAndSend", error); const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected); }
+  } catch (error) { logFailure("mwa.signAndSend", error); if (isStaleAuthorization(error)) throw new MobileWalletError("authorization", "wallet account changed; reconnect your wallet", false, true); const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected); }
   if (!Array.isArray(signatures) || typeof signatures[0] !== "string" || signatures[0].length === 0) throw new MobileWalletError("wallet", "wallet returned no transaction signature");
   return signatures[0] as TransactionSignature;
 }
 
 export function useMobileWallet() {
-  const { authorizeSessionWithSignIn, authorizeSession, deauthorizeSession, walletPackage } = useAuthorization();
+  const { authorizeSessionWithSignIn, authorizeSession, deauthorizeSession, clearAuthorization, walletPackage } = useAuthorization();
   // Every session after connect goes back to the wallet the user chose; a
   // Phantom-authorized account must never be sent to Seed Vault Wallet.
   // `walletPackage` is a native extension added by scripts/patch-mwa-wallet-package.mjs; the upstream type only knows baseUri.
@@ -72,7 +78,14 @@ export function useMobileWallet() {
   const connect = useCallback(async (targetPackage?: string): Promise<Account> => { const pkg = walletOptionByPackage(targetPackage)?.androidPackage ?? null; return session(pkg, async (wallet) => authorizeSession(wallet, pkg)); }, [authorizeSession, session]);
   const signIn = useCallback(async (signInPayload: SignInPayload): Promise<Account> => session(walletPackage, async (wallet) => authorizeSessionWithSignIn(wallet, signInPayload)), [authorizeSessionWithSignIn, session, walletPackage]);
   const disconnect = useCallback(async (): Promise<void> => { await session(walletPackage, async (wallet) => { await deauthorizeSession(wallet); }); }, [deauthorizeSession, session, walletPackage]);
-  const signAndSendTransaction = useCallback(async (transaction: Transaction | VersionedTransaction, minContextSlot: number): Promise<TransactionSignature> => await session(walletPackage, (wallet) => authorizeAndSendTransaction(wallet, (w) => authorizeSession(w), transaction, minContextSlot)), [authorizeSession, session, walletPackage]);
+  const signAndSendTransaction = useCallback(async (transaction: Transaction | VersionedTransaction, minContextSlot: number): Promise<TransactionSignature> => {
+    try { return await session(walletPackage, (wallet) => authorizeAndSendTransaction(wallet, (w) => authorizeSession(w), transaction, minContextSlot)); }
+    catch (error) {
+      // Drop the stale token so the next attempt re-authorizes against the wallet's current account.
+      if (error instanceof MobileWalletError && error.staleAuthorization) { try { await clearAuthorization(); } catch { /* best effort */ } }
+      throw error;
+    }
+  }, [authorizeSession, clearAuthorization, session, walletPackage]);
   const signMessage = useCallback(async (message: Uint8Array): Promise<Uint8Array> => session(walletPackage, async (wallet) => { const authResult = await authorizeSession(wallet); const signedMessages = await wallet.signMessages({ addresses: [authResult.address], payloads: [message] }); return signedMessages[0]; }), [authorizeSession, session, walletPackage]);
   return useMemo(() => ({ connect, signIn, disconnect, signAndSendTransaction, signMessage, walletPackage }), [connect, signIn, disconnect, signAndSendTransaction, signMessage, walletPackage]);
 }

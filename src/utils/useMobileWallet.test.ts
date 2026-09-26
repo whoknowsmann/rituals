@@ -75,3 +75,16 @@ describe('wallet back-out', () => {
     await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 1)).rejects.toMatchObject({ category: 'wallet', userRejected: true })
   })
 })
+
+describe('stale wallet authorization (account switched in Phantom)', () => {
+  it('classifies "auth_token not valid for signing" as stale authorization, not a generic failure', async () => {
+    const session = { signAndSendTransactions: vi.fn(async () => { throw new Error('-1/auth_token not valid for signing') }) }
+    const error = await authorizeAndSendTransaction(session, authorize, legacy(), 12).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(MobileWalletError)
+    expect(error).toMatchObject({ category: 'authorization', staleAuthorization: true, userRejected: false })
+  })
+  it('does not treat other wallet failures as stale authorization', async () => {
+    const session = { signAndSendTransactions: vi.fn(async () => { throw new Error('boom') }) }
+    await expect(authorizeAndSendTransaction(session, authorize, legacy(), 12)).rejects.toMatchObject({ staleAuthorization: false })
+  })
+})
