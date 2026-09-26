@@ -10,6 +10,8 @@ export const INSTRUCTION_DISCRIMINATORS = Object.freeze({
   claim_completion: frozenDiscriminator([89, 9, 83, 69, 176, 3, 122, 36]),
   close_terminal_vaults: frozenDiscriminator([229, 10, 164, 81, 199, 123, 219, 21]),
   create_ritual: frozenDiscriminator([97, 52, 34, 171, 25, 170, 16, 58]),
+  create_solo_ritual: frozenDiscriminator([96, 80, 160, 236, 200, 62, 112, 122]),
+  declare_skip: frozenDiscriminator([147, 20, 60, 232, 40, 174, 95, 198]),
   finalize_event: frozenDiscriminator([88, 246, 123, 105, 100, 148, 170, 236]),
   fund_member: frozenDiscriminator([234, 156, 207, 252, 148, 24, 162, 238]),
   initialize_current_event: frozenDiscriminator([49, 56, 188, 11, 11, 14, 253, 143]),
@@ -44,6 +46,15 @@ export type CreateRitualInput = Readonly<{
   additionalConfirmationThreshold: number
   feePayerMode: 'HOST' | 'SPLIT'
 }>
+
+export type CreateSoloRitualInput = Readonly<{
+  nonce: bigint
+  ruleDigest: RuleDigest
+  memberTotalStake: bigint
+  schedule: readonly EventWindowInput[]
+  witness: PublicKey | null
+}>
+export type DeclareSkipInput = Readonly<{ eventIndex: number }>
 
 const MAX_U64 = 0xffffffffffffffffn
 const MAX_I64 = 0x7fffffffffffffffn
@@ -142,4 +153,20 @@ export function encodeCreateRitualData(input: CreateRitualInput): Uint8Array {
     const threshold = numberValue(prop(o, 'additionalConfirmationThreshold'), 'additionalConfirmationThreshold', members.length - 1); const mode = prop(o, 'feePayerMode'); if (mode !== 'HOST' && mode !== 'SPLIT') throw new RitualInstructionDataError('input', 'feePayerMode must be HOST or SPLIT')
     const size = 8 + 8 + 32 + 4 + members.length * 32 + 8 + 4 + schedule.length * 24 + 1 + 1; const w = new Writer(size); w.bytes(INSTRUCTION_DISCRIMINATORS.create_ritual); w.u64(nonce); w.bytes(digest); w.vec(members); w.u64(stake); w.u32(schedule.length); for (const s of schedule) { w.i64(s.opens); w.i64(s.deadline); w.i64(s.resolution) } w.u8(threshold); w.u8(mode === 'HOST' ? 0 : 1); return w.finish()
   } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode ritual') }
+}
+
+export function encodeCreateSoloRitualData(input: CreateSoloRitualInput): Uint8Array {
+  try {
+    const o = record(input); const nonce = bigintValue(prop(o, 'nonce'), 'nonce'); const digest = digestBytes(prop(o, 'ruleDigest')); const stake = bigintValue(prop(o, 'memberTotalStake'), 'memberTotalStake'); if (stake === 0n) throw new RitualInstructionDataError('invariant', 'memberTotalStake must be positive')
+    const scheduleArray = denseArray<unknown>(prop(o, 'schedule'), 'schedule'); if (scheduleArray.length < 1 || scheduleArray.length > 16) throw new RitualInstructionDataError('invariant', 'schedule must contain 1..16 windows')
+    const schedule = scheduleArray.map((x, i) => { const q = record(x); const opens = bigintValue(prop(q, 'opens'), `schedule[${i}].opens`, true); const deadline = bigintValue(prop(q, 'deadline'), `schedule[${i}].deadline`, true); const resolution = bigintValue(prop(q, 'resolution'), `schedule[${i}].resolution`, true); if (opens < 0n || !(opens < deadline && deadline < resolution)) throw new RitualInstructionDataError('invariant', 'event window ordering is invalid'); return { opens, deadline, resolution } })
+    for (let i = 1; i < schedule.length; i += 1) if (schedule[i - 1].resolution >= schedule[i].opens) throw new RitualInstructionDataError('invariant', 'schedule windows overlap')
+    if (stake % BigInt(schedule.length) !== 0n || stake / BigInt(schedule.length) === 0n) throw new RitualInstructionDataError('invariant', 'stake must divide evenly across events')
+    const witness = prop(o, 'witness'); const witnessBytes = witness === null ? null : keyBytes(witness, 'witness'); if (witnessBytes?.every(byte => byte === 0)) throw new RitualInstructionDataError('invariant', 'witness must not be default')
+    const w = new Writer(8 + 8 + 32 + 8 + 4 + schedule.length * 24 + 1 + (witnessBytes === null ? 0 : 32)); w.bytes(INSTRUCTION_DISCRIMINATORS.create_solo_ritual); w.u64(nonce); w.bytes(digest); w.u64(stake); w.u32(schedule.length); for (const s of schedule) { w.i64(s.opens); w.i64(s.deadline); w.i64(s.resolution) } w.u8(witnessBytes === null ? 0 : 1); if (witnessBytes !== null) w.bytes(witnessBytes); return w.finish()
+  } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode solo ritual') }
+}
+
+export function encodeDeclareSkipData(input: DeclareSkipInput | number): Uint8Array {
+  try { const value = typeof input === 'number' ? input : prop(record(input), 'eventIndex'); const index = numberValue(value, 'eventIndex', 15); const w = new Writer(9); w.bytes(INSTRUCTION_DISCRIMINATORS.declare_skip); w.u8(index); return w.finish() } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode declare skip') }
 }

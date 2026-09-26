@@ -121,7 +121,7 @@ const expectCategory = async (promise: Promise<unknown>, category: string) => {
 
   it('sequences latest, fee, and all three rents with exact arguments', async () => {
     const { transport, preparer } = prepare(); const action = await preparer.prepareCreate(baseArgs())
-    expect(transport.calls).toEqual(['latest', 'fee', 'rent909', 'rent165', 'rent165'])
+    expect(transport.calls).toEqual(['latest', 'fee', 'rent977', 'rent165', 'rent165'])
     expect(transport.messages[0].serialize().length).toBeGreaterThan(0)
     expect(action.summary.estimatedNetworkFeeLamports).toBe(5000n)
   })

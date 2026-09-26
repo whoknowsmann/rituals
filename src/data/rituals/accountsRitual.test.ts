@@ -21,16 +21,15 @@ const expectCategory = (action: () => unknown, category: string) => {
   }
 }
 
-type RitualOffsets = { protocol: number; creator: number; digest: number; mint: number; membersLength: number; members: number; memberTotal: number; allocation: number; scheduleLength: number; windows: number; threshold: number; mode: number; fee: number; recipient: number; stakeVault: number; feeVault: number; bitmap: number; count: number; stake: number; fundedFee: number; status: number; current: number; settled: number; created: number; activated: number; cancelled: number; completed: number; closed: number }
+type RitualOffsets = { protocol: number; creator: number; digest: number; mint: number; membersLength: number; members: number; memberTotal: number; allocation: number; scheduleLength: number; windows: number; threshold: number; mode: number; fee: number; recipient: number; stakeVault: number; feeVault: number; bitmap: number; count: number; stake: number; fundedFee: number; status: number; current: number; settled: number; created: number; activated: number; cancelled: number; completed: number; closed: number; bump: number }
 function parseOffsets(bytes: Uint8Array): RitualOffsets {
   let o = 8; const take = (n: number) => { const at = o; o += n; return at }
   take(1); const protocol = take(32); const creator = take(32); take(8); const digest = take(32); const mint = take(32)
   const membersLength = take(4); const count = u32(bytes, membersLength); const members = take(count * 32)
   const memberTotal = take(8); const allocation = take(8); const scheduleLength = take(4); const events = u32(bytes, scheduleLength); const windows = take(events * 24)
   const threshold = take(1); const mode = take(1); const fee = take(8); take(1); const recipient = take(32); const stakeVault = take(32); const feeVault = take(32); take(2)
-  const bitmap = take(1); const fundedCount = take(1); const stake = take(8); const fundedFee = take(8); const status = take(1); const current = take(1); const settled = take(1); const created = take(8); const activated = take(8); const cancelled = take(8); const completed = take(8); const closed = take(1); take(1)
-  expect(o).toBeLessThanOrEqual(bytes.length); for (let i = o; i < bytes.length; i += 1) expect(bytes[i]).toBe(0); return { protocol, creator, digest, mint, membersLength, members, memberTotal, allocation, scheduleLength, windows, threshold, mode, fee, recipient, stakeVault, feeVault, bitmap, count: fundedCount, stake, fundedFee, status, current, settled, created, activated, cancelled, completed, closed }
-}
+  const bitmap = take(1); const fundedCount = take(1); const stake = take(8); const fundedFee = take(8); const status = take(1); const current = take(1); const settled = take(1); const created = take(8); const activated = take(8); const cancelled = take(8); const completed = take(8); const closed = take(1); take(1); const witnessTag = take(1); if (bytes[witnessTag] === 1) take(32); take(32); take(1); take(1); const bump = take(1)
+  expect(o).toBeLessThanOrEqual(bytes.length); for (let i = o; i < bytes.length; i += 1) expect(bytes[i]).toBe(0); return { protocol, creator, digest, mint, membersLength, members, memberTotal, allocation, scheduleLength, windows, threshold, mode, fee, recipient, stakeVault, feeVault, bitmap, count: fundedCount, stake, fundedFee, status, current, settled, created, activated, cancelled, completed, closed, bump }}
 const offsets = parseOffsets(source())
 const baseline = () => { const bytes = source(); expect(() => decode(bytes)).not.toThrow(); return bytes }
 
@@ -87,7 +86,7 @@ describe('Ritual lifecycle decoder mutation matrix', () => {
     const b = source(); const creator = new PublicKey(b.slice(offsets.creator, offsets.creator + 32)); const nonce = u64(b, offsets.creator + 32)
     const [ritual, ritualBump] = ritualPda(creator, nonce, programId); const [protocol] = protocolConfigPda(programId); const [stake, stakeBump] = stakeVaultPda(ritual, programId); const [fee, feeBump] = feeVaultPda(ritual, programId)
     expect(new PublicKey(b.slice(offsets.protocol, offsets.protocol + 32)).equals(protocol)).toBe(true); expect(new PublicKey(b.slice(offsets.stakeVault, offsets.stakeVault + 32)).equals(stake)).toBe(true); expect(new PublicKey(b.slice(offsets.feeVault, offsets.feeVault + 32)).equals(fee)).toBe(true)
-    expect(b[offsets.closed + 1]).toBe(ritualBump); expect(b[offsets.feeVault + 32]).toBe(stakeBump); expect(b[offsets.feeVault + 33]).toBe(feeBump)
+    expect(b[offsets.bump]).toBe(ritualBump); expect(b[offsets.feeVault + 32]).toBe(stakeBump); expect(b[offsets.feeVault + 33]).toBe(feeBump)
     expect(decode(b, undefined, ritual).status).toBe('Active')
     for (const mutate of [
       (x: Uint8Array) => x.fill(0, offsets.protocol, offsets.protocol + 32),

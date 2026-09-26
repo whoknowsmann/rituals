@@ -5,7 +5,7 @@ import type { ProtocolConfigAccountView } from './accounts'
 import { RitualActionPreparer, type BuildCreateAndFundArgs, type BuildFundAndActivateArgs, type BuildInitializeAndClaimArgs, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualConfirmationTransport } from './ritualConfirmation'
 import { RitualActionSubmitter, type RitualWalletSubmissionTransport, type RitualSubmissionResult, type SubmittedRitualActionHandle } from './ritualSubmission'
-import type { BuildCreateRitualArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs } from './instructionsLifecycle'
+import type { BuildCreateRitualArgs, BuildCreateSoloRitualArgs, BuildDeclareSkipArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs } from './instructionsLifecycle'
 import type { BuildCloseTerminalVaultsArgs, BuildInitializeCurrentEventArgs, BuildClaimCompletionArgs, BuildApproveClaimArgs, BuildQuestionClaimArgs, BuildFinalizeEventArgs } from './instructionsEvents'
 
 export type { SubmittedRitualActionHandle } from './ritualSubmission'
@@ -25,6 +25,8 @@ export interface RitualClient {
   getRitualBundle(address: PublicKey, options?: ReadOptions): Promise<RitualBundleRead>
   getEventBundle(address: PublicKey, eventIndex: number, options?: ReadOptions): Promise<RitualBundleRead>
   prepareCreate(args: BuildCreateRitualArgs): Promise<PreparedRitualAction>
+  prepareCreateSolo(args: BuildCreateSoloRitualArgs): Promise<PreparedRitualAction>
+  prepareDeclareSkip(args: BuildDeclareSkipArgs): Promise<PreparedRitualAction>
   prepareCreateAndFund(args: BuildCreateAndFundArgs): Promise<PreparedRitualAction>
   prepareFund(args: BuildFundMemberArgs): Promise<PreparedRitualAction>
   prepareFundAndActivate(args: BuildFundAndActivateArgs): Promise<PreparedRitualAction>
@@ -56,6 +58,8 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
     getRitualBundle: reader.getRitualBundle.bind(reader),
     getEventBundle: reader.getEventBundle.bind(reader),
     prepareCreate: preparer.prepareCreate.bind(preparer),
+    prepareCreateSolo: preparer.prepareCreateSolo.bind(preparer),
+    prepareDeclareSkip: preparer.prepareDeclareSkip.bind(preparer),
     prepareCreateAndFund: preparer.prepareCreateAndFund.bind(preparer),
     prepareFund: preparer.prepareFund.bind(preparer),
     prepareFundAndActivate: preparer.prepareFundAndActivate.bind(preparer),

@@ -20,6 +20,7 @@ export type RitualConfirmationTransport = Readonly<{
 
 export type RitualActionExpectation =
   | Readonly<{ kind: 'created'; creator: PublicKey; nonce: bigint }>
+  | Readonly<{ kind: 'skip-declared'; eventIndex: number }>
   | Readonly<{ kind: 'funded'; member: PublicKey; expectedFundedMemberCount: number; expectedFundedStakeTotal: bigint; expectedFundedFeeTotal: bigint }>
   | Readonly<{ kind: 'activated' }>
   | Readonly<{ kind: 'cancelled' }>
@@ -28,7 +29,7 @@ export type RitualActionExpectation =
   | Readonly<{ kind: 'claimed'; claimant: PublicKey; eventIndex: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
   | Readonly<{ kind: 'approved'; claimant: PublicKey; approver: PublicKey; eventIndex: number; expectedApprovalCount: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
   | Readonly<{ kind: 'questioned'; claimant: PublicKey; questioner: PublicKey; eventIndex: number }>
-  | Readonly<{ kind: 'finalized'; eventIndex: number; expectedEventStatus: 'Settled' | 'Voided'; expectedVoidReason: 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims'; expectedRitualStatus: 'Active' | 'Completed'; expectedCurrentEventIndex: number; expectedSettledEventCount: number }>
+  | Readonly<{ kind: 'finalized'; eventIndex: number; expectedEventStatus: 'Settled' | 'Voided'; expectedVoidReason: 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims' | 'DeclaredSkip'; expectedRitualStatus: 'Active' | 'Completed'; expectedCurrentEventIndex: number; expectedSettledEventCount: number }>
   | Readonly<{ kind: 'bundle'; expectations: readonly RitualActionExpectation[] }>
 
 export type SubmittedRitualAction = Readonly<{
@@ -99,6 +100,10 @@ function snapshotExpectation(value: unknown): RitualActionExpectation {
     if (!safeU64(nonce)) fail('input', 'nonce is invalid')
     return Object.freeze({ kind: 'created' as const, creator, nonce: nonce as bigint })
   }
+  if (kind === 'skip-declared') {
+    const eventIndex = read<unknown>(value as object, 'eventIndex'); if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15) fail('input', 'eventIndex is invalid')
+    return Object.freeze({ kind: 'skip-declared' as const, eventIndex: eventIndex as number })
+  }
   if (kind === 'funded') {
     const member = cloneKey(read<unknown>(value as object, 'member'), 'member')
     const count = read<unknown>(value as object, 'expectedFundedMemberCount'); const stake = read<unknown>(value as object, 'expectedFundedStakeTotal'); const fee = read<unknown>(value as object, 'expectedFundedFeeTotal')
@@ -126,8 +131,8 @@ function snapshotExpectation(value: unknown): RitualActionExpectation {
   }
   if (kind === 'finalized') {
     const eventIndex = read<unknown>(value as object, 'eventIndex'); const expectedEventStatus = read<unknown>(value as object, 'expectedEventStatus'); const expectedVoidReason = read<unknown>(value as object, 'expectedVoidReason'); const expectedRitualStatus = read<unknown>(value as object, 'expectedRitualStatus'); const current = read<unknown>(value as object, 'expectedCurrentEventIndex'); const settled = read<unknown>(value as object, 'expectedSettledEventCount')
-    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15 || (expectedEventStatus !== 'Settled' && expectedEventStatus !== 'Voided') || (expectedVoidReason !== 'None' && expectedVoidReason !== 'NoConfirmedMembers' && expectedVoidReason !== 'UnresolvedClaims') || (expectedEventStatus === 'Settled' ? expectedVoidReason !== 'None' : expectedVoidReason === 'None') || (expectedRitualStatus !== 'Active' && expectedRitualStatus !== 'Completed') || typeof current !== 'number' || !Number.isSafeInteger(current) || current < 1 || current > 16 || current !== eventIndex + 1 || typeof settled !== 'number' || !Number.isSafeInteger(settled) || settled < 1 || settled > 16 || settled !== current) fail('input', 'finalization expectation is invalid')
-    return Object.freeze({ kind: 'finalized' as const, eventIndex: eventIndex as number, expectedEventStatus: expectedEventStatus as 'Settled' | 'Voided', expectedVoidReason: expectedVoidReason as 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims', expectedRitualStatus: expectedRitualStatus as 'Active' | 'Completed', expectedCurrentEventIndex: current as number, expectedSettledEventCount: settled as number })
+    if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15 || (expectedEventStatus !== 'Settled' && expectedEventStatus !== 'Voided') || (expectedVoidReason !== 'None' && expectedVoidReason !== 'NoConfirmedMembers' && expectedVoidReason !== 'UnresolvedClaims' && expectedVoidReason !== 'DeclaredSkip') || (expectedEventStatus === 'Settled' ? expectedVoidReason !== 'None' : expectedVoidReason === 'None') || (expectedRitualStatus !== 'Active' && expectedRitualStatus !== 'Completed') || typeof current !== 'number' || !Number.isSafeInteger(current) || current < 1 || current > 16 || current !== eventIndex + 1 || typeof settled !== 'number' || !Number.isSafeInteger(settled) || settled < 1 || settled > 16 || settled !== current) fail('input', 'finalization expectation is invalid')
+    return Object.freeze({ kind: 'finalized' as const, eventIndex: eventIndex as number, expectedEventStatus: expectedEventStatus as 'Settled' | 'Voided', expectedVoidReason: expectedVoidReason as 'None' | 'NoConfirmedMembers' | 'UnresolvedClaims' | 'DeclaredSkip', expectedRitualStatus: expectedRitualStatus as 'Active' | 'Completed', expectedCurrentEventIndex: current as number, expectedSettledEventCount: settled as number })
   }
   return fail('input', 'Ritual expectation kind is invalid')
 }
@@ -156,6 +161,8 @@ function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionEx
   const account = bundle.ritual.account
   if (expectation.kind === 'created') {
     if (account.status !== 'Funding' || !account.creator.equals(expectation.creator) || account.nonce !== expectation.nonce) mismatch()
+  } else if (expectation.kind === 'skip-declared') {
+    if (account.kind !== 'Solo' || !account.skipDeclared || account.skipEventIndex !== expectation.eventIndex || account.currentEventIndex !== expectation.eventIndex) mismatch()
   } else if (expectation.kind === 'funded') {
     const index = account.members.findIndex(member => member.equals(expectation.member))
     if (!['Funding', 'Active'].includes(account.status) || index < 0 || (account.fundedMembersBitmap & (1 << index)) === 0 || account.fundedMemberCount !== expectation.expectedFundedMemberCount || account.fundedStakeTotal !== expectation.expectedFundedStakeTotal || account.fundedFeeTotal !== expectation.expectedFundedFeeTotal) mismatch()

@@ -28,7 +28,7 @@ describe('opaque prepared Create Ritual actions', () => {
     const action = await preparer.prepareCreate(args)
     expect(Object.isFrozen(action)).toBe(true)
     expect(action.summary).toMatchObject({ clusterLabel: 'local/test-unconfigured', tokenOutflow: 0n, stakeOutflow: 0n, activationFeeOutflow: 0n, estimatedNetworkFeeLamports: 5000n, estimatedRentLamports: BigInt(ACCOUNT_DATA_LENGTHS.Ritual + ACCOUNT_SIZE * 2), totalEstimatedLamportOutflow: 5000n + BigInt(ACCOUNT_DATA_LENGTHS.Ritual + ACCOUNT_SIZE * 2) })
-    expect(transport.rentLengths).toEqual([909, 165, 165])
+    expect(transport.rentLengths).toEqual([977, 165, 165])
     expect('transaction' in action).toBe(false)
     const first = preparer.getTransactionForWallet(action)
     const second = preparer.getTransactionForWallet(action)

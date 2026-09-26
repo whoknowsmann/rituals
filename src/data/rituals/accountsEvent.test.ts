@@ -58,7 +58,7 @@ describe('RitualEvent exact reachable-state decoder matrix', () => {
   })
 
   it.each([
-    ['invalid status', O.status, 5, 'invalid-enum'], ['invalid void reason', O.voidReason, 3, 'invalid-enum'], ['schema 2', O.schema, 2, 'schema'],
+    ['invalid status', O.status, 5, 'invalid-enum'], ['invalid void reason', O.voidReason, 4, 'invalid-enum'], ['schema 2', O.schema, 2, 'schema'],
     ['default ritual', O.ritual, 0, 'invariant'], ['event index 16', O.eventIndex, 16, 'invariant'], ['member count 1', O.members, 1, 'invariant'],
     ['claimed bit outside mask', O.claimed, 8, 'invariant'], ['confirmed not claimed', O.confirmed, 1, 'invariant'], ['questioned not claimed', O.questioned, 1, 'invariant'],
  ])('%s is fail-closed', (_name, offset, value, category) => {
