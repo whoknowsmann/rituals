@@ -202,6 +202,12 @@ describe('Ritual creation journey', () => {
     expect(lobby).toContain('describeCadence')
     // Devnet/no-real-value disclosure must survive.
     expect(lobby).toContain('no real value')
+    // Crew rules (DESIGN.md): people not addresses up front, red only for
+    // failures, no duplicated screen title, no narration under it.
+    expect(lobby).toContain('MemberTile')
+    expect(lobby).not.toContain('Everyone reviews the same terms before any onchain funding.')
+    expect(lobby).not.toMatch(/locked:\s*\{[^}]*error/)
+    expect(lobby).not.toContain('>Funding lobby</Text>')
     expect(create).toContain('Review terms')
     expect(review).toContain('Ritual terms preview')
     expect(review).toContain('This is a preview. Go back to edit any term before creating it.')

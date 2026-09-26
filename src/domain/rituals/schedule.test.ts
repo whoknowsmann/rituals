@@ -211,6 +211,13 @@ describe('disclosure helpers', () => {
     expect(text.toLowerCase()).toContain('demo')
   })
 
+  it('says demo speed in plain words, not developer strings', () => {
+    const text = describeCadence(DEMO_CADENCE)
+    expect(text).not.toContain('DEMO MODE')
+    expect(text).not.toContain('accelerated:')
+    expect(text).toBe('Demo speed · a new week every 3 min · 90 s to check in · 60 s to confirm')
+  })
+
   it('renders a signed UTC offset label', () => {
     expect(localOffsetLabel(0)).toBe('UTC+00:00')
     expect(localOffsetLabel(300)).toBe('UTC-05:00')

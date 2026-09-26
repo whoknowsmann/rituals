@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js'
 import type { PublicKeyText } from '../../../domain/rituals/types'
 
-export type RosterRow = Readonly<{ index: number; address: PublicKeyText; role: 'Host' | 'Member'; funding: 'Not funded' }>
+export type RosterRow = Readonly<{ index: number; address: PublicKeyText; role: 'Host' | 'Member'; name: string; funding: 'Not in yet' }>
 export type RosterValidation =
   | Readonly<{ ok: true; value: readonly PublicKeyText[] }>
   | Readonly<{ ok: false; errors: Readonly<Record<string, string>> }>
@@ -88,12 +88,15 @@ export interface FundingLobbyModel {
 }
 
 export function buildFundingLobbyModel(input: FundingLobbyInput): FundingLobbyModel {
-  const rows = input.members.map((address, index) => ({ index, address: address as PublicKeyText, role: index === 0 ? 'Host' as const : 'Member' as const, funding: 'Not funded' as const }))
+  // People, not addresses (DESIGN.md rule 2): the host is "You"; friends are
+  // numbered by roster position until names exist. The address stays on the row
+  // for the copy-on-tap detail.
+  const rows = input.members.map((address, index) => ({ index, address: address as PublicKeyText, role: index === 0 ? 'Host' as const : 'Member' as const, name: index === 0 ? 'You' : `Friend ${index + 1}`, funding: 'Not in yet' as const }))
   const count = input.members.length
   return Object.freeze({
     rows: Object.freeze(rows),
-    progress: `0 of ${count} funded`,
-    activation: 'Activation would require every member to fund onchain',
+    progress: `0 of ${count} in`,
+    activation: 'Starts once everyone has put in their stake',
     stake: `${input.memberTotalStake} TEST per member`,
     fee: input.feePayerMode === 'HOST' ? `Host pays activation fee · ${input.activationFee} TEST` : `Split activation fee across members · ${input.activationFee} TEST`,
   })
