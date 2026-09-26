@@ -3,8 +3,9 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-25 22:35 CDT** (tsc clean, 1,996 tests / 77 files on
-`feat/fund-activate`; client orchestrator fund+activate proof on devnet below)
+Last verified: **2026-09-26 15:00 CDT** (design/crew: tsc clean, 2,011 tests /
+79 files; feat/solo-program: native 186/186; full lifecycle green on devnet by
+script; group Create + Fund&Activate signed on the Seeker by Jack)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -21,7 +22,32 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
-## RESUME HERE — handoff 2026-09-25 late ("lets begin rituals")
+## RESUME HERE — handoff 2026-09-26 afternoon ("lets begin rituals")
+
+**Plan of record: `docs/plans/solo-first-2026-09-26.md`.** Read it first. It
+has Jack's decisions (solo is the product, honor default + stamp, cause-first
+destination, real Seasons, Proof&people+Hand-made look), the bug table from
+today's phone run (B1–B8), phases A–E, and the phone-test runbook.
+
+Start here, in order:
+1. Re-verify (commands above). Expect design/crew @ ≥57fed01, 2,011 tests.
+2. **Phase A** on `design/crew`: fix B1 (demo first week opens in ~2 min, not
+   next week), B2 (Phantom shows "github.com" → Rituals identity), B3 ("Opening
+   Phantom…" handoff), B4–B6 (funding-state detail, join wall-of-text, fund
+   screen copy). RED tests first. Build APK, install, screenshot.
+3. **Phase B** in `~/projects/preflight-solo`: merge design/crew, add Season
+   support, cause account, tests, **redeploy devnet (Jack approved)**, smoke.
+4. **Phase C**: solo screens from `sketches/ui-2026-09-26-solo/`.
+5. **Phase D**: solo phone test — Hermes drives, Jack only fingerprints.
+
+Today's device proof (group path, Jack's fingerprints): Create+host-fund
+`23Hwtf2h…` and last-member Fund+Activate `5qdDRUw6…` on Ritual
+`CGw8DYbw…Gmu7S` → Active 2/2. Claim/settle blocked by B1 (event 0 opens
++7 days). APK on the Seeker = c8355c1 (Suggest + Crew lobby). Phantom
+Account 2 = host `Da59…`, Account 3 = wallet 2 `98W4…`; Rituals currently
+connected as `98W4…`.
+
+## Previous handoff — 2026-09-25 late
 
 ### Branches
 
