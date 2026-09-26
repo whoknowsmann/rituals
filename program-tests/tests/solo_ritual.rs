@@ -192,6 +192,124 @@ async fn solo_create_has_one_host_and_locks_witness_and_destination() {
 }
 
 #[tokio::test]
+async fn solo_create_rejects_creator_owned_forfeit_destination() {
+    let creator = Keypair::new();
+    let mut context = start_with_member_set(&[&creator], &[300]).await;
+    assert_error(
+        submit(
+            &mut context,
+            vec![
+                initialize_ix(creator.pubkey()),
+                create_solo_ix(
+                    creator.pubkey(),
+                    9107,
+                    None,
+                    source_for_member(0),
+                    100,
+                    100,
+                ),
+            ],
+            &[&creator],
+        )
+        .await,
+        6068,
+    );
+}
+
+#[tokio::test]
+async fn solo_create_rejects_witness_owned_forfeit_destination() {
+    let creator = Keypair::new();
+    let witness = Keypair::new();
+    let destination = Pubkey::new_from_array([42; 32]);
+    let mut context = start_with_member_set(&[&creator], &[300]).await;
+    context.set_account(
+        &witness.pubkey(),
+        &AccountSharedData::from(Account {
+            lamports: 10_000_000_000,
+            data: vec![],
+            owner: system_program::ID,
+            executable: false,
+            rent_epoch: 0,
+        }),
+    );
+    context.set_account(
+        &destination,
+        &AccountSharedData::from(token_account_for(MINT, witness.pubkey(), 0)),
+    );
+    assert_error(
+        submit(
+            &mut context,
+            vec![
+                initialize_ix(creator.pubkey()),
+                create_solo_ix(
+                    creator.pubkey(),
+                    9108,
+                    Some(witness.pubkey()),
+                    destination,
+                    100,
+                    100,
+                ),
+            ],
+            &[&creator],
+        )
+        .await,
+        6068,
+    );
+}
+
+#[tokio::test]
+async fn solo_create_rejects_witness_equal_to_creator_and_wrong_mint_destination() {
+    let creator = Keypair::new();
+    let mut context = start_with_member_set(&[&creator], &[300]).await;
+    assert_error(
+        submit(
+            &mut context,
+            vec![
+                initialize_ix(creator.pubkey()),
+                create_solo_ix(
+                    creator.pubkey(),
+                    9109,
+                    Some(creator.pubkey()),
+                    SECOND_RECIPIENT,
+                    100,
+                    100,
+                ),
+            ],
+            &[&creator],
+        )
+        .await,
+        6063,
+    );
+
+    let creator = Keypair::new();
+    let mut context = start_with_member_set(&[&creator], &[300]).await;
+    let wrong_mint_destination = Pubkey::new_from_array([23; 32]);
+    context.set_account(
+        &wrong_mint_destination,
+        &AccountSharedData::from(token_account_for(WRONG_MINT, creator.pubkey(), 0)),
+    );
+    assert_error(
+        submit(
+            &mut context,
+            vec![
+                initialize_ix(creator.pubkey()),
+                create_solo_ix(
+                    creator.pubkey(),
+                    9110,
+                    None,
+                    wrong_mint_destination,
+                    100,
+                    100,
+                ),
+            ],
+            &[&creator],
+        )
+        .await,
+        2003,
+    );
+}
+
+#[tokio::test]
 async fn solo_success_returns_stake_to_host_and_witness_approval_is_non_staking() {
     let witness = Keypair::new();
     let (mut context, creator, ritual, event, destination) =
@@ -330,6 +448,107 @@ async fn declare_skip_is_one_shot_and_member_only() {
         6021,
     );
 }
+
+#[tokio::test]
+async fn solo_finalize_requires_locked_destination_and_forfeit_account() {
+    let (mut context, _creator, ritual, event, destination) = solo_fixture(None, 9111).await;
+    expire_solo_event(&mut context, ritual, event).await;
+    assert_error(
+        submit(
+            &mut context,
+            vec![finalize_solo_ix(
+                ritual,
+                0,
+                source_for_member(0),
+                OUTSIDER,
+            )],
+            &[],
+        )
+        .await,
+        6056,
+    );
+    assert_eq!(amount(&mut context, destination).await, 0);
+
+    let (mut context, _creator, ritual, event, _destination) = solo_fixture(None, 9112).await;
+    expire_solo_event(&mut context, ritual, event).await;
+    assert_error(
+        submit(
+            &mut context,
+            vec![finalize_event_ix(ritual, 0, &[source_for_member(0)])],
+            &[],
+        )
+        .await,
+        6055,
+    );
+}
+
+#[tokio::test]
+async fn declare_skip_rejects_open_windows_and_group_rituals() {
+    let (mut context, creator, ritual, _, _) = solo_fixture(None, 9113).await;
+    let now = context
+        .banks_client
+        .get_sysvar::<solana_sdk::clock::Clock>()
+        .await
+        .unwrap()
+        .unix_timestamp;
+    replace_ritual(&mut context, ritual, |r| {
+        r.schedule[0] = EventWindow {
+            opens: now - 1,
+            deadline: now + 100,
+            resolution: now + 200,
+        }
+    })
+    .await;
+    assert_error(
+        submit(
+            &mut context,
+            vec![declare_skip_ix(ritual, creator.pubkey(), 0)],
+            &[&creator],
+        )
+        .await,
+        6067,
+    );
+
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let mut context = setup_host(&creator, &other, 9114, 300, 300).await;
+    let ritual = ritual_pda(&creator.pubkey(), 9114);
+    let now = context
+        .banks_client
+        .get_sysvar::<solana_sdk::clock::Clock>()
+        .await
+        .unwrap()
+        .unix_timestamp;
+    replace_ritual(&mut context, ritual, |r| {
+        r.schedule[0] = EventWindow {
+            opens: now + 100,
+            deadline: now + 200,
+            resolution: now + 300,
+        }
+    })
+    .await;
+    submit(
+        &mut context,
+        vec![
+            fund_ix(creator.pubkey(), 9114, creator.pubkey(), Pubkey::new_from_array([21; 32])),
+            fund_ix(creator.pubkey(), 9114, other.pubkey(), Pubkey::new_from_array([22; 32])),
+            activate_ix_default(creator.pubkey(), 9114),
+        ],
+        &[&creator, &other],
+    )
+    .await
+    .unwrap();
+    assert_error(
+        submit(
+            &mut context,
+            vec![declare_skip_ix(ritual, creator.pubkey(), 0)],
+            &[&creator],
+        )
+        .await,
+        6064,
+    );
+}
+
 
 #[tokio::test]
 async fn witness_cannot_fund_or_claim() {

@@ -236,6 +236,16 @@ pub mod rituals {
             ctx.accounts.forfeit_destination.mint == ctx.accounts.stake_mint.key(),
             RitualsError::InvalidForfeitDestination
         );
+        require!(
+            ctx.accounts.forfeit_destination.owner != ctx.accounts.creator.key(),
+            RitualsError::ForfeitDestinationOwnedByParticipant
+        );
+        if let Some(witness) = witness {
+            require!(
+                ctx.accounts.forfeit_destination.owner != witness,
+                RitualsError::ForfeitDestinationOwnedByParticipant
+            );
+        }
         let fee_raw = (member_total_stake as u128)
             .checked_mul(config.fee_basis_points as u128)
             .ok_or(RitualsError::FeeCalculationOverflow)?
@@ -2555,4 +2565,6 @@ pub enum RitualsError {
     SkipAlreadyDeclared,
     #[msg("skip must be declared before the claim window opens")]
     SkipWindowClosed,
+    #[msg("forfeit destination cannot be owned by the creator or witness")]
+    ForfeitDestinationOwnedByParticipant,
 }
