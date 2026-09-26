@@ -86,7 +86,7 @@ const AppStack = () => {
         options={{ headerShown: false }}
       />
       <Stack.Screen name="Settings" component={Screens.SettingsScreen} />
-      <Stack.Screen name="TemplatePicker" component={Screens.TemplatePickerScreen} options={{ title: 'Choose a template' }} />
+      <Stack.Screen name="TemplatePicker" component={Screens.TemplatePickerScreen} options={{ title: '' }} />
       <Stack.Screen name="CreateRitual" component={Screens.CreateRitualScreen} options={{ title: 'Create Ritual' }} />
       <Stack.Screen name="ReviewRitual" component={Screens.ReviewRitualScreen} options={{ title: 'Review Ritual' }} />
       <Stack.Screen name="RitualRoster" component={Screens.RitualRosterScreen} options={{ title: 'Add member wallets' }} />
