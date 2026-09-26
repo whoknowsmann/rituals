@@ -414,6 +414,7 @@ pub(crate) async fn start_with_member_set(
             rent_epoch: 0,
         },
     );
+    test.add_genesis_account(SECOND_RECIPIENT, token_account(SECOND_RECIPIENT, 0));
     for (index, (member, amount)) in members.iter().zip(amounts).enumerate() {
         test.add_genesis_account(
             source_for_member(index),
