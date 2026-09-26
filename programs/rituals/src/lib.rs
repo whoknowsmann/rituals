@@ -1855,7 +1855,7 @@ pub struct CreateSoloRitual<'info> {
     #[account(seeds = [b"protocol-config"], bump = protocol_config.bump)]
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(init, payer = creator, space = 8 + Ritual::INIT_SPACE, seeds = [b"ritual", creator.key().as_ref(), &nonce.to_le_bytes()], bump)]
-    pub ritual: Account<'info, Ritual>,
+    pub ritual: Box<Account<'info, Ritual>>,
     #[account(mut)]
     pub creator: Signer<'info>,
     #[account(address = protocol_config.allowed_stake_mint)]
@@ -1866,7 +1866,7 @@ pub struct CreateSoloRitual<'info> {
     #[account(constraint = forfeit_destination.mint == stake_mint.key())]
     pub forfeit_destination: Account<'info, TokenAccount>,
     #[account(mut)]
-    pub season: Option<Account<'info, Season>>,
+    pub season: Option<Box<Account<'info, Season>>>,
     #[account(
         init,
         payer = creator,
