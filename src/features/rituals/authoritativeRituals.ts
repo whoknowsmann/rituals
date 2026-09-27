@@ -64,10 +64,7 @@ export function useRitualBundle(clientState: RitualClientState, addressText: str
 export function statusLabel(status: string): string {
   return status === 'Funding' ? 'Funding' : status === 'Active' ? 'Active' : status === 'Completed' ? 'Completed' : 'Cancelled'
 }
-export function formatAtomic(value: bigint, decimals: number, symbol = 'TEST'): string {
-  const base = 10n ** BigInt(decimals); const whole = value / base; const fraction = value % base
-  return `${whole}${decimals === 0 ? '' : `.${fraction.toString().padStart(decimals, '0')}`} ${symbol}`
-}
+export { formatAtomic } from './displayFormat'
 export function eventLabel(bundle: RitualBundleRead): string {
   return bundle.event ? `Event ${bundle.event.account.eventIndex + 1}` : 'Next event not initialized'
 }

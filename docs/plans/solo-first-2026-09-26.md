@@ -55,7 +55,7 @@ stickiness/PMF, UX (intuitive, polished, fun), innovation, presentation/demo
 | # | Bug | Where | Fix |
 |---|---|---|---|
 | B1 | Demo speed still starts week 1 on **next same weekday** (+7 days when today). Only the gap between weeks is 3 min. Blocks any on-device claim/settle | `RitualFundingLobbyScreen.tsx` `firstEventAt = nextWeekdayOccurrence(...)`; `domain/rituals/schedule.ts` | When `cadence.accelerated`, first event opens ~now+120 s (check program min-lead constraint in create validation). Test: demo schedule event 0 opens within 5 min |
-| B2 | Phantom shows app as **"github.com"** with GitHub icon | `src/utils/useAuthorization.tsx:104` `APP_IDENTITY.uri` | name "Rituals", uri a Rituals-owned https origin + icon path (repo Pages or a tiny static site). Check MWA identity rules (relative icon to uri) |
+| B2 | Phantom shows app as **"github.com"** with GitHub icon | `src/utils/useAuthorization.tsx:104` `APP_IDENTITY.uri` | **Deferred to Phase E (Jack, 2026-09-26 evening).** Fix when the repo goes public. A custom Rituals domain is a maybe, very low priority; don't spend time on it before then. Needs a Rituals-owned https origin + icon path (check MWA identity rules: relative icon to uri) |
 | B3 | No warning before jumping to Phantom; Jack thought Phantom was "inside" Rituals and got lost | every wallet action (lobby, RitualAction) | Pre-handoff sheet/line: "Opening Phantom to approve. Come back here when it's done." + busy state; after return show result. Document Android notification-permission prompt in Phantom cancelling the first approval |
 | B4 | Ritual detail shows "I did it"/claim (disabled) + dev copy while Funding | `RitualDetailScreen.tsx` | Funding state shows funding progress + invite, no claim affordance |
 | B5 | Join screen renders full base64 invite, buttons pushed off-screen | `JoinRitualScreen.tsx` | single-line truncated field, buttons above fold |
@@ -66,7 +66,7 @@ stickiness/PMF, UX (intuitive, polished, fun), innovation, presentation/demo
 ## 4. Phases
 
 ### Phase A — device-blocking fixes on `design/crew` (~0.5 day)
-B1, B2, B3, B4, B5, B6. RED test first for each (source/unit tests, as existing
+B1, B3, B4, B5, B6 (B2 deferred to Phase E). RED test first for each (source/unit tests, as existing
 screen tests do). Rebuild APK, install, screenshot each fixed screen.
 
 ### Phase B — program: solo + seasons, one redeploy (~1 day)
@@ -128,7 +128,7 @@ Then a deliberate miss → destination receipt. Then join a Season and watch the
 count move. Optional: witness path with wallet 2.
 
 ### Phase E — submission (Oct 3–8)
-Demo video 90–120 s per `hackathon-winners-2026-09-26.md` §4 (open on an active
+B2 app identity (see §3). Demo video 90–120 s per `hackathon-winners-2026-09-26.md` §4 (open on an active
 solo ritual + the human problem; stamp moment; Season count; receipt), README,
 pitch, public repo, release APK, dApp Store assets, organizer questions (see
 STATUS "Organizer questions still unsent"), final QA, Jack's approval.

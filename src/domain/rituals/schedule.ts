@@ -137,6 +137,33 @@ export function nextWeekdayOccurrence(referenceSeconds: number, weekday: number)
 }
 
 /**
+ * Demo-speed lead before week 1 opens. A solo ritual is active the moment it
+ * is created, so two minutes is enough to watch it open. A group must still be
+ * funded by everyone, and the program rejects activation once week 1 has
+ * opened (`now < opens`), so friends get ten minutes to put their stake in.
+ */
+export const DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS = 120
+export const DEMO_GROUP_FIRST_EVENT_LEAD_SECONDS = 600
+
+/**
+ * When week 1 opens for a ritual created at `referenceSeconds`.
+ *
+ * Weekly: the next same weekday (a week out). Demo speed: minutes, not a
+ * week — otherwise nothing can be claimed or settled in one sitting (B1).
+ */
+export function firstEventStart(request: { cadence: RitualCadence; referenceSeconds: number; memberCount: number }): number {
+  if (request === null || typeof request !== 'object') fail('first event request must be an object')
+  const reference = requireEpochSeconds(request.referenceSeconds, 'referenceSeconds')
+  const members = requirePositiveInteger(request.memberCount, 'memberCount')
+  if (members > 6) fail('memberCount must be between 1 and 6')
+  assertCadence(request.cadence)
+  if (!request.cadence.accelerated) {
+    return nextWeekdayOccurrence(reference, new Date(reference * 1000).getUTCDay())
+  }
+  return reference + (members === 1 ? DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS : DEMO_GROUP_FIRST_EVENT_LEAD_SECONDS)
+}
+
+/**
  * Generate the full, immutable event schedule for a ritual.
  *
  * P0 has no per-event editing: the schedule is fully determined by the first
