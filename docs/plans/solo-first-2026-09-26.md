@@ -29,7 +29,14 @@ stickiness/PMF, UX (intuitive, polished, fun), innovation, presentation/demo
    devnet rituals and older APKs become unreadable; accepted.
 8. Tagline **"Show up, or pay up."** unchanged (pinned by test).
 
-## 2. Current truth (verified 2026-09-26 15:00 CDT)
+## 1b. Phase status (2026-09-27 afternoon; details in docs/STATUS.md RESUME HERE)
+
+- A: done (B2 deferred to Phase E). B: code done, 197/197 native, **not
+  deployed** (deployer funded, 6.26 devnet SOL). C: built on feat/solo-screens,
+  2,109 tests, local-validator smoke 35/35, **not on a device yet**. D, E: not started.
+- Next: push cb98397 → deploy → demo cause + Season → devnet smoke → APK → Phase D.
+
+## 2. Current truth (verified 2026-09-26 15:00 CDT — historical, see 1b)
 
 - `design/crew` @ 57fed01 (pushed): Suggest fix, Crew lobby, research, sketches.
   tsc clean, **2,011 tests / 79 files** green.

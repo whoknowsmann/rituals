@@ -3,9 +3,9 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-26 15:00 CDT** (design/crew: tsc clean, 2,011 tests /
-79 files; feat/solo-program: native 186/186; full lifecycle green on devnet by
-script; group Create + Fund&Activate signed on the Seeker by Jack)
+Last verified: **2026-09-27 afternoon CDT** (feat/solo-screens: tsc clean,
+2,109 tests / 97 files; native 197/197 on feat/solo-program; local-validator
+solo smoke 35/35; NOT yet deployed to devnet)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -13,7 +13,7 @@ Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10
 Do this instead of trusting any prose, including this file:
 
 ```bash
-cd ~/projects/preflight
+cd ~/projects/preflight-solo               # active worktree (feat/solo-screens)
 git log --oneline -8                       # what actually landed
 npm test                                   # real test count
 npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
@@ -22,59 +22,104 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
-## RESUME HERE — handoff 2026-09-26 afternoon ("lets begin rituals")
+## RESUME HERE — handoff 2026-09-27 afternoon ("lets begin rituals")
 
-**Plan of record: `docs/plans/solo-first-2026-09-26.md`.** Read it first. It
-has Jack's decisions (solo is the product, honor default + stamp, cause-first
-destination, real Seasons, Proof&people+Hand-made look), the bug table from
-today's phone run (B1–B8), phases A–E, and the phone-test runbook.
+**Active line: `feat/solo-screens` in the worktree `~/projects/preflight-solo`.**
+Not `~/projects/preflight` (that is design/crew, which is now behind; see below).
+Plan of record: `docs/plans/solo-first-2026-09-26.md` (decisions §1 are final).
+Post-deploy runbook: `docs/plans/solo-smoke.md`.
 
-**Overnight 2026-09-26→27 (Jack asleep; Hermes solo).**
-- feat/solo-program @ ab104ed (pushed): Season count now increments on
-  **activation**, not creation (honest). One-approval solo
-  create+fund+activate (1,068 B tx, under 1,232). Native **197/197**, TS
-  2,043 — both re-run by Hermes. Phase A merged in.
-- **Devnet deploy is blocked on devnet SOL.** Upgrade needs ~3.68 SOL rent for the
-  724 KB program; deployer `ETQ9…hXbx` has 1.26. A background job
-  (`~/.hermes/cache/scratch/faucet-then-deploy.sh`, log alongside) retries
-  the faucet every 90 s for 5 h, then runs `scripts/deploy-devnet.sh` once.
-  Fastest unblock: faucet.solana.com (devnet, GitHub login) → that address.
-- Caught before deploy: the solo worktree had a stray program keypair
-  (`AZMdd…`, would have deployed a *second* program). Replaced with the real
-  `2Mycq…` keypair; stray one parked in `~/.hermes/cache/scratch/`.
-- Phase C started on **feat/solo-screens** (from feat/solo-program): Stamp
-  component + stamp vocabulary, hand face (Fraunces italic, bundled),
-  DESIGN.md solo additions, route contract + demo config. Four agents in
-  worktrees `preflight-solo-{a,b,c,d}` (create / ritual+receipt+witness /
-  season+home / post-deploy scripts proven on a local validator). Local
-  commits only; Hermes integrates.
+### Where things are (verified 2026-09-27 afternoon)
 
-**Earlier 2026-09-26 21:30 CDT:** Phase A landed on design/crew @ 99d0100
-(B1, B3, B4, B5, B6 + amount/"week opens" polish; tsc clean, **2,042 tests /
-82 files**). B2 deferred to Phase E (Jack). The APK on the Seeker is from 0c258ce;
-join + detail screens were checked on the device, and wallet steps were not.
-Phase B on feat/solo-program @ f99a2d1 (pushed; Season PDA + counter; native
-**193/193**, re-run by Hermes). In progress: count Season participants at
-activation rather than creation (honesty), and one-approval solo
-create+fund+activate. Not deployed yet.
+| Branch (all in private repo whoknowsmann/rituals) | Head | State |
+|---|---|---|
+| `feat/solo-screens` (worktree `~/projects/preflight-solo`) | **cb98397 local, remote at 167e80b → PUSH FIRST** | Phases A+B+C merged. tsc clean, **2,109 tests / 97 files**. |
+| `feat/solo-program` | ab104ed (pushed) | Program + client for solo + Seasons. Native **197/197**. Ancestor of solo-screens. |
+| `design/crew` (worktree `~/projects/preflight`) | 9fa94c0 (pushed) | Phase A only. Behind solo-screens; don't develop here. |
+| `tmp/solo-{a,b,c,d}` (worktrees `~/projects/preflight-solo-{a..d}`) | merged | Delete the worktrees + branches once cb98397 is pushed. Their node_modules are symlinks. |
 
-Start here, in order:
-1. Re-verify (commands above). Expect design/crew @ ≥99d0100, 2,042 tests.
-2. **Phase A** on `design/crew`: fix B1 (demo first week opens in ~2 min, not
-   next week), B2 (Phantom shows "github.com" → Rituals identity), B3 ("Opening
-   Phantom…" handoff), B4–B6 (funding-state detail, join wall-of-text, fund
-   screen copy). RED tests first. Build APK, install, screenshot.
-3. **Phase B** in `~/projects/preflight-solo`: merge design/crew, add Season
-   support, cause account, tests, **redeploy devnet (Jack approved)**, smoke.
-4. **Phase C**: solo screens from `sketches/ui-2026-09-26-solo/`.
-5. **Phase D**: solo phone test — Hermes drives, Jack only fingerprints.
+Phases:
+- **A (device bugs) — done** except B2 (Phantom shows "github.com"), which is
+  **deferred to Phase E by Jack**; a custom domain is a low-priority maybe. Don't raise it.
+- **B (program) — code done, NOT deployed.** Season PDA `["season", id]` with
+  `participant_count` (+1 on **activation**, never on create) and
+  `checked_in_count[16]` (+1 in the same instruction that makes a claim
+  Confirmed). One-approval solo create+fund+activate (1,068-byte tx).
+- **C (solo screens) — built, unit-tested, NOT on a device yet.** SoloCreate
+  (3 steps → ONE approval → PROMISE MADE stamp), SoloRitual (week strip,
+  hold-to-stamp, skip, missed "That's a week, not a verdict.", settle),
+  SoloReceipt (KEPT / MISSED + destination), WitnessConfirm, Season (live
+  count, Join), solo-first Home. `Stamp` + `stampSpec` in the crew kit;
+  hand face = Fraunces 600 italic (already bundled). DESIGN.md updated.
+- **Local proof (Hermes re-ran it 2026-09-27):** `smoke-solo --path all --fast` on
+  solana-test-validator, **35/35 PASS** (honor/miss/skip/witness incl. Season
+  counters, exact conservation, cause gets exactly the missed allocation). The
+  witness path was re-run after the decoder fix (cb98397): 9/9.
 
-Today's device proof (group path, Jack's fingerprints): Create+host-fund
-`23Hwtf2h…` and last-member Fund+Activate `5qdDRUw6…` on Ritual
-`CGw8DYbw…Gmu7S` → Active 2/2. Claim/settle blocked by B1 (event 0 opens
-+7 days). APK on the Seeker = c8355c1 (Suggest + Crew lobby). Phantom
-Account 2 = host `Da59…`, Account 3 = wallet 2 `98W4…`; Rituals currently
-connected as `98W4…`.
+### Devnet — the next gate
+
+- Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` on devnet is still the
+  OLD build (slot 500137332, 591,896 B). The new build is
+  `~/projects/preflight-solo/target/deploy/rituals.so` (723,600 B). Its IDL
+  matches `src/data/rituals/idl/rituals.json`.
+- Deployer `ETQ9czekQJSebxkWn986Hao15FfEbe1345cZZDrHhXbx` (devnet-only key
+  `~/projects/preflight/.keys/rituals-devnet-deployer.json`, 0 mainnet) has
+  **6.26 devnet SOL**, enough (upgrade rent ≈ 3.68). Jack topped it up via the web faucet.
+  The CLI faucet rate-limited us for 10 h straight, so don't rely on it.
+- `target/deploy/rituals-keypair.json` in preflight-solo was **replaced with the
+  real `2Mycq…` keypair** (the worktree originally had a stray `AZMdd…` one
+  that would have deployed a second program; parked at
+  `~/.hermes/cache/scratch/solo-worktree-stray-program-keypair-AZMdd.json`).
+  Re-check before any deploy: `solana address -k target/deploy/rituals-keypair.json`
+  must print `2Mycq…`.
+- ProtocolConfig layout is unchanged (135 B), so there's no re-init after the upgrade.
+- **Jack approved the devnet redeploy.** Old devnet rituals and older APKs stop
+  decoding after it; accepted.
+
+### Do this next, in order
+
+1. `cd ~/projects/preflight-solo && git push origin feat/solo-screens` (cb98397).
+2. Cleanup (Hermes scratch only): `rm -rf ~/.hermes/cache/scratch/hermes-local`
+   (throwaway local-validator keys + ledger). Remove worktrees
+   `preflight-solo-{a,b,c,d}` and branches `tmp/solo-*`.
+3. Deploy: `cd ~/projects/preflight-solo && SOLANA_KEYPAIR=../preflight/.keys/rituals-devnet-deployer.json bash scripts/deploy-devnet.sh`
+   (it checks declare_id, the IDL snapshot, and that the deployer holds 0 mainnet). Then
+   `npx tsx scripts/verify-devnet-config.ts`.
+4. Follow `docs/plans/solo-smoke.md` devnet section: create-demo-cause (with a
+   **separate** cause-owner key; the program rejects 6068 if the creator owns
+   it), init-demo-season `october-run-club`, paste both public addresses into
+   `src/data/rituals/demoConfig.ts` (currently `null`; screens show honest
+   empty states until then), commit, then `smoke-solo --path all` on devnet.
+   Every smoke key must be a fresh `.keys/` file. **Never `~/.config/solana/id.json`**
+   (Jack's real mainnet wallet).
+5. Known gaps before the phone test:
+   - pending-action recovery doesn't know the new
+     `create-solo-fund-and-activate` action kind (killing the app mid-approval
+     on solo create can't be recovered);
+   - a witness can approve but not question;
+   - note proof is client-side only.
+6. Build APK (commands under "Local builds" below; run from preflight-solo),
+   install, screenshot every solo screen, then **Phase D**: solo phone test.
+   Hermes drives and Jack only does fingerprints. Runbook is in the plan §5.
+7. Phase E (Oct 3–8): demo video, README, public repo + B2 app identity,
+   release APK, submission. Only with Jack's approval.
+
+### Tooling lessons from this session
+
+- Approval-gated commands (`rm -rf`, `python -c`, `script -e`) block when Jack
+  is away, and a blocked command ends the workflow. Keep cleanup out of the
+  command chains that do the real work.
+- Use `terminal(background=true)` for solana-test-validator (the tool refuses
+  nohup/setsid). Ports: rpc 18899, faucet 19900, gossip 18000, dynamic 18100-18200.
+- The runbook's local recipe needs a separate cause-owner keypair (fixed in cb98397).
+
+## Previous handoff — 2026-09-26 afternoon
+
+Phase A bugs B1–B8 were found on the phone. Group Create+host-fund `23Hwtf2h…`
+and last-member Fund+Activate `5qdDRUw6…` on Ritual `CGw8DYbw…Gmu7S` → Active
+2/2, signed by Jack on the Seeker. Phantom Account 2 = host `Da59…VmV`, Account
+3 = wallet 2 `98W4…WjLa`. The APK on the Seeker is from 0c258ce (Phase A without
+the amount/week-opens polish).
 
 ## Previous handoff — 2026-09-25 late
 
