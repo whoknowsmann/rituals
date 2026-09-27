@@ -11,3 +11,4 @@ export * from "./RitualDetailScreen";
 export * from "./ClaimCompletionScreen";
 export * from "./ConfirmationInboxScreen";
 export * from "./SettlementReceiptScreen";
+export * from './solo';

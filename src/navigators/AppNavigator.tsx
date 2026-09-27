@@ -54,6 +54,12 @@ export type RootStackParamList = {
   JoinRitual: { invite?: string };
   RitualAction: { ritualId: string; phase: 'fund' | 'activate' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'finalize'; eventIndex?: number; claimant?: string };
   RitualDetail: { ritualId: string };
+  // Solo-first (Phase C). Route contract — owners: A SoloCreate; B SoloRitual/SoloReceipt/WitnessConfirm; C Season.
+  SoloCreate: { seasonAddress?: string } | undefined;
+  SoloRitual: { ritualId: string };
+  SoloReceipt: { ritualId: string; eventIndex: number };
+  WitnessConfirm: { ritualId: string; eventIndex: number };
+  Season: { seasonAddress: string };
   ClaimCompletion: { ritualId: string; eventIndex: number };
   ConfirmationInbox: { ritualId: string; eventIndex: number };
   SettlementReceipt: { ritualId: string; eventIndex: number };
@@ -94,6 +100,11 @@ const AppStack = () => {
       <Stack.Screen name="JoinRitual" component={Screens.JoinRitualScreen} options={{ title: 'Join ritual' }} />
       <Stack.Screen name="RitualAction" component={Screens.RitualActionScreen} options={{ title: 'Ritual action' }} />
       <Stack.Screen name="RitualDetail" component={Screens.RitualDetailScreen} options={{ title: 'Ritual detail' }} />
+      <Stack.Screen name="SoloCreate" component={Screens.SoloCreateScreen} options={{ title: '' }} />
+      <Stack.Screen name="SoloRitual" component={Screens.SoloRitualScreen} options={{ title: '' }} />
+      <Stack.Screen name="SoloReceipt" component={Screens.SoloReceiptScreen} options={{ title: '' }} />
+      <Stack.Screen name="WitnessConfirm" component={Screens.WitnessConfirmScreen} options={{ title: '' }} />
+      <Stack.Screen name="Season" component={Screens.SeasonScreen} options={{ title: '' }} />
       <Stack.Screen name="ClaimCompletion" component={Screens.ClaimCompletionScreen} options={{ title: 'Claim preview' }} />
       <Stack.Screen name="ConfirmationInbox" component={Screens.ConfirmationInboxScreen} options={{ title: 'Confirmations' }} />
       <Stack.Screen name="SettlementReceipt" component={Screens.SettlementReceiptScreen} options={{ title: 'Settlement receipt' }} />
