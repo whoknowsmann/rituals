@@ -3,9 +3,10 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-27 afternoon CDT** (feat/solo-screens: tsc clean,
-2,109 tests / 97 files; native 197/197 on feat/solo-program; local-validator
-solo smoke 35/35; NOT yet deployed to devnet)
+Last verified: **2026-09-27 evening CDT** (feat/solo-screens: tsc clean; native
+197/197 on feat/solo-program; local-validator solo smoke 35/35; **solo + Seasons
+build DEPLOYED to devnet**, slot 504946601, on-chain bytes == local .so,
+verify-devnet-config all PASS)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -41,7 +42,7 @@ Post-deploy runbook: `docs/plans/solo-smoke.md`.
 Phases:
 - **A (device bugs) — done** except B2 (Phantom shows "github.com"), which is
   **deferred to Phase E by Jack**; a custom domain is a low-priority maybe. Don't raise it.
-- **B (program) — code done, NOT deployed.** Season PDA `["season", id]` with
+- **B (program) — code done, DEPLOYED to devnet 2026-09-27** (see below). Season PDA `["season", id]` with
   `participant_count` (+1 on **activation**, never on create) and
   `checked_in_count[16]` (+1 in the same instruction that makes a claim
   Confirmed). One-approval solo create+fund+activate (1,068-byte tx).
@@ -56,55 +57,73 @@ Phases:
   counters, exact conservation, cause gets exactly the missed allocation). The
   witness path was re-run after the decoder fix (cb98397): 9/9.
 
-### Devnet — the next gate
+### Devnet — deployed 2026-09-27 evening
 
-- Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` on devnet is still the
-  OLD build (slot 500137332, 591,896 B). The new build is
-  `~/projects/preflight-solo/target/deploy/rituals.so` (723,600 B). Its IDL
-  matches `src/data/rituals/idl/rituals.json`.
-- Deployer `ETQ9czekQJSebxkWn986Hao15FfEbe1345cZZDrHhXbx` (devnet-only key
-  `~/projects/preflight/.keys/rituals-devnet-deployer.json`, 0 mainnet) has
-  **6.26 devnet SOL**, enough (upgrade rent ≈ 3.68). Jack topped it up via the web faucet.
-  The CLI faucet rate-limited us for 10 h straight, so don't rely on it.
-- `target/deploy/rituals-keypair.json` in preflight-solo was **replaced with the
-  real `2Mycq…` keypair** (the worktree originally had a stray `AZMdd…` one
-  that would have deployed a second program; parked at
-  `~/.hermes/cache/scratch/solo-worktree-stray-program-keypair-AZMdd.json`).
-  Re-check before any deploy: `solana address -k target/deploy/rituals-keypair.json`
-  must print `2Mycq…`.
-- ProtocolConfig layout is unchanged (135 B), so there's no re-init after the upgrade.
-- **Jack approved the devnet redeploy.** Old devnet rituals and older APKs stop
-  decoding after it; accepted.
+- Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` upgraded to the solo +
+  Seasons build: slot **504946601**, upgrade tx
+  `3sgj1H6mMvmPSfWShXYKyKMtX6xMQs8gxpnby88XaAoWkk2CYVH6hMfmpn89XhBvFLAsvmVL8KFYtAaVvNLoTmB7`,
+  ProgramData 855,304 B (extended by 131,704). `solana program dump` equals
+  `target/deploy/rituals.so` byte for byte (zero padding after). sha256 of the
+  .so starts `8468b614d497ea81`. `verify-devnet-config.ts`: all assertions PASS
+  (ProtocolConfig untouched, no re-init).
+- Old devnet rituals and older APKs no longer decode (accepted by Jack).
+- Deployer `ETQ9…hXbx` has ~4.92 devnet SOL left.
+- **How it was deployed (the CLI could not do it from here):** `solana program
+  deploy` failed 5 times ("Max retries exceeded" on TPU writes; 429s through the
+  public RPC). What worked: `scripts/write-program-buffer.ts` fills an existing
+  buffer with paced RPC writes (3/s, only mismatched chunks, re-reads until the
+  buffer equals the .so; 4 rounds, ~10 min), then `solana program extend` +
+  `solana program upgrade <buffer> <program>`. Buffer keypair:
+  `.keys/rituals-deploy-buffer.json` (gitignored; consumed by the upgrade).
+  Next time, write the buffer with the script first; don't spend an hour on
+  `program deploy` retries.
 
 ### Do this next, in order
 
-1. Re-verify (commands at top; expect ≥ce066a5, 2,109 tests).
-2. Cleanup (Hermes scratch only): `rm -rf ~/.hermes/cache/scratch/hermes-local`
-   (throwaway local-validator keys + ledger). Remove worktrees
-   `preflight-solo-{a,b,c,d}` and branches `tmp/solo-*` (all merged into solo-screens).
-3. Deploy: `cd ~/projects/preflight-solo && SOLANA_KEYPAIR=../preflight/.keys/rituals-devnet-deployer.json bash scripts/deploy-devnet.sh`
-   (it checks declare_id, the IDL snapshot, and that the deployer holds 0 mainnet). Then
-   `npx tsx scripts/verify-devnet-config.ts`.
-4. Follow `docs/plans/solo-smoke.md` devnet section: create-demo-cause (with a
-   **separate** cause-owner key; the program rejects 6068 if the creator owns
-   it), init-demo-season `october-run-club`, paste both public addresses into
-   `src/data/rituals/demoConfig.ts` (currently `null`; screens show honest
-   empty states until then), commit, then `smoke-solo --path all` on devnet.
-   Every smoke key must be a fresh `.keys/` file. **Never `~/.config/solana/id.json`**
-   (Jack's real mainnet wallet).
-5. Known gaps before the phone test:
-   - pending-action recovery doesn't know the new
-     `create-solo-fund-and-activate` action kind (killing the app mid-approval
-     on solo create can't be recovered);
-   - a witness can approve but not question;
-   - note proof is client-side only.
-6. Build APK (commands under "Local builds" below; run from preflight-solo),
+1. Re-verify (commands at top).
+2. Devnet demo fixtures, per `docs/plans/solo-smoke.md` (keys already exist in
+   `.keys/`, all devnet-only, unfunded: cause owner `AZSt…`, smoke owner `fT9X…`,
+   smoke witness `3kLF…`). Fund them from the deployer (SOL) and mint TEST to the
+   smoke owner. `create-demo-cause` (cause owner must differ from the creator,
+   6068). Paste the cause token account into `src/data/rituals/demoConfig.ts`.
+   **Never `~/.config/solana/id.json`** (Jack's real mainnet wallet).
+3. Devnet smoke: **`--path honor` and `--path miss` only** (Jack, 2026-09-27: keep
+   testing proportionate). Honor proves the Season counters on devnet; miss
+   proves the cause payout. Skip and witness are already proven on the local
+   validator with the identical .so (35/35).
+4. **Season timing:** a Season only accepts joins before its first window opens,
+   and the demo cadence opens 10 min after init and ends ~48 min later. Init the
+   demo Season (`init-demo-season.ts`) right before the phone test or filming,
+   not now, or use `--weekly` for anything judges touch. The slug is the PDA
+   seed, so a new run needs a new slug (e.g. `october-run-club-2`).
+5. Build APK (commands under "Local builds" below; run from preflight-solo),
    install, screenshot every solo screen, then **Phase D**: solo phone test.
    Hermes drives and Jack only does fingerprints. Runbook is in the plan §5.
-7. Phase E (Oct 3–8): demo video, README, public repo + B2 app identity,
+6. Phase E (Oct 3–8): demo video, README, public repo + B2 app identity,
    release APK, submission. Only with Jack's approval.
 
+Known gaps (not in the solo demo path; deliberately after the phone test):
+- A week voided without a verdict (witness questioned it, or never answered)
+  renders wrong: the receipt shows KEPT with the ink stamp, the ritual screen
+  offers "Settle" on an already-voided event, and a declared skip shows as ✓
+  in the week strip. The witness also cannot question (no "I didn't see it").
+  RED tests are parked at `~/.hermes/cache/scratch/parked-voided-week/tests.patch`.
+- Note proof is client-side only.
+
+Fixed 2026-09-27 (33f6ee2): pending-action recovery rejected `declare-skip`,
+`create-solo` and `create-solo-fund-and-activate`, so **"Skip this week" failed
+before the wallet opened on every attempt**, and solo create never journaled
+(killing the app mid-approval was unrecoverable). Both journal now.
+
 ### Tooling lessons from this session
+
+- A background command's log read while it is still running is not its result:
+  a 429 mid-deploy was reported as "no buffer created" while the CLI went on to
+  create one holding 3.68 SOL. Check `solana program show --buffers` after any
+  failed deploy and close or reuse what is there.
+- `solana program deploy` prints the ephemeral buffer's recovery seed phrase
+  into its output/log. Use a named `--buffer` keypair file so nothing sensitive
+  lands in logs and a failed write can resume.
 
 - Approval-gated commands (`rm -rf`, `python -c`, `script -e`) block when Jack
   is away, and a blocked command ends the workflow. Keep cleanup out of the
@@ -335,7 +354,7 @@ lifecycle signed on the phone.
 
 ## Done and verified
 
-- Anchor program deployed to devnet, slot 500137332
+- Anchor program deployed to devnet, slot 500137332; upgraded to solo + Seasons 2026-09-27, slot 504946601
 - ProtocolConfig initialized; live state asserted against the client contract
 - Valueless SPL TEST mint (6 decimals), mint authority held locally
 - Full hero flow as real transactions (raw builders): 17/17 assertions,

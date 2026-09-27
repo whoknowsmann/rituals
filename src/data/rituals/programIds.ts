@@ -19,8 +19,9 @@ export type RitualsSupportedCluster = DevnetCluster
 /**
  * Authorized devnet deployment.
  *
- * Deployed 2026-09-18, slot 500137332, upgrade authority
- * ETQ9czekQJSebxkWn986Hao15FfEbe1345cZZDrHhXbx. See deployment/devnet.json.
+ * First deployed 2026-09-18 (slot 500137332). Upgraded 2026-09-27 to the solo +
+ * Seasons build (slot 504946601, upgrade tx 3sgj1H6m…). Upgrade authority
+ * ETQ9czekQJSebxkWn986Hao15FfEbe1345cZZDrHhXbx. See docs/STATUS.md.
  *
  * Devnet only with valueless SPL test assets. Mainnet requires independent
  * security and legal review and is NOT part of this configuration.
