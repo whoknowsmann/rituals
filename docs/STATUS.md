@@ -22,6 +22,10 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
+> **Superseded 2026-09-27:** the active line is `feat/solo-screens` in
+> `~/projects/preflight-solo`. Read `docs/STATUS.md` **there**. This branch
+> (design/crew) holds Phase A only.
+
 ## RESUME HERE — handoff 2026-09-26 afternoon ("lets begin rituals")
 
 **Plan of record: `docs/plans/solo-first-2026-09-26.md`.** Read it first. It
