@@ -3,6 +3,7 @@ use std::str::FromStr;
 use support::*;
 
 const SEASON_ID: [u8; 32] = [41; 32];
+const OTHER_SEASON_ID: [u8; 32] = [43; 32];
 const TITLE_DIGEST: [u8; 32] = [42; 32];
 
 fn season_pda(season_id: &[u8; 32]) -> Pubkey {
@@ -98,6 +99,29 @@ fn create_solo_ix_with_season(
     }
 }
 
+fn activate_ix_with_season(
+    creator: Pubkey,
+    nonce: u64,
+    season_id: Option<[u8; 32]>,
+) -> Instruction {
+    let ritual = ritual_pda(&creator, nonce);
+    let accounts = rituals::accounts::ActivateRitual {
+        protocol_config: config_pda(),
+        ritual,
+        season: season_id.map(|id| season_pda(&id)),
+        stake_mint: MINT,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        fee_vault: vault_pda(b"fee-vault", &ritual),
+        fee_recipient_token: RECIPIENT,
+        token_program: spl_token::ID,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::ActivateRitual {}.data(),
+    }
+}
+
 fn claim_completion_ix_with_season(
     ritual: Pubkey,
     claimant: Pubkey,
@@ -167,7 +191,7 @@ async fn season_initialization_requires_protocol_authority() {
 }
 
 #[tokio::test]
-async fn solo_create_with_season_increments_participant_count() {
+async fn solo_create_with_season_does_not_increment_participant_count() {
     let creator = Keypair::new();
     let mut context = start_with_member_set(&[&creator], &[300]).await;
     let now = context
@@ -190,7 +214,7 @@ async fn solo_create_with_season_increments_participant_count() {
     .unwrap();
     let season = get_account(&mut context, season_pda(&SEASON_ID)).await;
     let state = deserialize_season(&season.data);
-    assert_eq!(state.participant_count, 1);
+    assert_eq!(state.participant_count, 0);
 }
 
 #[tokio::test]
@@ -220,6 +244,197 @@ async fn solo_create_rejects_season_schedule_mismatch() {
     )
     .await;
     assert_error(result, 6072);
+}
+
+#[tokio::test]
+async fn season_participant_count_increments_on_activation() {
+    let creator = Keypair::new();
+    let mut context = start_with_member_set(&[&creator], &[300]).await;
+    let now = context
+        .banks_client
+        .get_sysvar::<solana_sdk::clock::Clock>()
+        .await
+        .unwrap()
+        .unix_timestamp;
+    let windows = schedule(now + 100);
+    submit(
+        &mut context,
+        vec![
+            initialize_ix(creator.pubkey()),
+            initialize_season_ix(creator.pubkey(), SEASON_ID, windows.clone()),
+            create_solo_ix_with_season(creator.pubkey(), 9207, Some(SEASON_ID), windows, None),
+        ],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        deserialize_season(&get_account(&mut context, season_pda(&SEASON_ID)).await.data)
+            .participant_count,
+        0
+    );
+    submit(
+        &mut context,
+        vec![fund_ix(
+            creator.pubkey(),
+            9207,
+            creator.pubkey(),
+            source_for_member(0),
+        )],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    submit(
+        &mut context,
+        vec![activate_ix_with_season(creator.pubkey(), 9207, Some(SEASON_ID))],
+        &[],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        deserialize_season(&get_account(&mut context, season_pda(&SEASON_ID)).await.data)
+            .participant_count,
+        1
+    );
+}
+
+#[tokio::test]
+async fn season_activation_requires_the_matching_optional_account() {
+    for (nonce, activation_season) in [(9208, None), (9209, Some(OTHER_SEASON_ID))] {
+        let creator = Keypair::new();
+        let mut context = start_with_member_set(&[&creator], &[300]).await;
+        let now = context
+            .banks_client
+            .get_sysvar::<solana_sdk::clock::Clock>()
+            .await
+            .unwrap()
+            .unix_timestamp;
+        let windows = schedule(now + 100);
+        submit(
+            &mut context,
+            vec![
+                initialize_ix(creator.pubkey()),
+                initialize_season_ix(creator.pubkey(), SEASON_ID, windows.clone()),
+                initialize_season_ix(creator.pubkey(), OTHER_SEASON_ID, windows.clone()),
+                create_solo_ix_with_season(
+                    creator.pubkey(),
+                    nonce,
+                    Some(SEASON_ID),
+                    windows,
+                    None,
+                ),
+                fund_ix(
+                    creator.pubkey(),
+                    nonce,
+                    creator.pubkey(),
+                    source_for_member(0),
+                ),
+            ],
+            &[&creator],
+        )
+        .await
+        .unwrap();
+        let result = submit(
+            &mut context,
+            vec![activate_ix_with_season(
+                creator.pubkey(),
+                nonce,
+                activation_season,
+            )],
+            &[],
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(
+            deserialize_season(&get_account(&mut context, season_pda(&SEASON_ID)).await.data)
+                .participant_count,
+            0
+        );
+    }
+}
+
+#[tokio::test]
+async fn cancelling_an_unactivated_season_ritual_does_not_increment_participant_count() {
+    let creator = Keypair::new();
+    let mut context = start_with_member_set(&[&creator], &[300]).await;
+    let now = context
+        .banks_client
+        .get_sysvar::<solana_sdk::clock::Clock>()
+        .await
+        .unwrap()
+        .unix_timestamp;
+    let windows = schedule(now + 100);
+    submit(
+        &mut context,
+        vec![
+            initialize_ix(creator.pubkey()),
+            initialize_season_ix(creator.pubkey(), SEASON_ID, windows.clone()),
+            create_solo_ix_with_season(creator.pubkey(), 9210, Some(SEASON_ID), windows, None),
+        ],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    submit(
+        &mut context,
+        vec![cancel_ix(
+            creator.pubkey(),
+            9210,
+            creator.pubkey(),
+            &[source_for_member(0)],
+        )],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        deserialize_season(&get_account(&mut context, season_pda(&SEASON_ID)).await.data)
+            .participant_count,
+        0
+    );
+}
+
+#[tokio::test]
+async fn solo_season_create_fund_activate_succeeds_in_one_transaction() {
+    let creator = Keypair::new();
+    let mut context = start_with_member_set(&[&creator], &[300]).await;
+    let now = context
+        .banks_client
+        .get_sysvar::<solana_sdk::clock::Clock>()
+        .await
+        .unwrap()
+        .unix_timestamp;
+    let windows = schedule(now + 100);
+    let nonce = 9211;
+    submit(
+        &mut context,
+        vec![
+            initialize_ix(creator.pubkey()),
+            initialize_season_ix(creator.pubkey(), SEASON_ID, windows.clone()),
+            create_solo_ix_with_season(creator.pubkey(), nonce, Some(SEASON_ID), windows, None),
+            fund_ix(
+                creator.pubkey(),
+                nonce,
+                creator.pubkey(),
+                source_for_member(0),
+            ),
+            activate_ix_with_season(creator.pubkey(), nonce, Some(SEASON_ID)),
+        ],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        deserialize(&get_account(&mut context, ritual_pda(&creator.pubkey(), nonce)).await.data)
+            .status,
+        RitualStatus::Active
+    );
+    assert_eq!(
+        deserialize_season(&get_account(&mut context, season_pda(&SEASON_ID)).await.data)
+            .participant_count,
+        1
+    );
 }
 
 async fn active_season_fixture(
@@ -280,7 +495,11 @@ async fn active_season_fixture(
     .unwrap();
     submit(
         &mut context,
-        vec![activate_ix_default(creator.pubkey(), nonce)],
+        vec![activate_ix_with_season(
+            creator.pubkey(),
+            nonce,
+            Some(SEASON_ID),
+        )],
         &[],
     )
     .await

@@ -23,7 +23,7 @@ export type RitualPreparationTransport = {
   getFeeForMessage: (message: Message, config: Readonly<{ commitment: 'confirmed'; minContextSlot: number }>) => Promise<unknown>
   getMinimumBalanceForRentExemption: (dataLength: number, commitment: 'confirmed') => Promise<unknown>
 }
-type ActionKind = 'create' | 'create-solo' | 'fund' | 'fund-and-activate' | 'activate' | 'cancel' | 'close' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'declare-skip' | 'finalize' | 'create-and-fund' | 'initialize-event-and-claim'
+type ActionKind = 'create' | 'create-solo' | 'fund' | 'fund-and-activate' | 'activate' | 'cancel' | 'close' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'declare-skip' | 'finalize' | 'create-and-fund' | 'create-solo-fund-and-activate' | 'initialize-event-and-claim'
 export type PreparedExpectation =
   | Readonly<{ kind: 'created'; creator: PublicKeyText; nonce: bigint }>
   | Readonly<{ kind: 'skip-declared'; eventIndex: number }>
@@ -137,7 +137,7 @@ function ritualSnapshot(context: unknown): { address: PublicKey; account: Ritual
     const schedule = Object.freeze((scheduleRaw as unknown[]).map((window: unknown, index: number) => { const w = inputObject(window, `ritual.schedule[${index}]`); return Object.freeze({ opens: readBigint(w.opens, `schedule[${index}].opens`), deadline: readBigint(w.deadline, `schedule[${index}].deadline`), resolution: readBigint(w.resolution, `schedule[${index}].resolution`) }) }))
     const account = Object.freeze({
       schemaVersion: read('schemaVersion'), protocolConfig: copyKey(read('protocolConfig') as PublicKey), creator: copyKey(read('creator') as PublicKey), nonce: readBigint(read('nonce'), 'nonce'), ruleDigest: read('ruleDigest'), stakeMint: copyKey(read('stakeMint') as PublicKey), members,
-      memberTotalStake: readU64(read('memberTotalStake'), 'memberTotalStake'), perEventAllocation: readBigint(read('perEventAllocation'), 'perEventAllocation'), schedule, additionalConfirmationThreshold: read('additionalConfirmationThreshold'), feePayerMode: read('feePayerMode'), lockedActivationFee: readU64(read('lockedActivationFee'), 'lockedActivationFee'), stakeDecimals: read('stakeDecimals'), lockedFeeRecipient: copyKey(read('lockedFeeRecipient') as PublicKey), stakeVault: copyKey(read('stakeVault') as PublicKey), feeVault: copyKey(read('feeVault') as PublicKey), stakeVaultBump: read('stakeVaultBump'), feeVaultBump: read('feeVaultBump'), fundedMembersBitmap: read('fundedMembersBitmap'), fundedMemberCount: read('fundedMemberCount'), fundedStakeTotal: readU64(read('fundedStakeTotal'), 'fundedStakeTotal'), fundedFeeTotal: readU64(read('fundedFeeTotal'), 'fundedFeeTotal'), status: read('status'), currentEventIndex: read('currentEventIndex'), settledEventCount: read('settledEventCount'), createdAt: readBigint(read('createdAt'), 'createdAt'), activatedAt: readBigint(read('activatedAt'), 'activatedAt'), cancelledAt: readBigint(read('cancelledAt'), 'cancelledAt'), completedAt: readBigint(read('completedAt'), 'completedAt'), vaultsClosed: read('vaultsClosed'), kind: read('kind'), witness: read('witness') === null ? null : copyKey(read('witness') as PublicKey), forfeitDestination: copyKey(read('forfeitDestination') as PublicKey), skipDeclared: read('skipDeclared'), skipEventIndex: read('skipEventIndex'), bump: read('bump'),
+      memberTotalStake: readU64(read('memberTotalStake'), 'memberTotalStake'), perEventAllocation: readBigint(read('perEventAllocation'), 'perEventAllocation'), schedule, additionalConfirmationThreshold: read('additionalConfirmationThreshold'), feePayerMode: read('feePayerMode'), lockedActivationFee: readU64(read('lockedActivationFee'), 'lockedActivationFee'), stakeDecimals: read('stakeDecimals'), lockedFeeRecipient: copyKey(read('lockedFeeRecipient') as PublicKey), stakeVault: copyKey(read('stakeVault') as PublicKey), feeVault: copyKey(read('feeVault') as PublicKey), stakeVaultBump: read('stakeVaultBump'), feeVaultBump: read('feeVaultBump'), fundedMembersBitmap: read('fundedMembersBitmap'), fundedMemberCount: read('fundedMemberCount'), fundedStakeTotal: readU64(read('fundedStakeTotal'), 'fundedStakeTotal'), fundedFeeTotal: readU64(read('fundedFeeTotal'), 'fundedFeeTotal'), status: read('status'), currentEventIndex: read('currentEventIndex'), settledEventCount: read('settledEventCount'), createdAt: readBigint(read('createdAt'), 'createdAt'), activatedAt: readBigint(read('activatedAt'), 'activatedAt'), cancelledAt: readBigint(read('cancelledAt'), 'cancelledAt'), completedAt: readBigint(read('completedAt'), 'completedAt'), vaultsClosed: read('vaultsClosed'), kind: read('kind'), witness: read('witness') === null ? null : copyKey(read('witness') as PublicKey), season: read('season') === null ? null : copyKey(read('season') as PublicKey), forfeitDestination: copyKey(read('forfeitDestination') as PublicKey), skipDeclared: read('skipDeclared'), skipEventIndex: read('skipEventIndex'), bump: read('bump'),
     }) as RitualAccountView
     return { address, account }
   } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid ritual context') }
@@ -156,6 +156,7 @@ function readBigint(value: unknown, name: string): bigint { if (typeof value !==
 function readU64(value: unknown, name: string): bigint { return u64(readBigint(value, name), name) }
 
 export type BuildCreateAndFundArgs = BuildCreateRitualArgs & Readonly<{ memberSource: PublicKey; lockedActivationFee: bigint }>
+export type BuildCreateSoloFundAndActivateArgs = BuildCreateSoloRitualArgs & Readonly<{ memberSource: PublicKey; lockedActivationFee: bigint }>
 export type BuildFundAndActivateArgs = BuildFundMemberArgs
 export type BuildInitializeAndClaimArgs = BuildInitializeCurrentEventArgs & Readonly<{ claimant: PublicKey }>
 
@@ -230,11 +231,45 @@ export class RitualActionPreparer {
       const lockedActivationFee = u64(inputProperty(args, 'lockedActivationFee') as bigint, 'lockedActivationFee')
       const fundingContext = {
         address: accounts.ritual,
-        account: { creator, nonce, protocolConfig: accounts.protocolConfig, stakeMint: mint, members, stakeVault: accounts.stakeVault, feeVault: accounts.feeVault, bump: accounts.ritualBump, stakeVaultBump: accounts.stakeVaultBump, feeVaultBump: accounts.feeVaultBump, lockedFeeRecipient: feeRecipient, status: 'Funding', fundedMembersBitmap: 0, fundedMemberCount: 0, kind: 'Group', witness: null, forfeitDestination: PublicKey.default, skipDeclared: false, currentEventIndex: 0 },
+        account: { creator, nonce, protocolConfig: accounts.protocolConfig, stakeMint: mint, members, stakeVault: accounts.stakeVault, feeVault: accounts.feeVault, bump: accounts.ritualBump, stakeVaultBump: accounts.stakeVaultBump, feeVaultBump: accounts.feeVaultBump, lockedFeeRecipient: feeRecipient, status: 'Funding', fundedMembersBitmap: 0, fundedMemberCount: 0, kind: 'Group', witness: null, season: null, forfeitDestination: PublicKey.default, skipDeclared: false, currentEventIndex: 0 },
       } as RitualAccountContext
       const fund = buildFundMemberInstruction({ programId, ritual: fundingContext, member: creator, memberSource })
       return this.prepare('create-and-fund', [create, fund], creator, accounts.ritual, mint, Object.freeze({ kind: 'bundle', expectations: Object.freeze([{ kind: 'created', creator: keyText(creator), nonce }, { kind: 'funded', member: keyText(creator), expectedFundedMemberCount: 1, expectedFundedStakeTotal: memberTotalStake, expectedFundedFeeTotal: lockedActivationFee }]) }) as PreparedExpectation, { token: addU64(memberTotalStake, lockedActivationFee, 'tokenOutflow'), stake: memberTotalStake, activation: lockedActivationFee, escrow: 0n }, [ACCOUNT_DATA_LENGTHS.Ritual, ACCOUNT_SIZE, ACCOUNT_SIZE], null, Object.freeze({ description: 'ritual, stake vault, fee vault, and host funding', count: 3 }))
     } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Create and Fund inputs') }
+  }
+
+  async prepareCreateSoloFundAndActivate(args: BuildCreateSoloFundAndActivateArgs): Promise<PreparedRitualAction> {
+    try {
+      const create = buildCreateSoloRitualInstruction(args)
+      const programId = copyKey(inputProperty(args, 'programId') as PublicKey)
+      const creator = copyKey(inputProperty(args, 'creator') as PublicKey)
+      const mint = copyKey(inputProperty(args, 'stakeMint') as PublicKey)
+      const feeRecipient = copyKey(inputProperty(args, 'feeRecipientToken') as PublicKey)
+      const forfeitDestination = copyKey(inputProperty(args, 'forfeitDestination') as PublicKey)
+      const ritualInput = inputProperty(args, 'ritual')
+      const nonce = inputProperty(ritualInput, 'nonce') as bigint
+      const accounts = deriveCreateRitualAccounts(programId, creator, nonce)
+      const memberSource = copyKey(inputProperty(args, 'memberSource') as PublicKey)
+      const memberTotalStake = u64(inputProperty(ritualInput, 'memberTotalStake') as bigint, 'memberTotalStake')
+      const lockedActivationFee = u64(inputProperty(args, 'lockedActivationFee') as bigint, 'lockedActivationFee')
+      const seasonValue = inputProperty(args, 'season')
+      const season = seasonValue === undefined || seasonValue === null ? null : copyKey(seasonValue as PublicKey)
+      const witnessValue = inputProperty(ritualInput, 'witness')
+      const witness = witnessValue === null ? null : copyKey(witnessValue as PublicKey)
+      const fundingContext = {
+        address: accounts.ritual,
+        account: { creator, nonce, protocolConfig: accounts.protocolConfig, stakeMint: mint, members: [creator], stakeVault: accounts.stakeVault, feeVault: accounts.feeVault, bump: accounts.ritualBump, stakeVaultBump: accounts.stakeVaultBump, feeVaultBump: accounts.feeVaultBump, lockedFeeRecipient: feeRecipient, status: 'Funding' as const, fundedMembersBitmap: 0, fundedMemberCount: 0, kind: 'Solo' as const, witness, season, forfeitDestination, skipDeclared: false, currentEventIndex: 0 },
+      } as unknown as RitualAccountContext
+      const fund = buildFundMemberInstruction({ programId, ritual: fundingContext, member: creator, memberSource })
+      const activated = { address: accounts.ritual, account: { ...fundingContext.account, fundedMembersBitmap: 1, fundedMemberCount: 1, fundedStakeTotal: memberTotalStake, fundedFeeTotal: lockedActivationFee } } as RitualAccountContext
+      const activate = buildActivateRitualInstruction({ programId, ritual: activated })
+      const expectation: PreparedExpectation = Object.freeze({ kind: 'bundle' as const, expectations: Object.freeze([
+        { kind: 'created' as const, creator: keyText(creator), nonce },
+        { kind: 'funded' as const, member: keyText(creator), expectedFundedMemberCount: 1, expectedFundedStakeTotal: memberTotalStake, expectedFundedFeeTotal: lockedActivationFee },
+        { kind: 'activated' as const },
+      ]) })
+      return this.prepare('create-solo-fund-and-activate', [create, fund, activate], creator, accounts.ritual, mint, expectation, { token: addU64(memberTotalStake, lockedActivationFee, 'tokenOutflow'), stake: memberTotalStake, activation: lockedActivationFee, escrow: lockedActivationFee }, [ACCOUNT_DATA_LENGTHS.Ritual, ACCOUNT_SIZE, ACCOUNT_SIZE], null, Object.freeze({ description: 'solo ritual, stake vault, fee vault, creator funding, and activation', count: 3 }))
+    } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Create Solo Fund and Activate inputs') }
   }
 
   async prepareInitializeAndClaim(args: BuildInitializeAndClaimArgs): Promise<PreparedRitualAction> {

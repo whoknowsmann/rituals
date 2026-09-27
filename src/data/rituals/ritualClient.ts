@@ -2,7 +2,7 @@ import { PublicKey } from '@solana/web3.js'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { RitualsRpcReader, type ReadOptions, type RitualRead, type RitualBundleRead, type RitualRpcTransport } from './ritualsRpc'
 import type { ProtocolConfigAccountView } from './accounts'
-import { RitualActionPreparer, type BuildCreateAndFundArgs, type BuildFundAndActivateArgs, type BuildInitializeAndClaimArgs, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
+import { RitualActionPreparer, type BuildCreateAndFundArgs, type BuildCreateSoloFundAndActivateArgs, type BuildFundAndActivateArgs, type BuildInitializeAndClaimArgs, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualConfirmationTransport } from './ritualConfirmation'
 import { RitualActionSubmitter, type RitualWalletSubmissionTransport, type RitualSubmissionResult, type SubmittedRitualActionHandle } from './ritualSubmission'
 import type { BuildCreateRitualArgs, BuildCreateSoloRitualArgs, BuildDeclareSkipArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs } from './instructionsLifecycle'
@@ -28,6 +28,7 @@ export interface RitualClient {
   prepareCreateSolo(args: BuildCreateSoloRitualArgs): Promise<PreparedRitualAction>
   prepareDeclareSkip(args: BuildDeclareSkipArgs): Promise<PreparedRitualAction>
   prepareCreateAndFund(args: BuildCreateAndFundArgs): Promise<PreparedRitualAction>
+  prepareCreateSoloFundAndActivate(args: BuildCreateSoloFundAndActivateArgs): Promise<PreparedRitualAction>
   prepareFund(args: BuildFundMemberArgs): Promise<PreparedRitualAction>
   prepareFundAndActivate(args: BuildFundAndActivateArgs): Promise<PreparedRitualAction>
   prepareActivate(args: BuildActivateRitualArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction>
@@ -61,6 +62,7 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
     prepareCreateSolo: preparer.prepareCreateSolo.bind(preparer),
     prepareDeclareSkip: preparer.prepareDeclareSkip.bind(preparer),
     prepareCreateAndFund: preparer.prepareCreateAndFund.bind(preparer),
+    prepareCreateSoloFundAndActivate: preparer.prepareCreateSoloFundAndActivate.bind(preparer),
     prepareFund: preparer.prepareFund.bind(preparer),
     prepareFundAndActivate: preparer.prepareFundAndActivate.bind(preparer),
     prepareActivate: preparer.prepareActivate.bind(preparer),

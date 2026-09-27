@@ -19,6 +19,25 @@ const createArgs = {
   },
 }
 
+const soloCreateArgs = {
+  programId: eventProgramId,
+  creator: sourceCreator,
+  stakeMint: eventSource.stakeMint,
+  feeRecipientToken: sourceKey(201),
+  forfeitDestination: sourceKey(206),
+  season: sourceKey(205),
+  ritual: {
+    nonce: 995n,
+    ruleDigest: '1f'.repeat(32) as never,
+    memberTotalStake: 1600n,
+    schedule: Array.from({ length: 16 }, (_, index) => {
+      const opens = 10000n + BigInt(index * 10)
+      return { opens, deadline: opens + 1n, resolution: opens + 2n }
+    }),
+    witness: null,
+  },
+}
+
 describe('bundled prepared Ritual actions', () => {
   it('keeps create and host funding in one exact-message action', async () => {
     const preparer = new RitualActionPreparer(new EventTransport(), eventProgramId)
@@ -31,6 +50,21 @@ describe('bundled prepared Ritual actions', () => {
       { kind: 'funded', member: sourceCreator.toBase58(), expectedFundedMemberCount: 1, expectedFundedStakeTotal: eventSource.memberTotalStake, expectedFundedFeeTotal: eventSource.lockedActivationFee },
     ] })
     expect(wallet.transaction.compileMessage().header.numRequiredSignatures).toBe(1)
+    preparer.assertWalletTransactionUnchanged(action, wallet.transaction)
+  })
+
+  it('keeps solo create, creator funding, and activation in one legacy-safe action', async () => {
+    const preparer = new RitualActionPreparer(new EventTransport(), eventProgramId)
+    const action = await preparer.prepareCreateSoloFundAndActivate({ ...soloCreateArgs, memberSource: sourceKey(207), lockedActivationFee: eventSource.lockedActivationFee })
+    const wallet = preparer.getTransactionForWallet(action)
+    expect(action.kind).toBe('create-solo-fund-and-activate')
+    expect(wallet.transaction.instructions).toHaveLength(5)
+    expect(wallet.transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).length).toBe(1068)
+    expect(action.expectation).toEqual({ kind: 'bundle', expectations: [
+      { kind: 'created', creator: sourceCreator.toBase58(), nonce: 995n },
+      { kind: 'funded', member: sourceCreator.toBase58(), expectedFundedMemberCount: 1, expectedFundedStakeTotal: 1600n, expectedFundedFeeTotal: eventSource.lockedActivationFee },
+      { kind: 'activated' },
+    ] })
     preparer.assertWalletTransactionUnchanged(action, wallet.transaction)
   })
 

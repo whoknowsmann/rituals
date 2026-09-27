@@ -33,7 +33,7 @@ describe('Ritual lifecycle instruction builders', () => {
     expect(instructions.initialize.keys).toHaveLength(3)
     expect(instructions.create.keys).toHaveLength(9)
     expect(instructions.fund.keys).toHaveLength(8)
-    expect(instructions.activate.keys).toHaveLength(7)
+    expect(instructions.activate.keys).toHaveLength(8)
     expect(instructions.cancel.keys).toHaveLength(9)
     expect(instructions.initialize.keys.at(-1)?.pubkey.equals(SystemProgram.programId)).toBe(true)
     expect(instructions.create.keys.at(-1)?.pubkey.equals(TOKEN_PROGRAM_ID)).toBe(true)

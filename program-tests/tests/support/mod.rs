@@ -607,6 +607,7 @@ pub(crate) fn activate_ix(creator: Pubkey, nonce: u64, recipient: Pubkey) -> Ins
     let accounts = rituals::accounts::ActivateRitual {
         protocol_config: config_pda(),
         ritual,
+        season: None,
         stake_mint: MINT,
         stake_vault: vault_pda(b"stake-vault", &ritual),
         fee_vault: vault_pda(b"fee-vault", &ritual),

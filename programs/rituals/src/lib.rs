@@ -351,12 +351,6 @@ pub mod rituals {
         ritual.witness = witness;
         ritual.season = season_key;
         ritual.forfeit_destination = ctx.accounts.forfeit_destination.key();
-        if let Some(season) = ctx.accounts.season.as_mut() {
-            season.participant_count = season
-                .participant_count
-                .checked_add(1)
-                .ok_or(RitualsError::SeasonParticipantOverflow)?;
-        }
         ritual.skip_declared = false;
         ritual.skip_event_index = 0;
         ritual.bump = ctx.bumps.ritual;
@@ -558,6 +552,7 @@ pub mod rituals {
             fee,
             ritual.stake_decimals,
         )?;
+        record_season_participant(&ctx.accounts.ritual, ctx.accounts.season.as_mut())?;
 
         let ritual = &mut ctx.accounts.ritual;
         ritual.status = RitualStatus::Active;
@@ -1919,7 +1914,9 @@ pub struct ActivateRitual<'info> {
     #[account(seeds = [b"protocol-config"], bump = protocol_config.bump, address = ritual.protocol_config)]
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump)]
-    pub ritual: Account<'info, Ritual>,
+    pub ritual: Box<Account<'info, Ritual>>,
+    #[account(mut)]
+    pub season: Option<Account<'info, Season>>,
     #[account(address = ritual.stake_mint, constraint = stake_mint.decimals == ritual.stake_decimals)]
     pub stake_mint: Account<'info, Mint>,
     #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, token::mint = stake_mint, token::authority = ritual)]
@@ -2097,6 +2094,27 @@ fn record_season_check_in(
                 [event_index as usize]
                 .checked_add(1)
                 .ok_or(RitualsError::SeasonCheckInOverflow)?;
+        }
+        None => require!(season.is_none(), RitualsError::SeasonAccountMismatch),
+    }
+    Ok(())
+}
+
+fn record_season_participant(ritual: &Ritual, season: Option<&mut Account<Season>>) -> Result<()> {
+    match ritual.season {
+        Some(expected_season) => {
+            let season = season.ok_or(RitualsError::SeasonAccountMismatch)?;
+            require!(
+                season.key() == expected_season
+                    && season.protocol_config == ritual.protocol_config
+                    && season.schedule == ritual.schedule
+                    && season.participant_count < u32::MAX,
+                RitualsError::SeasonAccountMismatch
+            );
+            season.participant_count = season
+                .participant_count
+                .checked_add(1)
+                .ok_or(RitualsError::SeasonParticipantOverflow)?;
         }
         None => require!(season.is_none(), RitualsError::SeasonAccountMismatch),
     }

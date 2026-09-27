@@ -73,7 +73,7 @@ describe('lifecycle builder adversarial boundary', () => {
     const recipient = key(55)
     const account = { ...funded.account, lockedFeeRecipient: recipient }
     const instruction = buildActivateRitualInstruction({ programId, ritual: { address: addresses.ritual, account } })
-    expect(instruction.keys[5].pubkey.equals(recipient)).toBe(true)
+    expect(instruction.keys[6].pubkey.equals(recipient)).toBe(true)
     const members = [...decoded.members]
     const args = { programId, creator: decoded.creator, stakeMint: decoded.stakeMint, feeRecipientToken: key(24), ritual: { ...create, members } }
     const built = buildCreateRitualInstruction(args)

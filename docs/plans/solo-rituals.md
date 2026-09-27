@@ -165,12 +165,15 @@ authority may initialize a season.
 
 `Ritual.season` is an optional `Pubkey`; only `create_solo_ritual` accepts a
 season account. Creation validates the complete schedule against the Season
-template and increments `participant_count`. Group rituals cannot attach a
-season in this phase. A season check-in counter increments in the same
-instruction that makes a claim `Confirmed`: honor claims increment during
-`claim_completion`, while witness claims increment only when `approve_claim`
-reaches the required confirmation threshold. Replay claims fail before the
-counter mutation, and season code never moves tokens.
+template but does not increment `participant_count`: the count increments once
+when the season-linked ritual becomes `Active`, so abandoned or cancelled
+Funding rituals are not counted. Activation requires the matching Season
+account for a linked ritual and no Season account for an unlinked ritual. Group
+rituals cannot attach a season in this phase. A season check-in counter
+increments in the same instruction that makes a claim `Confirmed`: honor claims
+increment during `claim_completion`, while witness claims increment only when
+`approve_claim` reaches the required confirmation threshold. Replay claims fail
+before the counter mutation, and season code never moves tokens.
 
 Adding `Ritual.season` changes the Ritual allocation from 977 to 1010 bytes,
 and invalidates old devnet Ritual layouts as accepted for the solo redeploy.

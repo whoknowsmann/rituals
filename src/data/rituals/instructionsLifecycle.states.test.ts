@@ -165,8 +165,8 @@ describe('Ritual lifecycle builder states and boundaries', () => {
       for (const feePayerMode of ['Host', 'Split'] as const) {
         const recipient = lifecycleKey(55)
         const instruction = buildActivateRitualInstruction({ programId, ritual: { ...context, account: { ...context.account, feePayerMode, lockedFeeRecipient: recipient } } })
-        expect(instruction.keys).toHaveLength(7)
-        expect(instruction.keys[5]).toMatchObject({ pubkey: recipient, isWritable: true, isSigner: false })
+        expect(instruction.keys).toHaveLength(8)
+        expect(instruction.keys[6]).toMatchObject({ pubkey: recipient, isWritable: true, isSigner: false })
       }
     }
   })

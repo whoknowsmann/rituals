@@ -682,6 +682,7 @@ fn activate_ritual_api_has_no_user_authority_parameter() {
     let _ = rituals::accounts::ActivateRitual {
         protocol_config: config_pda(),
         ritual,
+        season: None,
         stake_mint: MINT,
         stake_vault: vault_pda(b"stake-vault", &ritual),
         fee_vault: vault_pda(b"fee-vault", &ritual),

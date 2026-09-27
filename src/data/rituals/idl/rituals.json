@@ -77,6 +77,11 @@
           }
         },
         {
+          "name": "season",
+          "writable": true,
+          "optional": true
+        },
+        {
           "name": "stake_mint"
         },
         {

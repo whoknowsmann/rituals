@@ -46,6 +46,8 @@ describe('frozen Rituals IDL', () => {
       const item = idl.types.find(type => type.name === name)
       return item && 'type' in item && item.type.kind === 'struct' && item.type.fields ? item.type.fields.map(field => field.name) : []
     }
+    expect(idl.instructions.find(instruction => instruction.name === 'activate_ritual')?.accounts.map(account => [account.name, Boolean((account as { optional?: boolean }).optional)]))
+      .toEqual([['protocol_config', false], ['ritual', false], ['season', true], ['stake_mint', false], ['stake_vault', false], ['fee_vault', false], ['fee_recipient_token', false], ['token_program', false]])
     expect(fields('ProtocolConfig')).toEqual(['schema_version','authority','allowed_stake_mint','fee_recipient','fee_basis_points','minimum_fee','maximum_fee','maximum_member_stake','max_members','max_events','paused','bump'])
     expect(fields('Ritual')).toContain('season')
     expect(fields('Ritual')).toContain('vaults_closed')
