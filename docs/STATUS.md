@@ -33,10 +33,10 @@ Post-deploy runbook: `docs/plans/solo-smoke.md`.
 
 | Branch (all in private repo whoknowsmann/rituals) | Head | State |
 |---|---|---|
-| `feat/solo-screens` (worktree `~/projects/preflight-solo`) | **cb98397 local, remote at 167e80b → PUSH FIRST** | Phases A+B+C merged. tsc clean, **2,109 tests / 97 files**. |
+| `feat/solo-screens` (worktree `~/projects/preflight-solo`) | ≥ce066a5 (pushed) | Phases A+B+C merged. tsc clean, **2,109 tests / 97 files**. |
 | `feat/solo-program` | ab104ed (pushed) | Program + client for solo + Seasons. Native **197/197**. Ancestor of solo-screens. |
 | `design/crew` (worktree `~/projects/preflight`) | 9fa94c0 (pushed) | Phase A only. Behind solo-screens; don't develop here. |
-| `tmp/solo-{a,b,c,d}` (worktrees `~/projects/preflight-solo-{a..d}`) | merged | Delete the worktrees + branches once cb98397 is pushed. Their node_modules are symlinks. |
+| `tmp/solo-{a,b,c,d}` (worktrees `~/projects/preflight-solo-{a..d}`) | merged | Safe to delete (worktrees + branches). Their node_modules are symlinks. |
 
 Phases:
 - **A (device bugs) — done** except B2 (Phantom shows "github.com"), which is
@@ -78,10 +78,10 @@ Phases:
 
 ### Do this next, in order
 
-1. `cd ~/projects/preflight-solo && git push origin feat/solo-screens` (cb98397).
+1. Re-verify (commands at top; expect ≥ce066a5, 2,109 tests).
 2. Cleanup (Hermes scratch only): `rm -rf ~/.hermes/cache/scratch/hermes-local`
    (throwaway local-validator keys + ledger). Remove worktrees
-   `preflight-solo-{a,b,c,d}` and branches `tmp/solo-*`.
+   `preflight-solo-{a,b,c,d}` and branches `tmp/solo-*` (all merged into solo-screens).
 3. Deploy: `cd ~/projects/preflight-solo && SOLANA_KEYPAIR=../preflight/.keys/rituals-devnet-deployer.json bash scripts/deploy-devnet.sh`
    (it checks declare_id, the IDL snapshot, and that the deployer holds 0 mainnet). Then
    `npx tsx scripts/verify-devnet-config.ts`.
