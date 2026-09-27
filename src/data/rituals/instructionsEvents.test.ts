@@ -34,9 +34,9 @@ describe('Ritual event instruction builders', () => {
     }
     expect(Object.keys(instructions)).toHaveLength(6)
     expect(instructions.initialize.keys).toHaveLength(4)
-    expect(instructions.claim.keys).toHaveLength(5)
-    expect(instructions.approve.keys).toHaveLength(4)
-    expect(instructions.question.keys).toHaveLength(4)
+    expect(instructions.claim.keys).toHaveLength(6)
+    expect(instructions.approve.keys).toHaveLength(5)
+    expect(instructions.question.keys).toHaveLength(5)
     expect(instructions.finalize.keys).toHaveLength(8)
     expect(instructions.close.keys).toHaveLength(5)
     expect(instructions.initialize.keys.at(-1)?.pubkey).toEqual(SystemProgram.programId)

@@ -195,7 +195,8 @@ export function decodeCompletionClaim(input: AccountEnvelope, expectedProgramId:
   const validPending = requiredAdditionalConfirmations > 0 && approvalCount < requiredAdditionalConfirmations
   const validConfirmed = requiredAdditionalConfirmations === 0 ? approvalCount === 0 : approvalCount === requiredAdditionalConfirmations
   const validQuestioned = requiredAdditionalConfirmations > 0 && approvalCount < requiredAdditionalConfirmations
-  const invalidClaim = ritual.equals(zero) || event.equals(zero) || claimant.equals(zero) || eventIndex > 15 || memberIndex > 5 || claimVersion !== CURRENT_CLAIM_VERSION || requiredAdditionalConfirmations > 5 || (approvalsBitmap & ~0x3f) !== 0 || (approvalsBitmap & claimantBit) !== 0 || approvalCount !== popcount(approvalsBitmap) || (status === 'Pending' && !validPending) || (status === 'Confirmed' && !validConfirmed) || (status === 'Questioned' && !validQuestioned) || claimedAt <= 0n
+  const soloWitnessConfirmation = status === 'Confirmed' && requiredAdditionalConfirmations === 1 && approvalsBitmap === 0 && approvalCount === 1
+  const invalidClaim = ritual.equals(zero) || event.equals(zero) || claimant.equals(zero) || eventIndex > 15 || memberIndex > 5 || claimVersion !== CURRENT_CLAIM_VERSION || requiredAdditionalConfirmations > 5 || (approvalsBitmap & ~0x3f) !== 0 || (approvalsBitmap & claimantBit) !== 0 || (!soloWitnessConfirmation && approvalCount !== popcount(approvalsBitmap)) || (status === 'Pending' && !validPending) || (status === 'Confirmed' && !validConfirmed) || (status === 'Questioned' && !validQuestioned) || claimedAt <= 0n
   if (invalidClaim) throw new RitualAccountDecodeError('invariant', 'CompletionClaim state is inconsistent')
   return finish(reader, Object.freeze({ schemaVersion, ritual, event, eventIndex, claimant, memberIndex, claimVersion, status, requiredAdditionalConfirmations, approvalsBitmap, approvalCount, claimedAt, bump }))
 }

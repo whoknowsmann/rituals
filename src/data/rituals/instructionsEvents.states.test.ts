@@ -129,7 +129,7 @@ describe('claim, approve, and question state matrix', () => {
   it.each(['Claiming', 'Resolving'] as const)('accepts question in %s', status => expect(() => buildQuestionClaimInstruction({ ...args.question, event: { ...claimed, account: { ...claimed.account, status } } })).not.toThrow())
   it('emits exact approval/question signer flags and data', () => {
     for (const ix of [buildApproveClaimInstruction(args.approve), buildQuestionClaimInstruction(args.question)]) {
-      expect(ix.keys).toHaveLength(4); expect(ix.keys[3].isSigner).toBe(true); expect(ix.keys[3].isWritable).toBe(false); expect(ix.data).toHaveLength(9)
+      expect(ix.keys).toHaveLength(5); expect(ix.keys[3].isSigner).toBe(true); expect(ix.keys[3].isWritable).toBe(false); expect(ix.data).toHaveLength(9)
     }
   })
   it.each([claimed.account.window.opens, claimed.account.window.deadline])('accepts claimedAt boundary %s', claimedAt => {
