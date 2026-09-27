@@ -32,4 +32,14 @@ describe('RitualsHomeScreen safety and accessibility structure', () => {
     expect(source).toContain('safeErrorMessage(error)')
     expect(source).not.toContain('error instanceof Error ? error.message')
   })
+
+  it('keeps the tagline and puts solo actions first on the empty home', () => {
+    expect(source).toContain('Show up, or pay up.')
+    expect(source).toContain("navigation.navigate('SoloCreate')")
+    expect(source).toContain('homeCreateTarget().name')
+    expect(source).toContain("navigation.navigate('JoinRitual', {})")
+    expect(source).toContain('homeRitualTarget')
+    expect(source).toContain('SeasonCard')
+    expect(source).not.toContain('Recent')
+  })
 })

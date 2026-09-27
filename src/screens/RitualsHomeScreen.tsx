@@ -4,44 +4,71 @@ import { ActivityIndicator, Button, Text, useTheme, type MD3Theme } from 'react-
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
-import { ActionButton, Chip, FeedRow, Footnote, Poster, PosterLine, Section, WeekStrip, type WeekCell } from '../components/crew'
+import { ActionButton, Footnote, Poster, PosterLine, Section, WeekStrip, type WeekCell } from '../components/crew'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { loadKnownRitualBundles, formatAtomic, statusLabel, type KnownRitual } from '../features/rituals/authoritativeRituals'
 import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
-import { ritualDetailTarget } from '../features/rituals/claims/routeHelpers'
-import { color, memberColor, palette, radius, space, type } from '../theme'
+import { homeRitualTarget } from '../features/rituals/home/homeViewModel'
+import { useConnection } from '../utils/ConnectionProvider'
+import { DEMO_SEASON } from '../data/rituals/demoConfig'
+import type { SeasonAccountView } from '../data/rituals/accounts'
+import { readSeason } from '../features/rituals/solo/season/readSeason'
+import { seasonCountForNow } from '../features/rituals/solo/season/seasonViewModel'
+import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
+import { color, memberColor, radius, space, type } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
 type HomeRitual = LoadedRitual & { id: string }
-type FeedClaim = LoadedRitual['bundle']['claims'][number]
+
+type HomeState = Readonly<{
+  status: 'loading' | 'ready' | 'error'
+  rituals: readonly HomeRitual[]
+  season: SeasonAccountView | null
+  seasonUnavailable: boolean
+  message?: string
+}>
+
+const initialState: HomeState = { status: 'loading', rituals: [], season: null, seasonUnavailable: false }
 
 export function RitualsHomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const theme = useTheme()
   const styles = useMemo(() => makeStyles(theme), [theme])
   const client = useRitualClient()
-  const [homeState, setHomeState] = useState<{ status: 'loading' | 'ready' | 'error'; rituals: readonly HomeRitual[]; message?: string }>({ status: 'loading', rituals: [] })
+  const { connection } = useConnection()
+  const [homeState, setHomeState] = useState<HomeState>(initialState)
   const mounted = useRef(false)
   const requestGeneration = useRef(0)
 
   const load = useCallback(() => {
-    // AUTHORITATIVE CHAIN READS are the only source for this screen's ritual data.
+    // AUTHORITATIVE CHAIN READS keep ritual cards grounded in current account data.
     const generation = ++requestGeneration.current
-    setHomeState({ status: 'loading', rituals: [] })
+    setHomeState(initialState)
     if (client.status !== 'ready') {
-      setHomeState({ status: 'error', rituals: [], message: safeErrorMessage(client.reason) })
+      setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(client.reason) })
       return
     }
-    void loadKnownRitualBundles(client.client)
-      .then((rituals) => {
-        if (mounted.current && generation === requestGeneration.current) {
-          setHomeState({ status: 'ready', rituals: rituals.map((ritual) => ({ ...ritual, id: ritual.address })) })
-        }
+
+    const seasonPromise = DEMO_SEASON.address === null
+      ? Promise.resolve({ season: null, unavailable: false })
+      : readSeason(connection, DEMO_SEASON.address, client.client.programId)
+        .then((read) => ({ season: read.account, unavailable: false }))
+        .catch(() => ({ season: null, unavailable: true }))
+
+    void Promise.all([loadKnownRitualBundles(client.client), seasonPromise])
+      .then(([rituals, season]) => {
+        if (!mounted.current || generation !== requestGeneration.current) return
+        setHomeState({
+          status: 'ready',
+          rituals: rituals.map((ritual) => ({ ...ritual, id: ritual.address })),
+          season: season.season,
+          seasonUnavailable: season.unavailable,
+        })
       })
       .catch((error: unknown) => {
-        if (mounted.current && generation === requestGeneration.current) setHomeState({ status: 'error', rituals: [], message: safeErrorMessage(error) })
+        if (mounted.current && generation === requestGeneration.current) setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(error) })
       })
-  }, [client])
+  }, [client, connection])
 
   useEffect(() => {
     mounted.current = true
@@ -52,88 +79,84 @@ export function RitualsHomeScreen() {
     }
   }, [load])
 
-  const disclosure = 'DEVNET · TEST TOKENS'
+  const disclosure = 'Devnet · TEST tokens have no real value'
   const view = { disclosure }
+  const goPromise = () => navigation.navigate('SoloCreate')
+  const goFriends = () => navigation.navigate(homeCreateTarget().name)
+  const goJoin = () => navigation.navigate('JoinRitual', {})
 
   if (homeState.status === 'loading') {
-    return <View style={styles.center} accessibilityRole="progressbar" accessibilityLiveRegion="polite"><ActivityIndicator accessibilityLabel="Loading your crew" /><Text style={styles.muted}>Checking in with your crew…</Text><Text style={styles.disclosure}>{view.disclosure}</Text></View>
+    return <View style={styles.center} accessibilityRole="progressbar" accessibilityLiveRegion="polite"><ActivityIndicator accessibilityLabel="Loading your rituals" /><Text style={styles.muted}>Checking in…</Text><Text style={styles.disclosure}>{view.disclosure}</Text></View>
   }
   if (homeState.status === 'error') {
-    return <View style={styles.center} accessibilityLiveRegion="polite"><Text style={styles.errorTitle}>Your crew is out of reach</Text><Text style={styles.muted}>{homeState.message}</Text><Text style={styles.disclosure}>{view.disclosure}</Text><Button mode="contained" onPress={load} accessibilityLabel="Try again">Try again</Button></View>
+    return <View style={styles.center} accessibilityLiveRegion="polite"><Text style={styles.errorTitle}>Your rituals are out of reach</Text><Text style={styles.muted}>{homeState.message}</Text><Text style={styles.disclosure}>{view.disclosure}</Text><Button mode="contained" onPress={load} accessibilityLabel="Try again">Try again</Button></View>
   }
-
-  const ritual = chooseRitual(homeState.rituals)
-  const goCreate = () => navigation.navigate(homeCreateTarget().name)
-  const goJoin = () => navigation.navigate('JoinRitual', {})
 
   return <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Rituals home">
     <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>
-    {!ritual ? <EmptyCrew onCreate={goCreate} onJoin={goJoin} styles={styles} /> : <>
-      <View key={ritual.id}>
-        <CrewPoster ritual={ritual} styles={styles} />
-        <ActionButton tone="quiet" label="Open ritual" onPress={() => {
-          const target = ritualDetailTarget(ritual.address)
-          navigation.navigate(target.name, target.params)
-        }} style={styles.openButton} />
-      </View>
-      <CrewFeed ritual={ritual} styles={styles} />
-      <View style={styles.actions}>
-        <ActionButton label="Start a ritual" onPress={goCreate} />
-        <ActionButton tone="quiet" label="Join with a link" onPress={goJoin} />
-      </View>
-    </>}
-    <Footnote>{view.disclosure}</Footnote>
+    {homeState.rituals.length === 0
+      ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
+      : <ActiveRituals rituals={homeState.rituals} onOpen={(ritual) => openRitual(navigation, ritual)} styles={styles} />}
+    <SeasonsSection season={homeState.season} unavailable={homeState.seasonUnavailable} onOpen={() => {
+      if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
+    }} styles={styles} />
+    <Footnote>{disclosure}</Footnote>
   </ScrollView>
 }
 
-function EmptyCrew({ onCreate, onJoin, styles }: { onCreate: () => void; onJoin: () => void; styles: ReturnType<typeof makeStyles> }) {
+function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => void; onFriends: () => void; onJoin: () => void; styles: ReturnType<typeof makeStyles> }) {
   return <View style={styles.empty}>
-    <Text style={styles.emptyTitle}>No rituals yet</Text>
-    <Text style={styles.emptyBody}>Start something with your people, or join from a link.</Text>
+    <Text style={styles.emptyKicker}>YOUR BOARD IS CLEAR</Text>
+    <Text style={styles.emptyTitle}>Make a promise to yourself.</Text>
+    <Text style={styles.emptyBody}>Choose the thing. Set your stake. Show up in your own time.</Text>
     <View style={styles.actions}>
-      <ActionButton label="Start a ritual" onPress={onCreate} />
+      <ActionButton label="Make a promise" onPress={onPromise} />
+      <ActionButton tone="quiet" label="With friends" onPress={onFriends} />
       <ActionButton tone="quiet" label="Join with a link" onPress={onJoin} />
     </View>
   </View>
 }
 
+function ActiveRituals({ rituals, onOpen, styles }: { rituals: readonly HomeRitual[]; onOpen: (ritual: HomeRitual) => void; styles: ReturnType<typeof makeStyles> }) {
+  return <View accessibilityLabel="Your rituals">
+    <Section title="Keep showing up" />
+    {rituals.map((ritual) => <View key={ritual.id} style={styles.ritualCard}>
+      <CrewPoster ritual={ritual} styles={styles} />
+      <ActionButton tone="quiet" label="Open" onPress={() => onOpen(ritual)} style={styles.openButton} />
+    </View>)}
+  </View>
+}
+
+function SeasonsSection({ season, unavailable, onOpen, styles }: { season: SeasonAccountView | null; unavailable: boolean; onOpen: () => void; styles: ReturnType<typeof makeStyles> }) {
+  return <Section title="Seasons" aside="LIVE NOW">
+    {DEMO_SEASON.address === null
+      ? <Text style={styles.muted}>No Season running yet</Text>
+      : season
+        ? <SeasonCard title={DEMO_SEASON.title} liveCountLine={seasonCountLine(season)} actionLabel="Open" onPress={onOpen} />
+        : <Text style={styles.muted}>{unavailable ? 'Season is unavailable right now.' : 'Loading the Season…'}</Text>}
+  </Section>
+}
+
+function seasonCountLine(season: SeasonAccountView): string {
+  const current = seasonCountForNow(season.checkedInCount, season.schedule, Math.floor(Date.now() / 1000))
+  return `${season.participantCount === 0 ? '0 people in · Be the first' : `${season.participantCount} people in`} · ${current.count} checked in this week`
+}
+
 function CrewPoster({ ritual, styles }: { ritual: HomeRitual; styles: ReturnType<typeof makeStyles> }) {
   const account = ritual.bundle.ritual.account
-  const ready = `${account.fundedMemberCount} of ${account.members.length} ready`
+  const kicker = account.kind === 'Solo' ? `Solo · ${statusLabel(account.status)}` : `${statusLabel(account.status)} · ${account.fundedMemberCount} of ${account.members.length} ready`
   const cells = weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
-  return <Poster tint={memberColor(0)} kicker={`${statusLabel(account.status)} · ${ready}`} title={ritual.title}>
+  return <Poster tint={memberColor(0)} kicker={kicker} title={ritual.title}>
     <WeekStrip cells={cells} tint={memberColor(0)} />
     <PosterLine label="Per event" value={formatAtomic(account.perEventAllocation, account.stakeDecimals)} />
     <Text style={styles.requirement}>{ritual.requirement}</Text>
   </Poster>
 }
 
-function CrewFeed({ ritual, styles }: { ritual: HomeRitual; styles: ReturnType<typeof makeStyles> }) {
-  const claims = ritual.bundle.claims.filter((claim) => claim.account !== null)
-  const confirmed = claims.filter((claim) => claim.account?.status === 'Confirmed').length
-  const summary = claims.length === 0 ? 'Nothing posted yet' : `${confirmed} of ${claims.length} confirmed`
-  return <Section title="Crew this week" aside={summary}>
-    {claims.length > 0 ? claims.map((claim) => <ClaimRow key={claim.address.toBase58()} claim={claim} styles={styles} />) : <View style={styles.feedEmpty}>
-      <Text style={styles.emptyTitle}>{ritual.bundle.ritual.account.status === 'Funding' ? 'Check-ins start when everyone is ready.' : 'No check-ins yet.'}</Text>
-      <Text style={styles.emptyBody}>{ritual.bundle.event ? 'The crew has a clean slate for this event.' : 'This ritual has not opened an event yet.'}</Text>
-    </View>}
-  </Section>
-}
-
-function ClaimRow({ claim, styles }: { claim: FeedClaim; styles: ReturnType<typeof makeStyles> }) {
-  const account = claim.account
-  if (!account) return null
-  const name = memberName(claim.memberIndex)
-  const action = account.status === 'Confirmed' ? 'checked in' : account.status === 'Questioned' ? 'checked in · needs a closer look' : 'claimed this event'
-  const chip = account.status === 'Confirmed' ? <Chip ok>Confirmed</Chip> : account.status === 'Questioned' ? <Chip>Needs a second look</Chip> : <Chip>Waiting for a friend</Chip>
-  return <FeedRow index={claim.memberIndex} name={name} action={action}>{chip}</FeedRow>
-}
-
-function chooseRitual(rituals: readonly HomeRitual[]): HomeRitual | null {
-  return rituals.find(({ bundle }) => bundle.ritual.account.status === 'Active')
-    ?? rituals.find(({ bundle }) => bundle.ritual.account.status === 'Funding')
-    ?? rituals[rituals.length - 1]
-    ?? null
+function openRitual(navigation: NativeStackNavigationProp<RootStackParamList>, ritual: HomeRitual) {
+  const target = homeRitualTarget({ id: ritual.id, kind: ritual.bundle.ritual.account.kind })
+  if (target.name === 'SoloRitual') navigation.navigate(target.name, target.params)
+  else navigation.navigate(target.name, target.params)
 }
 
 function weekCells(status: string, length: number, current: number, settled: number): WeekCell[] {
@@ -144,26 +167,21 @@ function weekCells(status: string, length: number, current: number, settled: num
   })
 }
 
-function memberName(index: number): string {
-  return index === 0 ? 'Host' : `Friend ${index + 1}`
-}
-
 export const safeErrorMessage = (_error: unknown): string => 'Unable to load rituals right now. Check your connection and try again.'
 
 const makeStyles = (theme: MD3Theme) => StyleSheet.create({
   content: { paddingHorizontal: space.screen, paddingTop: space.sm, paddingBottom: space.xxl, backgroundColor: theme.colors.background },
-  // Wordmark and tagline are separate Text nodes: nesting them in one header
-  // Text shared a line box, which clipped the display face's ascenders on device.
   hero: { marginTop: space.lg, marginBottom: space.lg },
   wordmark: { ...type.display, color: color.fg, includeFontPadding: false },
   tagline: { ...type.body, color: color.muted, marginTop: space.xs },
   requirement: { ...type.body, color: color.white, marginTop: space.lg, opacity: 0.92 },
+  ritualCard: { marginTop: space.sm },
   openButton: { marginTop: space.sm },
   actions: { gap: space.sm, marginTop: space.xl },
   empty: { backgroundColor: color.card, borderColor: color.line, borderWidth: 1, borderRadius: radius.lg, padding: space.xl, marginTop: space.sm },
-  emptyTitle: { ...type.section, color: color.fg },
+  emptyKicker: { ...type.label, color: color.muted },
+  emptyTitle: { ...type.hero, color: color.fg, marginTop: space.sm },
   emptyBody: { ...type.body, color: color.muted, marginTop: space.sm },
-  feedEmpty: { paddingVertical: space.lg, borderBottomWidth: 1, borderBottomColor: color.line },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.md, backgroundColor: theme.colors.background },
   muted: { ...type.body, color: color.muted, textAlign: 'center' },
   errorTitle: { ...type.section, color: color.fg, textAlign: 'center' },
