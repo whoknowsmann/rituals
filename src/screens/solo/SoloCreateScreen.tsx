@@ -11,6 +11,7 @@ import { useAuthorization } from '../../utils/useAuthorization'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
+import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
 import { DEMO_CADENCE } from '../../domain/rituals/schedule'
@@ -121,6 +122,7 @@ export function SoloCreateScreen({ route }: Props) {
       seasonAddress,
       authorizedActor: () => accountRef.current?.publicKey ?? null,
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
+      pendingActionStore: asyncStoragePendingActionStore,
     })
   }, [client, connection, draft, season, seasonAddress, seasonAddressText, selectedAccount, suggestions])
 

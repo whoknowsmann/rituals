@@ -1,6 +1,7 @@
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { PendingActionRecord, PendingActionStore } from '../../recovery/pendingAction'
 import type { RitualClient } from '../../../../data/rituals/ritualClient'
 import { DEMO_CADENCE } from '../../../../domain/rituals/schedule'
 import { buildSoloCreateDeps } from './buildSoloCreateDeps'
@@ -57,5 +58,57 @@ describe('solo create transaction dependencies', () => {
     })
     await expect(deps.prepare()).rejects.toThrow('the selected cause is not available')
     expect(preparedCalls).toBe(0)
+  })
+
+  describe('pending-action recovery journal', () => {
+    const SIGNATURE = '5'.repeat(88)
+    const realPrepared = { ...(prepared as object), lastValidBlockHeight: 100 } as never
+    const makeStore = () => {
+      const records = new Map<string, PendingActionRecord>()
+      const calls: string[] = []
+      const store: PendingActionStore = {
+        list: async () => [...records.values()],
+        upsert: async (record) => { calls.push(`upsert:${record.transactionSignature === undefined ? 'unsigned' : 'signed'}`); records.set(record.messageDigest, record) },
+        remove: async (record) => { calls.push('remove'); records.delete(record.messageDigest) },
+      }
+      return { store, records, calls }
+    }
+    const makeClient = (calls: string[], submit: () => Promise<unknown>) => ({
+      programId: key(9),
+      getProtocolConfig: async () => ({ slot: 1, address: key(4), account: { allowedStakeMint: key(3), feeRecipient: key(5), paused: false } }),
+      prepareCreateSoloFundAndActivate: async () => realPrepared,
+      submitPrepared: vi.fn(async () => { calls.push('submitPrepared'); return submit() }),
+      confirmSubmitted: vi.fn(async () => { calls.push('confirmSubmitted'); return { signature: SIGNATURE, messageDigest: 'a'.repeat(64) } }),
+    }) as unknown as RitualClient
+    const depsFor = (client: RitualClient, store: PendingActionStore) => buildSoloCreateDeps({
+      client, creator: CREATOR, title: 'Weekly run', requirement: 'Run and check in.', eventCount: 4,
+      stakePerWeekAtomic: 5_000_000n, schedule: selectSoloSchedule({ cadence: DEMO_CADENCE, referenceSeconds: 1_000, eventCount: 4 }),
+      witnessMode: 'just-me', destination: 'cause', causeTokenAccount: key(20), pendingActionStore: store, now: () => 1_700_000_000,
+    })
+
+    it('journals before the wallet handoff, adds the signature after, and clears it on confirmation', async () => {
+      const { store, records, calls } = makeStore()
+      const client = makeClient(calls, async () => ({ signature: SIGNATURE }))
+      const deps = depsFor(client, store)
+      const ref = await deps.prepare()
+      await deps.submit(ref as never)
+      expect(calls).toEqual(['upsert:unsigned', 'submitPrepared', 'upsert:signed'])
+      const journaled = [...records.values()][0]
+      expect(journaled.actionKind).toBe('create-solo-fund-and-activate')
+      expect(journaled.ritualAddress).toBe(key(10).toBase58())
+      expect(journaled.transactionSignature).toBe(SIGNATURE)
+      await deps.confirm({ id: 'a'.repeat(64) } as never)
+      expect(calls.slice(-2)).toEqual(['confirmSubmitted', 'remove'])
+      expect(records.size).toBe(0)
+    })
+
+    it('keeps the wallet-returned signature when submission fails after the wallet answered', async () => {
+      const { store, records, calls } = makeStore()
+      const client = makeClient(calls, async () => { throw Object.assign(new Error('verification failed'), { submitted: true, signature: SIGNATURE }) })
+      const deps = depsFor(client, store)
+      const ref = await deps.prepare()
+      await expect(deps.submit(ref as never)).rejects.toThrow('verification failed')
+      expect([...records.values()][0]?.transactionSignature).toBe(SIGNATURE)
+    })
   })
 })

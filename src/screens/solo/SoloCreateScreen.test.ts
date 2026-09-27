@@ -10,6 +10,10 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('withWalletHandoff(')
   })
 
+  it('journals the one-approval solo create so a killed app can recover it', () => {
+    expect(source).toContain('pendingActionStore: asyncStoragePendingActionStore')
+  })
+
   it('uses the atomic solo create, fund, and activate preparation', () => {
     expect(source).toContain('prepareCreateSoloFundAndActivate')
   })

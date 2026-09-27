@@ -19,6 +19,16 @@ describe('pending action records', () => {
   it('persists the fund-and-activate recovery journal kind', () => {
     expect(parsePendingAction({ ...base, actionKind: 'fund-and-activate' })?.actionKind).toBe('fund-and-activate')
   })
+
+  it('persists every solo action kind, so a killed app can recover a solo create or skip', () => {
+    for (const kind of ['create-solo', 'create-solo-fund-and-activate', 'declare-skip'] as const) {
+      expect(parsePendingAction({ ...base, actionKind: kind })?.actionKind).toBe(kind)
+    }
+  })
+
+  it('still rejects an unknown action kind', () => {
+    expect(parsePendingAction({ ...base, actionKind: 'withdraw-everything' })).toBeNull()
+  })
 })
 
 describe('resolvePendingAction', () => {

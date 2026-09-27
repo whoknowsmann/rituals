@@ -7,6 +7,7 @@ import { deriveGroupPool, quoteActivationFee } from '../../../../domain/rituals/
 import { generateRitualNonce } from '../../../../domain/rituals/nonce'
 import { RITUAL_FEE_CONFIG } from '../../../rituals/create/draftForm'
 import { CreateDepsError } from '../../../rituals/create/buildCreateDeps'
+import { makePendingActionRecord, withPendingActionSignature, type PendingActionRecord, type PendingActionStore } from '../../../rituals/recovery/pendingAction'
 import type { CreateRitualDeps } from '../../../rituals/create/runCreateRitual'
 import type { SoloScheduleSelection } from './schedule'
 import { scheduleWindows } from './schedule'
@@ -31,6 +32,9 @@ export type SoloCreateDepsParams = Readonly<{
   /** Used to reject a wallet account switch while Phantom is open. */
   authorizedActor?: () => PublicKey | null
   getBlockHeight?: () => Promise<number>
+  /** Durable recovery journal written around the wallet handoff. */
+  pendingActionStore?: PendingActionStore
+  now?: () => number
 }>
 
 function fail(message: string): never {
@@ -64,6 +68,8 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
     seasonAddress,
     authorizedActor,
     getBlockHeight,
+    pendingActionStore,
+    now = () => Date.now(),
   } = params
   if (!(creator instanceof PublicKey)) fail('creator is not available')
   if (schedule.schedule.length !== eventCount) fail('Season schedule does not match this ritual.')
@@ -75,6 +81,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
 
   let prepared: PreparedRitualAction | null = null
   let handle: SubmittedRitualActionHandle | null = null
+  let pendingRecord: PendingActionRecord | null = null
 
   const assertAuthorized = () => {
     if (authorizedActor) {
@@ -153,14 +160,44 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
           throw Object.assign(new CreateDepsError('prepared transaction expired before signing'), { blockhashExpired: true })
         }
       }
-      handle = await client.submitPrepared(prepared)
+      if (pendingActionStore) {
+        pendingRecord = makePendingActionRecord(prepared, now())
+        await pendingActionStore.upsert(pendingRecord)
+      }
+      try {
+        handle = await client.submitPrepared(prepared)
+      } catch (error) {
+        // The wallet answered but verification failed: it may have broadcast.
+        const sig = submittedSignatureOf(error)
+        if (sig && pendingActionStore && pendingRecord) {
+          try { await pendingActionStore.upsert(withPendingActionSignature(pendingRecord, sig)) } catch { /* resolver still has the unsigned record */ }
+        }
+        throw error
+      }
+      if (pendingActionStore && pendingRecord) {
+        try {
+          pendingRecord = withPendingActionSignature(pendingRecord, handle.signature)
+          await pendingActionStore.upsert(pendingRecord)
+        } catch {
+          throw new CreateDepsError('transaction submitted but recovery could not be saved', true)
+        }
+      }
       return { id: prepared.messageDigest }
     },
 
     async confirm() {
       if (!handle) throw new CreateDepsError('cannot confirm before submitting')
       const result = await client.confirmSubmitted(handle)
+      if (pendingActionStore && pendingRecord) {
+        try { await pendingActionStore.remove(pendingRecord) } catch { /* recovery can resolve it on the next launch */ }
+      }
       return { signature: result.signature, messageDigest: result.messageDigest }
     },
   }
+}
+
+/** Signature a wallet returned before a post-submission failure, if any. */
+function submittedSignatureOf(error: unknown): string | null {
+  const candidate = error as { submitted?: unknown; signature?: unknown } | null
+  return candidate?.submitted === true && typeof candidate.signature === 'string' ? candidate.signature : null
 }
