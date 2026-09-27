@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { HomeRitualSnapshot, RitualsHomeSnapshot } from '../../../data/rituals/RitualsRepository'
 import { FixtureRitualsRepository } from '../../../data/rituals/FixtureRitualsRepository'
 import type { RitualId, TokenAtomicUnits } from '../../../domain/rituals/types'
-import { buildHomeViewModel, safeErrorMessage } from './homeViewModel'
+import { buildHomeViewModel, emptyHomeActions, homeRitualTarget, safeErrorMessage } from './homeViewModel'
 
 const activeRitual = {
   id: 'ritual-test' as RitualId,
@@ -183,5 +183,16 @@ describe('buildHomeViewModel', () => {
 
     for (const snapshot of snapshots) expect(buildHomeViewModel(snapshot).disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
     expect(buildHomeViewModel({ state: 'loading' }).disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
+  })
+})
+
+describe('solo-first home helpers', () => {
+  it('routes solo rituals to SoloRitual and group rituals to RitualDetail', () => {
+    expect(homeRitualTarget({ id: 'solo-1', kind: 'Solo' })).toEqual({ name: 'SoloRitual', params: { ritualId: 'solo-1' } })
+    expect(homeRitualTarget({ id: 'group-1', kind: 'Group' })).toEqual({ name: 'RitualDetail', params: { ritualId: 'group-1' } })
+  })
+
+  it('puts the solo invitation before secondary group and link actions', () => {
+    expect(emptyHomeActions()).toEqual(['Make a promise', 'With friends', 'Join with a link'])
   })
 })

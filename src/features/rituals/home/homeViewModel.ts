@@ -1,4 +1,5 @@
 import type { RitualsHomeSnapshot } from '../../../data/rituals/RitualsRepository'
+import type { RootStackParamList } from '../../../navigators/AppNavigator'
 import type { ConfirmationMode, EventIndex, RitualId } from '../../../domain/rituals/types'
 
 type LoadingSnapshot = { readonly state: 'loading' }
@@ -110,4 +111,21 @@ export function buildHomeViewModel(snapshot: HomeSnapshotInput): HomeViewModel {
     cards: { activeRitual: rituals.length > 0, funding: kind === 'funding', confirmations: kind === 'pending-confirmation' && count > 0, completedReceipt: false },
     ctas: { fundRitual: kind === 'funding', reviewConfirmations: kind === 'pending-confirmation' && count > 0, createRitual: false },
   }
+}
+
+export type HomeRitualKind = 'Solo' | 'Group'
+export type HomeRitualRoute =
+  | Readonly<{ name: 'SoloRitual'; params: RootStackParamList['SoloRitual'] }>
+  | Readonly<{ name: 'RitualDetail'; params: RootStackParamList['RitualDetail'] }>
+
+/** Keep route selection in a pure helper so solo can never fall through to the group detail screen. */
+export function homeRitualTarget(ritual: Readonly<{ id: string; kind: HomeRitualKind }>): HomeRitualRoute {
+  return ritual.kind === 'Solo'
+    ? { name: 'SoloRitual', params: { ritualId: ritual.id } }
+    : { name: 'RitualDetail', params: { ritualId: ritual.id } }
+}
+
+/** The empty home action order is product behavior: solo first, group second, link third. */
+export function emptyHomeActions(): readonly ['Make a promise', 'With friends', 'Join with a link'] {
+  return ['Make a promise', 'With friends', 'Join with a link']
 }
