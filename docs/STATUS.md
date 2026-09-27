@@ -29,7 +29,27 @@ has Jack's decisions (solo is the product, honor default + stamp, cause-first
 destination, real Seasons, Proof&people+Hand-made look), the bug table from
 today's phone run (B1–B8), phases A–E, and the phone-test runbook.
 
-**Update 2026-09-26 21:30 CDT:** Phase A landed on design/crew @ 99d0100
+**Overnight 2026-09-26→27 (Jack asleep; Hermes solo).**
+- feat/solo-program @ ab104ed (pushed): Season count now increments on
+  **activation**, not creation (honest). One-approval solo
+  create+fund+activate (1,068 B tx, under 1,232). Native **197/197**, TS
+  2,043 — both re-run by Hermes. Phase A merged in.
+- **Devnet deploy is blocked on devnet SOL.** Upgrade needs ~3.68 SOL rent for the
+  724 KB program; deployer `ETQ9…hXbx` has 1.26. A background job
+  (`~/.hermes/cache/scratch/faucet-then-deploy.sh`, log alongside) retries
+  the faucet every 90 s for 5 h, then runs `scripts/deploy-devnet.sh` once.
+  Fastest unblock: faucet.solana.com (devnet, GitHub login) → that address.
+- Caught before deploy: the solo worktree had a stray program keypair
+  (`AZMdd…`, would have deployed a *second* program). Replaced with the real
+  `2Mycq…` keypair; stray one parked in `~/.hermes/cache/scratch/`.
+- Phase C started on **feat/solo-screens** (from feat/solo-program): Stamp
+  component + stamp vocabulary, hand face (Fraunces italic, bundled),
+  DESIGN.md solo additions, route contract + demo config. Four agents in
+  worktrees `preflight-solo-{a,b,c,d}` (create / ritual+receipt+witness /
+  season+home / post-deploy scripts proven on a local validator). Local
+  commits only; Hermes integrates.
+
+**Earlier 2026-09-26 21:30 CDT:** Phase A landed on design/crew @ 99d0100
 (B1, B3, B4, B5, B6 + amount/"week opens" polish; tsc clean, **2,042 tests /
 82 files**). B2 deferred to Phase E (Jack). The APK on the Seeker is from 0c258ce;
 join + detail screens were checked on the device, and wallet steps were not.
