@@ -31,7 +31,7 @@ today's phone run (B1–B8), phases A–E, and the phone-test runbook.
 
 **Update 2026-09-26 21:30 CDT:** Phase A landed on design/crew @ 99d0100
 (B1, B3, B4, B5, B6 + amount/"week opens" polish; tsc clean, **2,042 tests /
-80 files**). B2 deferred to Phase E (Jack). The APK on the Seeker is from 0c258ce;
+82 files**). B2 deferred to Phase E (Jack). The APK on the Seeker is from 0c258ce;
 join + detail screens were checked on the device, and wallet steps were not.
 Phase B on feat/solo-program @ f99a2d1 (pushed; Season PDA + counter; native
 **193/193**, re-run by Hermes). In progress: count Season participants at
