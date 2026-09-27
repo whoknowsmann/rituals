@@ -186,6 +186,21 @@ export function decodeRitualEvent(input: AccountEnvelope, expectedProgramId: Pub
   return finish(reader, output)
 }
 
+/**
+ * The decoder alone cannot know the Ritual, so it accepts the solo witness
+ * confirmation shape (Confirmed, 1 required, approvalCount 1, empty member
+ * bitmap). This check scopes that exception: it is valid only for a Solo
+ * Ritual that has a witness. Group approvals must always be member bits.
+ */
+export function claimShapeMatchesRitual(
+  claim: Pick<CompletionClaimAccountView, 'status' | 'requiredAdditionalConfirmations' | 'approvalsBitmap' | 'approvalCount'>,
+  ritual: Pick<RitualAccountView, 'kind' | 'witness'>,
+): boolean {
+  const witnessShape = claim.approvalsBitmap === 0 && claim.approvalCount > 0
+  if (!witnessShape) return true
+  return ritual.kind === 'Solo' && ritual.witness !== null && claim.status === 'Confirmed' && claim.requiredAdditionalConfirmations === 1 && claim.approvalCount === 1
+}
+
 export function decodeCompletionClaim(input: AccountEnvelope, expectedProgramId: PublicKey): CompletionClaimAccountView {
   const reader = begin(input, expectedProgramId, 'CompletionClaim')
   const schemaVersion = reader.u8(); checkSchema(schemaVersion)

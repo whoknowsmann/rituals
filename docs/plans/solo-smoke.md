@@ -123,10 +123,21 @@ solana-keygen new --no-bip39-passphrase -o /home/hound/.hermes/cache/scratch/sol
 solana airdrop 5 --url http://127.0.0.1:18899 -k /home/hound/.hermes/cache/scratch/solo-d-local/owner.json
 solana airdrop 2 --url http://127.0.0.1:18899 -k /home/hound/.hermes/cache/scratch/solo-d-local/witness.json
 
+# 1) Mint + ProtocolConfig (the owner here is only the local setup payer)
 npx tsx scripts/create-demo-cause.ts \
   --url http://127.0.0.1:18899 \
   --owner-keypair /home/hound/.hermes/cache/scratch/solo-d-local/owner.json \
   --create-local-mint
+
+# 2) The cause account itself MUST be owned by a separate keypair. The program
+#    rejects a forfeit destination owned by the creator or witness (6068
+#    ForfeitDestinationOwnedByParticipant), so reusing owner.json as the cause
+#    owner makes every smoke path fail at create.
+solana-keygen new --no-bip39-passphrase -o /home/hound/.hermes/cache/scratch/solo-d-local/cause-owner.json
+solana airdrop 1 --url http://127.0.0.1:18899 -k /home/hound/.hermes/cache/scratch/solo-d-local/cause-owner.json
+npx tsx scripts/create-demo-cause.ts \
+  --url http://127.0.0.1:18899 \
+  --owner-keypair /home/hound/.hermes/cache/scratch/solo-d-local/cause-owner.json
 
 npx tsx scripts/init-demo-season.ts \
   --url http://127.0.0.1:18899 \
@@ -138,7 +149,7 @@ npx tsx scripts/init-demo-season.ts \
 npx tsx scripts/smoke-solo.ts \
   --url http://127.0.0.1:18899 \
   --keypair /home/hound/.hermes/cache/scratch/solo-d-local/owner.json \
-  --cause-token-account <causeTokenAccount from create-demo-cause JSON> \
+  --cause-token-account <causeTokenAccount from the SECOND create-demo-cause run> \
   --season <address from init-demo-season JSON> \
   --witness-keypair /home/hound/.hermes/cache/scratch/solo-d-local/witness.json \
   --fast --path all

@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js'
-import { decodeCompletionClaim, decodeProtocolConfig, decodeRitual, decodeRitualEvent, type CompletionClaimAccountView, type ProtocolConfigAccountView, type RitualAccountView, type RitualEventAccountView } from './accounts'
+import { decodeCompletionClaim, decodeProtocolConfig, decodeRitual, decodeRitualEvent, type CompletionClaimAccountView, type ProtocolConfigAccountView, type RitualAccountView, type RitualEventAccountView, claimShapeMatchesRitual } from './accounts'
 import { claimPda, eventPda, protocolConfigPda, ritualPda, CURRENT_CLAIM_VERSION } from './pdas'
 
 /** Stable failure classes for the read-only Rituals RPC boundary. */
@@ -290,6 +290,7 @@ export class RitualsRpcReader {
         let claimAccount: CompletionClaimAccountView | null = null
         if (rawClaim !== null) {
           claimAccount = this.#decode(rawClaim, () => decodeCompletionClaim(rawClaim, this.#programId)) as CompletionClaimAccountView
+          if (!claimShapeMatchesRitual(claimAccount, account)) throw failure('canonical', 'CompletionClaim approval shape does not match the Ritual kind')
           const expectedBump = claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[1]
           if (!claimAccount.ritual.equals(target) || !claimAccount.event.equals(eventAddress) || claimAccount.eventIndex !== requestedIndex || !claimAccount.claimant.equals(member) || claimAccount.memberIndex !== index || claimAccount.claimVersion !== CURRENT_CLAIM_VERSION || claimAccount.requiredAdditionalConfirmations !== account.additionalConfirmationThreshold || claimAccount.bump !== expectedBump || claimAccount.claimedAt < eventAccount.window.opens || claimAccount.claimedAt > eventAccount.window.deadline || (claimAccount.approvalsBitmap & ~account.fundedMembersBitmap) !== 0 || !claimAddress.equals(claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[0])) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
           claimed |= 1 << index
@@ -350,6 +351,7 @@ export class RitualsRpcReader {
       let claimAccount: CompletionClaimAccountView | null = null
       if (rawClaim !== null) {
         claimAccount = this.#decode(rawClaim, () => decodeCompletionClaim(rawClaim, this.#programId)) as CompletionClaimAccountView
+        if (!claimShapeMatchesRitual(claimAccount, account)) throw failure('canonical', 'CompletionClaim approval shape does not match the Ritual kind')
         const expectedBump = claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[1]
         if (!claimAccount.ritual.equals(target) || !claimAccount.event.equals(eventAddress) || claimAccount.eventIndex !== eventIndex || !claimAccount.claimant.equals(member) || claimAccount.memberIndex !== index || claimAccount.claimVersion !== CURRENT_CLAIM_VERSION || claimAccount.requiredAdditionalConfirmations !== account.additionalConfirmationThreshold || claimAccount.bump !== expectedBump || claimAccount.claimedAt < eventAccount.window.opens || claimAccount.claimedAt > eventAccount.window.deadline || (claimAccount.approvalsBitmap & ~account.fundedMembersBitmap) !== 0 || !claimAddress.equals(claimPda(eventAddress, member, CURRENT_CLAIM_VERSION, this.#programId)[0])) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
         claimed |= 1 << index
@@ -374,6 +376,7 @@ export class RitualsRpcReader {
     if (event.account.eventIndex >= ritual.account.schedule.length || !event.account.ritual.equals(ritual.address)) throw failure('canonical', 'event is not bound to ritual')
     const address = claimPda(event.address, target, CURRENT_CLAIM_VERSION, this.#programId)[0]; const fetched = await this.#fetch([address], effectiveOpts)
     const account = this.#decode(fetched.accounts[0], () => decodeCompletionClaim(fetched.accounts[0], this.#programId)) as CompletionClaimAccountView
+    if (!claimShapeMatchesRitual(account, ritual.account)) throw failure('canonical', 'CompletionClaim approval shape does not match the Ritual kind')
     const expectedBump = claimPda(event.address, target, CURRENT_CLAIM_VERSION, this.#programId)[1]
     if (!account.ritual.equals(ritual.address) || !account.event.equals(event.address) || account.eventIndex !== event.account.eventIndex || !account.claimant.equals(target) || account.memberIndex !== memberIndex || account.claimVersion !== CURRENT_CLAIM_VERSION || account.requiredAdditionalConfirmations !== ritual.account.additionalConfirmationThreshold || account.bump !== expectedBump || !address.equals(claimPda(event.address, target, CURRENT_CLAIM_VERSION, this.#programId)[0]) || account.claimedAt < event.account.window.opens || account.claimedAt > event.account.window.deadline) throw failure('canonical', 'Completion claim does not match canonical Ritual, event, member, or window')
     return Object.freeze({ slot: fetched.slot, address, ritualAddress: ritual.address, eventAddress: event.address, claimant: target, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, event, account })
