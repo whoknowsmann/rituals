@@ -29,8 +29,17 @@ has Jack's decisions (solo is the product, honor default + stamp, cause-first
 destination, real Seasons, Proof&people+Hand-made look), the bug table from
 today's phone run (B1–B8), phases A–E, and the phone-test runbook.
 
+**Update 2026-09-26 21:30 CDT:** Phase A landed on design/crew @ 99d0100
+(B1, B3, B4, B5, B6 + amount/"week opens" polish; tsc clean, **2,042 tests /
+80 files**). B2 deferred to Phase E (Jack). The APK on the Seeker is from 0c258ce;
+join + detail screens were checked on the device, and wallet steps were not.
+Phase B on feat/solo-program @ f99a2d1 (pushed; Season PDA + counter; native
+**193/193**, re-run by Hermes). In progress: count Season participants at
+activation rather than creation (honesty), and one-approval solo
+create+fund+activate. Not deployed yet.
+
 Start here, in order:
-1. Re-verify (commands above). Expect design/crew @ ≥57fed01, 2,011 tests.
+1. Re-verify (commands above). Expect design/crew @ ≥99d0100, 2,042 tests.
 2. **Phase A** on `design/crew`: fix B1 (demo first week opens in ~2 min, not
    next week), B2 (Phantom shows "github.com" → Rituals identity), B3 ("Opening
    Phantom…" handoff), B4–B6 (funding-state detail, join wall-of-text, fund
