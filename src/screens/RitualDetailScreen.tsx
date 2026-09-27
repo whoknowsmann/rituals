@@ -5,7 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { useAuthorization } from '../utils/useAuthorization'
-import { useRitualBundle, formatAtomic, listKnownRituals, nextEventLabel } from '../features/rituals/authoritativeRituals'
+import { useRitualBundle, formatAtomic, listKnownRituals } from '../features/rituals/authoritativeRituals'
+import { weekIsOpen, weekOpensLabel } from '../features/rituals/displayFormat'
 import { claimCompletionTarget, parseRitualRouteParams } from '../features/rituals/claims/routeHelpers'
 import { fundingPeople, ritualDetailModel } from '../features/rituals/crewView'
 import { ActionButton, Footnote, PeopleList, Poster, PosterLine, Section } from '../components/crew'
@@ -20,6 +21,8 @@ export function RitualDetailScreen() {
   const state = useRitualBundle(client, parsed?.ritualId ?? '', undefined)
   const ritualId = parsed?.ritualId ?? null
   const [title, setTitle] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
+  useEffect(() => { const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 15_000); return () => clearInterval(t) }, [])
   useEffect(() => {
     if (!ritualId) return
     let active = true
@@ -39,12 +42,15 @@ export function RitualDetailScreen() {
   const eventIndex = bundle.event?.account.eventIndex ?? account.currentEventIndex
   const target = claimCompletionTarget(parsed.ritualId, eventIndex)
   const claimOpen = bundle.event?.account.status === 'Claiming'
+  const window = account.schedule[Math.min(account.currentEventIndex, account.schedule.length - 1)]
+  const opensAt = window ? Number(window.opens) : null
+  const open = opensAt !== null && weekIsOpen(opensAt, now)
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.content} accessibilityLabel="Ritual detail">
       <Poster tint={memberColor(0)} kicker={model.kicker} title={title ?? 'Your ritual'}>
         <PosterLine label="Each person puts in" value={formatAtomic(account.memberTotalStake, account.stakeDecimals)} />
-        {account.status === 'Active' && <PosterLine label="Next week opens" value={nextEventLabel(bundle)} />}
+        {account.status === 'Active' && opensAt !== null && !bundle.event && <PosterLine label={open ? 'This week' : `Week ${account.currentEventIndex + 1} opens`} value={open ? 'Open now' : weekOpensLabel(opensAt, now)} />}
       </Poster>
 
       {account.status === 'Funding' && (
@@ -61,7 +67,8 @@ export function RitualDetailScreen() {
       {account.status === 'Active' && (
         <>
           <Section title="This week" aside={bundle.event ? `Week ${eventIndex + 1}` : undefined} />
-          {!bundle.event && <ActionButton tone="dark" label="Open this week" onPress={() => navigation.navigate('RitualAction', { ritualId: parsed.ritualId, phase: 'initialize-event', eventIndex })} />}
+          {!bundle.event && !open && <RNText style={s.muted}>Nothing to do yet. Come back when week {account.currentEventIndex + 1} opens.</RNText>}
+          {!bundle.event && open && <ActionButton tone="dark" label="Open this week" onPress={() => navigation.navigate('RitualAction', { ritualId: parsed.ritualId, phase: 'initialize-event', eventIndex })} />}
           {bundle.event?.account.status === 'Resolving' && <ActionButton tone="dark" label="Settle this week" onPress={() => navigation.navigate('RitualAction', { ritualId: parsed.ritualId, phase: 'finalize', eventIndex })} />}
           {model.showClaim && bundle.event && (
             <ActionButton label="I did it" disabled={!claimOpen} onPress={() => navigation.navigate(target.name, target.params)} accessibilityLabel="Claim completion" />
