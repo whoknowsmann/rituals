@@ -72,7 +72,31 @@ Screen padding 18. Sticky primary actions live in a dark bottom **dock**.
 - `Dock` — dark sticky bar with a one-line prompt and one action.
 - `HoldButton` — press-and-hold ring (700 ms) for check-in; releases early cancel.
 - `Screen` — bg + padding + optional hero title; no subtitle by default.
+- `Stamp` — rotated double-ruled ink mark that thumps in once (static under
+  reduce-motion). Vocabulary is fixed in `stampSpec.ts`: `PROMISE MADE`,
+  `SHOWED UP`, `KEPT` in deep-green ink (`color.stampInk`); `SKIPPED`,
+  `MISSED` in quiet warm grey (`color.stampQuiet`). A miss never gets the
+  success word and never red.
+- `SeasonCard` — Season title, honest live count ("3 people checked in this
+  week"), your status, Join. Count only, no names, no money.
+
+## Solo-first additions (2026-09-26)
+
+Direction = Proof & people structure + Hand-made texture/stamps
+(`sketches/ui-2026-09-26-solo/`).
+
+- **Handwriting only at commitment moments** — the promise card and the note
+  under a stamp. Face: `fonts.hand` = Fraunces 600 italic (already bundled; no
+  new dependency). Never for body copy or buttons.
+- **Paper** — missed/skipped cards use `color.paperMuted`; no red boxes.
+- **Missed week** — "That's a week, not a verdict." Quiet stamp, plain line
+  saying where the stake went (name the cause/person), next week's time. The
+  destination consequence is stated, not dramatised.
+- **Receipt** — kept: `KEPT` stamp + "back to you". Miss: `MISSED` stamp +
+  "went to <destination>". Different marks, same calm layout.
+- **Season card** — label "Seasons" (not "People nearby"); no filler "Recent"
+  card on home.
 
 ## Implemented
 
-The Rituals home screen now follows C2: it uses the host-colour poster, a claim/check-in feed sourced from the existing authoritative bundles, honest empty/loading/error states, and Crew-styled create/join actions. `HoldButton` is available as an accessible, screen-reader-safe reusable component, but remains deliberately unwired until the claim flow is ready. Solo rituals are not presented as available.
+The Rituals home screen now follows C2: it uses the host-colour poster, a claim/check-in feed sourced from the existing authoritative bundles, honest empty/loading/error states, and Crew-styled create/join actions. `HoldButton` is available as an accessible, screen-reader-safe reusable component, but remains deliberately unwired until the claim flow is ready. Solo screens are being built on `feat/solo-screens` (Phase C).

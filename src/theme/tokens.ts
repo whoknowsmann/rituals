@@ -22,6 +22,11 @@ export const color = {
   white: '#FFFFFF',
   scrim: 'rgba(0,0,0,0.14)',
   glass: 'rgba(255,255,255,0.28)',
+  /** Stamp inks: deep green for kept/showed-up, warm grey for skipped/missed. Never red. */
+  stampInk: '#2F6B2A',
+  stampQuiet: '#8C8377',
+  /** Paper tone for the missed/skipped state cards. */
+  paperMuted: '#EAE3D6',
 } as const
 
 /** Assigned by roster index. A ritual's poster takes its host's colour (index 0). */
@@ -67,6 +72,8 @@ export const fonts = {
   body: 'Figtree_400Regular',
   bodyStrong: 'Figtree_600SemiBold',
   heavy: 'Figtree_800ExtraBold',
+  /** Handwriting only at commitment moments (promise, stamp note). Fraunces italic: already bundled, no new dependency. */
+  hand: 'Fraunces_600SemiBold_Italic',
 } as const
 
 /** Scale ×1.25: 12 · 13 · 15 · 17 · 21 · 26 · 32 · 38. fontWeight omitted: the face carries it. */

@@ -9,6 +9,8 @@ import { color, memberColor, radius, space, type } from '../../theme'
 import { HoldButton } from './HoldButton'
 
 export { HoldButton }
+export { Stamp } from './Stamp'
+export { STAMP_KINDS, stampSpec, type StampKind } from './stampSpec'
 
 export const haptic = {
   light: () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}) },

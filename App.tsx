@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
-import { Fraunces_600SemiBold, Fraunces_900Black } from "@expo-google-fonts/fraunces";
+import { Fraunces_600SemiBold, Fraunces_900Black, Fraunces_600SemiBold_Italic } from "@expo-google-fonts/fraunces";
 import { Figtree_400Regular, Figtree_600SemiBold, Figtree_800ExtraBold } from "@expo-google-fonts/figtree";
 
 import { ConnectionProvider } from "./src/utils/ConnectionProvider";
@@ -26,6 +26,7 @@ export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     Fraunces_600SemiBold,
     Fraunces_900Black,
+    Fraunces_600SemiBold_Italic,
     Figtree_400Regular,
     Figtree_600SemiBold,
     Figtree_800ExtraBold,
