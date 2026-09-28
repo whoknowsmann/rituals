@@ -14,7 +14,9 @@ export type DemoCause = Readonly<{ label: string; detail: string; tokenAccount: 
 export const DEMO_CAUSE: DemoCause = Object.freeze({
   label: 'Northside Food Bank (demo)',
   detail: 'Demo beneficiary on devnet. Not a real donation.',
-  tokenAccount: null,
+  // Created 2026-09-27 by scripts/create-demo-cause.ts: TEST token account owned
+  // by the devnet-only key AZStJSV45Awq4VRzmkoTUpQQvrTVmfDW95p2whpDkv2R.
+  tokenAccount: new PublicKey('4adFBqT1x7AyBFF4bd8qVgeSjPbqhnaJVB4x5muMzbT5'),
 })
 
 /** The app-wide demo Season ("October Run Club"). */
