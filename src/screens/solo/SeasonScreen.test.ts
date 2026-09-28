@@ -21,4 +21,9 @@ describe('SeasonScreen wiring', () => {
     expect(source).toContain("navigation.navigate('SoloCreate', { seasonAddress: address.toBase58() })")
     expect(source).toContain('SeasonCard')
   })
+
+  it('hides Join once the Season has started instead of sending the user into a create that fails', () => {
+    expect(source).toContain('model.joinOpen')
+  })
 })
+

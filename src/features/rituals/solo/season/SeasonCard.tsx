@@ -8,14 +8,16 @@ export interface SeasonCardProps {
   readonly liveCountLine: string
   readonly actionLabel: 'Join' | 'Open' | string
   readonly onPress: () => void
+  /** Hide the action (e.g. joining closed and the user has no ritual to open). */
+  readonly hideAction?: boolean
 }
 
-export function SeasonCard({ title, liveCountLine, actionLabel, onPress }: SeasonCardProps) {
+export function SeasonCard({ title, liveCountLine, actionLabel, onPress, hideAction = false }: SeasonCardProps) {
   return <View style={styles.card} accessibilityLabel={`${title}, ${liveCountLine}`}>
     <Text style={styles.kicker}>SEASON</Text>
     <Text style={styles.title}>{title}</Text>
     <Text style={styles.count}>{liveCountLine}</Text>
-    <ActionButton label={actionLabel} onPress={onPress} style={styles.action} />
+    {hideAction ? null : <ActionButton label={actionLabel} onPress={onPress} style={styles.action} />}
   </View>
 }
 

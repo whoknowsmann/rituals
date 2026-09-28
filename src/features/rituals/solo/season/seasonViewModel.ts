@@ -48,6 +48,8 @@ export interface SeasonViewModel {
   readonly currentWindowIndex: number
   readonly status: SeasonRitualStatus
   readonly statusLabel: string
+  /** The program only accepts a Season join before its first week opens. */
+  readonly joinOpen: boolean
 }
 
 export function buildSeasonViewModel(input: Readonly<{
@@ -61,13 +63,16 @@ export function buildSeasonViewModel(input: Readonly<{
   const participantCount = Number.isSafeInteger(input.season.participantCount) && input.season.participantCount >= 0 ? input.season.participantCount : 0
   const date = (seconds: bigint) => new Date(Number(seconds) * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   const status = seasonRitualStatus(input.rituals, input.seasonAddress)
+  const firstOpens = input.season.schedule[0]?.opens
+  const joinOpen = firstOpens !== undefined && BigInt(Math.floor(input.nowSeconds)) < firstOpens
   return Object.freeze({
     title: input.title,
-    participantLine: participantCount === 0 ? '0 people in · Be the first' : `${participantCount} people in`,
+    participantLine: participantCount === 0 ? '0 people in · Be the first' : participantCount === 1 ? '1 person in' : `${participantCount} people in`,
     checkedInLine: `${current.count} checked in this week`,
     dates: `${date(input.season.startAt)} – ${date(input.season.endAt)}`,
     currentWindowIndex: current.index,
     status,
-    statusLabel: seasonStatusLabel(status),
+    statusLabel: status === 'not-joined' && !joinOpen ? 'Joining has closed for this Season' : seasonStatusLabel(status),
+    joinOpen,
   })
 }

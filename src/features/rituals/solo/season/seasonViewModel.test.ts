@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
-import { seasonCountForNow, seasonRitualStatus, seasonWindowIndex } from './seasonViewModel'
+import { buildSeasonViewModel, seasonCountForNow, seasonRitualStatus, seasonWindowIndex } from './seasonViewModel'
 
 const key = (seed: number) => new PublicKey(new Uint8Array(32).fill(seed))
 const schedule = [
@@ -37,3 +37,29 @@ describe('seasonRitualStatus', () => {
     expect(seasonRitualStatus([{ season, status }], season)).toBe(expected)
   })
 })
+
+describe('buildSeasonViewModel', () => {
+  const address = key(1)
+  const season = (participantCount: number) => ({ startAt: 90n, endAt: 330n, schedule, participantCount, checkedInCount: [1, 0, 0] })
+  const model = (participantCount: number, nowSeconds: number, rituals: { season: PublicKey | null; status: 'Active' }[] = []) =>
+    buildSeasonViewModel({ title: 'October Run Club', season: season(participantCount), seasonAddress: address, rituals, nowSeconds })
+
+  it('says "1 person", not "1 people"', () => {
+    expect(model(1, 50).participantLine).toBe('1 person in')
+    expect(model(2, 50).participantLine).toBe('2 people in')
+  })
+
+  it('offers Join only before the first week opens (the program rejects a late join)', () => {
+    expect(model(0, 99).joinOpen).toBe(true)
+    expect(model(0, 100).joinOpen).toBe(false)
+  })
+
+  it('an unjoined visitor after the start is told joining has closed', () => {
+    expect(model(3, 150).statusLabel).toBe('Joining has closed for this Season')
+  })
+
+  it('a joined member still sees their own status after the start', () => {
+    expect(model(3, 150, [{ season: address, status: 'Active' }]).statusLabel).toBe("You're in")
+  })
+})
+

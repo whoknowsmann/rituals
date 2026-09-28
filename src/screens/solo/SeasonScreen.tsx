@@ -86,14 +86,15 @@ export function SeasonScreen({ route }: Props) {
 
   return <ScrollView style={styles.screen} contentContainerStyle={styles.content} accessibilityLabel="Season">
     <Text style={styles.kicker}>SEASON · OPEN TO ANYONE</Text>
-    <SeasonCard title={model.title} liveCountLine={`${model.participantLine} · ${model.checkedInLine}`} actionLabel={actionLabel} onPress={() => {
+    <SeasonCard title={model.title} liveCountLine={`${model.participantLine} · ${model.checkedInLine}`} actionLabel={actionLabel} hideAction={!matched && !model.joinOpen} onPress={() => {
       if (matched) navigation.navigate('SoloRitual', { ritualId: matched.address })
       else navigation.navigate('SoloCreate', { seasonAddress: address.toBase58() })
     }} />
     <Text style={styles.dates}>{model.dates}</Text>
     <View style={styles.status} accessibilityLiveRegion="polite">
       <Text style={styles.statusTitle}>{model.statusLabel}</Text>
-      {model.status === 'not-joined' && <Text style={styles.muted}>Join this Season with your own promise and destination.</Text>}
+      {model.status === 'not-joined' && model.joinOpen && <Text style={styles.muted}>Join this Season with your own promise and destination.</Text>}
+      {model.status === 'not-joined' && !model.joinOpen && <Text style={styles.muted}>Joins close when week 1 opens. You can still start a promise of your own.</Text>}
       {model.status !== 'not-joined' && <Text style={styles.muted}>Your ritual is part of this Season.</Text>}
     </View>
     <Section title="How it feels" aside="SOLO, NOT ALONE">
