@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Button, Text, useTheme, type MD3Theme } from 'react-native-paper'
-import { useNavigation } from '@react-navigation/native'
+import { useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { ActionButton, Footnote, Poster, PosterLine, Section, WeekStrip, type WeekCell } from '../components/crew'
@@ -13,7 +13,7 @@ import { useConnection } from '../utils/ConnectionProvider'
 import { DEMO_SEASON } from '../data/rituals/demoConfig'
 import type { SeasonAccountView } from '../data/rituals/accounts'
 import { readSeason } from '../features/rituals/solo/season/readSeason'
-import { seasonCountForNow } from '../features/rituals/solo/season/seasonViewModel'
+import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/solo/season/seasonViewModel'
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { color, memberColor, radius, space, type } from '../theme'
 
@@ -70,14 +70,17 @@ export function RitualsHomeScreen() {
       })
   }, [client, connection])
 
+  // Reload on every focus: returning from a new promise, a check-in or a
+  // settle must show the fresh chain state, not the list from app launch.
+  const focused = useIsFocused()
   useEffect(() => {
     mounted.current = true
-    load()
+    if (focused) load()
     return () => {
       mounted.current = false
       requestGeneration.current += 1
     }
-  }, [load])
+  }, [focused, load])
 
   const disclosure = 'Devnet · TEST tokens have no real value'
   const view = { disclosure }
@@ -96,7 +99,7 @@ export function RitualsHomeScreen() {
     <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>
     {homeState.rituals.length === 0
       ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
-      : <ActiveRituals rituals={homeState.rituals} onOpen={(ritual) => openRitual(navigation, ritual)} styles={styles} />}
+      : <ActiveRituals rituals={homeState.rituals} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}
     <SeasonsSection season={homeState.season} unavailable={homeState.seasonUnavailable} onOpen={() => {
       if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
     }} styles={styles} />
@@ -117,13 +120,14 @@ function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => 
   </View>
 }
 
-function ActiveRituals({ rituals, onOpen, styles }: { rituals: readonly HomeRitual[]; onOpen: (ritual: HomeRitual) => void; styles: ReturnType<typeof makeStyles> }) {
+function ActiveRituals({ rituals, onOpen, onPromise, styles }: { rituals: readonly HomeRitual[]; onOpen: (ritual: HomeRitual) => void; onPromise: () => void; styles: ReturnType<typeof makeStyles> }) {
   return <View accessibilityLabel="Your rituals">
     <Section title="Keep showing up" />
     {rituals.map((ritual) => <View key={ritual.id} style={styles.ritualCard}>
       <CrewPoster ritual={ritual} styles={styles} />
       <ActionButton tone="quiet" label="Open" onPress={() => onOpen(ritual)} style={styles.openButton} />
     </View>)}
+    <ActionButton tone="quiet" label="Make another promise" onPress={onPromise} />
   </View>
 }
 
@@ -139,7 +143,7 @@ function SeasonsSection({ season, unavailable, onOpen, styles }: { season: Seaso
 
 function seasonCountLine(season: SeasonAccountView): string {
   const current = seasonCountForNow(season.checkedInCount, season.schedule, Math.floor(Date.now() / 1000))
-  return `${season.participantCount === 0 ? '0 people in · Be the first' : `${season.participantCount} people in`} · ${current.count} checked in this week`
+  return `${seasonParticipantLine(season.participantCount)} · ${current.count} checked in this week`
 }
 
 function CrewPoster({ ritual, styles }: { ritual: HomeRitual; styles: ReturnType<typeof makeStyles> }) {

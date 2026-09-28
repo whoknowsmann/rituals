@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
-import { buildSeasonViewModel, seasonCountForNow, seasonRitualStatus, seasonWindowIndex } from './seasonViewModel'
+import { buildSeasonViewModel, seasonCountForNow, seasonParticipantLine, seasonRitualStatus, seasonWindowIndex } from './seasonViewModel'
 
 const key = (seed: number) => new PublicKey(new Uint8Array(32).fill(seed))
 const schedule = [
@@ -60,6 +60,14 @@ describe('buildSeasonViewModel', () => {
 
   it('a joined member still sees their own status after the start', () => {
     expect(model(3, 150, [{ season: address, status: 'Active' }]).statusLabel).toBe("You're in")
+  })
+})
+
+describe('seasonParticipantLine', () => {
+  it('reads naturally at 0, 1 and many', () => {
+    expect(seasonParticipantLine(0)).toBe('0 people in · Be the first')
+    expect(seasonParticipantLine(1)).toBe('1 person in')
+    expect(seasonParticipantLine(3)).toBe('3 people in')
   })
 })
 

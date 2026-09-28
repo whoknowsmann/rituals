@@ -42,4 +42,19 @@ describe('RitualsHomeScreen safety and accessibility structure', () => {
     expect(source).toContain('SeasonCard')
     expect(source).not.toContain('Recent')
   })
+
+  it('reloads when the screen comes back into focus, so a promise made elsewhere shows up', () => {
+    expect(source).toContain('useIsFocused')
+    expect(source).toContain('if (focused) load()')
+  })
+
+  it('lets a user with rituals start another promise', () => {
+    expect(source).toContain('label="Make another promise"')
+  })
+
+  it('uses the shared Season count line (no "1 people in")', () => {
+    expect(source).toContain('seasonParticipantLine(')
+    expect(source).not.toContain('people in`')
+  })
 })
+

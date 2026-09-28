@@ -40,6 +40,11 @@ export function seasonStatusLabel(status: SeasonRitualStatus): string {
   }
 }
 
+export function seasonParticipantLine(participantCount: number): string {
+  const count = Number.isSafeInteger(participantCount) && participantCount >= 0 ? participantCount : 0
+  return count === 0 ? '0 people in · Be the first' : count === 1 ? '1 person in' : `${count} people in`
+}
+
 export interface SeasonViewModel {
   readonly title: string
   readonly participantLine: string
@@ -67,7 +72,7 @@ export function buildSeasonViewModel(input: Readonly<{
   const joinOpen = firstOpens !== undefined && BigInt(Math.floor(input.nowSeconds)) < firstOpens
   return Object.freeze({
     title: input.title,
-    participantLine: participantCount === 0 ? '0 people in · Be the first' : participantCount === 1 ? '1 person in' : `${participantCount} people in`,
+    participantLine: seasonParticipantLine(participantCount),
     checkedInLine: `${current.count} checked in this week`,
     dates: `${date(input.season.startAt)} – ${date(input.season.endAt)}`,
     currentWindowIndex: current.index,
