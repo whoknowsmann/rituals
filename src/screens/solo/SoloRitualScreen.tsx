@@ -32,19 +32,23 @@ export function SoloRitualScreen({ route }: Props) {
   const [reload, setReload] = useState(0)
   const ritualAddress = useMemo(() => { try { return new PublicKey(route.params.ritualId) } catch { return null } }, [route.params.ritualId])
 
+  // Chain time is synced on load, then ticks locally so the week opens and
+  // closes on screen without the user leaving and coming back.
+  const chainOffset = useRef(0)
   useEffect(() => {
     let mounted = true
     void connection.getSlot('confirmed').then((slot) => connection.getBlockTime(slot)).then((timestamp) => {
-      if (mounted && timestamp !== null) setChainNow(timestamp)
+      if (mounted && timestamp !== null) { chainOffset.current = timestamp - Math.floor(Date.now() / 1000); setChainNow(timestamp) }
     }).catch(() => {})
-    return () => { mounted = false }
+    const tick = setInterval(() => { if (mounted) setChainNow(Math.floor(Date.now() / 1000) + chainOffset.current) }, 1000)
+    return () => { mounted = false; clearInterval(tick) }
   }, [connection, reload])
 
   const model: SoloRitualModel | null = state.status === 'ready' && state.bundle && selectedAccount
     ? soloRitualModel(state.bundle, chainNow, selectedAccount.publicKey)
     : state.status === 'ready' && state.bundle ? soloRitualModel(state.bundle, chainNow, null) : null
   const read = state.status === 'ready' ? state.bundle : null
-  const makeSharedDeps = useCallback((kind: 'claim' | 'finalize') => {
+  const makeSharedDeps = useCallback((kind: 'claim' | 'finalize' | 'initialize-event') => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !read || !model) throw new Error('Ritual or wallet is not ready')
     const destinationTokenAccounts = kind === 'finalize'
       // The finalize builder appends the locked solo forfeit destination itself.
@@ -69,12 +73,19 @@ export function SoloRitualScreen({ route }: Props) {
   }, [client, connection, model, ritualAddress, selectedAccount])
   const claim = useRitualAction(() => makeSharedDeps('claim'))
   const skip = useRitualAction(makeSkipDeps)
-  const settle = useRitualAction(() => makeSharedDeps('finalize'))
+  // A week nobody checked in to has no event account yet; the first tap opens it
+  // (one approval), the screen re-reads, and the next tap settles it.
+  const settle = useRitualAction(() => makeSharedDeps(model?.needsEventInit ? 'initialize-event' : 'finalize'))
   const confirmedAction = useRef<string | null>(null)
   useEffect(() => {
     if (claim.state.status === 'confirmed' && confirmedAction.current !== claim.state.result.messageDigest) { confirmedAction.current = claim.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
     if (skip.state.status === 'confirmed' && confirmedAction.current !== skip.state.result.messageDigest) { confirmedAction.current = skip.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
-    if (settle.state.status === 'confirmed' && confirmedAction.current !== settle.state.result.messageDigest) { confirmedAction.current = settle.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
+    if (settle.state.status === 'confirmed' && confirmedAction.current !== settle.state.result.messageDigest) {
+      confirmedAction.current = settle.state.result.messageDigest
+      state.retry(); setReload((value) => value + 1)
+      // Opening a missed week is step one of two; clear it so the same button can settle.
+      settle.reset()
+    }
   }, [claim.state, settle.state, skip.state])
   const showedUpBefore = useRef(false)
   useEffect(() => {
@@ -104,8 +115,9 @@ export function SoloRitualScreen({ route }: Props) {
       {actionError && <ErrorLine>{actionError}</ErrorLine>}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {(model.state === 'claimable' || model.state === 'open-not-initialized') && !model.showedUp && <HoldButton onComplete={claim.start} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" />}
-      {model.state === 'resolving/settle' && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
+      {model.state === 'resolving/settle' && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
+      {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to my rituals" onPress={() => navigation.navigate('RitualsHome')} />}
       {readyForWallet && action.state.status === 'idle' && model.state !== 'claimable' && <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text>}
       <Footnote>Devnet · TEST tokens have no real value</Footnote>
@@ -118,6 +130,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Next week opens {model.nextOpensLabel}</Text><Text style={s.muted}>Your promise is still here.</Text></View>
   if (model.state === 'open-not-initialized') return <View style={s.card}><Text style={s.cardTitle}>This week is open</Text><Text style={s.muted}>Your first check-in will open the week.</Text></View>
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>
+  if (model.state === 'closing') return <View style={s.card}><Text style={s.cardTitle}>This week is closing</Text><Text style={s.muted}>{model.showedUp ? 'You showed up. You can settle it in a moment.' : 'The check-in window has closed. You can settle it in a moment.'}</Text></View>
   if (model.state === 'resolving/settle') return <View style={s.card}><Text style={s.cardTitle}>This week is ready to settle</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : 'The locked destination will receive the missed stake.'}</Text></View>
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>

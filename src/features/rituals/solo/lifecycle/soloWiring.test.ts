@@ -15,7 +15,7 @@ describe('solo lifecycle screen wiring', () => {
     expect(source).toContain('withWalletHandoff(')
     expect(source).toContain("buildRitualActionDeps")
     expect(source).toContain('buildSoloSkipDeps')
-    expect(source).toContain("makeSharedDeps('finalize')")
+    expect(source).toContain("'initialize-event' : 'finalize'")
     expect(lifecycle).toContain('prepareDeclareSkip')
     expect(sharedDeps).toContain('prepareInitializeAndClaim')
     expect(sharedDeps).toContain('prepareClaim')
@@ -29,5 +29,13 @@ describe('solo lifecycle screen wiring', () => {
     expect(witness).toContain("kind: 'approve'")
     expect(witness).toContain('withWalletHandoff(')
     expect(witness).toContain('Stamp')
+  })
+
+  it('keeps the ritual screen on a ticking chain clock, opens the week before a missed-week settle, and links the receipt', () => {
+    const ritual = screen('SoloRitualScreen.tsx')
+    expect(ritual).toContain('setInterval(')
+    expect(ritual).toContain("model?.needsEventInit ? 'initialize-event' : 'finalize'")
+    expect(ritual).toContain("navigation.navigate('SoloReceipt'")
+    expect(ritual).toContain('settle.reset()')
   })
 })

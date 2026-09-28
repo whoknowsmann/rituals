@@ -42,7 +42,8 @@ export function lifecycleReducer(state: LifecycleState, event: LifecycleEvent): 
     case 'confirming': return event.type === 'CONFIRMED' ? freeze({ status: 'confirmed' as const, result: event.result, ritualAddress: state.ritualAddress }) : state
     // A retry may start straight from a retryable error (lifecycleCanSubmit allows it), so PREPARE must advance too.
     case 'error': return state.retryable && event.type === 'RESET' ? lifecycleInitialState() : state.retryable && event.type === 'PREPARE' ? freeze({ status: 'preparing' as const }) : state
-    case 'confirmed': return state
+    // Only an explicit RESET clears a confirmed step (a multi-step action on one screen); nothing resubmits it.
+    case 'confirmed': return event.type === 'RESET' ? lifecycleInitialState() : state
   }
 }
 

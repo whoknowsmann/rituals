@@ -4,7 +4,7 @@ import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { shortRosterAddress } from '../../create/roster'
 import { weekOpensLabel } from '../../displayFormat'
 
-export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' | 'claimable' | 'awaiting-witness' | 'resolving/settle' | 'skipped' | 'missed' | 'completed'
+export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' | 'claimable' | 'awaiting-witness' | 'closing' | 'resolving/settle' | 'skipped' | 'missed' | 'completed'
 export type SoloWeekCell = 'done' | 'missed' | 'now' | 'future'
 
 /**
@@ -27,6 +27,12 @@ export type SoloRitualModel = Readonly<{
   claimStatus: 'none' | 'Pending' | 'Confirmed' | 'Questioned'
   eventStatus: 'Scheduled' | 'Claiming' | 'Resolving' | 'Settled' | 'Voided' | null
   message: string
+  /** Settling a week with no check-in first needs its event account opened. */
+  needsEventInit: boolean
+  /** Latest settled or voided week, for the receipt link; null before any. */
+  lastClosedEventIndex: number | null
+  /** Chain second when the current week can be settled (resolution + 1). */
+  settleOpensAt: number | null
 }>
 
 type EventLike = NonNullable<RitualBundleRead['event']>
@@ -84,7 +90,14 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
 
   const schedule = account.schedule[account.currentEventIndex]
   if (!schedule) return { state: 'completed', showedUp: false, claimStatus: 'none', message: 'This ritual is complete.' }
-  if (!current) return now < Number(schedule.opens) ? { state: 'waiting', showedUp: false, claimStatus: 'none', message: `Next week opens ${weekOpensLabel(Number(schedule.opens), now)}.` } : { state: 'open-not-initialized', showedUp: false, claimStatus: 'none', message: 'This week is open.' }
+  const resolved = now > Number(schedule.resolution)
+  if (!current) {
+    if (now < Number(schedule.opens)) return { state: 'waiting', showedUp: false, claimStatus: 'none', message: `Next week opens ${weekOpensLabel(Number(schedule.opens), now)}.` }
+    if (now <= Number(schedule.deadline)) return { state: 'open-not-initialized', showedUp: false, claimStatus: 'none', message: 'This week is open.' }
+    return resolved
+      ? { state: 'resolving/settle', showedUp: false, claimStatus: 'none', message: 'This week is ready to settle.' }
+      : { state: 'closing', showedUp: false, claimStatus: 'none', message: 'This week is closing.' }
+  }
 
   const mine = me ? bundle.claims.find((entry) => entry.member.equals(me))?.account : null
   const claimStatus = mine?.status ?? 'none'
@@ -93,7 +106,12 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
     const missed = current.account.forfeitedTotal > 0n && mine?.status !== 'Confirmed'
     return missed ? { state: 'missed', showedUp: false, claimStatus, message: "That's a week, not a verdict." } : { state: 'completed', showedUp: mine?.status === 'Confirmed', claimStatus, message: 'This week is settled.' }
   }
-  if (current.account.status === 'Resolving' || now > Number(current.account.window.deadline) || (mine?.status === 'Confirmed' && now >= Number(current.account.window.resolution))) return { state: 'resolving/settle', showedUp: mine?.status === 'Confirmed', claimStatus, message: 'This week is ready to settle.' }
+  // The program finalizes only when now > window.resolution; offering it earlier fails on chain.
+  if (current.account.status === 'Resolving' || now > Number(current.account.window.deadline)) {
+    return now > Number(current.account.window.resolution)
+      ? { state: 'resolving/settle', showedUp: mine?.status === 'Confirmed', claimStatus, message: 'This week is ready to settle.' }
+      : { state: 'closing', showedUp: mine?.status === 'Confirmed', claimStatus, message: 'This week is closing.' }
+  }
   if (now < Number(current.account.window.opens)) return { state: 'waiting', showedUp: false, claimStatus, message: `Next week opens ${weekOpensLabel(Number(current.account.window.opens), now)}.` }
   if (mine?.status === 'Pending') return { state: 'awaiting-witness', showedUp: false, claimStatus, message: 'Waiting for your witness to confirm.' }
   return { state: 'claimable', showedUp: mine?.status === 'Confirmed', claimStatus, message: mine?.status === 'Confirmed' ? 'You showed up.' : 'This week is open.' }
@@ -119,5 +137,8 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
     claimStatus: mapped.claimStatus,
     eventStatus: bundle.event?.account.status ?? null,
     message: mapped.message,
+    needsEventInit: mapped.state === 'resolving/settle' && !bundle.event,
+    lastClosedEventIndex: latestTerminal(bundle)?.event.account.eventIndex ?? null,
+    settleOpensAt: schedule ? Number(schedule.resolution) + 1 : null,
   })
 }

@@ -31,7 +31,7 @@ describe('soloRitualModel', () => {
     ['open-not-initialized', {}, null, []],
     ['claimable', {}, event(), []],
     ['awaiting-witness', { additionalConfirmationThreshold: 1, witness }, event({ status: 'Claiming', claimedMembersBitmap: 1 }), [claim('Pending')]],
-    ['resolving/settle', {}, event({ status: 'Resolving' }), []],
+    ['closing', {}, event({ status: 'Resolving' }), []],
     ['skipped', { skipDeclared: true, skipEventIndex: 0 }, event({ status: 'Voided', voidReason: 'DeclaredSkip' }), []],
     ['missed', {}, event({ status: 'Settled', forfeitedTotal: 5_000_000n, eventPool: 5_000_000n, payoutTotal: 5_000_000n }), []],
     ['completed', { status: 'Completed', currentEventIndex: 2 }, event({ status: 'Settled', eventIndex: 1 }), []],
@@ -54,5 +54,37 @@ describe('soloRitualModel', () => {
   it('labels the demo cause only for the exact configured destination', () => {
     expect(labelSoloDestination(destination, destination)).toContain('Northside Food Bank')
     expect(labelSoloDestination(destination, new PublicKey(new Uint8Array(32).fill(10)))).toContain('person you picked')
+  })
+
+  describe('closing a week (chain rules: finalize only after resolution)', () => {
+    // window: opens 100, deadline 200, resolution 300
+    it('never offers settle before the resolution time, even after the deadline', () => {
+      expect(soloRitualModel(bundle({}, event({ status: 'Claiming' }), [claim('Confirmed')]), 250, me).state).toBe('closing')
+      expect(soloRitualModel(bundle({}, event({ status: 'Resolving' }), []), 250, me).state).toBe('closing')
+    })
+
+    it('offers settle once the resolution time has passed', () => {
+      expect(soloRitualModel(bundle({}, event({ status: 'Claiming' }), [claim('Confirmed')]), 301, me).state).toBe('resolving/settle')
+    })
+
+    it('a missed week with no check-in (no event account) can still be settled, and never offers the stamp', () => {
+      expect(soloRitualModel(bundle({}, null), 250, me).state).toBe('closing')
+      const model = soloRitualModel(bundle({}, null), 301, me)
+      expect(model.state).toBe('resolving/settle')
+      expect(model.needsEventInit).toBe(true)
+    })
+
+    it('does not ask to open the week when the event already exists', () => {
+      expect(soloRitualModel(bundle({}, event({ status: 'Resolving' }), []), 301, me).needsEventInit).toBe(false)
+    })
+
+    it('points at the latest closed week for its receipt', () => {
+      const closed = {
+        ...bundle({ currentEventIndex: 1 }, null),
+        history: [{ ritual: bundle().ritual, event: event({ status: 'Settled', eventIndex: 0 }), claims: [claim('Confirmed')] }],
+      } as unknown as SoloRitualBundle
+      expect(soloRitualModel(closed, 350, me).lastClosedEventIndex).toBe(0)
+      expect(soloRitualModel(bundle({}, null), 50, me).lastClosedEventIndex).toBeNull()
+    })
   })
 })

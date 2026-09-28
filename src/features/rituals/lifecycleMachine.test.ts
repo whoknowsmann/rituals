@@ -53,3 +53,18 @@ describe('lifecycle machine: starting again from a retryable error', () => {
     expect(lifecycleReducer(stuck, { type: 'PREPARE' })).toBe(stuck)
   })
 })
+
+describe('lifecycle machine: a confirmed step can be cleared for the next step on the same screen', () => {
+  it('RESET after confirmed returns to idle so the next action can start', () => {
+    const confirmed = { status: 'confirmed' as const, ritualAddress: 'ritual', result }
+    const next = lifecycleReducer(confirmed as never, { type: 'RESET' })
+    expect(next.status).toBe('idle')
+    expect(lifecycleCanSubmit(next)).toBe(true)
+  })
+
+  it('confirmed ignores every other event (no accidental resubmission)', () => {
+    const confirmed = { status: 'confirmed' as const, ritualAddress: 'ritual', result }
+    expect(lifecycleReducer(confirmed as never, { type: 'PREPARE' })).toBe(confirmed)
+  })
+})
+
