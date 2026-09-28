@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEMO_CADENCE } from '../../../../domain/rituals/schedule'
-import { selectSoloSchedule } from './schedule'
+import { selectSoloSchedule, soloEventCount } from './schedule'
 
 const generated = selectSoloSchedule({ cadence: DEMO_CADENCE, referenceSeconds: 1_000, eventCount: 4 })
 
@@ -32,5 +32,18 @@ describe('solo create schedule selection', () => {
       eventCount: 4,
       seasonSchedule: [{ opens: 20_000n, deadline: 20_090n, resolution: 20_150n }],
     })).toThrow('Season schedule does not match this ritual.')
+  })
+
+  describe('soloEventCount (how many weeks the promise runs)', () => {
+    it('always follows a joined Season, whatever suggestion was picked', () => {
+      expect(soloEventCount({ seasonWindows: 16, picked: '6' })).toBe(16)
+    })
+    it('uses the suggestion the user actually picked', () => {
+      expect(soloEventCount({ picked: '6' })).toBe(6)
+      expect(soloEventCount({ picked: 8 })).toBe(8)
+    })
+    it('defaults to 4 weeks for a typed promise or an invalid value', () => {
+      for (const picked of [undefined, '', 'x', '0', '17', '2.5']) expect(soloEventCount({ picked })).toBe(4)
+    })
   })
 })

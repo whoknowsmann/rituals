@@ -42,4 +42,12 @@ describe('handwriting face', () => {
   it('is a loaded Fraunces italic (no new dependency)', () => {
     expect(fonts.hand).toBe('Fraunces_600SemiBold_Italic')
   })
+
+  it('lets a long section aside wrap instead of running off the screen', () => {
+    const kit = readFileSync(resolve(__dirname, 'index.tsx'), 'utf8')
+    const head = kit.match(/sectionHead: \{[^}]*\}/)?.[0] ?? ''
+    expect(head).toContain("flexWrap: 'wrap'")
+    const title = kit.match(/sectionTitle: \{[^}]*\}/)?.[0] ?? ''
+    expect(title).toContain('flexShrink: 1')
+  })
 })

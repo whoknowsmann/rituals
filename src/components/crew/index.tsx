@@ -181,8 +181,8 @@ const s = StyleSheet.create({
   heroKicker: { ...type.label, color: color.muted },
   heroText: { ...type.display, color: color.fg },
   section: { marginTop: space.xl },
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: space.sm, paddingHorizontal: 2 },
-  sectionTitle: { ...type.section, color: color.fg },
+  sectionHead: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', columnGap: space.md, rowGap: 2, marginBottom: space.sm, paddingHorizontal: 2 },
+  sectionTitle: { ...type.section, color: color.fg, flexShrink: 1 },
   sectionAside: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.muted },
 
   poster: { borderRadius: radius.poster, padding: space.xl, overflow: 'hidden' },

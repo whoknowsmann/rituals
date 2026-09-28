@@ -12,6 +12,16 @@ function seasonSeconds(value: bigint, name: string): number {
   return Number(value)
 }
 
+/**
+ * How many weeks the promise runs: a joined Season's window count always wins;
+ * otherwise the suggestion the user actually picked; otherwise 4 weeks.
+ */
+export function soloEventCount(input: Readonly<{ seasonWindows?: number; picked?: string | number }>): number {
+  if (input.seasonWindows !== undefined) return input.seasonWindows
+  const picked = typeof input.picked === 'number' ? input.picked : input.picked !== undefined && /^\d+$/.test(input.picked) ? Number(input.picked) : NaN
+  return Number.isInteger(picked) && picked >= 1 && picked <= 16 ? picked : 4
+}
+
 /** Selects the exact Season template when linked; otherwise creates the demo schedule. */
 export function selectSoloSchedule(input: Readonly<{
   cadence: RitualCadence

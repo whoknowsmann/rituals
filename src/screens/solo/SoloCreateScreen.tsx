@@ -13,12 +13,13 @@ import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/wal
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
+import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
 import { DEMO_CADENCE } from '../../domain/rituals/schedule'
 import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
 import { color, fonts, radius, space, type } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
-import { selectSoloSchedule } from '../../features/rituals/solo/create/schedule'
+import { selectSoloSchedule, soloEventCount } from '../../features/rituals/solo/create/schedule'
 import {
   SOLO_CREATE_MESSAGES,
   applyTypedIntention,
@@ -55,6 +56,7 @@ export function SoloCreateScreen({ route }: Props) {
   accountRef.current = selectedAccount
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [draft, setDraft] = useState<SoloCreateDraft>(initialDraft)
+  const [pickedEventCount, setPickedEventCount] = useState<string | number | undefined>(undefined)
   const [proofNote, setProofNote] = useState('')
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
   const [suggestionRound, setSuggestionRound] = useState(0)
@@ -94,12 +96,16 @@ export function SoloCreateScreen({ route }: Props) {
     return [...validateSoloCreateStep(3, draft, selectedAccount?.publicKey)]
   }, [draft, selectedAccount])
   const causeUnavailable = draft.destination === 'cause' && DEMO_CAUSE.tokenAccount === null
+  const weekCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
+  const totalStakeLabel = (() => {
+    try { return formatAtomic(parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount), 6) } catch { return '—' }
+  })()
 
   const makeDeps = useCallback(() => {
     if (client.status !== 'ready') throw new Error('Rituals are not ready.')
     if (!selectedAccount) throw new Error('Connect your wallet before making this promise.')
     if (seasonAddressText && season.status !== 'ready') throw new Error(season.message ?? 'This Season could not be read.')
-    const eventCount = suggestions[0]?.draft.eventCount ? Number(suggestions[0].draft.eventCount) : 4
+    const eventCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
     const schedule = selectSoloSchedule({
       cadence: DEMO_CADENCE,
       referenceSeconds: Math.floor(Date.now() / 1000),
@@ -125,7 +131,7 @@ export function SoloCreateScreen({ route }: Props) {
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
       pendingActionStore: asyncStoragePendingActionStore,
     })
-  }, [client, connection, draft, season, seasonAddress, seasonAddressText, selectedAccount, suggestions])
+  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount])
 
   const create = useCreateRitual(makeDeps)
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
@@ -168,8 +174,8 @@ export function SoloCreateScreen({ route }: Props) {
       ...current,
       title: suggestion.draft.title,
       requirement: suggestion.draft.requirement,
-      eventCount: suggestion.draft.eventCount,
     }))
+    setPickedEventCount(suggestion.draft.eventCount)
     setSuggestionRound((value) => value + 1)
     setStepErrors([])
   }
@@ -273,7 +279,7 @@ export function SoloCreateScreen({ route }: Props) {
               <TextInput value={draft.stakePerWeek} onChangeText={(value) => setDraft((current) => ({ ...current, stakePerWeek: value }))} keyboardType="decimal-pad" style={styles.stakeInput} accessibilityLabel="Stake each week" />
               <Text style={styles.money}>TEST</Text>
             </View>
-            <Text style={styles.quiet}>Demo speed</Text>
+            <Text style={styles.quiet}>{`${weekCount} weeks · ${totalStakeLabel} in all · Demo speed`}</Text>
           </View>
           <Section title="If I miss, it goes to" aside="LOCKED BEFORE YOU START" />
           {destinationChoices(DEMO_CAUSE).map((choice) => (

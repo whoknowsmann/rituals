@@ -21,6 +21,15 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('suggestion.draft.eventCount} weeks')
   })
 
+  it('sizes the promise from the joined Season or the picked suggestion, never suggestions[0]', () => {
+    expect(source).toContain('soloEventCount(')
+    expect(source).not.toContain('suggestions[0]?.draft.eventCount')
+  })
+
+  it('shows how many weeks and the total at stake before the approval', () => {
+    expect(source).toContain('weeks · ${totalStakeLabel} in all')
+  })
+
   it('journals the one-approval solo create so a killed app can recover it', () => {
     expect(source).toContain('pendingActionStore: asyncStoragePendingActionStore')
   })
