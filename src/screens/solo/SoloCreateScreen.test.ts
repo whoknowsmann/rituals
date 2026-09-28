@@ -10,6 +10,17 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('withWalletHandoff(')
   })
 
+  it('advances from a typed promise and shows step errors on every step, not only step 3', () => {
+    expect(source).toContain('applyTypedIntention(')
+    const errorLines = source.match(/stepErrors\.map\(/g) ?? []
+    expect(errorLines.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('does not describe solo suggestions as friend-confirmed (the group shape label says "a friend confirms")', () => {
+    expect(source).not.toContain('suggestion.shape}')
+    expect(source).toContain('suggestion.draft.eventCount} weeks')
+  })
+
   it('journals the one-approval solo create so a killed app can recover it', () => {
     expect(source).toContain('pendingActionStore: asyncStoragePendingActionStore')
   })

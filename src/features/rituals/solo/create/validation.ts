@@ -63,6 +63,19 @@ function validStake(value: string): boolean {
   return Number(value) > 0
 }
 
+/**
+ * A promise typed without tapping a suggestion still has to advance: use the
+ * typed words as the title and a plain honor rule as the requirement. A picked
+ * suggestion is never overwritten.
+ */
+export function applyTypedIntention(draft: SoloCreateDraft): SoloCreateDraft {
+  const typed = draft.intention.trim()
+  if (typed.length === 0) return draft
+  const title = draft.title.trim().length > 0 ? draft.title : typed
+  const requirement = draft.requirement.trim().length > 0 ? draft.requirement : 'Do it, then check in before the week closes.'
+  return title === draft.title && requirement === draft.requirement ? draft : Object.freeze({ ...draft, title, requirement })
+}
+
 export function validateSoloCreateStep(step: 1 | 2 | 3, draft: SoloCreateDraft, creator?: PublicKey): readonly string[] {
   const errors: string[] = []
   if (step === 1) {

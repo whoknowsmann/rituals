@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import {
   SOLO_CREATE_MESSAGES,
+  applyTypedIntention,
   destinationChoices,
   validatePersonDestination,
   validateSoloCreateStep,
@@ -65,5 +66,26 @@ describe('solo create validation', () => {
     })
     expect(destinationChoices({ label: 'Cause', tokenAccount: other })[0].disabled).toBe(false)
     expect(destinationChoices({ label: 'Cause', tokenAccount: other })[1].kind).toBe('person')
+  })
+
+  describe('step 1 with only a typed promise (no suggestion tapped)', () => {
+    const typedOnly = { ...base, intention: '  Run 3 miles  ', title: '', requirement: '' }
+
+    it('uses the typed promise as the title so Next can advance', () => {
+      const draft = applyTypedIntention(typedOnly)
+      expect(draft.title).toBe('Run 3 miles')
+      expect(draft.requirement.length).toBeGreaterThan(0)
+      expect(validateSoloCreateStep(1, draft)).toEqual([])
+    })
+
+    it('never overwrites a suggestion the user picked', () => {
+      const picked = { ...typedOnly, title: 'Weekly run', requirement: 'Go for a run and check in.' }
+      expect(applyTypedIntention(picked)).toEqual(picked)
+    })
+
+    it('still asks for a promise when nothing was typed', () => {
+      const draft = applyTypedIntention({ ...base, intention: '   ', title: '', requirement: '' })
+      expect(validateSoloCreateStep(1, draft)).toContain(SOLO_CREATE_MESSAGES.titleRequired)
+    })
   })
 })

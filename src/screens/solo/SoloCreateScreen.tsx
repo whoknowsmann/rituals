@@ -21,6 +21,7 @@ import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSol
 import { selectSoloSchedule } from '../../features/rituals/solo/create/schedule'
 import {
   SOLO_CREATE_MESSAGES,
+  applyTypedIntention,
   destinationChoices,
   publicKeyFromCanonical,
   validateSoloCreateStep,
@@ -153,7 +154,9 @@ export function SoloCreateScreen({ route }: Props) {
   // Note proof is client-side only for now; no camera dependency is used.
   const advance = () => {
     const creator = selectedAccount?.publicKey
-    const errors = [...validateSoloCreateStep(step, draft, creator)]
+    const current = step === 1 ? applyTypedIntention(draft) : draft
+    if (current !== draft) setDraft(current)
+    const errors = [...validateSoloCreateStep(step, current, creator)]
     if (step === 3) errors.push(...stepThreeErrors.filter((error) => !errors.includes(error)))
     setStepErrors(errors)
     if (errors.length > 0) return
@@ -210,18 +213,19 @@ export function SoloCreateScreen({ route }: Props) {
             <View style={styles.suggestions}>
               <Section title="A starting point" />
               {suggestions.map((suggestion, index) => (
-                <Pressable key={`${suggestionRound}:${suggestion.shape}`} onPress={() => chooseSuggestion(suggestion)} style={({ pressed }) => [styles.suggestion, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`Use ${suggestion.draft.title}`}>
+                <Pressable key={`${suggestionRound}:${index}`} onPress={() => chooseSuggestion(suggestion)} style={({ pressed }) => [styles.suggestion, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`Use ${suggestion.draft.title}`}>
                   <View style={[styles.band, { backgroundColor: index === 0 ? color.goDeep : color.line }]} />
                   <View style={styles.suggestionBody}>
                     <Text style={styles.suggestionTitle}>{suggestion.draft.title}</Text>
                     <Text style={styles.suggestionRule}>{suggestion.draft.requirement}</Text>
-                    <Text style={styles.suggestionMeta}>{suggestion.shape} · 5 TEST each week</Text>
+                    <Text style={styles.suggestionMeta}>{suggestion.draft.eventCount} weeks · 5 TEST each week</Text>
                   </View>
                   <Text style={styles.use}>Use</Text>
                 </Pressable>
               ))}
             </View>
           )}
+          {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
           <ActionButton label="Next" onPress={advance} accessibilityLabel="Continue to who keeps you honest" />
         </>
       )}
@@ -254,6 +258,7 @@ export function SoloCreateScreen({ route }: Props) {
               accessibilityLabel="Client side note proof"
             />
           )}
+          {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
           <ActionButton label="Next" onPress={advance} accessibilityLabel="Continue to missed week terms" />
         </>
       )}
