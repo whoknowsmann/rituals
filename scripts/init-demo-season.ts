@@ -8,7 +8,7 @@ import { flag, connectionFor, integerOption, option, parseCli, printJsonSummary,
 import { hashBytes, readProtocolConfig, refuseMainnetFundedPayer, seasonSummary, LOCAL_FAST_CADENCE } from './lib/chain'
 import { RITUALS_PROGRAM_ID } from '../src/data/rituals/programIds'
 
-function scheduleFor(now: number, weekly: boolean, fast: boolean) {
+function scheduleFor(now: number, weekly: boolean, fast: boolean, leadMinutes = 10) {
   if (weekly && fast) throw new Error('--weekly and --fast are mutually exclusive')
   if (weekly) {
     const year = new Date(now * 1000).getUTCMonth() <= 9 ? new Date(now * 1000).getUTCFullYear() : new Date(now * 1000).getUTCFullYear() + 1
@@ -24,7 +24,9 @@ function scheduleFor(now: number, weekly: boolean, fast: boolean) {
     const schedule = generateRitualSchedule({ firstEventAt: first, eventCount: 4, cadence: LOCAL_FAST_CADENCE })
     return { cadence: LOCAL_FAST_CADENCE, schedule, startAt: first, endAt: schedule[schedule.length - 1].resolutionDeadlineAt + 1 }
   }
-  const first = now + 10 * 60
+  // Joins close when week 1 opens, so the lead must cover rebuild + install + a
+  // phone walk-through. --lead-minutes overrides the 10-minute default.
+  const first = now + leadMinutes * 60
   const schedule = generateRitualSchedule({ firstEventAt: first, eventCount: 16, cadence: DEMO_CADENCE })
   return { cadence: DEMO_CADENCE, schedule, startAt: first, endAt: schedule[schedule.length - 1].resolutionDeadlineAt + 1 }
 }
@@ -50,7 +52,9 @@ async function main(): Promise<void> {
 
   const config = await readProtocolConfig(connection)
   if (!config.account.authority.equals(authority.publicKey)) throw new Error(`authority does not match ProtocolConfig.authority (${config.account.authority.toBase58()})`)
-  const selected = scheduleFor(Math.floor(Date.now() / 1000), flag(args, 'weekly'), flag(args, 'fast'))
+  const leadMinutes = integerOption(args, 'lead-minutes', 10)
+  if (!(leadMinutes >= 2 && leadMinutes <= 24 * 60)) throw new Error('--lead-minutes must be between 2 and 1440')
+  const selected = scheduleFor(Math.floor(Date.now() / 1000), flag(args, 'weekly'), flag(args, 'fast'), leadMinutes)
   const inputSchedule = selected.schedule.map((entry) => ({ opens: BigInt(entry.claimOpensAt), deadline: BigInt(entry.claimDeadlineAt), resolution: BigInt(entry.resolutionDeadlineAt) }))
   const instruction = buildInitializeSeasonInstruction({ programId: RITUALS_PROGRAM_ID, authority: authority.publicKey, season: { seasonId, titleDigest, schedule: inputSchedule, startAt: BigInt(selected.startAt), endAt: BigInt(selected.endAt) } })
   const signature = await sendAndConfirmTransaction(connection, new Transaction().add(instruction), [authority], { commitment: 'confirmed' })
