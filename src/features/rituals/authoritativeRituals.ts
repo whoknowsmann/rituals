@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { PublicKey } from '@solana/web3.js'
 import { useEffect, useRef, useState } from 'react'
 import type { RitualClient } from '../../data/rituals/ritualClient'
-import type { RitualBundleRead } from '../../data/rituals/ritualsRpc'
+import { RitualRpcError, type RitualBundleRead } from '../../data/rituals/ritualsRpc'
 import type { RitualClientState } from './client/useRitualClient'
 
 export const KNOWN_RITUALS_STORAGE_KEY = '@rituals/known-rituals/v1'
@@ -39,9 +39,31 @@ export async function rememberRitual(ritual: KnownRitual): Promise<void> {
 }
 
 export async function loadKnownRitualBundles(client: RitualClient): Promise<readonly (KnownRitual & { bundle: RitualBundleRead })[]> {
-  const known = await listKnownRituals()
-  const results = await Promise.all(known.map(async (item) => ({ ...item, bundle: await client.getRitualBundle(new PublicKey(item.address)) })))
-  return Object.freeze(results)
+  return readKnownRitualBundles(await listKnownRituals(), (address) => client.getRitualBundle(address))
+}
+
+/**
+ * Reads every remembered ritual. A ritual that can never be read again (its
+ * account is gone, or it was created under an older program layout that no
+ * longer decodes) is skipped so it cannot hide the others. Any other failure
+ * (RPC, stale or unstable reads) is rethrown so the screen offers a retry
+ * instead of quietly showing a shorter list.
+ */
+export async function readKnownRitualBundles(
+  known: readonly KnownRitual[],
+  read: (address: PublicKey) => Promise<RitualBundleRead>,
+): Promise<readonly (KnownRitual & { bundle: RitualBundleRead })[]> {
+  const settled = await Promise.allSettled(known.map(async (item) => ({ ...item, bundle: await read(new PublicKey(item.address)) })))
+  const loaded: (KnownRitual & { bundle: RitualBundleRead })[] = []
+  for (const result of settled) {
+    if (result.status === 'fulfilled') loaded.push(result.value)
+    else if (!isPermanentlyUnreadable(result.reason)) throw result.reason
+  }
+  return Object.freeze(loaded)
+}
+
+function isPermanentlyUnreadable(error: unknown): boolean {
+  return error instanceof RitualRpcError && (error.category === 'decode' || error.category === 'not-found')
 }
 
 export function useRitualBundle(clientState: RitualClientState, addressText: string, eventIndex?: number): BundleState {
