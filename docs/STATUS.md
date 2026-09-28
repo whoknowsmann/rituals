@@ -3,7 +3,7 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-27 evening CDT** (feat/solo-screens: tsc clean; native
+Last verified: **2026-09-28 morning CDT** (see "Done 2026-09-28"). Before that: **2026-09-27 evening CDT** (feat/solo-screens: tsc clean; native
 197/197 on feat/solo-program; local-validator solo smoke 35/35; **solo + Seasons
 build DEPLOYED to devnet**, slot 504946601, on-chain bytes == local .so,
 verify-devnet-config all PASS)
@@ -78,28 +78,41 @@ Phases:
   Next time, write the buffer with the script first; don't spend an hour on
   `program deploy` retries.
 
+### Done 2026-09-28 morning (Hermes, before the phone test)
+
+- **Demo cause live:** `Northside Food Bank (demo)` = TEST token account
+  `4adFBqT1x7AyBFF4bd8qVgeSjPbqhnaJVB4x5muMzbT5`, owner `AZSt…kv2R`
+  (devnet-only, 0 mainnet), committed in `demoConfig.ts` (931ebff).
+- **Devnet smoke, honor + miss only** (Jack: keep testing proportionate), smoke
+  owner `fT9X…Jgo1`: honor 8/8 (ritual `6SbCLhxh…`, Settled, Confirmed, exact
+  conservation); miss 9/9 (ritual `EGdxRY22…`, cause got exactly the week's
+  allocation, creator got nothing). **Run WITHOUT a Season**, so the Season
+  counters are proven on the local validator only (35/35); the phone test is
+  their first devnet proof.
+- **Device walk found and fixed (all RED-first, pushed):**
+  - ff8bbc7 home showed "Your rituals are out of reach": one pre-upgrade
+    ritual (`CGw8…`, 909 B, no longer decodes) failed `Promise.all`.
+  - 6910948 step 1 "Next" was dead unless a suggestion card was tapped, with
+    no visible error; solo cards said "a friend confirms".
+  - 8e86249 the promise ran for `suggestions[0]`'s weeks, not the tapped card's;
+    step 3 now shows weeks + total; "LOCKED BEFORE YOU START" no longer clips.
+  - 4e53ece (read against the program) Settle was offered from the deadline
+    but finalize needs `now > resolution`; a no-check-in week stayed "open"
+    forever; chain time never ticked on screen; no link to the receipt.
+  - ecccb71 Season offered Join after week 1 (program rejects it); "1 people in".
+  - 88cd8c2 home never reloaded on focus (new promise invisible until restart);
+    no "Make another promise" once you have one.
+
 ### Do this next, in order
 
-1. Re-verify (commands at top).
-2. Devnet demo fixtures, per `docs/plans/solo-smoke.md` (keys already exist in
-   `.keys/`, all devnet-only, unfunded: cause owner `AZSt…`, smoke owner `fT9X…`,
-   smoke witness `3kLF…`). Fund them from the deployer (SOL) and mint TEST to the
-   smoke owner. `create-demo-cause` (cause owner must differ from the creator,
-   6068). Paste the cause token account into `src/data/rituals/demoConfig.ts`.
-   **Never `~/.config/solana/id.json`** (Jack's real mainnet wallet).
-3. Devnet smoke: **`--path honor` and `--path miss` only** (Jack, 2026-09-27: keep
-   testing proportionate). Honor proves the Season counters on devnet; miss
-   proves the cause payout. Skip and witness are already proven on the local
-   validator with the identical .so (35/35).
-4. **Season timing:** a Season only accepts joins before its first window opens,
-   and the demo cadence opens 10 min after init and ends ~48 min later. Init the
-   demo Season (`init-demo-season.ts`) right before the phone test or filming,
-   not now, or use `--weekly` for anything judges touch. The slug is the PDA
-   seed, so a new run needs a new slug (e.g. `october-run-club-2`).
-5. Build APK (commands under "Local builds" below; run from preflight-solo),
-   install, screenshot every solo screen, then **Phase D**: solo phone test.
-   Hermes drives and Jack only does fingerprints. Runbook is in the plan §5.
-6. Phase E (Oct 3–8): demo video, README, public repo + B2 app identity,
+1. **Phase D phone test (needs Jack, ~10 min of fingerprints).** Latest APK
+   `artifacts/rituals-<head>.apk` on the Seeker. Phone wallet = Phantom
+   Account 3 `98W4…WjLa` (0.1 SOL, 192 TEST). Right before starting, init a
+   fresh demo Season (`init-demo-season.ts --slug october-run-club-<n>`, joins
+   close 10 min after init), put its address in `demoConfig.ts`, rebuild.
+   Run: solo promise (1 approval) → ~2 min → hold to stamp (1) → wait for
+   close → settle (1) → receipt. Then join the Season → count moves.
+2. Phase E (Oct 3–8): demo video, README, public repo + B2 app identity,
    release APK, submission. Only with Jack's approval.
 
 Known gaps (not in the solo demo path; deliberately after the phone test):
