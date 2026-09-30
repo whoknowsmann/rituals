@@ -59,6 +59,14 @@ npx tsx scripts/smoke-solo.ts \
   --path all
 ```
 
+**Phone demos:** the app's Season address is compiled in, but it is the
+deterministic PDA of the slug, so print it first with
+`npx tsx scripts/season-address.ts <slug>`, put it in `demoConfig.ts`, build and
+install, and only then create it with `init-demo-season.ts --slug <slug>
+--lead-minutes <n>` when the person is at the phone. Joins close when week 1
+opens, and a joined ritual's first check-in waits for it too, so keep the lead
+short (about 8 minutes) once the APK is already installed.
+
 `init-demo-season` is idempotent: running it again with the same slug decodes
 and prints the existing Season instead of submitting a second initialization.
 The default Season has 16 windows at `DEMO_CADENCE`, with week 1 opening about

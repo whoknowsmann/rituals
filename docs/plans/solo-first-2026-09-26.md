@@ -29,14 +29,16 @@ stickiness/PMF, UX (intuitive, polished, fun), innovation, presentation/demo
    devnet rituals and older APKs become unreadable; accepted.
 8. Tagline **"Show up, or pay up."** unchanged (pinned by test).
 
-## 1b. Phase status (2026-09-27 evening; details in docs/STATUS.md RESUME HERE)
+## 1b. Phase status (2026-09-28 ~11:00 CDT; details in docs/STATUS.md RESUME HERE)
 
-- A: done (B2 deferred to Phase E). B: **deployed to devnet** (slot 504946601,
-  bytes verified, config verified). C: built on feat/solo-screens, local-validator
-  smoke 35/35, **not on a device yet**. D, E: not started.
-- Next: demo cause → devnet smoke (honor + miss only) → APK → Phase D. Init the
-  demo Season just before the phone test (its join window closes 10 min after init).
+- A: done (B2 deferred to Phase E). B: **deployed to devnet** (slot 504946601).
+  C: built; home, create 1–3 and the Season screen walked on the Seeker, six
+  device bugs fixed (2,146 tests). Demo cause live; devnet smoke honor + miss green.
+- **D: next.** Final APK is on the phone, pointed at Season slug
+  `october-run-club-d1` (created on chain only when Jack says go). 3 approvals:
+  join/create → hold to stamp → settle → receipt.
 - Parked until after the phone test: voided-week display + witness "question".
+- E (Oct 3–8): not started.
 
 ## 2. Current truth (verified 2026-09-26 15:00 CDT — historical, see 1b)
 

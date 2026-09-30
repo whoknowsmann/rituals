@@ -3,10 +3,10 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-28 morning CDT** (see "Done 2026-09-28"). Before that: **2026-09-27 evening CDT** (feat/solo-screens: tsc clean; native
-197/197 on feat/solo-program; local-validator solo smoke 35/35; **solo + Seasons
-build DEPLOYED to devnet**, slot 504946601, on-chain bytes == local .so,
-verify-devnet-config all PASS)
+Last verified: **2026-09-28 ~11:00 CDT** (feat/solo-screens @ 906d577 + docs:
+tsc clean, **2,146 tests / 99 files**; solo + Seasons program **deployed** on
+devnet slot 504946601; devnet smoke honor 8/8 + miss 9/9; final APK installed
+on the Seeker; phone test NOT yet run)
 Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
 
 ## How to re-verify in one minute
@@ -23,39 +23,101 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
-## RESUME HERE — handoff 2026-09-27 afternoon ("lets begin rituals")
+## RESUME HERE — handoff 2026-09-28 ("lets begin rituals")
 
 **Active line: `feat/solo-screens` in the worktree `~/projects/preflight-solo`.**
-Not `~/projects/preflight` (that is design/crew, which is now behind; see below).
-Plan of record: `docs/plans/solo-first-2026-09-26.md` (decisions §1 are final).
-Post-deploy runbook: `docs/plans/solo-smoke.md`.
+Not `~/projects/preflight` (design/crew, behind). Plan of record:
+`docs/plans/solo-first-2026-09-26.md` (decisions §1 are final). Runbook:
+`docs/plans/solo-smoke.md`.
 
-### Where things are (verified 2026-09-27 afternoon)
+### Start here in the morning (in order)
 
-| Branch (all in private repo whoknowsmann/rituals) | Head | State |
+The only thing left before Phase E is **Phase D: the solo phone test with
+Jack** (3 Phantom approvals, ~15 min). Everything that did not need him is done.
+
+1. **Re-verify** (commands above). Expect HEAD ≥ the docs commit after 906d577
+   and **2,146 tests**. `./scripts/check-device.sh`: Seeker `SM02G40619100656`
+   on USB; Rituals installed (`lastUpdateTime=2026-09-28 10:52`, build
+   `artifacts/rituals-d1.apk` = 906d577).
+2. **Check the phone wallet** (Phantom **Account 3** `98W4zJfQDk9F5qjtLTgWTYBRdETT3JgUqY7dBNT9WjLa`):
+   last read 2026-09-28 11:00 = **0.0999948 SOL, 192 TEST**.
+   `spl-token accounts --owner <addr> -u devnet` (not `spl-token balance --owner`,
+   which printed nothing).
+3. **When Jack says "go" (at the phone, Phantom on Account 3), create the Season.**
+   The installed APK already points at slug `october-run-club-d1` =
+   `BjLpWbSxmfgQTKSvFQ23AhsvEbKM5DNzRpuoXCNZTUDz` (NOT created yet; home shows
+   "Season is unavailable right now" until it is). **No rebuild needed.**
+   ```bash
+   cd ~/projects/preflight-solo
+   npx tsx scripts/init-demo-season.ts --url https://api.devnet.solana.com \
+     --authority-keypair ../preflight/.keys/rituals-devnet-deployer.json \
+     --slug october-run-club-d1 --title 'October Run Club' --lead-minutes 8
+   ```
+   `--lead-minutes 8`: joins close when week 1 opens, and a joined ritual uses
+   the Season's schedule, so the stamp can't happen until week 1 opens. 8 min =
+   time to join, without a long wait. If d1 already exists and has started, use
+   a new slug: `npx tsx scripts/season-address.ts october-run-club-d2`, put the
+   address in `src/data/rituals/demoConfig.ts`, rebuild (~4 min), install, then init.
+4. **Phone run** (Hermes drives with `scripts/ui.py`, Jack only approves;
+   tell him what Phantom will show before each approval):
+   1. Home → Seasons card → Open → **Join** → type a promise → Next → Just me →
+      Next → stake 5 TEST, cause = Northside Food Bank (demo) →
+      **Approve & make it real** (approval 1: 16 weeks × 5 = 80 TEST + the
+      activation fee). Expect the PROMISE MADE stamp, then Season shows
+      **"1 person in"** (first devnet proof of `participant_count`).
+   2. When week 1 opens: **hold to stamp** (approval 2). **The claim window is
+      only 90 s** (`DEMO_CLAIM_WINDOW_SECONDS`), and Phantom's unlock + approve +
+      Seed Vault took ~70 s once on 2026-09-25: start the hold the moment the week
+      opens and approve promptly. Expect SHOWED UP + Season "1 checked in this week"
+      (first devnet proof of `checked_in_count`).
+   3. After the week closes ("This week is closing" → about 60 s later
+      "ready to settle"): **Settle this week** (approval 3) → **See week 1
+      receipt** → KEPT.
+   4. Screenshot every screen (`scripts/ui.py shot <name>` → `artifacts/shots/`).
+      Log: `./scripts/adb.sh logcat -v time | grep -E "\[rituals\]|MobileWalletAdapter"`.
+5. Record the results (signatures, screenshots, anything that broke) here and in
+   the Hub roadmap in the same commit. Then Phase E.
+
+### Where things are (verified 2026-09-28 ~11:00 CDT)
+
+| Branch (private repo whoknowsmann/rituals) | Head | State |
 |---|---|---|
-| `feat/solo-screens` (worktree `~/projects/preflight-solo`) | ≥ce066a5 (pushed) | Phases A+B+C merged. tsc clean, **2,109 tests / 97 files**. |
-| `feat/solo-program` | ab104ed (pushed) | Program + client for solo + Seasons. Native **197/197**. Ancestor of solo-screens. |
-| `design/crew` (worktree `~/projects/preflight`) | 9fa94c0 (pushed) | Phase A only. Behind solo-screens; don't develop here. |
-| `tmp/solo-{a,b,c,d}` (worktrees `~/projects/preflight-solo-{a..d}`) | merged | Safe to delete (worktrees + branches). Their node_modules are symlinks. |
+| `feat/solo-screens` (worktree `~/projects/preflight-solo`) | 906d577 + docs (pushed) | A+B+C merged, device-walk fixes in. tsc clean, **2,146 tests / 99 files**. |
+| `feat/solo-program` | ab104ed (pushed) | Program + client. Native **197/197**. Ancestor of solo-screens. |
+| `design/crew` (worktree `~/projects/preflight`) | b3dca32 (pushed) | Phase A only. Behind; don't develop here. |
+
+`tmp/solo-{a..d}` worktrees and branches were deleted 2026-09-27 (all merged).
 
 Phases:
-- **A (device bugs) — done** except B2 (Phantom shows "github.com"), which is
-  **deferred to Phase E by Jack**; a custom domain is a low-priority maybe. Don't raise it.
-- **B (program) — code done, DEPLOYED to devnet 2026-09-27** (see below). Season PDA `["season", id]` with
-  `participant_count` (+1 on **activation**, never on create) and
-  `checked_in_count[16]` (+1 in the same instruction that makes a claim
-  Confirmed). One-approval solo create+fund+activate (1,068-byte tx).
-- **C (solo screens) — built, unit-tested, NOT on a device yet.** SoloCreate
-  (3 steps → ONE approval → PROMISE MADE stamp), SoloRitual (week strip,
-  hold-to-stamp, skip, missed "That's a week, not a verdict.", settle),
-  SoloReceipt (KEPT / MISSED + destination), WitnessConfirm, Season (live
-  count, Join), solo-first Home. `Stamp` + `stampSpec` in the crew kit;
-  hand face = Fraunces 600 italic (already bundled). DESIGN.md updated.
-- **Local proof (Hermes re-ran it 2026-09-27):** `smoke-solo --path all --fast` on
-  solana-test-validator, **35/35 PASS** (honor/miss/skip/witness incl. Season
-  counters, exact conservation, cause gets exactly the missed allocation). The
-  witness path was re-run after the decoder fix (cb98397): 9/9.
+- **A (device bugs) — done.** B2 (Phantom shows "github.com") **deferred to
+  Phase E by Jack**; custom domain is a low-priority maybe. Don't raise it.
+- **B (program) — DEPLOYED to devnet 2026-09-27** (details below). Season PDA
+  `["season", id]`: `participant_count` +1 on **activation**, `checked_in_count[16]`
+  +1 in the instruction that makes a claim Confirmed. One-approval solo
+  create+fund+activate.
+- **C (solo screens) — built; partly proven on the device.** Walked on the
+  Seeker 2026-09-28: home, create steps 1–3, Season screen before week 1
+  (Join, 16 weeks carried into the promise) and after ("Joining has closed").
+  **Not yet on a device:** the ritual screen after create, hold-to-stamp,
+  closing/settle, receipt, skip, witness. Those need wallet approvals and are
+  the phone test.
+- **D — next** (above). **E** (Oct 3–8) not started.
+
+### Devnet fixtures and keys (all devnet-only; every key checked 0 mainnet)
+
+| What | Address | Notes |
+|---|---|---|
+| Program | `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` | slot 504946601 |
+| Demo cause "Northside Food Bank (demo)" | `4adFBqT1x7AyBFF4bd8qVgeSjPbqhnaJVB4x5muMzbT5` | owner `AZStJSV45Awq4VRzmkoTUpQQvrTVmfDW95p2whpDkv2R` (`.keys/rituals-demo-cause-owner.json`) |
+| Demo Season `october-run-club-d1` | `BjLpWbSxmfgQTKSvFQ23AhsvEbKM5DNzRpuoXCNZTUDz` | **not created**; baked into the installed APK |
+| Rehearsal Season `october-run-club-d0` | `DNpU8RU7b6tX6T1EKdc1Ex37sBPPNmER4g4GaGQYofGq` | created 10:38, closed 10:50; harmless leftover |
+| Deployer / upgrade + Season authority | `ETQ9czekQJSebxkWn986Hao15FfEbe1345cZZDrHhXbx` | `../preflight/.keys/rituals-devnet-deployer.json`, ~4.59 SOL, TEST mint authority |
+| Smoke owner | `fT9XeAmW56Yu8X1UNLQX7xeHU98nKs9WkZUSiVLJgo1` | `.keys/rituals-solo-smoke-owner.json`, TEST ATA `EKe5U5A4…A1R9` |
+| Smoke witness | `3kLFDY5QWdMqXPXzPk4hzgwJ7CW5J53SbMPbXtSkVtF5` | `.keys/rituals-solo-smoke-witness.json`, unfunded |
+| Phone: Phantom Account 3 | `98W4zJfQDk9F5qjtLTgWTYBRdETT3JgUqY7dBNT9WjLa` | 0.1 SOL, 192 TEST (the phone is connected as this) |
+| Phone: Phantom Account 2 | `Da59UWdaoBej5xdX9atiaZahMYLxJNsdXHVY6GMh8VmV` | 0.075 SOL, 191.5 TEST |
+
+**Never `~/.config/solana/id.json`** (Jack's real mainnet wallet).
 
 ### Devnet — deployed 2026-09-27 evening
 
@@ -103,17 +165,10 @@ Phases:
   - 88cd8c2 home never reloaded on focus (new promise invisible until restart);
     no "Make another promise" once you have one.
 
-### Do this next, in order
+### After the phone test
 
-1. **Phase D phone test (needs Jack, ~10 min of fingerprints).** Latest APK
-   `artifacts/rituals-<head>.apk` on the Seeker. Phone wallet = Phantom
-   Account 3 `98W4…WjLa` (0.1 SOL, 192 TEST). Right before starting, init a
-   fresh demo Season (`init-demo-season.ts --slug october-run-club-<n>`, joins
-   close 10 min after init), put its address in `demoConfig.ts`, rebuild.
-   Run: solo promise (1 approval) → ~2 min → hold to stamp (1) → wait for
-   close → settle (1) → receipt. Then join the Season → count moves.
-2. Phase E (Oct 3–8): demo video, README, public repo + B2 app identity,
-   release APK, submission. Only with Jack's approval.
+- Phase E (Oct 3–8): demo video, README, pitch, public repo + B2 app identity,
+  release APK, dApp Store assets, organizer questions. Only with Jack's approval.
 
 Known gaps (not in the solo demo path; deliberately after the phone test):
 - A week voided without a verdict (witness questioned it, or never answered)
@@ -128,7 +183,17 @@ Fixed 2026-09-27 (33f6ee2): pending-action recovery rejected `declare-skip`,
 before the wallet opened on every attempt**, and solo create never journaled
 (killing the app mid-approval was unrecoverable). Both journal now.
 
-### Tooling lessons from this session
+### Tooling lessons (2026-09-27/28)
+
+- Walk every screen on the real device before asking Jack for the phone test:
+  the 2026-09-28 walk found six demo-breaking bugs that 2,109 green unit tests
+  missed. Read each screen against the program's rules too (e.g. finalize only
+  when `now > resolution`).
+- `scripts/ui.py tapt` matches substrings: "Make a promise" hit the title
+  "Make a promise to yourself." Tap buttons by the coordinates from `dump`.
+- The Season address is compiled into the APK, but it is a deterministic PDA of
+  its slug, so build with `scripts/season-address.ts <slug>` first and create
+  the Season on chain only when the phone test starts.
 
 - A background command's log read while it is still running is not its result:
   a 429 mid-deploy was reported as "no buffer created" while the CLI went on to
