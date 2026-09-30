@@ -25,6 +25,25 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 
 ## RESUME HERE — handoff 2026-09-28 ("lets begin rituals")
 
+### Update 2026-09-30 (Hermes, Jack away; phone test still NOT run)
+
+- Re-verified: HEAD clean + pushed, tsc clean, **2,146 tests / 99 files**,
+  `verify-devnet-config` 5/5 PASS, Season d1 not created, Account 3 = 0.0999948
+  SOL + 192 TEST, APK from 2026-09-28 10:52 still installed.
+- **WSL DNS trap:** Node devnet scripts fail ("RPC request failed") because the
+  WSL resolver hangs ~20 s on AAAA lookups. Run them with an IPv4 preload:
+  `NODE_OPTIONS="--require <path>/ipv4-only.cjs"` (copy in the
+  solana-mobile-app-development skill, `scripts/ipv4-only.cjs`; recipe in
+  `docs/DEVELOPMENT.md`). `init-demo-season.ts` needs it too. The phone is unaffected.
+- **Submission drafts rewritten for solo-first** on branch
+  `docs/submission-solo` (worktree `~/projects/rituals-submission-solo`, 2e56a68):
+  README, video script, pitch, store/privacy, repo audit, organizer email, plus
+  PRODUCT/ARCHITECTURE/SECURITY/DEVELOPMENT reconciled. Not merged here yet.
+- **SKR correction:** the reader and tiers exist and are tested, but no screen
+  calls them, so no discount is live. Decide: wire it into create review, or drop the claim.
+- Voided-week RED tests moved into the repo: `docs/parked/voided-week-red-tests.patch`.
+- Phone-test steps below are unchanged.
+
 **Active line: `feat/solo-screens` in the worktree `~/projects/preflight-solo`.**
 Not `~/projects/preflight` (design/crew, behind). Plan of record:
 `docs/plans/solo-first-2026-09-26.md` (decisions §1 are final). Runbook:
@@ -532,7 +551,7 @@ a lost point.
 
 **Rubric disagreement.** The live Align API lists AI 20 / SKR 20 / UX 15 / UI 15 /
 Innovation 15 / Ecosystem Impact 15. Terms §8.1 lists four equal 25% criteria with
-no AI or SKR, and the terms say they prevail. SKR is genuinely implemented. The
+no AI or SKR, and the terms say they prevail. SKR's balance reader and tiers are implemented and tested but NOT wired into any screen (checked 2026-09-30), so no discount is live. The
 "AI" surface is the deterministic on-device suggestions picker — that was a
 deliberate choice so nothing can fail mid-demo, but **do not describe it as AI in
 the submission**; a judge who finds decorative AI scores it worse than none.
