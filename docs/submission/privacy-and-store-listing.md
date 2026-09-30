@@ -72,7 +72,7 @@ Rituals does not sell data. It has no advertising.
 - Your stake is held by the program for the ritual, not by Rituals and not by an account Rituals controls.
 - A missed week's slice goes to the destination you locked in before you started. Rituals never receives it.
 - The only money Rituals takes is a separate, disclosed activation fee, shown before you approve. Stakes and missed slices carry no Rituals cut. [TODO: confirm the activation fee terms for a solo ritual. The group fee configuration on chain is 2 percent of the committed amount with a 0.50 to 5.00 floor and cap. Confirm the solo amount from the app's review card once the phone test has run.]
-- SKR holders get a fee discount, tiered at 10, 25 or 50 percent for balances of 100, 1,000 or 10,000 SKR (src/domain/rituals/skrDiscount.ts). On devnet this reads a labelled stand-in mint because real SKR does not exist on devnet.
+- SKR holders get a fee discount, tiered at 10, 25 or 50 percent for balances of 100, 1,000 or 10,000 SKR (src/domain/rituals/skrDiscount.ts). On devnet this reads a labelled stand-in mint because real SKR does not exist on devnet. [NOT LIVE: the SKR balance reader and discount tiers exist and are unit-tested, but no screen uses them yet and real SKR does not exist on devnet, so no discount is live. Drop or wire before submission.]
 - A signature proves who did something. It does not prove you actually ran. In "Just me" mode the check-in is your word. With a witness, the witness confirms. Rituals does not judge whether you told the truth.
 
 ## 6. Retention and deletion
@@ -127,7 +127,7 @@ Each week settles on Solana. A kept week returns your slice. A missed week sends
 
 Join a Season, such as a shared October run, with your own stake and your own destination. Nothing is pooled. The only social signal is an honest count of how many people checked in this week. No names and no leaderboard.
 
-Creating a ritual takes one wallet approval, through Mobile Wallet Adapter. Works with Phantom and Seed Vault Wallet on Seeker. SKR holders get an activation-fee discount.
+Creating a ritual takes one wallet approval, through Mobile Wallet Adapter. Works with Phantom and Seed Vault Wallet on Seeker.
 
 This build runs on Solana devnet with a valueless TEST token. The cause shown is a demo. No real money moves.
 
@@ -140,7 +140,6 @@ This build runs on Solana devnet with a valueless TEST token. The cause shown is
 - Weekly settlement on Solana with a plain receipt: kept, or went to the cause
 - Seasons: shared rituals with an honest live count, your own stake, nothing pooled
 - One wallet approval to create, fund and start
-- SKR balance lowers the activation fee
 - With friends mode for 2 to 6 people who confirm each other
 - No account, no email. Your wallet is your identity
 - Devnet build with a valueless TEST token

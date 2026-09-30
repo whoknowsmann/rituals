@@ -106,4 +106,4 @@ Compute policy for the remaining build:
 
 Build identifiers are Rituals throughout: name `Rituals`, slug `rituals`, Android package and iOS bundle identifier `com.whoknowsmann.rituals`, EAS owner `argussmithson`. The EAS relink landed in 8052f1c and the Android build pipeline was re-proven afterwards: both a preview and a development-client APK built and installed on the Seeker.
 
-AI/SKR note: the SKR activation-fee discount is a real balance read. The template-picker suggestions are deterministic and on-device — deliberately, so nothing can fail mid-demo — and must not be presented as an AI integration in the submission.
+AI/SKR note: the SKR balance read is real and unit-tested, but it is not wired into any screen yet (checked 2026-09-30), so no discount is live. The template-picker suggestions are deterministic and on-device — deliberately, so nothing can fail mid-demo — and must not be presented as an AI integration in the submission.

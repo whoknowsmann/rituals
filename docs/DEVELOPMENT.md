@@ -1,10 +1,14 @@
 # Development
 
+Last reconciled with docs/STATUS.md: 2026-09-30.
+
 ## Current state
 
-Rituals is the active product. Home, detail, claim, confirmation, and receipt data are still deterministic and fixture-backed. The create/review → connected host/member roster → funding-lobby journey is live: the funding lobby submits a **real** Create transaction against the devnet deployment. Current state and the next gate are in `docs/STATUS.md`.
+Rituals is the active product, solo first (one promise, weekly stake slices, a locked destination for a missed week, optional witness, one declared skip), with group mode ("With friends") as the secondary path and app-wide Seasons. Home, detail, claim, confirmation, and receipt screens read authoritative chain state. The solo create journey bundles create + fund + activate into one wallet approval; the group create/review → roster → funding-lobby journey submits a **real** Create transaction against the devnet deployment. Current state and the next gate are in `docs/STATUS.md`.
 
-The Anchor program is **deployed to devnet** (`2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p`) and approved through terminal vault closure. The typed mobile client implements RPC reads, all-action preparation, exact message/signature binding, an opaque split submission/confirmation boundary, MWA submission, confirmation, and authoritative readback. The deployment configuration is `deployed`, and the funding-lobby Create CTA invokes a state-changing Ritual action; the other lifecycle actions are proven on devnet by script but have no screen wiring yet. Submitted-action handles are process-local capabilities; never persist or reconstruct them as authority after reload.
+The Anchor program is **deployed to devnet** (`2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p`, solo + Seasons build at slot 504946601) and approved through terminal vault closure. The typed mobile client implements RPC reads, all-action preparation (including `create_solo_ritual` and `declare_skip`), exact message/signature binding, an opaque split submission/confirmation boundary, MWA submission, confirmation, and authoritative readback. The deployment configuration is `deployed`. Cancel and Close are proven on devnet by script but have no screen wiring. Submitted-action handles are process-local capabilities; never persist or reconstruct them as authority after reload.
+
+MWA signing was proven on a physical Seeker for the group flow (2026-09-25/26). The solo flow with wallet signatures has not been run on a device yet. [PENDING PHONE TEST: solo signature / screenshot]
 
 The JavaScript/TypeScript source contains only active Rituals app code plus generic shell, cluster, and wallet plumbing. The retired product is preserved only by Git history.
 
@@ -45,6 +49,36 @@ Use a custom development or standalone Android build for native MWA checks. Ever
 ## Native boundary
 
 Rust, program tests, Cargo, and Anchor files are maintained independently from this JavaScript/docs migration. Run their pinned commands only when working on that boundary. Existing local/native artifacts and placeholder IDs are not deployment credentials or production proof.
+
+## Troubleshooting
+
+### WSL: Node scripts fail against devnet, but curl and the solana CLI work
+
+Symptom: a Node script that talks to devnet (for example `scripts/*.ts` run with `npx tsx`) fails with `RPC request failed` or `UND_ERR_CONNECT_TIMEOUT`, while `curl` and the `solana` CLI reach the same RPC URL without trouble.
+
+Cause: the WSL DNS proxy hangs on IPv6 (AAAA) lookups. Node's resolver waits on them and the connection times out. `curl` and the Solana CLI fall back to IPv4 quickly.
+
+Fix: force IPv4 lookups in Node with a small preload. Save this as `ipv4-first.cjs` (anywhere outside the repo is fine):
+
+```js
+const dns = require('node:dns');
+const lookup = dns.lookup;
+dns.lookup = (hostname, options, callback) => {
+  if (typeof options === 'function') {
+    return lookup(hostname, { family: 4 }, options);
+  }
+  const opts = typeof options === 'number' ? { family: options } : { ...options };
+  return lookup(hostname, { ...opts, family: 4 }, callback);
+};
+```
+
+Then run scripts with it preloaded:
+
+```bash
+NODE_OPTIONS="--require ./ipv4-first.cjs" npx tsx scripts/verify-devnet-config.ts
+```
+
+`--dns-result-order=ipv4first` does not fix this: Node still sends the AAAA query and waits for it. Verified 2026-09-30 on WSL: without the preload `scripts/verify-devnet-config.ts` failed on every attempt; with it, the script passed in about 4 seconds.
 
 ## TDD and hygiene
 

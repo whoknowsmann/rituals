@@ -42,7 +42,7 @@ Measured 2026-09-30.
 - 2,146 TypeScript tests across 99 files pass. Typecheck is clean. The native program has 197 tests.
 - Devnet smoke test, 2026-09-28: a kept week returned the stake exactly. A missed week sent exactly one week's stake to the demo cause "Northside Food Bank (demo)", and the creator got nothing.
 - Wallet signing through Mobile Wallet Adapter was done on a physical Solana Seeker for the group flow (create plus stake in one approval, and the last member's fund plus start in one approval), 2026-09-25 and 09-26. The app works with Phantom and Seed Vault Wallet; the user picks.
-- The app reads your SKR balance and applies an activation-fee discount. [TODO: confirm tiers and wording in the solo flow before stating numbers; the domain code lists 10%, 25%, 50% tiers at 100, 1,000, 10,000 SKR]
+- SKR: a balance reader and holder fee-discount tiers are built and unit-tested, but they are not wired into any screen yet, and real SKR does not exist on devnet. No discount is live. [DECISION PENDING: wire it into the create review before submission, or drop this line]
 
 Not done yet:
 

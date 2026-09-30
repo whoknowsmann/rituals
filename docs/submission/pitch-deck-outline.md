@@ -141,7 +141,7 @@ Seasons are app-wide rituals that everyone can join, like an October run club. Y
 - Stake held by the program. Not by us.
 - One approval through Mobile Wallet Adapter.
 - Tested on a Solana Seeker with Phantom and Seed Vault Wallet.
-- Your SKR balance lowers the activation fee.
+- [DECISION PENDING: SKR fee discount. Not wired into the app yet; keep this bullet only if it ships]
 
 **Speaker notes**
 
@@ -229,7 +229,7 @@ The four published Clock In criteria (docs/plans/hackathon-winners-2026-09-26.md
 | Innovation | 4, 6, 7 | Hold-to-stamp as the check-in, a witness who does not stake, an honest count that only moves on a confirmed check-in, rules held by a program |
 | Presentation and demo | 1, 5, 8, 10 | Plain pitch, real devnet numbers, a candid proven/not-yet slide, tagline |
 
-Also served: Solana Mobile fit (slide 7: MWA, Seeker, Seed Vault Wallet, SKR fee discount).
+Also served: Solana Mobile fit (slide 7: MWA, Seeker, Seed Vault Wallet, SKR fee discount only if it ships).
 
 ## Production checklist
 
