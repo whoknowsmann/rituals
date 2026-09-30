@@ -175,7 +175,10 @@ Known gaps (not in the solo demo path; deliberately after the phone test):
   renders wrong: the receipt shows KEPT with the ink stamp, the ritual screen
   offers "Settle" on an already-voided event, and a declared skip shows as ✓
   in the week strip. The witness also cannot question (no "I didn't see it").
-  RED tests are parked at `~/.hermes/cache/scratch/parked-voided-week/tests.patch`.
+  RED tests are parked in the repo at `docs/parked/voided-week-red-tests.patch`
+  (7 failing tests; `git apply` it to resume). The original scratch copy was
+  pruned; this was rebuilt 2026-09-30 from the session transcript and re-checked
+  RED (7 failed / 27 passed in `src/features/rituals/solo/lifecycle/`).
 - Note proof is client-side only.
 
 Fixed 2026-09-27 (33f6ee2): pending-action recovery rejected `declare-skip`,

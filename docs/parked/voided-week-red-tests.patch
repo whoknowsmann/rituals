@@ -1,0 +1,84 @@
+diff --git a/src/features/rituals/solo/lifecycle/soloReceiptModel.test.ts b/src/features/rituals/solo/lifecycle/soloReceiptModel.test.ts
+index 3a62623..762e229 100644
+--- a/src/features/rituals/solo/lifecycle/soloReceiptModel.test.ts
++++ b/src/features/rituals/solo/lifecycle/soloReceiptModel.test.ts
+@@ -21,4 +21,7 @@ describe('soloReceiptModel', () => {
+   it('maps a declared skip to skipped', () => {
+     expect(soloReceiptModel(bundle('Voided', { voidReason: 'DeclaredSkip' }), me).state).toBe('skipped')
+   })
++  it('maps a week voided without a verdict to returned, with no stamp', () => {
++    expect(soloReceiptModel(bundle('Voided', { voidReason: 'UnresolvedClaims' }, 'Questioned'), me)).toMatchObject({ state: 'returned', copy: 'back to you', stampKind: null })
++  })
+ })
+diff --git a/src/features/rituals/solo/lifecycle/soloRitualModel.test.ts b/src/features/rituals/solo/lifecycle/soloRitualModel.test.ts
+index ae648f9..a63f2a1 100644
+--- a/src/features/rituals/solo/lifecycle/soloRitualModel.test.ts
++++ b/src/features/rituals/solo/lifecycle/soloRitualModel.test.ts
+@@ -87,4 +87,32 @@ describe('soloRitualModel', () => {
+       expect(soloRitualModel(bundle({}, null), 50, me).lastClosedEventIndex).toBeNull()
+     })
+   })
++
++  describe('a week voided without a verdict (witness questioned or never answered)', () => {
++    const voided = (voidReason: string, claimStatus: 'Pending' | 'Questioned') => bundle(
++      { witness, additionalConfirmationThreshold: 1, currentEventIndex: 1 },
++      null,
++      [],
++    )
++    const withHistory = (voidReason: string, claimStatus: 'Pending' | 'Questioned') => ({
++      ...voided(voidReason, claimStatus),
++      history: [{ ritual: voided(voidReason, claimStatus).ritual, event: event({ status: 'Voided', voidReason, eventIndex: 0 }), claims: [claim(claimStatus)] }],
++    }) as unknown as SoloRitualBundle
++
++    it('says the stake came back instead of silently moving on', () => {
++      const model = soloRitualModel(withHistory('UnresolvedClaims', 'Questioned'), 350, me)
++      expect(model.state).toBe('returned')
++      expect(model.message).toContain('came back')
++    })
++
++    it('marks voided and skipped weeks as rest, never as a check-in', () => {
++      expect(soloRitualModel(withHistory('UnresolvedClaims', 'Pending'), 350, me).weekCells[0]).toBe('rest')
++      expect(soloRitualModel(withHistory('DeclaredSkip', 'Pending'), 350, me).weekCells[0]).toBe('rest')
++    })
++
++    it('never offers to settle a week that is already voided', () => {
++      const current = bundle({ witness, additionalConfirmationThreshold: 1 }, event({ status: 'Voided', voidReason: 'UnresolvedClaims' }), [claim('Questioned')])
++      expect(soloRitualModel(current, 350, me).state).toBe('returned')
++    })
++  })
+ })
+diff --git a/src/features/rituals/solo/lifecycle/soloWiring.test.ts b/src/features/rituals/solo/lifecycle/soloWiring.test.ts
+index 4deca9c..4d2f543 100644
+--- a/src/features/rituals/solo/lifecycle/soloWiring.test.ts
++++ b/src/features/rituals/solo/lifecycle/soloWiring.test.ts
+@@ -27,6 +27,8 @@ describe('solo lifecycle screen wiring', () => {
+     const witness = screen('WitnessConfirmScreen.tsx')
+     expect(witness).toContain('witnessConfirmModel')
+     expect(witness).toContain("kind: 'approve'")
++    expect(witness).toContain("'question'")
++    expect(witness).toContain("I didn't see it")
+     expect(witness).toContain('withWalletHandoff(')
+     expect(witness).toContain('Stamp')
+   })
+@@ -38,4 +40,9 @@ describe('solo lifecycle screen wiring', () => {
+     expect(ritual).toContain("navigation.navigate('SoloReceipt'")
+     expect(ritual).toContain('settle.reset()')
+   })
++
++  it('shows a voided week as returned stake on the ritual, the receipt, and the week strip', () => {
++    expect(screen('SoloRitualScreen.tsx')).toContain("model.state === 'returned'")
++    expect(screen('SoloReceiptScreen.tsx')).toContain("receipt.state === 'returned'")
++  })
+ })
+diff --git a/src/features/rituals/solo/lifecycle/witnessConfirmModel.test.ts b/src/features/rituals/solo/lifecycle/witnessConfirmModel.test.ts
+index 1065f19..8cd36b6 100644
+--- a/src/features/rituals/solo/lifecycle/witnessConfirmModel.test.ts
++++ b/src/features/rituals/solo/lifecycle/witnessConfirmModel.test.ts
+@@ -19,4 +19,7 @@ describe('witnessConfirmModel', () => {
+   it('recognizes the confirmed readback', () => {
+     expect(witnessConfirmModel(bundle('Confirmed'), witness, null).state).toBe('confirmed')
+   })
++  it('recognizes a questioned claim and stops offering either action', () => {
++    expect(witnessConfirmModel(bundle('Questioned'), witness, null).state).toBe('questioned')
++  })
+ })
