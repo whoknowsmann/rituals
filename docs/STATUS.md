@@ -62,8 +62,8 @@ Jack reported buttons that "don't do anything" (typed "call mom", tapped a
 suggestion, nothing visible happened). Walked every screen on the phone and
 audited the code; fixed on `fix/dead-ends-create` (7d930ac) +
 `fix/dead-ends-misc` (79abdf5), merged on **`integrate/dead-ends` (9e8781c)**:
-tsc clean, **2,185 tests / 113 files**. Not yet fast-forwarded into
-`feat/solo-screens` (waiting for Jack's phone pass).
+tsc clean, **2,185 tests / 113 files**. Fast-forwarded into `feat/solo-screens`
+(rollback point if needed: c48c5c3).
 
 - Create step 1: chosen suggestion shows a border, green band and "✓ Chosen"; no
   card looks pre-selected; editing the text clears a stale choice.
