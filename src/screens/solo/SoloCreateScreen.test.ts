@@ -41,6 +41,21 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
   it('shows the promise stamp only after confirmed readback and remembers the ritual', () => {
     expect(source).toContain('<Stamp kind="promise"')
     expect(source).toContain('rememberRitual(')
+    expect(source).toContain('saveProofMode(')
     expect(source).toContain("navigation.navigate('SoloRitual'")
+  })
+
+  it('keeps a picked suggestion visibly selected and clears it when typing changes', () => {
+    expect(source).toContain('suggestionIsSelected(')
+    expect(source).toContain('accessibilityState={{ selected }}')
+    expect(source).toContain("selected ? '✓ Chosen' : 'Use'")
+    expect(source).toContain('setSelectedSuggestionKey(null)')
+    expect(source).toContain('title: \'\', requirement: \'\'')
+  })
+
+  it('turns back navigation into a previous-step action while creating', () => {
+    expect(source).toContain("navigation.addListener('beforeRemove'")
+    expect(source).toContain('shouldReturnToFirstCreateStep(')
+    expect(source).toContain('event.preventDefault()')
   })
 })
