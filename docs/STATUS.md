@@ -56,6 +56,60 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
   `fix/dead-ends-misc`); see the 2026-10-01 update when it lands.
 - Phone-test steps below are unchanged.
 
+### Update 2026-10-01 ~00:40 (Hermes, overnight) — dead-end pass landed
+
+Jack reported buttons that "don't do anything" (typed "call mom", tapped a
+suggestion, nothing visible happened). Walked every screen on the phone and
+audited the code; fixed on `fix/dead-ends-create` (7d930ac) +
+`fix/dead-ends-misc` (79abdf5), merged on **`integrate/dead-ends` (9e8781c)**:
+tsc clean, **2,185 tests / 113 files**. Not yet fast-forwarded into
+`feat/solo-screens` (waiting for Jack's phone pass).
+
+- Create step 1: chosen suggestion shows a border, green band and "✓ Chosen"; no
+  card looks pre-selected; editing the text clears a stale choice.
+- Create: Back (header or Android) on step 2/3 goes back one step and keeps input.
+- Proof "Note": was silently discarded. Now: chosen at create ("Add a line when
+  you check in. Kept on this phone."), typed above HOLD, saved on-device after
+  the stamp confirms, shown under the stamp and on the KEPT receipt.
+- Witness: creator gets "Your witness" card with **Send to your witness** (share
+  sheet) + Copy address. Witness pastes it into **Join with a link** → routed to
+  the confirm screen (wrong wallet / no wallet get a plain message). Before this
+  no screen led to WitnessConfirm at all.
+- Home: "LIVE NOW" only when a Season was read; missing → "No Season running
+  right now."; failed read → "Couldn't load the Season." + Try again.
+- Join: helper line under the input. Settings: devnet-only info screen (testnet
+  picker removed; the program does not exist on testnet).
+- Group review copy no longer promises an edit flow that doesn't exist.
+
+**APK `artifacts/rituals-d2.apk` (built from 9e8781c) is INSTALLED** on the
+Seeker (`lastUpdateTime=2026-10-01 00:24:52`). Walked by Hermes on device: Home
+Season line, Settings, Join helper, suggestion select (before/after screenshots
+`artifacts/shots/d2-*`), Back across steps keeps input + Note selection, group
+review copy. Not walkable without wallet approvals: note-on-stamp, receipt
+note, witness share/confirm.
+
+- Install note: `adb install -r` from the Windows temp path hung (rc 124) this
+  time; `adb push` to `/data/local/tmp` then `adb shell pm install -r` worked
+  in seconds. `monkey -p … LAUNCHER` did not foreground the app;
+  `am start -n com.whoknowsmann.rituals/.MainActivity` did.
+- Devnet witness smoke: the smoke witness keypair was unfunded (first run failed
+  "debit an account but found no record of a prior credit" at approve).
+  Funded it 0.05 devnet SOL from the deployer; rerun: claim Pending → approve →
+  Confirmed → settled, 9/9 PASS (ritual `ANDdF71RfJRhbj7yeGyV376nWK3rzKoerfc9GvYWehu5`).
+
+**Morning, when Jack says go:** create d1 with the wider window:
+
+```bash
+cd ~/projects/preflight-solo
+export NODE_OPTIONS="--require $HOME/.hermes/skills/software-development/solana-mobile-app-development/scripts/ipv4-only.cjs"
+npx tsx scripts/init-demo-season.ts --url https://api.devnet.solana.com \
+  --authority-keypair ../preflight/.keys/rituals-devnet-deployer.json \
+  --slug october-run-club-d1 --title 'October Run Club' --lead-minutes 8 --claim-window-seconds 300
+```
+
+Then the phone steps below (3 approvals). Optionally pick **Note** on step 2 to
+see a note land under the stamp and on the receipt.
+
 **Active line: `feat/solo-screens` in the worktree `~/projects/preflight-solo`.**
 Not `~/projects/preflight` (design/crew, behind). Plan of record:
 `docs/plans/solo-first-2026-09-26.md` (decisions §1 are final). Runbook:
@@ -76,13 +130,14 @@ Jack** (3 Phantom approvals, ~15 min). Everything that did not need him is done.
    which printed nothing).
 3. **When Jack says "go" (at the phone, Phantom on Account 3), create the Season.**
    The installed APK already points at slug `october-run-club-d1` =
-   `BjLpWbSxmfgQTKSvFQ23AhsvEbKM5DNzRpuoXCNZTUDz` (NOT created yet; home shows
-   "Season is unavailable right now" until it is). **No rebuild needed.**
+   `BjLpWbSxmfgQTKSvFQ23AhsvEbKM5DNzRpuoXCNZTUDz` (NOT created yet; since d2 home shows
+   "No Season running right now." until it is). **No rebuild needed.**
    ```bash
    cd ~/projects/preflight-solo
    npx tsx scripts/init-demo-season.ts --url https://api.devnet.solana.com \
      --authority-keypair ../preflight/.keys/rituals-devnet-deployer.json \
-     --slug october-run-club-d1 --title 'October Run Club' --lead-minutes 8
+     --slug october-run-club-d1 --title 'October Run Club' --lead-minutes 8 \
+     --claim-window-seconds 300   # 2026-10-01: 5-min stamp window; see update above
    ```
    `--lead-minutes 8`: joins close when week 1 opens, and a joined ritual uses
    the Season's schedule, so the stamp can't happen until week 1 opens. 8 min =
