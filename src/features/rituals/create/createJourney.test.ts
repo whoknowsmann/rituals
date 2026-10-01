@@ -210,7 +210,7 @@ describe('Ritual creation journey', () => {
     expect(lobby).not.toContain('>Funding lobby</Text>')
     expect(create).toContain('Review terms')
     expect(review).toContain('Ritual terms preview')
-    expect(review).toContain('This is a preview. Go back to edit any term before creating it.')
+    expect(review).toContain('This is a preview. Nothing is created until the funding lobby.')
     expect(review).toContain('Nothing is signed yet')
     for (const stale of ['cannot be changed after review', 'Review locked', 'Locked ritual', 'Terms are locked for review']) {
       expect(create).not.toContain(stale)

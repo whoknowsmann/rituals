@@ -13,6 +13,7 @@ import { useConnection } from '../utils/ConnectionProvider'
 import { DEMO_SEASON } from '../data/rituals/demoConfig'
 import type { SeasonAccountView } from '../data/rituals/accounts'
 import { readSeason } from '../features/rituals/solo/season/readSeason'
+import { seasonStatusForError } from '../features/rituals/solo/season/seasonState'
 import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/solo/season/seasonViewModel'
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { color, memberColor, radius, space, type } from '../theme'
@@ -24,11 +25,11 @@ type HomeState = Readonly<{
   status: 'loading' | 'ready' | 'error'
   rituals: readonly HomeRitual[]
   season: SeasonAccountView | null
-  seasonUnavailable: boolean
+  seasonStatus: 'no-address' | 'ready' | 'not-found' | 'error'
   message?: string
 }>
 
-const initialState: HomeState = { status: 'loading', rituals: [], season: null, seasonUnavailable: false }
+const initialState: HomeState = { status: 'loading', rituals: [], season: null, seasonStatus: 'no-address' }
 
 export function RitualsHomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
@@ -50,10 +51,10 @@ export function RitualsHomeScreen() {
     }
 
     const seasonPromise = DEMO_SEASON.address === null
-      ? Promise.resolve({ season: null, unavailable: false })
+      ? Promise.resolve({ season: null, status: 'no-address' as const })
       : readSeason(connection, DEMO_SEASON.address, client.client.programId)
-        .then((read) => ({ season: read.account, unavailable: false }))
-        .catch(() => ({ season: null, unavailable: true }))
+        .then((read) => ({ season: read.account, status: 'ready' as const }))
+        .catch((error: unknown) => ({ season: null, status: seasonStatusForError(error) }))
 
     void Promise.all([loadKnownRitualBundles(client.client), seasonPromise])
       .then(([rituals, season]) => {
@@ -62,7 +63,7 @@ export function RitualsHomeScreen() {
           status: 'ready',
           rituals: rituals.map((ritual) => ({ ...ritual, id: ritual.address })),
           season: season.season,
-          seasonUnavailable: season.unavailable,
+          seasonStatus: season.status,
         })
       })
       .catch((error: unknown) => {
@@ -100,7 +101,7 @@ export function RitualsHomeScreen() {
     {homeState.rituals.length === 0
       ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
       : <ActiveRituals rituals={homeState.rituals} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}
-    <SeasonsSection season={homeState.season} unavailable={homeState.seasonUnavailable} onOpen={() => {
+    <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={load} onOpen={() => {
       if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
     }} styles={styles} />
     <Footnote>{disclosure}</Footnote>
@@ -131,13 +132,17 @@ function ActiveRituals({ rituals, onOpen, onPromise, styles }: { rituals: readon
   </View>
 }
 
-function SeasonsSection({ season, unavailable, onOpen, styles }: { season: SeasonAccountView | null; unavailable: boolean; onOpen: () => void; styles: ReturnType<typeof makeStyles> }) {
-  return <Section title="Seasons" aside="LIVE NOW">
+function SeasonsSection({ season, status, onRetry, onOpen, styles }: { season: SeasonAccountView | null; status: HomeState['seasonStatus']; onRetry: () => void; onOpen: () => void; styles: ReturnType<typeof makeStyles> }) {
+  return <Section title="Seasons" aside={season ? 'LIVE NOW' : undefined}>
     {DEMO_SEASON.address === null
-      ? <Text style={styles.muted}>No Season running yet</Text>
+      ? <Text style={styles.muted}>No Season running right now.</Text>
       : season
         ? <SeasonCard title={DEMO_SEASON.title} liveCountLine={seasonCountLine(season)} actionLabel="Open" onPress={onOpen} />
-        : <Text style={styles.muted}>{unavailable ? 'Season is unavailable right now.' : 'Loading the Season…'}</Text>}
+        : status === 'not-found'
+          ? <Text style={styles.muted}>No Season running right now.</Text>
+          : status === 'error'
+            ? <View style={styles.seasonError}><Text style={styles.muted}>Couldn't load the Season.</Text><ActionButton tone="quiet" label="Try again" onPress={onRetry} /></View>
+            : <Text style={styles.muted}>Loading the Season…</Text>}
   </Section>
 }
 
@@ -187,6 +192,7 @@ const makeStyles = (theme: MD3Theme) => StyleSheet.create({
   emptyTitle: { ...type.hero, color: color.fg, marginTop: space.sm },
   emptyBody: { ...type.body, color: color.muted, marginTop: space.sm },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.md, backgroundColor: theme.colors.background },
+  seasonError: { gap: space.sm, alignItems: 'center' },
   muted: { ...type.body, color: color.muted, textAlign: 'center' },
   errorTitle: { ...type.section, color: color.fg, textAlign: 'center' },
   disclosure: { ...type.label, color: color.faint, textAlign: 'center', marginVertical: space.md },

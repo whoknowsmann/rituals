@@ -36,11 +36,6 @@ export const defaultClusters: Readonly<Cluster[]> = [
     endpoint: clusterApiUrl("devnet"),
     network: ClusterNetwork.Devnet,
   },
-  {
-    name: "testnet",
-    endpoint: clusterApiUrl("testnet"),
-    network: ClusterNetwork.Testnet,
-  },
 ];
 
 export interface ClusterProviderContext {

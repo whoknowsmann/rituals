@@ -9,6 +9,8 @@ import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { decodeRitualInvite, onchainInviteView } from '../features/rituals/invite/inviteCodec'
 import { verifyInvite, type RitualInvite } from '../domain/rituals/invite'
 import { rememberRitual, formatAtomic } from '../features/rituals/authoritativeRituals'
+import { extractLastValidPublicKey, decideWitnessEntry, INVALID_JOIN_INPUT_MESSAGE } from '../features/rituals/join/witnessEntry'
+import { useAuthorization } from '../utils/useAuthorization'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { ActionButton, ErrorLine, Footnote, Poster, PosterLine } from '../components/crew'
@@ -20,6 +22,7 @@ type JoinState = Readonly<{ status: 'idle' | 'loading' | 'valid' | 'error'; invi
 export function JoinRitualScreen({ route }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const client = useRitualClient()
+  const { selectedAccount } = useAuthorization()
   const [input, setInput] = useState(route.params?.invite ?? '')
   const [state, setState] = useState<JoinState>({ status: 'idle' })
 
@@ -33,8 +36,35 @@ export function JoinRitualScreen({ route }: Props) {
     setState({ status: 'loading' })
     try {
       if (client.status !== 'ready') throw new JoinError("Rituals isn't reachable right now. Try again in a moment.")
+      const trimmed = input.trim()
       let invite: RitualInvite
-      try { invite = decodeRitualInvite(input.trim()) } catch { throw new JoinError("That doesn't look like a Rituals invite. Ask your friend to send it again.") }
+      try {
+        invite = decodeRitualInvite(trimmed)
+      } catch {
+        const ritualAddress = extractLastValidPublicKey(trimmed)
+        if (ritualAddress === null) throw new JoinError(INVALID_JOIN_INPUT_MESSAGE)
+        let read
+        try {
+          read = await client.client.readRitual(ritualAddress)
+        } catch {
+          throw new JoinError(INVALID_JOIN_INPUT_MESSAGE)
+        }
+        const decision = decideWitnessEntry({
+          address: read.address,
+          kind: read.account.kind,
+          creator: read.account.creator,
+          witness: read.account.witness,
+          currentEventIndex: read.account.currentEventIndex,
+        }, selectedAccount?.publicKey ?? null)
+        if (decision.kind === 'not-ritual') throw new JoinError(INVALID_JOIN_INPUT_MESSAGE)
+        if (decision.kind === 'message') throw new JoinError(decision.message)
+        if (decision.kind === 'creator') {
+          navigation.navigate('SoloRitual', { ritualId: decision.ritualId })
+        } else {
+          navigation.navigate('WitnessConfirm', { ritualId: decision.ritualId, eventIndex: decision.eventIndex })
+        }
+        return
+      }
       const read = await client.client.readRitual(new PublicKey(invite.ritual))
       const result = verifyInvite(invite, onchainInviteView(read))
       if (!result.ok) throw new JoinError("This invite doesn't match the ritual it points to. Ask your friend for a fresh one.")
@@ -66,6 +96,7 @@ export function JoinRitualScreen({ route }: Props) {
               style={s.input}
             />
           </View>
+          <RNText style={s.helper}>Paste the invite your friend sent, or the address your friend shared.</RNText>
           <View style={s.row}>
             <ActionButton tone="quiet" label="Paste" onPress={() => { void loadClipboard() }} accessibilityLabel="Paste from clipboard" style={s.half} />
             <ActionButton label="Open invite" onPress={() => { void verify() }} loading={state.status === 'loading'} disabled={!input.trim() || state.status === 'loading'} accessibilityLabel="Verify invite" style={s.half} />
@@ -101,6 +132,7 @@ const s = StyleSheet.create({
   input: { backgroundColor: color.card },
   row: { flexDirection: 'row', gap: space.sm },
   half: { flex: 1 },
+  helper: { ...type.caption, color: color.muted },
   terms: { gap: space.md },
   body: { ...type.body, color: color.fg },
   note: { ...type.caption, color: color.muted },

@@ -27,7 +27,7 @@ export function ReviewRitualScreen({ route }: Props) {
           </Card.Content>
         </Card>
         <Button mode="contained" onPress={() => navigation.navigate(homeCreateTarget().name)}>
-          Return to create/templates
+          Start over
         </Button>
         <Button mode="outlined" onPress={() => navigation.navigate(reviewCompleteTarget().name)}>
           Home
@@ -70,7 +70,7 @@ export function ReviewRitualScreen({ route }: Props) {
           {review.disclosures.map((text) => (
             <Text key={text} style={styles.disclosure}>• {text}</Text>
           ))}
-          <Text style={styles.disclosure}>This is a preview. Go back to edit any term before creating it.</Text>
+          <Text style={styles.disclosure}>This is a preview. Nothing is created until the funding lobby.</Text>
         </Card.Content>
       </Card>
       <Button
