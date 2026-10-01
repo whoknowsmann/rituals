@@ -12,6 +12,7 @@ import { useConnection } from '../../utils/ConnectionProvider'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
+import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
@@ -20,6 +21,8 @@ import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../c
 import { color, fonts, radius, space, type } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
 import { selectSoloSchedule, soloEventCount } from '../../features/rituals/solo/create/schedule'
+import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
+import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
   SOLO_CREATE_MESSAGES,
   applyTypedIntention,
@@ -57,7 +60,7 @@ export function SoloCreateScreen({ route }: Props) {
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [draft, setDraft] = useState<SoloCreateDraft>(initialDraft)
   const [pickedEventCount, setPickedEventCount] = useState<string | number | undefined>(undefined)
-  const [proofNote, setProofNote] = useState('')
+  const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
   const [suggestionRound, setSuggestionRound] = useState(0)
   const [confirmedReadback, setConfirmedReadback] = useState(false)
@@ -138,6 +141,21 @@ export function SoloCreateScreen({ route }: Props) {
   const confirmedAddress = create.state.status === 'confirmed' ? create.state.ritualAddress : null
 
   useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (!shouldReturnToFirstCreateStep({
+        step,
+        isBusy: create.isBusy,
+        isConfirmed: create.state.status === 'confirmed',
+        actionType: event.data.action.type,
+      })) return
+      event.preventDefault()
+      setStep((value) => (value === 1 ? 1 : (value - 1) as 1 | 2 | 3))
+      setStepErrors([])
+    })
+    return unsubscribe
+  }, [create.isBusy, create.state.status, navigation, step])
+
+  useEffect(() => {
     if (!confirmedAddress || client.status !== 'ready') {
       setConfirmedReadback(false)
       setReadbackError(null)
@@ -151,13 +169,13 @@ export function SoloCreateScreen({ route }: Props) {
       if (!active) return
       setConfirmedReadback(true)
       void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).catch(() => undefined)
+      void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
     }).catch(() => {
       if (active) setReadbackError('Your promise was sent, but it is not ready to show yet. Keep this screen open and try again.')
     })
     return () => { active = false }
-  }, [client, confirmedAddress, draft.requirement, draft.title])
+  }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title])
 
-  // Note proof is client-side only for now; no camera dependency is used.
   const advance = () => {
     const creator = selectedAccount?.publicKey
     const current = step === 1 ? applyTypedIntention(draft) : draft
@@ -176,6 +194,7 @@ export function SoloCreateScreen({ route }: Props) {
       requirement: suggestion.draft.requirement,
     }))
     setPickedEventCount(suggestion.draft.eventCount)
+    setSelectedSuggestionKey(suggestionKey(suggestion))
     setSuggestionRound((value) => value + 1)
     setStepErrors([])
   }
@@ -207,7 +226,12 @@ export function SoloCreateScreen({ route }: Props) {
           <Text style={styles.helper}>One clear thing you will do each week.</Text>
           <TextInput
             value={draft.intention}
-            onChangeText={(value) => { setDraft((current) => ({ ...current, intention: value })); setStepErrors([]) }}
+            onChangeText={(value) => {
+              setDraft((current) => ({ ...current, intention: value, title: '', requirement: '' }))
+              setPickedEventCount(undefined)
+              setSelectedSuggestionKey(null)
+              setStepErrors([])
+            }}
             placeholder="Run three times a week"
             placeholderTextColor={color.faint}
             autoCapitalize="sentences"
@@ -218,17 +242,20 @@ export function SoloCreateScreen({ route }: Props) {
           {suggestions.length > 0 && (
             <View style={styles.suggestions}>
               <Section title="A starting point" />
-              {suggestions.map((suggestion, index) => (
-                <Pressable key={`${suggestionRound}:${index}`} onPress={() => chooseSuggestion(suggestion)} style={({ pressed }) => [styles.suggestion, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`Use ${suggestion.draft.title}`}>
-                  <View style={[styles.band, { backgroundColor: index === 0 ? color.goDeep : color.line }]} />
+              {suggestions.map((suggestion) => {
+                const selected = suggestionIsSelected(suggestion, selectedSuggestionKey)
+                return (
+                <Pressable key={`${suggestionRound}:${suggestionKey(suggestion)}`} onPress={() => chooseSuggestion(suggestion)} style={({ pressed }) => [styles.suggestion, selected && styles.optionSelected, pressed && styles.pressed]} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={`Use ${suggestion.draft.title}`}>
+                  <View style={[styles.band, { backgroundColor: selected ? color.goDeep : color.line }]} />
                   <View style={styles.suggestionBody}>
                     <Text style={styles.suggestionTitle}>{suggestion.draft.title}</Text>
                     <Text style={styles.suggestionRule}>{suggestion.draft.requirement}</Text>
                     <Text style={styles.suggestionMeta}>{suggestion.draft.eventCount} weeks · 5 TEST each week</Text>
                   </View>
-                  <Text style={styles.use}>Use</Text>
+                  <Text style={styles.use}>{selected ? '✓ Chosen' : 'Use'}</Text>
                 </Pressable>
-              ))}
+                )
+              })}
             </View>
           )}
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
@@ -251,19 +278,8 @@ export function SoloCreateScreen({ route }: Props) {
           <Section title="Proof, if you want it" aside="OPTIONAL" />
           <View style={styles.proofRow}>
             <ProofOption selected={draft.proofMode === 'none'} title="None" detail="Your word is enough." onPress={() => setDraft((current) => ({ ...current, proofMode: 'none' }))} />
-            <ProofOption selected={draft.proofMode === 'note'} title="Note" detail="Keep a private trace." onPress={() => setDraft((current) => ({ ...current, proofMode: 'note' }))} />
+            <ProofOption selected={draft.proofMode === 'note'} title="Note" detail="Add a line when you check in. Kept on this phone." onPress={() => setDraft((current) => ({ ...current, proofMode: 'note' }))} />
           </View>
-          {draft.proofMode === 'note' && (
-            <TextInput
-              value={proofNote}
-              onChangeText={setProofNote}
-              placeholder="Write a note to keep for yourself"
-              placeholderTextColor={color.faint}
-              style={styles.noteInput}
-              maxLength={280}
-              accessibilityLabel="Client side note proof"
-            />
-          )}
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
           <ActionButton label="Next" onPress={advance} accessibilityLabel="Continue to missed week terms" />
         </>
@@ -367,7 +383,6 @@ const styles = StyleSheet.create({
   indentedField: { gap: space.xs, paddingLeft: 28 },
   proofRow: { flexDirection: 'row', gap: space.sm },
   proof: { flex: 1, minHeight: 84, backgroundColor: color.card, borderColor: color.line, borderWidth: 1, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
-  noteInput: { ...type.caption, color: color.muted, backgroundColor: color.paperMuted, borderRadius: radius.md, padding: space.md },
   stakeCard: { backgroundColor: color.card, borderRadius: radius.lg, padding: space.lg, borderColor: color.line, borderWidth: 1, gap: space.xs },
   label: { ...type.label, color: color.muted },
   stakeLine: { flexDirection: 'row', alignItems: 'center' },

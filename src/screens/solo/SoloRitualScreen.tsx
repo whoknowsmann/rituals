@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { PublicKey } from '@solana/web3.js'
+import * as Clipboard from 'expo-clipboard'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigators/AppNavigator'
 import { useAuthorization } from '../../utils/useAuthorization'
@@ -12,9 +13,13 @@ import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/
 import { buildRitualActionDeps } from '../../features/rituals/buildRitualActionDeps'
 import { useRitualAction } from '../../features/rituals/useRitualAction'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
+import { listKnownRituals } from '../../features/rituals/authoritativeRituals'
+import { readSoloNotes, saveWeekNote, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
+import { shortRosterAddress } from '../../features/rituals/create/roster'
+import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { ActionButton, ErrorLine, Footnote, HoldButton, haptic, Poster, PosterLine, Stamp, WeekStrip } from '../../components/crew'
-import { color, memberColor, radius, space, type } from '../../theme'
+import { color, fonts, memberColor, radius, space, type } from '../../theme'
 import { soloRitualModel, type SoloRitualModel } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloActionDeps'
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
@@ -31,7 +36,23 @@ export function SoloRitualScreen({ route }: Props) {
   const accountRef = useRef(selectedAccount); accountRef.current = selectedAccount
   const [reload, setReload] = useState(0)
   const ritualAddress = useMemo(() => { try { return new PublicKey(route.params.ritualId) } catch { return null } }, [route.params.ritualId])
+  const [soloNotes, setSoloNotes] = useState<SoloNotes | null>(null)
+  const [noteInput, setNoteInput] = useState('')
+  const [ritualTitle, setRitualTitle] = useState<string | null>(null)
+  const noteInputRef = useRef(noteInput)
+  noteInputRef.current = noteInput
+  const proofModeRef = useRef<SoloNotes['proofMode']>('none')
+  proofModeRef.current = soloNotes?.proofMode ?? 'none'
+  const claimEventIndex = useRef<number | null>(null)
 
+  useFocusEffect(useCallback(() => {
+    let active = true
+    void readSoloNotes(route.params.ritualId).then((notes) => { if (active) setSoloNotes(notes) })
+    void listKnownRituals().then((rituals) => {
+      if (active) setRitualTitle(rituals.find((item) => item.address === route.params.ritualId)?.title ?? null)
+    })
+    return () => { active = false }
+  }, [reload, route.params.ritualId]))
   // Chain time is synced on load, then ticks locally so the week opens and
   // closes on screen without the user leaving and coming back.
   const chainOffset = useRef(0)
@@ -72,13 +93,26 @@ export function SoloRitualScreen({ route }: Props) {
     return buildSoloSkipDeps({ client: client.client, ritualAddress, actor: selectedAccount.publicKey, eventIndex: model.eventIndex, pendingActionStore: asyncStoragePendingActionStore, getBlockHeight: () => connection.getBlockHeight('confirmed'), authorizedActor: () => accountRef.current?.publicKey ?? null })
   }, [client, connection, model, ritualAddress, selectedAccount])
   const claim = useRitualAction(() => makeSharedDeps('claim'))
+  const startClaim = useCallback(() => {
+    claimEventIndex.current = model?.eventIndex ?? null
+    claim.start()
+  }, [claim.start, model?.eventIndex])
   const skip = useRitualAction(makeSkipDeps)
   // A week nobody checked in to has no event account yet; the first tap opens it
   // (one approval), the screen re-reads, and the next tap settles it.
   const settle = useRitualAction(() => makeSharedDeps(model?.needsEventInit ? 'initialize-event' : 'finalize'))
   const confirmedAction = useRef<string | null>(null)
   useEffect(() => {
-    if (claim.state.status === 'confirmed' && confirmedAction.current !== claim.state.result.messageDigest) { confirmedAction.current = claim.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
+    if (claim.state.status === 'confirmed' && confirmedAction.current !== claim.state.result.messageDigest) {
+      confirmedAction.current = claim.state.result.messageDigest
+      const eventIndex = claimEventIndex.current
+      const refresh = () => { setNoteInput(''); state.retry(); setReload((value) => value + 1) }
+      if (eventIndex !== null && proofModeRef.current === 'note' && ritualAddress) {
+        void saveWeekNote(ritualAddress.toBase58(), eventIndex, noteInputRef.current).catch(() => undefined).then(refresh)
+      } else {
+        refresh()
+      }
+    }
     if (skip.state.status === 'confirmed' && confirmedAction.current !== skip.state.result.messageDigest) { confirmedAction.current = skip.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
     if (settle.state.status === 'confirmed' && confirmedAction.current !== settle.state.result.messageDigest) {
       confirmedAction.current = settle.state.result.messageDigest
@@ -86,7 +120,7 @@ export function SoloRitualScreen({ route }: Props) {
       // Opening a missed week is step one of two; clear it so the same button can settle.
       settle.reset()
     }
-  }, [claim.state, settle.state, skip.state])
+  }, [claim.state, ritualAddress, settle.state, skip.state])
   const showedUpBefore = useRef(false)
   useEffect(() => {
     if (model?.showedUp && !showedUpBefore.current) haptic.success()
@@ -101,6 +135,11 @@ export function SoloRitualScreen({ route }: Props) {
   const actionError = action.state.status === 'error' ? action.copy.body : null
   const readyForWallet = Boolean(selectedAccount && readyBundle.ritual.account.members.some((member) => member.equals(selectedAccount.publicKey)))
   const tint = memberColor(0)
+  const holdVisible = (model.state === 'claimable' || model.state === 'open-not-initialized') && !model.showedUp
+  const weekNote = proofModeRef.current === 'note' ? soloNotes?.notes[String(model.eventIndex)] ?? null : null
+  const witness = readyBundle.ritual.account.witness
+  const canShareWitness = Boolean(witness && selectedAccount && readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
+  const shareAddress = ritualAddress?.toBase58() ?? route.params.ritualId
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
@@ -111,10 +150,19 @@ export function SoloRitualScreen({ route }: Props) {
         <WeekStrip cells={model.weekCells} tint={tint} />
         <PosterLine label="Your stake" value={formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)} />
       </Poster>
-      {renderState(model, readyBundle.ritual.account.witness, action, actionCopy, readyForWallet, walletPackage)}
+      {canShareWitness && witness && (
+        <View style={s.witnessCard}>
+          <Text style={s.cardTitle}>Your witness</Text>
+          <Text style={s.muted}>{shortRosterAddress(witness.toBase58())}</Text>
+          <ActionButton label="Send to your witness" onPress={() => { void Share.share({ message: witnessShareMessage(ritualTitle ?? 'your ritual', shareAddress) }) }} accessibilityLabel="Send this ritual to your witness" />
+          <ActionButton tone="quiet" label="Copy address" onPress={() => { void Clipboard.setStringAsync(shareAddress) }} accessibilityLabel="Copy ritual address" />
+        </View>
+      )}
+      {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote)}
       {actionError && <ErrorLine>{actionError}</ErrorLine>}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
-      {(model.state === 'claimable' || model.state === 'open-not-initialized') && !model.showedUp && <HoldButton onComplete={claim.start} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" />}
+      {holdVisible && proofModeRef.current === 'note' && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
+      {holdVisible && <HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" />}
       {model.state === 'resolving/settle' && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
@@ -125,7 +173,7 @@ export function SoloRitualScreen({ route }: Props) {
   )
 }
 
-function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined) {
+function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined, weekNote: string | null) {
   if (model.state === 'funding') return <View style={s.card}><Text style={s.cardTitle}>Waiting for funding</Text><Text style={s.muted}>This solo ritual is not active yet.</Text></View>
   if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Next week opens {model.nextOpensLabel}</Text><Text style={s.muted}>Your promise is still here.</Text></View>
   if (model.state === 'open-not-initialized') return <View style={s.card}><Text style={s.cardTitle}>This week is open</Text><Text style={s.muted}>Your first check-in will open the week.</Text></View>
@@ -134,7 +182,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'resolving/settle') return <View style={s.card}><Text style={s.cardTitle}>This week is ready to settle</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : 'The locked destination will receive the missed stake.'}</Text></View>
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
-  if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note="You showed up." animate={action.state.status !== 'confirmed'} /></View>
+  if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note="You showed up." animate={action.state.status !== 'confirmed'} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
   if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Checking this week</Text><Text style={s.muted}>Looking for the updated stamp.</Text></View>
   if (action.state.status !== 'idle') return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{action.state.status === 'awaiting-wallet' ? actionCopy.body : action.state.status === 'error' ? actionCopy.body : 'Getting this week ready…'}</Text></View>
   return <View style={s.holdCard}><Text style={s.cardTitle}>Make it official</Text><Text style={s.muted}>Hold to stamp this week.</Text>{ready ? <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text> : null}</View>
@@ -144,5 +192,5 @@ function Centered({ children }: { children: React.ReactNode }) { return <View st
 function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { return <View style={s.center}><Text style={s.title}>Ritual unavailable</Text><Text style={s.muted}>{message}</Text><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back to my rituals" onPress={onHome} /></View> }
 
 const s = StyleSheet.create({
-  screen: { backgroundColor: color.bg }, content: { padding: space.screen, paddingBottom: 48, gap: space.md }, back: { ...type.heading, color: color.muted }, kicker: { ...type.label, color: color.muted }, title: { ...type.display, color: color.fg }, card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs }, paper: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.lg, gap: space.md }, holdCard: { backgroundColor: color.fg, borderRadius: radius.poster, padding: space.xl, alignItems: 'center', gap: space.sm }, cardTitle: { ...type.heading, color: color.fg }, holdCardTitle: { ...type.heading, color: color.onDark }, muted: { ...type.body, color: color.muted }, note: { ...type.caption, color: color.faint, textAlign: 'center' }, center: { flex: 1, padding: space.screen, justifyContent: 'center', gap: space.md, backgroundColor: color.bg },
+  screen: { backgroundColor: color.bg }, content: { padding: space.screen, paddingBottom: 48, gap: space.md }, back: { ...type.heading, color: color.muted }, kicker: { ...type.label, color: color.muted }, title: { ...type.display, color: color.fg }, card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs }, paper: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.lg, gap: space.md }, holdCard: { backgroundColor: color.fg, borderRadius: radius.poster, padding: space.xl, alignItems: 'center', gap: space.sm }, witnessCard: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.sm }, cardTitle: { ...type.heading, color: color.fg }, holdCardTitle: { ...type.heading, color: color.onDark }, muted: { ...type.body, color: color.muted }, note: { ...type.caption, color: color.faint, textAlign: 'center' }, weekNote: { ...type.body, fontFamily: fonts.hand, color: color.fg }, weekNoteInput: { ...type.body, color: color.fg, backgroundColor: color.card, borderWidth: 1, borderColor: color.line, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md }, center: { flex: 1, padding: space.screen, justifyContent: 'center', gap: space.md, backgroundColor: color.bg },
 })
