@@ -7,8 +7,10 @@ import { DEMO_CADENCE, generateRitualSchedule, nextWeekdayOccurrence, WEEKLY_CAD
 import { flag, connectionFor, integerOption, option, parseCli, printJsonSummary, readKeypair, requiredOption } from './lib/cli'
 import { hashBytes, readProtocolConfig, refuseMainnetFundedPayer, seasonSummary, LOCAL_FAST_CADENCE } from './lib/chain'
 import { RITUALS_PROGRAM_ID } from '../src/data/rituals/programIds'
+import { demoCadenceFrom } from './lib/demoCadence'
+import type { RitualCadence } from '../src/domain/rituals/schedule'
 
-function scheduleFor(now: number, weekly: boolean, fast: boolean, leadMinutes = 10) {
+function scheduleFor(now: number, weekly: boolean, fast: boolean, leadMinutes = 10, demoCadence: RitualCadence = DEMO_CADENCE) {
   if (weekly && fast) throw new Error('--weekly and --fast are mutually exclusive')
   if (weekly) {
     const year = new Date(now * 1000).getUTCMonth() <= 9 ? new Date(now * 1000).getUTCFullYear() : new Date(now * 1000).getUTCFullYear() + 1
@@ -27,8 +29,8 @@ function scheduleFor(now: number, weekly: boolean, fast: boolean, leadMinutes = 
   // Joins close when week 1 opens, so the lead must cover rebuild + install + a
   // phone walk-through. --lead-minutes overrides the 10-minute default.
   const first = now + leadMinutes * 60
-  const schedule = generateRitualSchedule({ firstEventAt: first, eventCount: 16, cadence: DEMO_CADENCE })
-  return { cadence: DEMO_CADENCE, schedule, startAt: first, endAt: schedule[schedule.length - 1].resolutionDeadlineAt + 1 }
+  const schedule = generateRitualSchedule({ firstEventAt: first, eventCount: 16, cadence: demoCadence })
+  return { cadence: demoCadence, schedule, startAt: first, endAt: schedule[schedule.length - 1].resolutionDeadlineAt + 1 }
 }
 
 async function main(): Promise<void> {
@@ -54,7 +56,15 @@ async function main(): Promise<void> {
   if (!config.account.authority.equals(authority.publicKey)) throw new Error(`authority does not match ProtocolConfig.authority (${config.account.authority.toBase58()})`)
   const leadMinutes = integerOption(args, 'lead-minutes', 10)
   if (!(leadMinutes >= 2 && leadMinutes <= 24 * 60)) throw new Error('--lead-minutes must be between 2 and 1440')
-  const selected = scheduleFor(Math.floor(Date.now() / 1000), flag(args, 'weekly'), flag(args, 'fast'), leadMinutes)
+  // Optional demo-window overrides (default = DEMO_CADENCE: 180 s period, 90 s check-in, 60 s grace).
+  const windowFlags = ['period-seconds', 'claim-window-seconds', 'grace-seconds'].filter((name) => args[name] !== undefined)
+  if (windowFlags.length > 0 && (flag(args, 'weekly') || flag(args, 'fast'))) throw new Error('--period-seconds/--claim-window-seconds/--grace-seconds only apply to the demo cadence')
+  const demoCadence = demoCadenceFrom({
+    periodSeconds: args['period-seconds'] === undefined ? undefined : integerOption(args, 'period-seconds', 0),
+    claimWindowSeconds: args['claim-window-seconds'] === undefined ? undefined : integerOption(args, 'claim-window-seconds', 0),
+    graceSeconds: args['grace-seconds'] === undefined ? undefined : integerOption(args, 'grace-seconds', 0),
+  })
+  const selected = scheduleFor(Math.floor(Date.now() / 1000), flag(args, 'weekly'), flag(args, 'fast'), leadMinutes, demoCadence)
   const inputSchedule = selected.schedule.map((entry) => ({ opens: BigInt(entry.claimOpensAt), deadline: BigInt(entry.claimDeadlineAt), resolution: BigInt(entry.resolutionDeadlineAt) }))
   const instruction = buildInitializeSeasonInstruction({ programId: RITUALS_PROGRAM_ID, authority: authority.publicKey, season: { seasonId, titleDigest, schedule: inputSchedule, startAt: BigInt(selected.startAt), endAt: BigInt(selected.endAt) } })
   const signature = await sendAndConfirmTransaction(connection, new Transaction().add(instruction), [authority], { commitment: 'confirmed' })

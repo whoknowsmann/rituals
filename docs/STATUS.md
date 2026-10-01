@@ -42,6 +42,18 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 - **SKR correction:** the reader and tiers exist and are tested, but no screen
   calls them, so no discount is live. Decide: wire it into create review, or drop the claim.
 - Voided-week RED tests moved into the repo: `docs/parked/voided-week-red-tests.patch`.
+- **Wider stamp window, no rebuild:** `init-demo-season.ts` now takes
+  `--claim-window-seconds N` (plus optional `--grace-seconds`, `--period-seconds`;
+  defaults unchanged at 90/60/180). A Season ritual inherits the Season's windows
+  from chain. Proven on devnet with throwaway Season `window-probe-0930`
+  (`8zUyyxKHcSaFAqZRqmEmeZAtZpg4i6Dzb42YGqKxN2P3`, 300 s check-in):
+  `smoke-solo --path honor` 8/8 PASS (join, stamp, settle; Season counts 1/1),
+  ritual `4oPfTucKJC6ABFtEwEVRQWyUdDMVfamVLV46dQfZ8u2c`. **For the phone test add
+  `--claim-window-seconds 300`** to the d1 create command below (Phantom took
+  ~70 s of 90 s last time). App-side reading of the wider window is
+  code-reviewed, not yet seen on the phone.
+- Dead-end UI pass in progress overnight (branches `fix/dead-ends-create`,
+  `fix/dead-ends-misc`); see the 2026-10-01 update when it lands.
 - Phone-test steps below are unchanged.
 
 **Active line: `feat/solo-screens` in the worktree `~/projects/preflight-solo`.**
