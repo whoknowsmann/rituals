@@ -43,6 +43,34 @@ describe('indexed event confirmation contracts', () => {
     expect(result.bundle.ritual.account.status).toBe('Active')
   })
 
+  it('confirms a solo create + fund + activate bundle, whose readback is already Active', async () => {
+    // One transaction creates, funds and activates a solo ritual, so the
+    // authoritative readback can never be Funding. Seen on device 2026-10-01:
+    // a successful create showed "Confirmation incomplete".
+    const creator = lifecycleSource.members[0]
+    const account = lifecycleContext({ status: 'Active', currentEventIndex: 0, activatedAt: 1n, fundedMembersBitmap: 7, fundedMemberCount: 3, fundedStakeTotal: lifecycleSource.memberTotalStake * 3n, fundedFeeTotal: lifecycleSource.lockedActivationFee }).account
+    const nonce = account.nonce
+    const reader = new EventReader(bundle('Pending', { ...account, creator }))
+    const result = await new RitualConfirmationVerifier(reader, new FakeConfirm()).confirmAndReadRitual(action({ kind: 'bundle', expectations: [
+      { kind: 'created', creator, nonce },
+      { kind: 'funded', member, expectedFundedMemberCount: 3, expectedFundedStakeTotal: lifecycleSource.memberTotalStake * 3n, expectedFundedFeeTotal: lifecycleSource.lockedActivationFee },
+      { kind: 'activated' },
+    ] }))
+    expect(result.expectationKind).toBe('bundle')
+  })
+
+  it('still rejects a standalone create whose readback is not Funding, or a bundle with the wrong creator', async () => {
+    const creator = lifecycleSource.members[0]
+    const active = lifecycleContext({ status: 'Active', currentEventIndex: 0, activatedAt: 1n, fundedMembersBitmap: 7, fundedMemberCount: 3, fundedStakeTotal: lifecycleSource.memberTotalStake * 3n, fundedFeeTotal: lifecycleSource.lockedActivationFee }).account
+    const nonce = active.nonce
+    await expect(new RitualConfirmationVerifier(new EventReader(bundle('Pending', { ...active, creator })), new FakeConfirm()).confirmAndReadRitual(action({ kind: 'created', creator, nonce }))).rejects.toMatchObject({ category: 'readback' })
+    const stranger = new PublicKey(new Uint8Array(32).fill(77))
+    await expect(new RitualConfirmationVerifier(new EventReader(bundle('Pending', { ...active, creator })), new FakeConfirm()).confirmAndReadRitual(action({ kind: 'bundle', expectations: [
+      { kind: 'created', creator: stranger, nonce },
+      { kind: 'activated' },
+    ] }))).rejects.toMatchObject({ category: 'readback' })
+  })
+
   it('confirms a bundled initialize-and-claim through the indexed reader once', async () => {
     const reader = new EventReader(bundle('Pending'))
     const result = await new RitualConfirmationVerifier(reader, new FakeConfirm()).confirmAndReadRitual(action({ kind: 'bundle', expectations: [{ kind: 'event-initialized', eventIndex: 0 }, { kind: 'claimed', claimant: member, eventIndex: 0, expectedClaimStatus: 'Pending' }] }))

@@ -1,4 +1,5 @@
 import { PublicKey } from '@solana/web3.js'
+import { RitualRpcError } from '../../data/rituals/ritualsRpc'
 import type { RitualClient } from '../../data/rituals/ritualClient'
 import type { PreparedRitualAction } from '../../data/rituals/ritualPreparedAction'
 import type { SubmittedRitualActionHandle } from '../../data/rituals/ritualSubmission'
@@ -72,7 +73,13 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
         if (kind === 'initialize-event') {
           prepared = await client.prepareInitializeEvent({ programId: client.programId, ritual: { address: read.address, account: read.account }, eventIndex, payer: actor })
         } else {
-          const bundle = await client.getEventBundle(ritualAddress, eventIndex)
+          // The reader throws 'not-found' for a week nobody has opened yet. Only a
+          // claim may open it (initialize + claim in one approval); every other
+          // action still fails closed below.
+          const bundle = await client.getEventBundle(ritualAddress, eventIndex).catch((error: unknown) => {
+            if (kind === 'claim' && error instanceof RitualRpcError && error.category === 'not-found') return { event: null, claims: [] }
+            throw error
+          })
           if (!bundle.event && kind !== 'claim') throw new Error('the current event is not initialized')
           const event = bundle.event ? { address: bundle.event.address, account: bundle.event.account } : null
           if (kind === 'claim') {

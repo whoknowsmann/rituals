@@ -153,14 +153,18 @@ function expired(error: unknown): boolean {
 }
 function mismatch(): never { return fail('readback', 'Ritual state did not match the submitted action') }
 
-function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionExpectation): void {
+function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionExpectation, createdThenActivated = false): void {
   if (expectation.kind === 'bundle') {
-    for (const nested of expectation.expectations) verifyExpectation(bundle, nested)
+    // A create bundled with activation (solo create + fund + activate) can never
+    // read back as Funding; the nested 'activated' expectation proves the rest.
+    const activatesInSameTransaction = expectation.expectations.some((nested) => nested.kind === 'activated')
+    for (const nested of expectation.expectations) verifyExpectation(bundle, nested, activatesInSameTransaction)
     return
   }
   const account = bundle.ritual.account
   if (expectation.kind === 'created') {
-    if (account.status !== 'Funding' || !account.creator.equals(expectation.creator) || account.nonce !== expectation.nonce) mismatch()
+    const statusOk = account.status === 'Funding' || (createdThenActivated && account.status === 'Active')
+    if (!statusOk || !account.creator.equals(expectation.creator) || account.nonce !== expectation.nonce) mismatch()
   } else if (expectation.kind === 'skip-declared') {
     if (account.kind !== 'Solo' || !account.skipDeclared || account.skipEventIndex !== expectation.eventIndex || account.currentEventIndex !== expectation.eventIndex) mismatch()
   } else if (expectation.kind === 'funded') {

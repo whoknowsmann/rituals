@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import { buildRitualActionDeps } from './buildRitualActionDeps'
 import type { PendingActionStore } from './recovery/pendingAction'
+import { RitualRpcError } from '../../data/rituals/ritualsRpc'
 
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
 const actor = key(1)
@@ -48,6 +49,31 @@ describe('buildRitualActionDeps', () => {
     expect(ref.kind).toBe('claim')
     expect(client.prepareInitializeAndClaim).toHaveBeenCalledWith(expect.objectContaining({ payer: actor, claimant: actor, eventIndex: 0 }))
   })
+  it('bundles initialization when the real reader reports the first event as not found', async () => {
+    // RitualsRpcReader.getEventBundle throws RitualRpcError('not-found') for an
+    // uninitialized week; it never returns { event: null }. Seen on device
+    // 2026-10-01: the stamp failed before the wallet opened.
+    const client = fakeClient({
+      getEventBundle: vi.fn(async () => { throw new RitualRpcError('not-found', 'Ritual event was not found') }),
+      prepareInitializeAndClaim: vi.fn(async () => ({ ...prepared, kind: 'initialize-event-and-claim' as const })),
+      prepareClaim: vi.fn(async () => prepared),
+    })
+    const deps = buildRitualActionDeps({ client, ritualAddress: ritual, actor, kind: 'claim', claimant: actor })
+    const ref = await deps.prepare()
+    expect(ref.kind).toBe('claim')
+    expect(client.prepareInitializeAndClaim).toHaveBeenCalledWith(expect.objectContaining({ payer: actor, claimant: actor, eventIndex: 0 }))
+    expect(client.prepareClaim).not.toHaveBeenCalled()
+  })
+
+  it('still fails closed on other event read errors and for non-claim actions', async () => {
+    const rpcDown = fakeClient({ getEventBundle: vi.fn(async () => { throw new RitualRpcError('rpc', 'Rituals RPC request failed') }), prepareInitializeAndClaim: vi.fn() })
+    await expect(buildRitualActionDeps({ client: rpcDown, ritualAddress: ritual, actor, kind: 'claim', claimant: actor }).prepare()).rejects.toMatchObject({ category: 'rpc' })
+    expect(rpcDown.prepareInitializeAndClaim).not.toHaveBeenCalled()
+    const finalizeMissing = fakeClient({ getEventBundle: vi.fn(async () => { throw new RitualRpcError('not-found', 'Ritual event was not found') }), prepareFinalize: vi.fn() })
+    await expect(buildRitualActionDeps({ client: finalizeMissing, ritualAddress: ritual, actor, kind: 'finalize', destinationTokenAccounts: [key(7)] }).prepare()).rejects.toThrow()
+    expect(finalizeMissing.prepareFinalize).not.toHaveBeenCalled()
+  })
+
   it('selects fund plus activate for the last member only after vault and clock checks', async () => {
     const bundleAccount = {
       ...account,

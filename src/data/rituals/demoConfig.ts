@@ -22,8 +22,8 @@ export const DEMO_CAUSE: DemoCause = Object.freeze({
 /** The app-wide demo Season ("October Run Club"). */
 export const DEMO_SEASON: Readonly<{ title: string; address: PublicKey | null }> = Object.freeze({
   title: 'October Run Club',
-  // Deterministic PDA of slug 'october-run-club-d1' (scripts/season-address.ts).
+  // Deterministic PDA of slug 'october-run-club-d2' (scripts/season-address.ts).
   // Created by scripts/init-demo-season.ts right before a device run; until then
-  // home says the Season is unavailable.
-  address: new PublicKey('BjLpWbSxmfgQTKSvFQ23AhsvEbKM5DNzRpuoXCNZTUDz'),
+  // home says "No Season running right now." (d1 BjLpWbSx… was used up 2026-10-01.)
+  address: new PublicKey('DUiLHsXdck8C5m8Rw5qxBV6KcYSQYxN89C64DrvYNKVx'),
 })
