@@ -25,6 +25,35 @@ If a document disagrees with those four commands, the document is wrong. Fix it.
 
 ## RESUME HERE — handoff 2026-09-28 ("lets begin rituals")
 
+### Update 2026-10-01 night (Hermes) — phone run found 2 bugs; fixed; plan written
+
+**Read first: `docs/plans/scope-to-place-2026-10-02.md`** (Jack asked for a
+focused plan to place; it has the freeze list and the day-by-day to Oct 7).
+
+Phone run 2026-10-01 ~21:00 on d2 (Season d1, 300 s window):
+- Approval 1 (create + stake + activate) **landed on chain**
+  (`5vXvpDLb…`, ritual `7gKe46R1kjyQJUi2N442h6LTTgzFg8nmd2yQQ6Cq5EAw`, 80 TEST,
+  Season "1 person in"), but the app said **"Confirmation incomplete"**.
+- HOLD to stamp failed **before Phantom opened**: "Ritual event was not found".
+  Week 1 lapsed. That ritual is abandoned devnet test data.
+- Root causes (both client-side; program fine):
+  1. the reader throws `not-found` for an unopened week; the claim path expected
+     `{ event: null }`, so initialize + claim was never prepared;
+  2. the confirmation check required `Funding` for 'created' even inside the
+     solo create + fund + activate bundle, which reads back `Active`.
+- **Fixed in b3757fc** with RED-first unit tests, plus
+  `scripts/smoke-app-solo.ts`, which drives the screens' own modules on devnet:
+  old code fails at create with the device error; fixed code passes create,
+  stamp (InitializeCurrentEvent + ClaimCompletion, Ok), settle (FinalizeEvent,
+  Ok). Run it before every APK build.
+- Season d1 is spent; app now points at **d2 = `DUiLHsXdck8C5m8Rw5qxBV6KcYSQYxN89C64DrvYNKVx`**
+  (not created). Next run: `init-demo-season.ts … --slug october-run-club-d2
+  --claim-window-seconds 300`.
+- **APK `artifacts/rituals-d3.apk` (from b3757fc) is BUILT and staged but NOT
+  installed**: the install command needed approval while Jack was away. Phone
+  still has d2 (has both bugs). Install first thing next session
+  (`adb push` then `adb shell pm install -r`).
+
 ### Update 2026-09-30 (Hermes, Jack away; phone test still NOT run)
 
 - Re-verified: HEAD clean + pushed, tsc clean, **2,146 tests / 99 files**,
@@ -104,7 +133,7 @@ cd ~/projects/preflight-solo
 export NODE_OPTIONS="--require $HOME/.hermes/skills/software-development/solana-mobile-app-development/scripts/ipv4-only.cjs"
 npx tsx scripts/init-demo-season.ts --url https://api.devnet.solana.com \
   --authority-keypair ../preflight/.keys/rituals-devnet-deployer.json \
-  --slug october-run-club-d1 --title 'October Run Club' --lead-minutes 8 --claim-window-seconds 300
+  --slug october-run-club-d2 --title 'October Run Club' --lead-minutes 8 --claim-window-seconds 300   # d1 spent 10-01
 ```
 
 Then the phone steps below (3 approvals). Optionally pick **Note** on step 2 to
