@@ -30,11 +30,23 @@ only: "put a stake on a weekly promise, stamp it to keep it, miss and it goes to
 a cause you chose." Seasons, With friends, witness, Join and person-destination
 are hidden from the UI (code and program support kept) and move to "coming soon".
 
+**Fold done 2026-10-02 (9d6a387).** `SOLO_ONLY` in
+`src/features/rituals/productScope.ts` hides friends, Join, Seasons, witness,
+the person destination and the proof chooser (code kept; pinned by
+`productScope.test.ts`). Create is 2 steps. Solo cadence `DEMO_SOLO_CADENCE`:
+120 s lead, 300 s check-in, 60 s grace, 390 s period (group keeps
+`DEMO_CADENCE`). Note line at every stamp. tsc clean, 2,201 tests / 116 files.
+`smoke-app-solo.ts` (now defaults to the shipped cadence) GREEN on devnet:
+ritual `A2JUhMiyW8xC3SnGdHAue1mLPoWHmLGsjwo6hYLBrfv`, settle `4HS6Z8of…`.
+**d4 (9d6a387) INSTALLED** on the Seeker 10:25:57 (Play Protect: "Don't
+send"); walked to the wallet prompt (`artifacts/shots/d4-*`). Build with
+`TAG=dN scripts/build-apk-local.sh`.
+
 Next actions, in order:
-1. Do the fold (plan §2), then build d4, install it, and walk it on the phone.
-   **d3 (b3757fc, both 10-01 bugs fixed) is built but NOT installed. The phone
-   has d2, which has the bugs.**
-2. Jack's phone run with screen recording (plan §3 #2).
+1. ~~Fold, build d4, install, walk.~~ Done.
+2. Jack's phone run with screen recording (plan §3 #2). Timeline from tapping
+   Approve: week 1 opens ~2 min, stamp window 5 min, settle ~1 min after it
+   closes; week 2 opens ~30 s later, let it lapse (~6 min), Close + Settle.
 3. Rewrite the submission docs for the single blade (they still lead with
    Seasons, friends and witness).
 
