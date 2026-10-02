@@ -71,6 +71,22 @@ export const DEMO_CADENCE: RitualCadence = Object.freeze({
   label: 'Demo (accelerated)',
 })
 
+/**
+ * Devnet-only solo demo speed. Phantom on a Seeker can take ~70 s of a 90 s
+ * check-in (unlock, approve, Seed Vault), so a solo promise gets a 5-minute
+ * window. The period leaves 30 s between one week's resolution and the next
+ * week's opening (the program needs opens > previous resolution). The group
+ * lobby keeps DEMO_CADENCE.
+ */
+export const DEMO_SOLO_CLAIM_WINDOW_SECONDS = 300
+export const DEMO_SOLO_CADENCE: RitualCadence = Object.freeze({
+  periodSeconds: DEMO_SOLO_CLAIM_WINDOW_SECONDS + DEMO_RESOLUTION_GRACE_SECONDS + 30,
+  claimWindowSeconds: DEMO_SOLO_CLAIM_WINDOW_SECONDS,
+  resolutionGraceSeconds: DEMO_RESOLUTION_GRACE_SECONDS,
+  accelerated: true,
+  label: 'Demo (accelerated)',
+})
+
 export const WEEKDAYS = Object.freeze([
   'Sunday',
   'Monday',

@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
-import { mergeSoloNotesStorage, parseSoloNotesStorage, trimSoloWeekNote } from './soloNotes'
+import { mergeSoloNotesStorage, notesOffered, parseSoloNotesStorage, trimSoloWeekNote } from './soloNotes'
+
+describe('notesOffered (single blade: the note line shows at every stamp)', () => {
+  it('offers the note line when no record exists or the record chose notes', () => {
+    expect(notesOffered(null)).toBe(true)
+    expect(notesOffered({ proofMode: 'note', notes: {} })).toBe(true)
+  })
+
+  it('respects an explicit "none" chosen at create', () => {
+    expect(notesOffered({ proofMode: 'none', notes: {} })).toBe(false)
+  })
+})
 
 const address = new PublicKey(new Uint8Array(32).fill(9)).toBase58()
 

@@ -14,7 +14,8 @@ import { buildRitualActionDeps } from '../../features/rituals/buildRitualActionD
 import { useRitualAction } from '../../features/rituals/useRitualAction'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { listKnownRituals } from '../../features/rituals/authoritativeRituals'
-import { readSoloNotes, saveWeekNote, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
+import { notesOffered, readSoloNotes, saveWeekNote, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
+import { SCOPE } from '../../features/rituals/productScope'
 import { shortRosterAddress } from '../../features/rituals/create/roster'
 import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
@@ -41,8 +42,9 @@ export function SoloRitualScreen({ route }: Props) {
   const [ritualTitle, setRitualTitle] = useState<string | null>(null)
   const noteInputRef = useRef(noteInput)
   noteInputRef.current = noteInput
-  const proofModeRef = useRef<SoloNotes['proofMode']>('none')
-  proofModeRef.current = soloNotes?.proofMode ?? 'none'
+  // No record (e.g. a create whose readback was slow) still offers the note.
+  const notesOfferedRef = useRef(true)
+  notesOfferedRef.current = notesOffered(soloNotes)
   const claimEventIndex = useRef<number | null>(null)
 
   useFocusEffect(useCallback(() => {
@@ -107,7 +109,7 @@ export function SoloRitualScreen({ route }: Props) {
       confirmedAction.current = claim.state.result.messageDigest
       const eventIndex = claimEventIndex.current
       const refresh = () => { setNoteInput(''); state.retry(); setReload((value) => value + 1) }
-      if (eventIndex !== null && proofModeRef.current === 'note' && ritualAddress) {
+      if (eventIndex !== null && notesOfferedRef.current && ritualAddress) {
         void saveWeekNote(ritualAddress.toBase58(), eventIndex, noteInputRef.current).catch(() => undefined).then(refresh)
       } else {
         refresh()
@@ -136,9 +138,9 @@ export function SoloRitualScreen({ route }: Props) {
   const readyForWallet = Boolean(selectedAccount && readyBundle.ritual.account.members.some((member) => member.equals(selectedAccount.publicKey)))
   const tint = memberColor(0)
   const holdVisible = (model.state === 'claimable' || model.state === 'open-not-initialized') && !model.showedUp
-  const weekNote = proofModeRef.current === 'note' ? soloNotes?.notes[String(model.eventIndex)] ?? null : null
+  const weekNote = soloNotes?.notes[String(model.eventIndex)] ?? null
   const witness = readyBundle.ritual.account.witness
-  const canShareWitness = Boolean(witness && selectedAccount && readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
+  const canShareWitness = SCOPE.witness && Boolean(witness && selectedAccount && readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
   const shareAddress = ritualAddress?.toBase58() ?? route.params.ritualId
 
   return (
@@ -161,7 +163,7 @@ export function SoloRitualScreen({ route }: Props) {
       {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote)}
       {actionError && <ErrorLine>{actionError}</ErrorLine>}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
-      {holdVisible && proofModeRef.current === 'note' && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
+      {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
       {holdVisible && <HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" />}
       {model.state === 'resolving/settle' && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}

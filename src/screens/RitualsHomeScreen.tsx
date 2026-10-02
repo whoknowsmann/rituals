@@ -16,6 +16,7 @@ import { readSeason } from '../features/rituals/solo/season/readSeason'
 import { seasonStatusForError } from '../features/rituals/solo/season/seasonState'
 import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/solo/season/seasonViewModel'
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
+import { COMING_SOON_LINE, SCOPE } from '../features/rituals/productScope'
 import { color, memberColor, radius, space, type } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
@@ -50,7 +51,8 @@ export function RitualsHomeScreen() {
       return
     }
 
-    const seasonPromise = DEMO_SEASON.address === null
+    // Seasons are hidden by the solo-only scope: don't read one at all.
+    const seasonPromise = !SCOPE.seasons || DEMO_SEASON.address === null
       ? Promise.resolve({ season: null, status: 'no-address' as const })
       : readSeason(connection, DEMO_SEASON.address, client.client.programId)
         .then((read) => ({ season: read.account, status: 'ready' as const }))
@@ -101,9 +103,10 @@ export function RitualsHomeScreen() {
     {homeState.rituals.length === 0
       ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
       : <ActiveRituals rituals={homeState.rituals} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}
-    <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={load} onOpen={() => {
+    {SCOPE.seasons && <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={load} onOpen={() => {
       if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
-    }} styles={styles} />
+    }} styles={styles} />}
+    {!SCOPE.homeFriends && !SCOPE.seasons && <Text style={styles.comingSoon}>{COMING_SOON_LINE}</Text>}
     <Footnote>{disclosure}</Footnote>
   </ScrollView>
 }
@@ -115,8 +118,8 @@ function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => 
     <Text style={styles.emptyBody}>Choose the thing. Set your stake. Show up in your own time.</Text>
     <View style={styles.actions}>
       <ActionButton label="Make a promise" onPress={onPromise} />
-      <ActionButton tone="quiet" label="With friends" onPress={onFriends} />
-      <ActionButton tone="quiet" label="Join with a link" onPress={onJoin} />
+      {SCOPE.homeFriends && <ActionButton tone="quiet" label="With friends" onPress={onFriends} />}
+      {SCOPE.homeJoin && <ActionButton tone="quiet" label="Join with a link" onPress={onJoin} />}
     </View>
   </View>
 }
@@ -194,6 +197,7 @@ const makeStyles = (theme: MD3Theme) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.md, backgroundColor: theme.colors.background },
   seasonError: { gap: space.sm, alignItems: 'center' },
   muted: { ...type.body, color: color.muted, textAlign: 'center' },
+  comingSoon: { ...type.caption, color: color.muted, textAlign: 'center', marginTop: space.xl },
   errorTitle: { ...type.section, color: color.fg, textAlign: 'center' },
   disclosure: { ...type.label, color: color.faint, textAlign: 'center', marginVertical: space.md },
 })

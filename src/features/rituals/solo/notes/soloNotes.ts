@@ -52,6 +52,15 @@ export function trimSoloWeekNote(text: string): string {
   return Array.from(text.trim()).slice(0, 280).join('')
 }
 
+/**
+ * Whether the stamp offers the optional one-line note. The create screen no
+ * longer asks (single-blade fold), so a missing record means yes; only an
+ * explicit "none" chosen at create turns it off.
+ */
+export function notesOffered(record: SoloNotes | null): boolean {
+  return record?.proofMode !== 'none'
+}
+
 export function mergeSoloNotesStorage(current: unknown, address: string, update: SoloNotesUpdate): SoloNotesStorage {
   const parsed = parseSoloNotesStorage(current)
   const canonical = canonicalAddress(address)

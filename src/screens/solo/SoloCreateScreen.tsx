@@ -16,12 +16,14 @@ import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
-import { DEMO_CADENCE } from '../../domain/rituals/schedule'
+import { DEMO_SOLO_CADENCE } from '../../domain/rituals/schedule'
 import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
 import { color, fonts, radius, space, type } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
 import { selectSoloSchedule, soloEventCount } from '../../features/rituals/solo/create/schedule'
 import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
+import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, soloCreateSteps, type SoloCreateStep } from '../../features/rituals/solo/create/steps'
+import { SCOPE } from '../../features/rituals/productScope'
 import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
   SOLO_CREATE_MESSAGES,
@@ -38,13 +40,16 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SoloCreate'>
 type Navigation = NativeStackNavigationProp<RootStackParamList>
 type SeasonRead = Readonly<{ status: 'loading' | 'ready' | 'error'; account?: SeasonAccountView; message?: string }>
 
+const CREATE_STEPS = soloCreateSteps(SCOPE)
+
 const initialDraft: SoloCreateDraft = {
   intention: '',
   title: '',
   requirement: '',
   witnessMode: 'just-me',
   witnessAddress: '',
-  proofMode: 'none',
+  // With the chooser hidden, every new promise offers the note line at each stamp.
+  proofMode: SCOPE.proofChooser ? 'none' : 'note',
   stakePerWeek: '5',
   destination: 'cause',
   personAddress: '',
@@ -57,7 +62,8 @@ export function SoloCreateScreen({ route }: Props) {
   const { selectedAccount, walletPackage } = useAuthorization()
   const accountRef = useRef(selectedAccount)
   accountRef.current = selectedAccount
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<SoloCreateStep>(1)
+  const stepPosition = soloCreateStepPosition(step, CREATE_STEPS)
   const [draft, setDraft] = useState<SoloCreateDraft>(initialDraft)
   const [pickedEventCount, setPickedEventCount] = useState<string | number | undefined>(undefined)
   const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
@@ -65,7 +71,7 @@ export function SoloCreateScreen({ route }: Props) {
   const [suggestionRound, setSuggestionRound] = useState(0)
   const [confirmedReadback, setConfirmedReadback] = useState(false)
   const [readbackError, setReadbackError] = useState<string | null>(null)
-  const seasonAddressText = route.params?.seasonAddress
+  const seasonAddressText = SCOPE.seasons ? route.params?.seasonAddress : undefined
   const seasonAddress = useMemo(() => {
     if (!seasonAddressText) return null
     try { return new PublicKey(seasonAddressText) } catch { return null }
@@ -110,7 +116,7 @@ export function SoloCreateScreen({ route }: Props) {
     if (seasonAddressText && season.status !== 'ready') throw new Error(season.message ?? 'This Season could not be read.')
     const eventCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
     const schedule = selectSoloSchedule({
-      cadence: DEMO_CADENCE,
+      cadence: DEMO_SOLO_CADENCE,
       referenceSeconds: Math.floor(Date.now() / 1000),
       eventCount,
       seasonSchedule: season.account?.schedule,
@@ -149,7 +155,7 @@ export function SoloCreateScreen({ route }: Props) {
         actionType: event.data.action.type,
       })) return
       event.preventDefault()
-      setStep((value) => (value === 1 ? 1 : (value - 1) as 1 | 2 | 3))
+      setStep((value) => previousSoloCreateStep(value, CREATE_STEPS))
       setStepErrors([])
     })
     return unsubscribe
@@ -184,7 +190,8 @@ export function SoloCreateScreen({ route }: Props) {
     if (step === 3) errors.push(...stepThreeErrors.filter((error) => !errors.includes(error)))
     setStepErrors(errors)
     if (errors.length > 0) return
-    if (step < 3) setStep((value) => (value + 1) as 2 | 3)
+    const next = nextSoloCreateStep(step, CREATE_STEPS)
+    if (next !== null) setStep(next)
   }
 
   const chooseSuggestion = (suggestion: RitualSuggestion) => {
@@ -215,9 +222,9 @@ export function SoloCreateScreen({ route }: Props) {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.progress} accessibilityLabel={`Make it yours, step ${step} of 3`}>
-        <Text style={styles.kicker}>MAKE IT YOURS · {step} OF 3</Text>
-        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${(step / 3) * 100}%` }]} /></View>
+      <View style={styles.progress} accessibilityLabel={`Make it yours, step ${stepPosition.position} of ${stepPosition.total}`}>
+        <Text style={styles.kicker}>MAKE IT YOURS · {stepPosition.position} OF {stepPosition.total}</Text>
+        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${(stepPosition.position / stepPosition.total) * 100}%` }]} /></View>
       </View>
 
       {step === 1 && (
@@ -259,7 +266,7 @@ export function SoloCreateScreen({ route }: Props) {
             </View>
           )}
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
-          <ActionButton label="Next" onPress={advance} accessibilityLabel="Continue to who keeps you honest" />
+          <ActionButton label="Next" onPress={advance} accessibilityLabel={nextSoloCreateStep(1, CREATE_STEPS) === 2 ? 'Continue to who keeps you honest' : 'Continue to your stake'} />
         </>
       )}
 
@@ -267,19 +274,19 @@ export function SoloCreateScreen({ route }: Props) {
         <>
           <Hero>Who keeps you honest?</Hero>
           <OptionRow selected={draft.witnessMode === 'just-me'} title="Just me" detail="Honor system · you check in inside the window." onPress={() => setDraft((current) => ({ ...current, witnessMode: 'just-me' }))} />
-          <OptionRow selected={draft.witnessMode === 'one-witness'} title="+ One witness" detail="A person confirms. They never stake." onPress={() => setDraft((current) => ({ ...current, witnessMode: 'one-witness' }))} />
-          {draft.witnessMode === 'one-witness' && (
+          {SCOPE.witness && <OptionRow selected={draft.witnessMode === 'one-witness'} title="+ One witness" detail="A person confirms. They never stake." onPress={() => setDraft((current) => ({ ...current, witnessMode: 'one-witness' }))} />}
+          {SCOPE.witness && draft.witnessMode === 'one-witness' && (
             <View style={styles.indentedField}>
               <TextInput value={draft.witnessAddress} onChangeText={(value) => setDraft((current) => ({ ...current, witnessAddress: value }))} placeholder="Paste their wallet address" placeholderTextColor={color.faint} autoCapitalize="none" style={styles.input} accessibilityLabel="Witness wallet address" />
               {selectedAccount && validateWitnessAddress(draft.witnessAddress, selectedAccount.publicKey) && <ErrorLine>{validateWitnessAddress(draft.witnessAddress, selectedAccount.publicKey)}</ErrorLine>}
             </View>
           )}
-          <OptionRow selected={false} title="With friends" detail="2–6 people stake and confirm one another." onPress={() => navigation.navigate('TemplatePicker')} />
-          <Section title="Proof, if you want it" aside="OPTIONAL" />
-          <View style={styles.proofRow}>
+          {SCOPE.groupFromCreate && <OptionRow selected={false} title="With friends" detail="2–6 people stake and confirm one another." onPress={() => navigation.navigate('TemplatePicker')} />}
+          {SCOPE.proofChooser && <Section title="Proof, if you want it" aside="OPTIONAL" />}
+          {SCOPE.proofChooser && <View style={styles.proofRow}>
             <ProofOption selected={draft.proofMode === 'none'} title="None" detail="Your word is enough." onPress={() => setDraft((current) => ({ ...current, proofMode: 'none' }))} />
             <ProofOption selected={draft.proofMode === 'note'} title="Note" detail="Add a line when you check in. Kept on this phone." onPress={() => setDraft((current) => ({ ...current, proofMode: 'note' }))} />
-          </View>
+          </View>}
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
           <ActionButton label="Next" onPress={advance} accessibilityLabel="Continue to missed week terms" />
         </>
@@ -298,7 +305,7 @@ export function SoloCreateScreen({ route }: Props) {
             <Text style={styles.quiet}>{`${weekCount} weeks · ${totalStakeLabel} in all · Demo speed`}</Text>
           </View>
           <Section title="If I miss, it goes to" aside="LOCKED BEFORE YOU START" />
-          {destinationChoices(DEMO_CAUSE).map((choice) => (
+          {destinationChoices(DEMO_CAUSE).filter((choice) => SCOPE.personDestination || choice.kind === 'cause').map((choice) => (
             <OptionRow key={choice.kind} selected={draft.destination === choice.kind} disabled={choice.disabled} title={choice.kind === 'cause' ? DEMO_CAUSE.label : choice.label} detail={choice.disabled ? choice.detail : choice.kind === 'cause' ? 'The selected cause' : choice.detail} onPress={() => { if (!choice.disabled) setDraft((current) => ({ ...current, destination: choice.kind })) }} />
           ))}
           {draft.destination === 'person' && (

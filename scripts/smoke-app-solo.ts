@@ -14,8 +14,10 @@
  *
  * Usage (devnet only; never the Solana CLI default wallet):
  *   npx tsx scripts/smoke-app-solo.ts --keypair .keys/rituals-solo-smoke-owner.json \
- *     --creator-token-account <TEST ATA> [--season <address>] [--claim-window-seconds 120]
- * Without --season it creates a standalone solo ritual on a short demo cadence.
+ *     --creator-token-account <TEST ATA> [--season <address>] [--claim-window-seconds N]
+ * Without --season it creates a standalone solo ritual on the app's own solo
+ * cadence (DEMO_SOLO_CADENCE: 120 s lead, 300 s check-in, ~8 min end to end).
+ * --claim-window-seconds N swaps in a shorter test cadence instead.
  */
 import { Connection, PublicKey, Transaction } from '@solana/web3.js'
 import { getAccount } from '@solana/spl-token'
@@ -33,6 +35,7 @@ import { decodeSeason } from '../src/data/rituals/accounts'
 import { connectionFor, integerOption, option, parseCli, readKeypair, requiredOption } from './lib/cli'
 import { refuseMainnetFundedPayer } from './lib/chain'
 import { demoCadenceFrom } from './lib/demoCadence'
+import { DEMO_SOLO_CADENCE } from '../src/domain/rituals/schedule'
 
 function stateRunner() {
   let state: LifecycleState = lifecycleInitialState()
@@ -74,7 +77,11 @@ async function main(): Promise<void> {
     ? decodeSeason((await connection.getAccountInfo(new PublicKey(seasonText), 'confirmed'))!, client.programId, new PublicKey(seasonText))
     : null
   const eventCount = season ? season.schedule.length : 1
-  const cadence = demoCadenceFrom({ claimWindowSeconds: integerOption(args, 'claim-window-seconds', 120) })
+  // Default to exactly what SoloCreateScreen ships, so a green run proves it.
+  const cadence = option(args, 'claim-window-seconds') === undefined
+    ? DEMO_SOLO_CADENCE
+    : demoCadenceFrom({ claimWindowSeconds: integerOption(args, 'claim-window-seconds', 120) })
+  console.log(`cadence: ${cadence.claimWindowSeconds}s check-in, ${cadence.resolutionGraceSeconds}s grace, ${cadence.periodSeconds}s period`)
   const schedule = selectSoloSchedule({ cadence, referenceSeconds: Math.floor(Date.now() / 1000), eventCount, seasonSchedule: season?.schedule })
   const before = (await getAccount(connection, creatorToken, 'confirmed')).amount
 
