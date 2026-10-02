@@ -23,6 +23,24 @@ npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
 
 If a document disagrees with those four commands, the document is wrong. Fix it.
 
+## START HERE (2026-10-02)
+
+**Plan of record: `docs/plans/single-blade-2026-10-02.md`.** Jack chose solo
+only: "put a stake on a weekly promise, stamp it to keep it, miss and it goes to
+a cause you chose." Seasons, With friends, witness, Join and person-destination
+are hidden from the UI (code and program support kept) and move to "coming soon".
+
+Next actions, in order:
+1. Do the fold (plan §2), then build d4, install it, and walk it on the phone.
+   **d3 (b3757fc, both 10-01 bugs fixed) is built but NOT installed. The phone
+   has d2, which has the bugs.**
+2. Jack's phone run with screen recording (plan §3 #2).
+3. Rewrite the submission docs for the single blade (they still lead with
+   Seasons, friends and witness).
+
+Verified 2026-10-01 23:30: `feat/solo-screens` @ f7dba9c clean and pushed,
+tsc clean, 2,189 tests / 113 files, `smoke-app-solo.ts` green on devnet.
+
 ## RESUME HERE — handoff 2026-09-28 ("lets begin rituals")
 
 ### Update 2026-10-01 night (Hermes) — phone run found 2 bugs; fixed; plan written

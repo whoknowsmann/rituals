@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-10-02) by `single-blade-2026-10-02.md`.** Jack chose a harder cut: solo only, no Seasons.
+
 # Rituals: scope to place (2026-10-02)
 
 Written by Hermes at Jack's request after the 2026-10-01 phone run. Jack's words:
