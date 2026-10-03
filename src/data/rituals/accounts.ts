@@ -178,7 +178,11 @@ export function decodeRitualEvent(input: AccountEnvelope, expectedProgramId: Pub
   if (invalidLifecycle || invalidStage) throw new RitualAccountDecodeError('invariant', 'RitualEvent lifecycle state is inconsistent')
   if (terminal && (settlementVersion !== 1 || resolvedAt <= window.resolution || resolvedAt < initializedAt || eventPool === 0n)) throw new RitualAccountDecodeError('invariant', 'RitualEvent terminal state is inconsistent')
   const invalidSettlement = claimedMembersBitmap !== confirmedMembersBitmap || questionedMembersBitmap !== 0 || confirmedMemberCount === 0 || voidReason !== 'None' || payoutTotal !== eventPool || refundedTotal !== 0n || forfeitedTotal > eventPool || remainderUnits >= BigInt(confirmedMemberCount) || (confirmedMemberCount === memberCount && (forfeitedTotal !== 0n || remainderUnits !== 0n)) || (confirmedMemberCount < memberCount && forfeitedTotal === 0n)
-  if (status === 'Settled' && invalidSettlement) throw new RitualAccountDecodeError('invariant', 'Settled receipt is inconsistent')
+  // A solo week nobody checked in to settles (it is not voided): the whole
+  // allocation goes to the locked forfeit destination. Solo rituals always
+  // have exactly one member; groups have 2..6, so this cannot widen groups.
+  const soloForfeit = memberCount === 1 && claimedMembersBitmap === 0 && confirmedMembersBitmap === 0 && questionedMembersBitmap === 0 && confirmedMemberCount === 0 && voidReason === 'None' && payoutTotal === 0n && refundedTotal === 0n && remainderUnits === 0n && forfeitedTotal === eventPool
+  if (status === 'Settled' && invalidSettlement && !soloForfeit) throw new RitualAccountDecodeError('invariant', 'Settled receipt is inconsistent')
   const pending = claimedMembersBitmap & ~(confirmedMembersBitmap | questionedMembersBitmap)
   const invalidVoid = payoutTotal !== 0n || refundedTotal !== eventPool || forfeitedTotal !== 0n || remainderUnits !== 0n || (voidReason === 'DeclaredSkip' ? (claimedMembersBitmap !== 0 || confirmedMembersBitmap !== 0 || questionedMembersBitmap !== 0 || confirmedMemberCount !== 0) : (pending !== 0 || questionedMembersBitmap !== 0 ? voidReason !== 'UnresolvedClaims' : voidReason !== 'NoConfirmedMembers' || confirmedMemberCount !== 0))
   if (status === 'Voided' && invalidVoid) throw new RitualAccountDecodeError('invariant', 'Voided receipt is inconsistent')

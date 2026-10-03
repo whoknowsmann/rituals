@@ -21,6 +21,31 @@ const expectCategory = (action: () => unknown, category: string) => {
 const O = { schema: 8, ritual: 9, eventIndex: 41, opens: 42, deadline: 50, resolution: 58, members: 66, status: 67, claimed: 68, confirmed: 69, questioned: 70, initialized: 71, resolved: 79, settlementVersion: 87, voidReason: 88, pool: 89, forfeited: 97, payout: 105, refunded: 113, count: 121, remainder: 122, remaining: 130, bump: 138 }
 
 describe('RitualEvent exact reachable-state decoder matrix', () => {
+  // derive_solo_event_settlement_plan, claimed == 0: Settled, None, pool =
+  // forfeited = allocation, payout 0, refunded 0, 0 confirmed. Seen on devnet
+  // 2026-10-02 (ritual 7MrGM5x…, week 2); the app reader rejected it.
+  const soloMissReceipt = (memberCount: number) => {
+    const bytes = source()
+    const base = decode(source())
+    putU8(bytes, O.members, memberCount); putU8(bytes, O.status, 3)
+    putU8(bytes, O.claimed, 0); putU8(bytes, O.confirmed, 0); putU8(bytes, O.questioned, 0)
+    putI64(bytes, O.resolved, base.window.resolution + 1n); putU8(bytes, O.settlementVersion, 1); putU8(bytes, O.voidReason, 0)
+    putI64(bytes, O.pool, 5_000_000n); putI64(bytes, O.forfeited, 5_000_000n); putI64(bytes, O.payout, 0n); putI64(bytes, O.refunded, 0n)
+    putU8(bytes, O.count, 0); putI64(bytes, O.remainder, 0n)
+    return bytes
+  }
+
+  it('accepts a solo missed week: settled, whole stake forfeited to the locked destination', () => {
+    const value = decode(soloMissReceipt(1))
+    expect(value.status).toBe('Settled')
+    expect(value.forfeitedTotal).toBe(5_000_000n)
+    expect(value.payoutTotal).toBe(0n)
+  })
+
+  it('still rejects that shape for a group (a group week with nobody confirmed is voided)', () => {
+    expectCategory(() => decode(soloMissReceipt(2)), 'invariant')
+  })
+
   it('derives the 139-byte layout and accepts the source Claiming receipt', () => {
     const bytes = source()
     expect(bytes).toHaveLength(139)
