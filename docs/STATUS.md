@@ -74,6 +74,15 @@ Next actions, in order:
       of a missed week in one tx, and settle the previous week inside the next
       stamp, so the user signs only create + one stamp per week; (3) fallback:
       Phantom auto-lock timer and a non-Seed-Vault Phantom account (verify).
+      **Measured from logcat** (`artifacts/logs/run-2026-10-02-logcat.txt`):
+      Rituals opens the wallet once per action (one `transact`: cached-token
+      `authorize` + one `signAndSendTransactions`). Inside that, every approval
+      had 5 fingerprint prompts + 2 approve taps (~20 s): Phantom unlock →
+      cancelled 1.5 s later by Phantom's own `REQUEST_PERMISSIONS` (permission
+      unknown; POST_NOTIFICATIONS is already denied+fixed) → unlock again →
+      Phantom approve + fingerprint → Seed Vault approve + fingerprint
+      (Account 3 is a Seed Vault key) → Phantom re-locks on return →
+      fingerprint. All wallet-side; none comes from our code.
 1. ~~Fold, build d4, install, walk.~~ Done.
 2. Jack's phone run with screen recording (plan §3 #2). Timeline from tapping
    Approve: week 1 opens ~2 min, stamp window 5 min, settle ~1 min after it
