@@ -19,7 +19,7 @@
  * cadence (DEMO_SOLO_CADENCE: 120 s lead, 300 s check-in, ~8 min end to end).
  * --claim-window-seconds N swaps in a shorter test cadence instead.
  */
-import { Connection, PublicKey, Transaction } from '@solana/web3.js'
+import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js'
 import { getAccount } from '@solana/spl-token'
 import { feeForMessageAtSlot, withReadRetry } from '../src/features/rituals/client/resilientRead'
 import { createCurrentRitualClient, type RitualClientTransport } from '../src/data/rituals/ritualClient'
@@ -36,6 +36,9 @@ import { connectionFor, integerOption, option, parseCli, readKeypair, requiredOp
 import { refuseMainnetFundedPayer } from './lib/chain'
 import { demoCadenceFrom } from './lib/demoCadence'
 import { DEMO_SOLO_CADENCE } from '../src/domain/rituals/schedule'
+import { autoSettleWeek } from '../src/features/rituals/solo/settler/autoSettle'
+import { createSettlerClient } from '../src/features/rituals/solo/settler/settlerClient'
+import { settlerBudgetLamports } from '../src/features/rituals/solo/settler/settlerBudget'
 
 function stateRunner() {
   let state: LifecycleState = lifecycleInitialState()
@@ -76,7 +79,8 @@ async function main(): Promise<void> {
   const season = seasonText
     ? decodeSeason((await connection.getAccountInfo(new PublicKey(seasonText), 'confirmed'))!, client.programId, new PublicKey(seasonText))
     : null
-  const eventCount = season ? season.schedule.length : 1
+  // Two weeks standalone: week 1 kept (stamp), week 2 missed (nobody checks in).
+  const eventCount = season ? season.schedule.length : 2
   // Default to exactly what SoloCreateScreen ships, so a green run proves it.
   const cadence = option(args, 'claim-window-seconds') === undefined
     ? DEMO_SOLO_CADENCE
@@ -84,6 +88,11 @@ async function main(): Promise<void> {
   console.log(`cadence: ${cadence.claimWindowSeconds}s check-in, ${cadence.resolutionGraceSeconds}s grace, ${cadence.periodSeconds}s period`)
   const schedule = selectSoloSchedule({ cadence, referenceSeconds: Math.floor(Date.now() / 1000), eventCount, seasonSchedule: season?.schedule })
   const before = (await getAccount(connection, creatorToken, 'confirmed')).amount
+  // The app's settle key: funded inside the create approval, then it opens and
+  // settles weeks with no further owner signature (SoloRitualScreen auto-settle).
+  const settler = Keypair.generate()
+  const settlerClient = createSettlerClient(connection, settler)
+  const settlerFunding = { to: settler.publicKey, lamports: settlerBudgetLamports(eventCount) }
 
   console.log('\n[create + fund + activate] (SoloCreateScreen path)')
   let ritualText: string | null = null
@@ -99,6 +108,7 @@ async function main(): Promise<void> {
     destination: 'cause',
     causeTokenAccount: DEMO_CAUSE.tokenAccount,
     seasonAddress: seasonText ? new PublicKey(seasonText) : null,
+    settlerFunding,
     authorizedActor: () => owner.publicKey,
   }), (event) => { if (event.type === 'PREPARED') ritualText = event.prepared.ritualAddress })
   if (!created.ok || !ritualText) throw new Error(`create did not confirm (${created.ok ? 'no address' : created.category}) — this is the "Confirmation incomplete" bug`)
@@ -106,6 +116,9 @@ async function main(): Promise<void> {
   const active = await client.readRitual(ritualAddress)
   if (active.account.status !== 'Active' || active.account.kind !== 'Solo') throw new Error('create readback is not an Active solo ritual')
   console.log('PASS create confirmed through the app path:', created.result.signature, ritualAddress.toBase58())
+  const settlerBalance = await connection.getBalance(settler.publicKey, 'confirmed')
+  if (BigInt(settlerBalance) !== settlerFunding.lamports) throw new Error(`settle key holds ${settlerBalance}, expected ${settlerFunding.lamports} from the create approval`)
+  console.log('PASS settle key funded inside the same approval:', settlerBalance, 'lamports')
 
   const window0 = active.account.schedule[0]
   await sleepUntil(Number(window0.opens), 'week 1 to open')
@@ -120,17 +133,32 @@ async function main(): Promise<void> {
   console.log('PASS stamp confirmed through the app path:', claimed.result.signature)
 
   await sleepUntil(Number(window0.resolution), 'the week to close')
-  console.log('\n[settle] (SoloRitualScreen Settle path)')
-  const settled = await runLifecycleAction(buildRitualActionDeps({
-    client, ritualAddress, actor: owner.publicKey, kind: 'finalize', eventIndex: 0,
-    destinationTokenAccounts: [creatorToken], authorizedActor: () => owner.publicKey,
-  }), stateRunner().dispatch)
-  if (!settled.ok) throw new Error(`settle failed in ${settled.category}`)
+  console.log('\n[auto-settle week 1] (SoloRitualScreen, settle key, no owner signature)')
+  const settled = await autoSettleWeek({ client: settlerClient, ritualAddress, settler: settler.publicKey, eventIndex: 0, needsEventInit: false, destinationTokenAccounts: [creatorToken] })
+  if (!settled.ok) throw new Error(`auto-settle failed at ${settled.step} (${settled.category})`)
   const final = await client.getEventBundle(ritualAddress, 0)
   if (final.event?.account.status !== 'Settled') throw new Error('settle readback is not Settled')
   const after = (await getAccount(connection, creatorToken, 'confirmed')).amount
-  console.log('PASS settle confirmed through the app path:', settled.result.signature)
-  console.log(JSON.stringify({ script: 'smoke-app-solo', ritual: ritualAddress.toBase58(), season: seasonText ?? null, creatorTokenDelta: (after - before).toString(), status: 'APP SOLO PATH VERIFIED ON DEVNET' }))
+  console.log('PASS week 1 settled by the settle key:', settled.signatures.join(' '))
+
+  let missed: string[] = []
+  if (!seasonText) {
+    const window1 = active.account.schedule[1]
+    const causeBefore = (await getAccount(connection, DEMO_CAUSE.tokenAccount, 'confirmed')).amount
+    await sleepUntil(Number(window1.resolution), 'week 2 to lapse with no check-in')
+    console.log('\n[auto-settle missed week 2] (open + settle, settle key, no owner signature)')
+    const lapsed = await autoSettleWeek({ client: settlerClient, ritualAddress, settler: settler.publicKey, eventIndex: 1, needsEventInit: true, destinationTokenAccounts: [creatorToken] })
+    if (!lapsed.ok) throw new Error(`missed-week auto-settle failed at ${lapsed.step} (${lapsed.category})`)
+    // Read back through the app's own reader: this threw "decoding failed" on 2026-10-02.
+    const week2 = await client.getEventBundle(ritualAddress, 1)
+    if (week2.event?.account.status !== 'Settled' || week2.event.account.forfeitedTotal !== active.account.perEventAllocation) throw new Error('missed week did not read back as Settled with the stake forfeited')
+    const causeAfter = (await getAccount(connection, DEMO_CAUSE.tokenAccount, 'confirmed')).amount
+    if (causeAfter - causeBefore !== active.account.perEventAllocation) throw new Error(`cause received ${causeAfter - causeBefore}, expected ${active.account.perEventAllocation}`)
+    missed = [...lapsed.signatures]
+    console.log('PASS missed week settled to the cause by the settle key and read by the app reader:', missed.join(' '))
+  }
+  const settlerLeft = await connection.getBalance(settler.publicKey, 'confirmed')
+  console.log(JSON.stringify({ script: 'smoke-app-solo', ritual: ritualAddress.toBase58(), season: seasonText ?? null, ownerSignatures: 2, settleKeySignatures: settled.signatures.length + missed.length, settleKeyLamportsLeft: settlerLeft, creatorTokenDelta: (after - before).toString(), status: 'APP SOLO PATH VERIFIED ON DEVNET' }))
 }
 
 main().catch((error: unknown) => {

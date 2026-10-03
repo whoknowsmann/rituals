@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
-import { PublicKey } from '@solana/web3.js'
+import { Keypair, PublicKey } from '@solana/web3.js'
 import * as Clipboard from 'expo-clipboard'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigators/AppNavigator'
@@ -16,6 +16,10 @@ import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/wal
 import { listKnownRituals } from '../../features/rituals/authoritativeRituals'
 import { notesOffered, readSoloNotes, saveWeekNote, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
 import { SCOPE } from '../../features/rituals/productScope'
+import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
+import { createSettlerClient } from '../../features/rituals/solo/settler/settlerClient'
+import { settlerCanPay } from '../../features/rituals/solo/settler/settlerBudget'
+import { autoSettleWeek } from '../../features/rituals/solo/settler/autoSettle'
 import { shortRosterAddress } from '../../features/rituals/create/roster'
 import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
@@ -103,26 +107,77 @@ export function SoloRitualScreen({ route }: Props) {
   // A week nobody checked in to has no event account yet; the first tap opens it
   // (one approval), the screen re-reads, and the next tap settles it.
   const settle = useRitualAction(() => makeSharedDeps(model?.needsEventInit ? 'initialize-event' : 'finalize'))
-  const confirmedAction = useRef<string | null>(null)
+  // One "already handled" digest per action. A single shared ref let a stale
+  // confirmed stamp re-run after Settle and save an empty note over the real
+  // one (phone run 2026-10-02).
+  const handled = useRef<{ claim: string | null; skip: string | null; settle: string | null }>({ claim: null, skip: null, settle: null })
   useEffect(() => {
-    if (claim.state.status === 'confirmed' && confirmedAction.current !== claim.state.result.messageDigest) {
-      confirmedAction.current = claim.state.result.messageDigest
+    if (claim.state.status === 'confirmed' && handled.current.claim !== claim.state.result.messageDigest) {
+      handled.current.claim = claim.state.result.messageDigest
       const eventIndex = claimEventIndex.current
       const refresh = () => { setNoteInput(''); state.retry(); setReload((value) => value + 1) }
-      if (eventIndex !== null && notesOfferedRef.current && ritualAddress) {
+      if (eventIndex !== null && notesOfferedRef.current && ritualAddress && noteInputRef.current.trim().length > 0) {
         void saveWeekNote(ritualAddress.toBase58(), eventIndex, noteInputRef.current).catch(() => undefined).then(refresh)
       } else {
         refresh()
       }
     }
-    if (skip.state.status === 'confirmed' && confirmedAction.current !== skip.state.result.messageDigest) { confirmedAction.current = skip.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
-    if (settle.state.status === 'confirmed' && confirmedAction.current !== settle.state.result.messageDigest) {
-      confirmedAction.current = settle.state.result.messageDigest
+    if (skip.state.status === 'confirmed' && handled.current.skip !== skip.state.result.messageDigest) { handled.current.skip = skip.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
+    if (settle.state.status === 'confirmed' && handled.current.settle !== settle.state.result.messageDigest) {
+      handled.current.settle = settle.state.result.messageDigest
       state.retry(); setReload((value) => value + 1)
       // Opening a missed week is step one of two; clear it so the same button can settle.
       settle.reset()
     }
   }, [claim.state, ritualAddress, settle.state, skip.state])
+
+  // An action left in an error ("may have gone through") must not stay dead
+  // once a chain re-read shows the week has moved on (phone run 2026-10-02).
+  const stateKey = model ? `${model.eventIndex}:${model.state}:${model.showedUp}:${model.needsEventInit}:${model.eventStatus}` : null
+  const lastStateKey = useRef(stateKey)
+  useEffect(() => {
+    if (lastStateKey.current === stateKey) return
+    lastStateKey.current = stateKey
+    for (const action of [claim, skip, settle]) if (action.state.status === 'error') action.reset()
+  }, [stateKey])
+
+  // The app's own settle key closes finished weeks: no wallet prompt. It is
+  // pre-paid inside the create approval; without funds the manual button stays.
+  const [settler, setSettler] = useState<Keypair | null>(null)
+  const [settlerBalance, setSettlerBalance] = useState<number | null>(null)
+  useEffect(() => {
+    let active = true
+    void loadOrCreateSettler().then(async (key) => {
+      if (!active) return
+      setSettler(key)
+      const balance = await connection.getBalance(key.publicKey, 'confirmed')
+      if (active) setSettlerBalance(balance)
+    }).catch(() => { if (active) setSettlerBalance(null) })
+    return () => { active = false }
+  }, [connection, reload])
+  const settlerClient = useMemo(() => (settler ? createSettlerClient(connection, settler) : null), [connection, settler])
+  const [autoSettling, setAutoSettling] = useState(false)
+  const [autoRun, setAutoRun] = useState(0)
+  const autoFailures = useRef(0)
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
+  const canAutoSettle = Boolean(model && model.state === 'resolving/settle' && settler && settlerClient && read && ritualAddress && settlerBalance !== null && settlerCanPay(settlerBalance, model.needsEventInit) && autoFailures.current < 3)
+  useEffect(() => {
+    if (!canAutoSettle || autoSettling || !model || !settler || !settlerClient || !read || !ritualAddress) return
+    setAutoSettling(true)
+    const destinations = read.ritual.account.members.map((member) => getAssociatedTokenAddressSync(read.ritual.account.stakeMint, member))
+    void autoSettleWeek({ client: settlerClient, ritualAddress, settler: settler.publicKey, eventIndex: model.eventIndex, needsEventInit: model.needsEventInit, destinationTokenAccounts: destinations, getBlockHeight: () => connection.getBlockHeight('confirmed') })
+      .then((result) => result.ok, () => false)
+      .then((ok) => {
+        if (!mountedRef.current) return
+        if (!ok) autoFailures.current += 1
+        setAutoSettling(false)
+        state.retry(); setReload((value) => value + 1)
+        // Up to three tries (e.g. the chain clock is a second behind), then the manual button.
+        if (!ok) setTimeout(() => { if (mountedRef.current) setAutoRun((value) => value + 1) }, 3000)
+      })
+  }, [canAutoSettle, model?.eventIndex, model?.needsEventInit, autoRun])
+  const settlingByItself = autoSettling || canAutoSettle
   const showedUpBefore = useRef(false)
   useEffect(() => {
     if (model?.showedUp && !showedUpBefore.current) haptic.success()
@@ -148,7 +203,7 @@ export function SoloRitualScreen({ route }: Props) {
       <Text style={s.back} onPress={() => navigation.goBack()}>‹</Text>
       <Text style={s.kicker}>{model.state === 'funding' ? 'SOLO RITUAL' : `WEEK ${model.eventIndex + 1}`}</Text>
       <Text style={s.title} accessibilityRole="header">{model.state === 'missed' ? 'That week is closed.' : 'Show up for yourself.'}</Text>
-      <Poster tint={tint} kicker="YOUR PROMISE" title="Keep the promise">
+      <Poster tint={tint} kicker="YOUR PROMISE" title={ritualTitle ?? 'Keep the promise'}>
         <WeekStrip cells={model.weekCells} tint={tint} />
         <PosterLine label="Your stake" value={formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)} />
       </Poster>
@@ -160,28 +215,28 @@ export function SoloRitualScreen({ route }: Props) {
           <ActionButton tone="quiet" label="Copy address" onPress={() => { void Clipboard.setStringAsync(shareAddress) }} accessibilityLabel="Copy ritual address" />
         </View>
       )}
-      {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote)}
+      {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote, settlingByItself)}
       {actionError && <ErrorLine>{actionError}</ErrorLine>}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
       {holdVisible && <HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" />}
-      {model.state === 'resolving/settle' && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
+      {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to my rituals" onPress={() => navigation.navigate('RitualsHome')} />}
-      {readyForWallet && action.state.status === 'idle' && model.state !== 'claimable' && <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text>}
+      {readyForWallet && action.state.status === 'idle' && (model.canSkip || (model.state === 'resolving/settle' && !settlingByItself)) && <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text>}
       <Footnote>Devnet · TEST tokens have no real value</Footnote>
     </ScrollView>
   )
 }
 
-function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined, weekNote: string | null) {
+function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined, weekNote: string | null, settlingByItself: boolean) {
   if (model.state === 'funding') return <View style={s.card}><Text style={s.cardTitle}>Waiting for funding</Text><Text style={s.muted}>This solo ritual is not active yet.</Text></View>
-  if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Next week opens {model.nextOpensLabel}</Text><Text style={s.muted}>Your promise is still here.</Text></View>
+  if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text><Text style={s.muted}>Your promise is still here.</Text></View>
   if (model.state === 'open-not-initialized') return <View style={s.card}><Text style={s.cardTitle}>This week is open</Text><Text style={s.muted}>Your first check-in will open the week.</Text></View>
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>
-  if (model.state === 'closing') return <View style={s.card}><Text style={s.cardTitle}>This week is closing</Text><Text style={s.muted}>{model.showedUp ? 'You showed up. You can settle it in a moment.' : 'The check-in window has closed. You can settle it in a moment.'}</Text></View>
-  if (model.state === 'resolving/settle') return <View style={s.card}><Text style={s.cardTitle}>This week is ready to settle</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : 'The locked destination will receive the missed stake.'}</Text></View>
+  if (model.state === 'closing') return <View style={s.card}><Text style={s.cardTitle}>This week is closing</Text><Text style={s.muted}>{model.showedUp ? 'You showed up. It settles in a moment.' : 'The check-in window has closed. It settles in a moment.'}</Text></View>
+  if (model.state === 'resolving/settle') return <View style={s.card}><Text style={s.cardTitle}>{settlingByItself ? 'Closing this week…' : 'This week is ready to settle'}</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : `${model.destinationLabel} gets this week's stake.`}</Text></View>
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
   if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note="You showed up." animate={action.state.status !== 'confirmed'} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>

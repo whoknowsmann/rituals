@@ -3,10 +3,9 @@ import { PublicKey } from '@solana/web3.js'
 import { useCluster, type ClusterNetwork } from '../../../components/cluster/cluster-data-access'
 import { useConnection } from '../../../utils/ConnectionProvider'
 import { useMobileWallet } from '../../../utils/useMobileWallet'
-import { createCurrentRitualClient, type RitualClient, type RitualClientTransport } from '../../../data/rituals/ritualClient'
+import { createCurrentRitualClient, type RitualClient } from '../../../data/rituals/ritualClient'
 import { RITUALS_CURRENT_CONFIG, RITUALS_PROGRAM_ID } from '../../../data/rituals/programIds'
-import type { RitualWalletSubmissionTransport } from '../../../data/rituals/ritualSubmission'
-import { feeForMessageAtSlot, withReadRetry } from './resilientRead'
+import { makeRitualTransport } from './ritualTransport'
 
 export type RitualDeploymentConfig = Readonly<{ deployment: 'deployed' | 'not-deployed'; programId: unknown }>
 export type RitualClientState =
@@ -26,18 +25,9 @@ export function resolveRitualClientState(cluster: ClusterNetwork, deployment: Ri
   return Object.freeze({ status: 'ready', client: createClient() })
 }
 
-function makeTransport(connection: any, signAndSendTransaction: RitualWalletSubmissionTransport['signAndSendTransaction']): RitualClientTransport & RitualWalletSubmissionTransport {
-  return {
-    // Reads (including confirmation polling) are idempotent and retried on
-    // transient public-RPC failures. Submission is never retried.
-    getMultipleAccountsInfoAndContext: withReadRetry(connection.getMultipleAccountsInfoAndContext.bind(connection)),
-    getLatestBlockhashAndContext: withReadRetry(connection.getLatestBlockhashAndContext.bind(connection)),
-    getFeeForMessage: feeForMessageAtSlot(connection.getFeeForMessage.bind(connection)),
-    getMinimumBalanceForRentExemption: withReadRetry(connection.getMinimumBalanceForRentExemption.bind(connection)),
-    confirmTransaction: withReadRetry(connection.confirmTransaction.bind(connection)),
-    signAndSendTransaction,
-  }
-}
+// Reads (including confirmation polling) are retried on transient public-RPC
+// failures inside makeRitualTransport. Submission is never retried.
+const makeTransport = makeRitualTransport
 
 /** Safe application boundary: unavailable states never perform RPC or wallet work. */
 export function useRitualClient(): RitualClientState {

@@ -2,7 +2,7 @@ import { sha256 } from '@noble/hashes/sha256'
 import { Buffer } from 'buffer'
 import { ACCOUNT_SIZE } from '@solana/spl-token'
 import { ACCOUNT_DATA_LENGTHS, type RitualAccountView } from './accounts'
-import { ComputeBudgetProgram, Message, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js'
+import { ComputeBudgetProgram, Message, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js'
 import type { BuildCreateRitualArgs, BuildCreateSoloRitualArgs, BuildDeclareSkipArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs, RitualAccountContext } from './instructionsLifecycle'
 import { buildCreateRitualInstruction, buildCreateSoloRitualInstruction, buildDeclareSkipInstruction, buildFundMemberInstruction, buildActivateRitualInstruction, buildCancelUnactivatedInstruction, deriveCreateRitualAccounts } from './instructionsLifecycle'
 import type { BuildCloseTerminalVaultsArgs, BuildInitializeCurrentEventArgs, BuildClaimCompletionArgs, BuildApproveClaimArgs, BuildQuestionClaimArgs, BuildFinalizeEventArgs, RitualEventAccountContext, CompletionClaimAccountContext } from './instructionsEvents'
@@ -54,6 +54,8 @@ export type RitualPreparationSummary = Readonly<{
   creates: Readonly<{ description: string; count: number }> | null
   networkFeeIsEstimate: true
   rentCreditIsEstimate: boolean
+  /** SOL sent to the app's own settle key inside this transaction (solo create only). */
+  settlerFundingLamports?: bigint
 }>
 export type PreparedRitualAction = Readonly<{
   kind: ActionKind
@@ -131,6 +133,16 @@ function expectedFinalizeOutcome(
   if (unresolved) return { status: 'Voided', voidReason: 'UnresolvedClaims' }
   return confirmedCount === 0 ? { status: 'Voided', voidReason: 'NoConfirmedMembers' } : { status: 'Settled', voidReason: 'None' }
 }
+
+function checkedSettlerFunding(value: unknown, payer: PublicKey): SettlerFunding {
+  const record = inputObject(value, 'settlerFunding')
+  let to: PublicKey
+  try { to = copyKey(record.to as PublicKey) } catch { return fail('input', 'invalid settlerFunding.to') }
+  const lamports = record.lamports
+  if (typeof lamports !== 'bigint' || lamports <= 0n || lamports > MAX_SETTLER_FUNDING_LAMPORTS) fail('input', 'settlerFunding.lamports is out of range')
+  if (to.equals(PublicKey.default) || to.equals(payer)) fail('input', 'settlerFunding.to must be a separate key')
+  return Object.freeze({ to, lamports: lamports as bigint })
+}
 const nonceFromInstruction = (instruction: TransactionInstruction): bigint => { let nonce = 0n; for (let i = 0; i < 8; i += 1) nonce |= BigInt(instruction.data[8 + i]) << BigInt(i * 8); return nonce }
 const hex = (bytes: Uint8Array): string => Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
 function safeSlot(value: unknown, name: string, category: 'rpc' | 'fee' = 'rpc'): number { if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) fail(category, `invalid ${name}`); return value as number }
@@ -179,7 +191,14 @@ function readBigint(value: unknown, name: string): bigint { if (typeof value !==
 function readU64(value: unknown, name: string): bigint { return u64(readBigint(value, name), name) }
 
 export type BuildCreateAndFundArgs = BuildCreateRitualArgs & Readonly<{ memberSource: PublicKey; lockedActivationFee: bigint }>
-export type BuildCreateSoloFundAndActivateArgs = BuildCreateSoloRitualArgs & Readonly<{ memberSource: PublicKey; lockedActivationFee: bigint }>
+/**
+ * Devnet: the creator pre-pays a little SOL to the app's own settle key in the
+ * same approval, so closing and settling weeks (permissionless instructions)
+ * never need another wallet prompt. Capped; the key can only pay fees/rent.
+ */
+export type SettlerFunding = Readonly<{ to: PublicKey; lamports: bigint }>
+export const MAX_SETTLER_FUNDING_LAMPORTS = 50_000_000n
+export type BuildCreateSoloFundAndActivateArgs = BuildCreateSoloRitualArgs & Readonly<{ memberSource: PublicKey; lockedActivationFee: bigint; settlerFunding?: SettlerFunding | null }>
 export type BuildFundAndActivateArgs = BuildFundMemberArgs
 export type BuildInitializeAndClaimArgs = BuildInitializeCurrentEventArgs & Readonly<{ claimant: PublicKey }>
 
@@ -198,12 +217,16 @@ export class RitualActionPreparer {
   private async prepare(
     kind: ActionKind, instructionInput: TransactionInstruction | readonly TransactionInstruction[], feePayer: PublicKey, ritualAddress: PublicKey, tokenMint: PublicKey,
     expectation: PreparedExpectation, outflow: { token: bigint; stake: bigint; activation: bigint; escrow: bigint; settlement?: bigint },
-    rentLengths: readonly number[], rentCreditRecipient: PublicKeyText | null, creates: RitualPreparationSummary['creates'],
+    rentLengths: readonly number[], rentCreditRecipient: PublicKeyText | null, creates: RitualPreparationSummary['creates'], settlerFunding: SettlerFunding | null = null,
   ): Promise<PreparedRitualAction> {
     const rawInstructions = Array.isArray(instructionInput) ? instructionInput : [instructionInput]
     if (rawInstructions.length === 0 || rawInstructions.some((instruction) => !instruction.programId.equals(this.programId))) fail('input', 'programId does not match preparer')
     const instructions = rawInstructions.map(copyInstruction)
     const payer = copyKey(feePayer); const ritual = copyKey(ritualAddress)
+    // The only non-Rituals instruction ever allowed: one capped SOL transfer
+    // from the signer to the app's own settle key (see SettlerFunding).
+    const funding = settlerFunding === null ? null : checkedSettlerFunding(settlerFunding, payer)
+    if (funding) instructions.push(SystemProgram.transfer({ fromPubkey: payer, toPubkey: funding.to, lamports: Number(funding.lamports) }))
     const latest = await callTransport(this.latest, [{ commitment: 'confirmed' }], 'rpc', 'latest blockhash request failed')
     const latestObject = object(latest, 'latest blockhash response'); const context = object(property(latestObject, 'context'), 'blockhash context'); const value = object(property(latestObject, 'value'), 'blockhash value')
     const slot = safeSlot(property(context, 'slot'), 'blockhash context slot'); const recentBlockhash = blockhash(property(value, 'blockhash')); const lastValidBlockHeight = safeSlot(property(value, 'lastValidBlockHeight'), 'last valid block height')
@@ -212,10 +235,10 @@ export class RitualActionPreparer {
     try { if (!equalBytes(Uint8Array.from(message.serialize()), before)) fail('fee', 'fee transport mutated message') } catch (error) { if (error instanceof RitualPreparationError) throw error; fail('fee', 'fee transport mutated message') }
     const feeObject = object(feeResponse, 'fee response', 'fee'); const feeContext = object(property(feeObject, 'context', 'fee'), 'fee context', 'fee'); const feeSlot = safeSlot(property(feeContext, 'slot', 'fee'), 'fee context slot', 'fee'); if (feeSlot < slot) fail('fee', 'fee context is stale'); const feeValue = property(feeObject, 'value', 'fee'); if (feeValue === null) fail('fee', 'fee is unavailable'); const networkFee = BigInt(amount(feeValue, 'fee'))
     let rentDebit = 0n; let rentCredit = 0n; for (const length of rentLengths) { const result = BigInt(amount(await callTransport(this.rent, [length, 'confirmed'], 'rent', 'rent request failed'), 'rent')); if (rentCreditRecipient === null) rentDebit += result; else rentCredit += result }
-    const messageBytes = Uint8Array.from(transaction.serializeMessage()); const messageDigest = hex(sha256(messageBytes)); const total = networkFee + rentDebit
+    const messageBytes = Uint8Array.from(transaction.serializeMessage()); const messageDigest = hex(sha256(messageBytes)); const total = networkFee + rentDebit + (funding?.lamports ?? 0n)
     const stakeOutflow = u64(outflow.stake, 'stakeOutflow'); const activationFeeOutflow = u64(outflow.activation, 'activationFeeOutflow'); const tokenOutflow = u64(outflow.token, 'tokenOutflow'); if (tokenOutflow !== addU64(stakeOutflow, activationFeeOutflow, 'tokenOutflow')) fail('input', 'tokenOutflow does not equal stakeOutflow plus activationFeeOutflow')
     const internal: Internal = { kind, programId: copyKey(this.programId), feePayer: payer, ritualAddress: ritual, blockhash: recentBlockhash, lastValidBlockHeight, blockhashContextSlot: slot, instructions, messageBytes, messageDigest, expectation }
-    const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint: keyText(tokenMint), tokenOutflow, stakeOutflow, activationFeeOutflow, escrowActivationFeeTransfer: u64(outflow.escrow, 'escrowActivationFeeTransfer'), escrowSettlementTransfer: u64(outflow.settlement ?? 0n, 'escrowSettlementTransfer'), protocolForfeitureShare: 0n, estimatedNetworkFeeLamports: networkFee, estimatedRentLamports: rentDebit, estimatedRentCreditLamports: rentCredit, rentCreditRecipient, totalEstimatedLamportOutflow: total, creates, networkFeeIsEstimate: true as const, rentCreditIsEstimate: rentCreditRecipient !== null })
+    const summary = Object.freeze({ clusterLabel: 'local/test-unconfigured' as const, tokenMint: keyText(tokenMint), tokenOutflow, stakeOutflow, activationFeeOutflow, escrowActivationFeeTransfer: u64(outflow.escrow, 'escrowActivationFeeTransfer'), escrowSettlementTransfer: u64(outflow.settlement ?? 0n, 'escrowSettlementTransfer'), protocolForfeitureShare: 0n, estimatedNetworkFeeLamports: networkFee, estimatedRentLamports: rentDebit, estimatedRentCreditLamports: rentCredit, rentCreditRecipient, totalEstimatedLamportOutflow: total, creates, networkFeeIsEstimate: true as const, rentCreditIsEstimate: rentCreditRecipient !== null, ...(funding ? { settlerFundingLamports: funding.lamports } : {}) })
     const action = Object.freeze({ kind, programId: keyText(this.programId), ritualAddress: keyText(ritual), feePayer: keyText(payer), blockhash: recentBlockhash, blockhashContextSlot: slot, lastValidBlockHeight, messageDigest, summary, expectation })
     this.#snapshots.set(action, internal); return action
   }
@@ -291,7 +314,7 @@ export class RitualActionPreparer {
         { kind: 'funded' as const, member: keyText(creator), expectedFundedMemberCount: 1, expectedFundedStakeTotal: memberTotalStake, expectedFundedFeeTotal: lockedActivationFee },
         { kind: 'activated' as const },
       ]) })
-      return this.prepare('create-solo-fund-and-activate', [create, fund, activate], creator, accounts.ritual, mint, expectation, { token: addU64(memberTotalStake, lockedActivationFee, 'tokenOutflow'), stake: memberTotalStake, activation: lockedActivationFee, escrow: lockedActivationFee }, [ACCOUNT_DATA_LENGTHS.Ritual, ACCOUNT_SIZE, ACCOUNT_SIZE], null, Object.freeze({ description: 'solo ritual, stake vault, fee vault, creator funding, and activation', count: 3 }))
+      return this.prepare('create-solo-fund-and-activate', [create, fund, activate], creator, accounts.ritual, mint, expectation, { token: addU64(memberTotalStake, lockedActivationFee, 'tokenOutflow'), stake: memberTotalStake, activation: lockedActivationFee, escrow: lockedActivationFee }, [ACCOUNT_DATA_LENGTHS.Ritual, ACCOUNT_SIZE, ACCOUNT_SIZE], null, Object.freeze({ description: 'solo ritual, stake vault, fee vault, creator funding, and activation', count: 3 }), (inputProperty(args, 'settlerFunding') ?? null) as SettlerFunding | null)
     } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Create Solo Fund and Activate inputs') }
   }
 

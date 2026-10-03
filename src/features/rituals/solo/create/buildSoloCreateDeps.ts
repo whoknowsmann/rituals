@@ -1,7 +1,7 @@
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
 import type { RitualClient } from '../../../../data/rituals/ritualClient'
-import type { PreparedRitualAction } from '../../../../data/rituals/ritualPreparedAction'
+import type { PreparedRitualAction, SettlerFunding } from '../../../../data/rituals/ritualPreparedAction'
 import type { SubmittedRitualActionHandle } from '../../../../data/rituals/ritualSubmission'
 import { deriveGroupPool, quoteActivationFee } from '../../../../domain/rituals/money'
 import { generateRitualNonce } from '../../../../domain/rituals/nonce'
@@ -29,6 +29,8 @@ export type SoloCreateDepsParams = Readonly<{
   causeTokenAccount?: PublicKey | null
   personAddress?: string
   seasonAddress?: PublicKey | null
+  /** Pre-pay the app's settle key in this same approval (no later settle prompts). */
+  settlerFunding?: SettlerFunding | null
   /** Used to reject a wallet account switch while Phantom is open. */
   authorizedActor?: () => PublicKey | null
   getBlockHeight?: () => Promise<number>
@@ -66,6 +68,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
     causeTokenAccount,
     personAddress,
     seasonAddress,
+    settlerFunding = null,
     authorizedActor,
     getBlockHeight,
     pendingActionStore,
@@ -137,6 +140,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
         feeRecipientToken: config.account.feeRecipient,
         forfeitDestination,
         season: seasonAddress ?? null,
+        settlerFunding,
         memberSource: getAssociatedTokenAddressSync(config.account.allowedStakeMint, creator),
         lockedActivationFee: activationFee,
         ritual: {

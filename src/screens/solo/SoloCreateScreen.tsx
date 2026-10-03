@@ -24,6 +24,8 @@ import { selectSoloSchedule, soloEventCount } from '../../features/rituals/solo/
 import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
 import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, soloCreateSteps, type SoloCreateStep } from '../../features/rituals/solo/create/steps'
 import { SCOPE } from '../../features/rituals/productScope'
+import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
+import { formatSol, settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
 import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
   SOLO_CREATE_MESSAGES,
@@ -71,6 +73,14 @@ export function SoloCreateScreen({ route }: Props) {
   const [suggestionRound, setSuggestionRound] = useState(0)
   const [confirmedReadback, setConfirmedReadback] = useState(false)
   const [readbackError, setReadbackError] = useState<string | null>(null)
+  // The app's settle key, pre-paid in this same approval so weeks close with
+  // no further wallet prompt. Without it, create still works (manual settle).
+  const [settlerKey, setSettlerKey] = useState<PublicKey | null>(null)
+  useEffect(() => {
+    let active = true
+    void loadOrCreateSettler().then((key) => { if (active) setSettlerKey(key.publicKey) }).catch(() => undefined)
+    return () => { active = false }
+  }, [])
   const seasonAddressText = SCOPE.seasons ? route.params?.seasonAddress : undefined
   const seasonAddress = useMemo(() => {
     if (!seasonAddressText) return null
@@ -136,11 +146,12 @@ export function SoloCreateScreen({ route }: Props) {
       causeTokenAccount: DEMO_CAUSE.tokenAccount,
       personAddress: draft.personAddress,
       seasonAddress,
+      settlerFunding: settlerKey ? { to: settlerKey, lamports: settlerBudgetLamports(eventCount) } : null,
       authorizedActor: () => accountRef.current?.publicKey ?? null,
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
       pendingActionStore: asyncStoragePendingActionStore,
     })
-  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount])
+  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey])
 
   const create = useCreateRitual(makeDeps)
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
@@ -303,6 +314,7 @@ export function SoloCreateScreen({ route }: Props) {
               <Text style={styles.money}>TEST</Text>
             </View>
             <Text style={styles.quiet}>{`${weekCount} weeks · ${totalStakeLabel} in all · Demo speed`}</Text>
+            {settlerKey && <Text style={styles.quiet}>{`+ ${formatSol(settlerBudgetLamports(weekCount))} so each week closes on its own`}</Text>}
           </View>
           <Section title="If I miss, it goes to" aside="LOCKED BEFORE YOU START" />
           {destinationChoices(DEMO_CAUSE).filter((choice) => SCOPE.personDestination || choice.kind === 'cause').map((choice) => (
