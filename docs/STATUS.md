@@ -66,6 +66,14 @@ Next actions, in order:
       drops it (`.catch(() => null)`). Check the reader first.
    d. Copy: week 1 waiting says "Next week opens…"; Poster title is "Keep the
       promise", not the ritual's name.
+   e. **TOP PRIORITY (Jack): approvals must be lean.** Every approval in this
+      run cost 4+ steps in Phantom on the Seeker (unlock, often twice →
+      approve → Seed Vault approve → unlock again). "This can't be in the
+      submission." Levers: (1) test Seed Vault Wallet directly as the demo
+      wallet (check devnet support first); (2) fewer signatures: close+settle
+      of a missed week in one tx, and settle the previous week inside the next
+      stamp, so the user signs only create + one stamp per week; (3) fallback:
+      Phantom auto-lock timer and a non-Seed-Vault Phantom account (verify).
 1. ~~Fold, build d4, install, walk.~~ Done.
 2. Jack's phone run with screen recording (plan §3 #2). Timeline from tapping
    Approve: week 1 opens ~2 min, stamp window 5 min, settle ~1 min after it
