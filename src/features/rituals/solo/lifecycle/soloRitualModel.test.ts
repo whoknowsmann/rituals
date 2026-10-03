@@ -87,4 +87,23 @@ describe('soloRitualModel', () => {
       expect(soloRitualModel(bundle({}, null), 50, me).lastClosedEventIndex).toBeNull()
     })
   })
+
+  // Phone run 2026-10-03: after a missed week the screen stayed on MISSED for
+  // the whole next week, with no HOLD, so the next week could not be stamped.
+  describe('the week after a missed or skipped week', () => {
+    const missedWeek0 = (overrides: Record<string, unknown> = {}) => ({
+      ...bundle({ currentEventIndex: 1, ...overrides }, null),
+      history: [{ ritual: bundle().ritual, event: event({ status: 'Settled', eventIndex: 0, forfeitedTotal: 5_000_000n, eventPool: 5_000_000n }), claims: [] }],
+    } as unknown as SoloRitualBundle)
+
+    it('shows the missed result until the next week opens, then offers the stamp', () => {
+      expect(soloRitualModel(missedWeek0(), 350, me).state).toBe('missed')
+      expect(soloRitualModel(missedWeek0(), 450, me).state).toBe('open-not-initialized')
+    })
+
+    it('does the same after a declared skip', () => {
+      expect(soloRitualModel(bundle({ currentEventIndex: 1, skipDeclared: true, skipEventIndex: 0 }, null), 350, me).state).toBe('skipped')
+      expect(soloRitualModel(bundle({ currentEventIndex: 1, skipDeclared: true, skipEventIndex: 0 }, null), 450, me).state).toBe('open-not-initialized')
+    })
+  })
 })

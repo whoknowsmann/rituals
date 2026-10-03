@@ -84,11 +84,14 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
   const current = bundle.event
   const recent = latestTerminal(bundle)
   const recentOutcome = outcomeOf(recent, me)
-  if (account.skipDeclared && account.skipEventIndex === account.currentEventIndex - 1) return { state: 'skipped', showedUp: false, claimStatus: 'none', message: 'This week was skipped. Your stake comes back.' }
-  if (recent && recent.event.account.eventIndex === account.currentEventIndex - 1 && recentOutcome === 'skipped') return { state: 'skipped', showedUp: false, claimStatus: 'none', message: 'This week was skipped. Your stake comes back.' }
-  if (recent && recent.event.account.eventIndex === account.currentEventIndex - 1 && recentOutcome === 'missed') return { state: 'missed', showedUp: false, claimStatus: 'none', message: "That's a week, not a verdict." }
-
   const schedule = account.schedule[account.currentEventIndex]
+  // Last week's result (skipped / missed) shows only until this week opens;
+  // after that the user must be able to stamp this week.
+  const beforeThisWeek = !schedule || now < Number(schedule.opens)
+  if (beforeThisWeek && account.skipDeclared && account.skipEventIndex === account.currentEventIndex - 1) return { state: 'skipped', showedUp: false, claimStatus: 'none', message: 'This week was skipped. Your stake comes back.' }
+  if (beforeThisWeek && recent && recent.event.account.eventIndex === account.currentEventIndex - 1 && recentOutcome === 'skipped') return { state: 'skipped', showedUp: false, claimStatus: 'none', message: 'This week was skipped. Your stake comes back.' }
+  if (beforeThisWeek && recent && recent.event.account.eventIndex === account.currentEventIndex - 1 && recentOutcome === 'missed') return { state: 'missed', showedUp: false, claimStatus: 'none', message: "That's a week, not a verdict." }
+
   if (!schedule) return { state: 'completed', showedUp: false, claimStatus: 'none', message: 'This ritual is complete.' }
   const resolved = now > Number(schedule.resolution)
   if (!current) {
