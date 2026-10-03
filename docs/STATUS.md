@@ -43,6 +43,29 @@ send"); walked to the wallet prompt (`artifacts/shots/d4-*`). Build with
 `TAG=dN scripts/build-apk-local.sh`.
 
 Next actions, in order:
+0. **Phone run 2026-10-02 22:36–22:56 (d4, Account 3, all 5 approvals landed):**
+   create `2fzCdUmH…` (ritual not yet looked up), stamp+note `2SenhKnX…`, settle
+   `3XSyyTHu…` → KEPT receipt OK; close week 2 `579JaKUy…`, settle week 2
+   `3TJeaE7x…` (cause 2→7 TEST, vault 15→10, wallet unchanged). Recording:
+   `/sdcard/rituals-run-01..10.mp4` (3-min segments; pull them). Bugs to fix
+   before the video, RED test first:
+   a. **Note wiped at settle.** SoloRitualScreen shares one `confirmedAction`
+      ref across claim/skip/settle; when settle confirms and resets, the stale
+      confirmed claim handler re-runs and `saveWeekNote(0, '')` deletes the
+      note, so the KEPT receipt shows none. Fix: per-action handled digests +
+      never write an empty note over an existing one.
+   b. **Settle dead after "may have gone through".** Phantom didn't return
+      after the close; bringing Rituals forward left the settle action in a
+      non-retryable error, and the re-read "Settle this week" button did
+      nothing. Leaving and reopening the screen worked. Fix: reset the action
+      after the screen re-reads chain state that moved on.
+   c. **Missed week never shown.** After settling week 2 the screen jumps to
+      week 3: no missed stamp, W2 not marked, no week 2 receipt link, even
+      after a fresh mount. Hypothesis (unverified): `getEventBundle` throws
+      for a settled week with no claim account and `useSoloRitualBundle`
+      drops it (`.catch(() => null)`). Check the reader first.
+   d. Copy: week 1 waiting says "Next week opens…"; Poster title is "Keep the
+      promise", not the ritual's name.
 1. ~~Fold, build d4, install, walk.~~ Done.
 2. Jack's phone run with screen recording (plan §3 #2). Timeline from tapping
    Approve: week 1 opens ~2 min, stamp window 5 min, settle ~1 min after it
