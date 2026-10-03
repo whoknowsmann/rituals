@@ -43,6 +43,29 @@ send"); walked to the wallet prompt (`artifacts/shots/d4-*`). Build with
 `TAG=dN scripts/build-apk-local.sh`.
 
 Next actions, in order:
+000. **Phone run 2026-10-03 14:01–14:32 on d7 (b072773) with Seed Vault Wallet
+     (account "test" = Da59…8VmV, wallet set to Devnet): the lean journey
+     works.** Create `5pvSmzMg…` (1 approval, settle key funded inside it;
+     Seed Vault rewrote our priority fee and the app verified the landed tx),
+     week 1 lapsed → app closed it alone (MISSED), week 2 lapsed → closed
+     alone, week 3 stamped `GvCKwWNg…` (1 approval) → settled alone → KEPT
+     receipt with the note. User signatures for the whole run: create + stamp.
+     Devnet smokes green: `smoke-app-solo-d5.log` (2 weeks, settle key) and
+     `smoke-app-solo-feechange.log` (`--simulate-wallet-fee-change`).
+     Fixed today: missed-week decoder + finalize expectation (a222120), settle
+     key + note wipe + stale errors (2eba2bb), wallet fee rewrite (39d411d),
+     next week's stamp after a missed week (b072773).
+     Open items found:
+     - Seed Vault Wallet defaults to mainnet: a judge gets "Network mismatch"
+       and must switch the wallet to Devnet. Say so in the app (detect the
+       error) and in the submission instructions.
+     - Seed Vault shows "We don't recognize this domain" for the github.com
+       identity: plan item 8 (Pages origin) is now more important.
+     - Approvals expire ~60 s after the app builds the tx (blockhash): two
+       attempts timed out today while the user was away from the screen.
+     - Home week strip counts missed weeks as done ("2 of 4 done", ✓).
+     - Log line "wallet.fee-adjusted failed" is a note, not a failure.
+     - Untracked `scripts/diag-event-decode.ts`: never run; delete.
 00. **2026-10-03 morning (Hermes, Jack at soccer): lean-approvals build, NOT
     yet proven on devnet or the phone.** Commits a222120 + 2eba2bb on
     feat/solo-screens (local; tsc clean, 2,215 tests / 118 files):
