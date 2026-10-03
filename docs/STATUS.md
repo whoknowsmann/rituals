@@ -43,6 +43,24 @@ send"); walked to the wallet prompt (`artifacts/shots/d4-*`). Build with
 `TAG=dN scripts/build-apk-local.sh`.
 
 Next actions, in order:
+00. **2026-10-03 morning (Hermes, Jack at soccer): lean-approvals build, NOT
+    yet proven on devnet or the phone.** Commits a222120 + 2eba2bb on
+    feat/solo-screens (local; tsc clean, 2,215 tests / 118 files):
+    - Bug c root cause: the app decoder rejected a solo missed week (program
+      writes Settled + full forfeit, decoder only allowed the group shape) and
+      the finalize expectation predicted group `Voided`. Both fixed, RED-first.
+    - Settle key (`src/features/rituals/solo/settler/`): one per install,
+      pre-paid inside the create approval (one capped SystemProgram transfer,
+      `settlerBudgetLamports` = 0.001 + 0.002/week SOL, cap 0.05). The ritual
+      screen opens and settles finished weeks with it, no wallet prompt; the
+      wallet button stays as a fallback. Demo journey = create + 1 stamp/week.
+    - Bug a (note wipe) and bug b (dead Settle) fixed; "Week N opens"; the
+      promise name on the card.
+    - **Blocked while Jack was away** (approval prompts timed out, not
+      retried): the devnet smoke (`smoke-app-solo.ts` now runs 2 weeks: kept,
+      then missed, both settled by the settle key, missed week read back via
+      the app reader; ~15 min), the d5 build and install. Run those first.
+    - Untracked `scripts/diag-event-decode.ts` was never run; delete it.
 0. **Phone run 2026-10-02 22:36–22:56 (d4, Account 3, all 5 approvals landed):**
    create `2fzCdUmH…` (ritual not yet looked up), stamp+note `2SenhKnX…`, settle
    `3XSyyTHu…` → KEPT receipt OK; close week 2 `579JaKUy…`, settle week 2
