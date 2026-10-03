@@ -6,9 +6,12 @@ import { canonicalBase58Signature, decodeCanonicalBase58Signature } from './base
 import { RitualActionPreparer, type PreparedExpectation, type PreparedRitualAction } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualActionExpectation, type ConfirmedRitualAction, type SubmittedRitualAction } from './ritualConfirmation'
 import { logFailure } from '../../utils/diagnostics'
+import { landedMessageIsFeeOnlyChange } from './walletFeeChange'
 
 export type RitualWalletSubmissionTransport = Readonly<{
   signAndSendTransaction: (transaction: Transaction, minContextSlot: number) => Promise<unknown>
+  /** Message bytes of a landed transaction by signature (null if not found in time). */
+  getLandedTransactionMessage?: (signature: string) => Promise<Uint8Array | null>
 }>
 export type RitualSubmissionResult = Readonly<{
   signature: string
@@ -88,12 +91,14 @@ export class RitualActionSubmitter {
   readonly #preparer: RitualActionPreparer
   readonly #confirmer: RitualConfirmationVerifier
   readonly #wallet: RitualWalletSubmissionTransport['signAndSendTransaction']
+  readonly #landedMessage: RitualWalletSubmissionTransport['getLandedTransactionMessage'] | null
   readonly #handles = new WeakMap<SubmittedRitualActionHandle, SubmittedHandleState>()
   constructor(preparer: RitualActionPreparer, confirmer: RitualConfirmationVerifier, wallet: RitualWalletSubmissionTransport) {
     if (!(preparer instanceof RitualActionPreparer)) fail('input', 'Ritual action preparer is invalid')
     try { if (!(confirmer instanceof RitualConfirmationVerifier)) fail('input', 'Ritual confirmation verifier is invalid') } catch (error) { if (error instanceof RitualSubmissionError) throw error; fail('input', 'Ritual confirmation verifier is invalid') }
     if (wallet === null || typeof wallet !== 'object' || Array.isArray(wallet) || typeof wallet.signAndSendTransaction !== 'function') fail('input', 'Ritual wallet transport is invalid')
     this.#preparer = preparer; this.#confirmer = confirmer; this.#wallet = wallet.signAndSendTransaction.bind(wallet)
+    this.#landedMessage = typeof wallet.getLandedTransactionMessage === 'function' ? wallet.getLandedTransactionMessage.bind(wallet) : null
   }
   async submitPrepared(prepared: PreparedRitualAction): Promise<SubmittedRitualActionHandle> {
     let walletAction: ReturnType<RitualActionPreparer['getTransactionForWallet']>
@@ -118,7 +123,15 @@ export class RitualActionSubmitter {
       const compiled = reconstructed.transaction.compileMessage()
       if (compiled.header.numRequiredSignatures !== 1 || compiled.accountKeys.length === 0 || !compiled.accountKeys[0].equals(reconstructed.transaction.feePayer as PublicKey)) fail('signature', 'prepared transaction does not have exactly one fee-payer signer')
       try { reconstructed.transaction.addSignature(compiled.accountKeys[0], Buffer.from(decodeCanonicalBase58Signature(signature))) } catch { return fail('signature', 'wallet signature could not be attached') }
-      try { if (reconstructed.transaction.verifySignatures(true) !== true) fail('signature', 'wallet signature does not verify the prepared message') } catch (error) { if (error instanceof RitualSubmissionError) throw error; return fail('signature', 'wallet signature does not verify the prepared message') }
+      let verified = false
+      try { verified = reconstructed.transaction.verifySignatures(true) === true } catch { verified = false }
+      if (!verified) {
+        // The wallet signed different bytes. Accept only if what landed is the
+        // reviewed transaction with nothing changed but the fee instructions.
+        const landed = this.#landedMessage ? await this.#landedMessage(signature).catch(() => null) : null
+        if (!landed || !landedMessageIsFeeOnlyChange(this.#preparer.getTransactionForWallet(prepared).transaction, landed, signature)) fail('signature', 'wallet signature does not verify the prepared message')
+        logFailure('wallet.fee-adjusted', new Error('wallet changed only the fee instructions; verified against the landed transaction'))
+      }
     } catch (error) {
       // Keep the original error (and its category, e.g. the preparer's
       // 'mutation') and only mark it as post-submission.

@@ -19,8 +19,9 @@
  * cadence (DEMO_SOLO_CADENCE: 120 s lead, 300 s check-in, ~8 min end to end).
  * --claim-window-seconds N swaps in a shorter test cadence instead.
  */
-import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js'
+import { ComputeBudgetProgram, Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js'
 import { getAccount } from '@solana/spl-token'
+import { makeRitualTransport } from '../src/features/rituals/client/ritualTransport'
 import { feeForMessageAtSlot, withReadRetry } from '../src/features/rituals/client/resilientRead'
 import { createCurrentRitualClient, type RitualClientTransport } from '../src/data/rituals/ritualClient'
 import type { RitualWalletSubmissionTransport } from '../src/data/rituals/ritualSubmission'
@@ -61,18 +62,21 @@ async function main(): Promise<void> {
   const seasonText = option(args, 'season')
   const connection = new Connection(url, 'confirmed')
 
-  const transport: RitualClientTransport & RitualWalletSubmissionTransport = {
-    getMultipleAccountsInfoAndContext: withReadRetry(connection.getMultipleAccountsInfoAndContext.bind(connection)),
-    getLatestBlockhashAndContext: withReadRetry(connection.getLatestBlockhashAndContext.bind(connection)),
-    getFeeForMessage: feeForMessageAtSlot(connection.getFeeForMessage.bind(connection) as never) as never,
-    getMinimumBalanceForRentExemption: connection.getMinimumBalanceForRentExemption.bind(connection),
-    confirmTransaction: (strategy, commitment) => connection.confirmTransaction(strategy, commitment),
-    signAndSendTransaction: async (transaction: Transaction, minContextSlot: number) => {
-      if (!transaction.feePayer?.equals(owner.publicKey)) throw new Error('prepared fee payer is not the local signer')
-      transaction.partialSign(owner)
-      return connection.sendRawTransaction(transaction.serialize(), { preflightCommitment: 'confirmed', minContextSlot })
-    },
-  }
+  // --simulate-wallet-fee-change: sign a copy with our priority fee replaced,
+  // as Seed Vault Wallet did on 2026-10-03, so the app path must verify the
+  // landed transaction instead of the exact reviewed bytes.
+  const mutateFee = args['simulate-wallet-fee-change'] !== undefined
+  const transport: RitualClientTransport & RitualWalletSubmissionTransport = makeRitualTransport(connection, async (transaction: Transaction, minContextSlot: number) => {
+    if (!transaction.feePayer?.equals(owner.publicKey)) throw new Error('prepared fee payer is not the local signer')
+    let outgoing = transaction
+    if (mutateFee) {
+      outgoing = new Transaction({ feePayer: transaction.feePayer, blockhash: transaction.recentBlockhash!, lastValidBlockHeight: transaction.lastValidBlockHeight! })
+      outgoing.add(...transaction.instructions.map((ix) => (ix.programId.equals(ComputeBudgetProgram.programId) && ix.data[0] === 3 ? ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }) : ix)))
+    }
+    outgoing.partialSign(owner)
+    return connection.sendRawTransaction(outgoing.serialize(), { preflightCommitment: 'confirmed', minContextSlot })
+  })
+  if (mutateFee) console.log('simulating a wallet that rewrites the priority fee before signing')
   const client = createCurrentRitualClient(transport, transport)
   if (DEMO_CAUSE.tokenAccount === null) throw new Error('demo cause is not configured')
 
