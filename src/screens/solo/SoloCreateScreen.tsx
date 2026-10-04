@@ -8,6 +8,7 @@ import { DEMO_CAUSE } from '../../data/rituals/demoConfig'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { useCreateRitual } from '../../features/rituals/create/useCreateRitual'
 import { useAuthorization } from '../../utils/useAuthorization'
+import { needsDevnetSwitchHint, SEED_VAULT_DEVNET_HINT } from '../../utils/walletChoice'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
@@ -347,9 +348,15 @@ export function SoloCreateScreen({ route }: Props) {
             </View>
           )}
           {create.state.status === 'confirmed' && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
+          {needsDevnetSwitchHint(walletPackage) && create.state.status !== 'confirmed' && (
+            <View style={styles.devnetCard} accessibilityLabel="Seed Vault Wallet network">
+              <Text style={styles.devnetTitle}>Seed Vault Wallet: switch to Devnet</Text>
+              <Text style={styles.quiet}>{SEED_VAULT_DEVNET_HINT}</Text>
+            </View>
+          )}
           {create.state.status === 'idle' && selectedAccount && !stepThreeErrors.length && <Text style={styles.walletNote}>{walletHandoffNote(walletPackage)}</Text>}
           {create.state.status !== 'confirmed' && (
-            <ActionButton label={create.isBusy ? 'Working…' : 'Approve & make it real'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable} loading={create.isBusy} accessibilityLabel="Approve and make the promise real" />
+            <ActionButton label={create.isBusy ? 'Working…' : 'Make it real'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable} loading={create.isBusy} accessibilityLabel="Approve and make the promise real" />
           )}
           {create.state.status === 'error' && create.canSubmit && <ActionButton label="Try again" tone="quiet" onPress={create.start} accessibilityLabel="Try creating the promise again" />}
         </>
@@ -416,4 +423,6 @@ const styles = StyleSheet.create({
   statusTitle: { ...type.heading, color: color.fg },
   walletNote: { ...type.caption, color: color.muted, textAlign: 'center' },
   confirmedCard: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.xl },
+  devnetCard: { backgroundColor: color.card, borderColor: color.goDeep, borderWidth: 1.5, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
+  devnetTitle: { ...type.bodyStrong, color: color.fg },
 })

@@ -7,6 +7,7 @@ import * as Clipboard from 'expo-clipboard'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigators/AppNavigator'
 import { useAuthorization } from '../../utils/useAuthorization'
+import { needsDevnetSwitchHint, SEED_VAULT_DEVNET_HINT } from '../../utils/walletChoice'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
@@ -23,7 +24,7 @@ import { autoSettleWeek } from '../../features/rituals/solo/settler/autoSettle'
 import { shortRosterAddress } from '../../features/rituals/create/roster'
 import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
-import { ActionButton, ErrorLine, Footnote, HoldButton, haptic, Poster, PosterLine, Stamp, WeekStrip } from '../../components/crew'
+import { ActionButton, Confetti, ErrorLine, Footnote, HoldButton, haptic, Poster, PosterLine, Stamp, WeekStrip } from '../../components/crew'
 import { color, fonts, memberColor, radius, space, type } from '../../theme'
 import { soloRitualModel, type SoloRitualModel } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloActionDeps'
@@ -179,8 +180,14 @@ export function SoloRitualScreen({ route }: Props) {
   }, [canAutoSettle, model?.eventIndex, model?.needsEventInit, autoRun])
   const settlingByItself = autoSettling || canAutoSettle
   const showedUpBefore = useRef(false)
+  // Celebrate only a stamp made on this screen and confirmed on chain, never
+  // on merely opening a week that was already stamped.
+  const [celebrate, setCelebrate] = useState(0)
   useEffect(() => {
-    if (model?.showedUp && !showedUpBefore.current) haptic.success()
+    if (model?.showedUp && !showedUpBefore.current) {
+      haptic.success()
+      if (claimEventIndex.current !== null && claimEventIndex.current === model.eventIndex) setCelebrate((value) => value + 1)
+    }
     showedUpBefore.current = Boolean(model?.showedUp)
   }, [model?.showedUp])
 
@@ -199,6 +206,7 @@ export function SoloRitualScreen({ route }: Props) {
   const shareAddress = ritualAddress?.toBase58() ?? route.params.ritualId
 
   return (
+    <View style={s.root}>
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
       <Text style={s.back} onPress={() => navigation.goBack()}>‹</Text>
       <Text style={s.kicker}>{model.state === 'funding' ? 'SOLO RITUAL' : `WEEK ${model.eventIndex + 1}`}</Text>
@@ -217,9 +225,10 @@ export function SoloRitualScreen({ route }: Props) {
       )}
       {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote, settlingByItself)}
       {actionError && <ErrorLine>{actionError}</ErrorLine>}
+      {actionError && needsDevnetSwitchHint(walletPackage) && <Text style={s.muted}>{SEED_VAULT_DEVNET_HINT}</Text>}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
-      {holdVisible && <HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" />}
+      {holdVisible && <View style={s.holdArea}><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
@@ -227,6 +236,8 @@ export function SoloRitualScreen({ route }: Props) {
       {readyForWallet && action.state.status === 'idle' && (model.canSkip || (model.state === 'resolving/settle' && !settlingByItself)) && <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text>}
       <Footnote>Devnet · TEST tokens have no real value</Footnote>
     </ScrollView>
+    <Confetti fire={celebrate} originY={300} />
+    </View>
   )
 }
 
@@ -249,5 +260,5 @@ function Centered({ children }: { children: React.ReactNode }) { return <View st
 function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { return <View style={s.center}><Text style={s.title}>Ritual unavailable</Text><Text style={s.muted}>{message}</Text><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back to my rituals" onPress={onHome} /></View> }
 
 const s = StyleSheet.create({
-  screen: { backgroundColor: color.bg }, content: { padding: space.screen, paddingBottom: 48, gap: space.md }, back: { ...type.heading, color: color.muted }, kicker: { ...type.label, color: color.muted }, title: { ...type.display, color: color.fg }, card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs }, paper: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.lg, gap: space.md }, holdCard: { backgroundColor: color.fg, borderRadius: radius.poster, padding: space.xl, alignItems: 'center', gap: space.sm }, witnessCard: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.sm }, cardTitle: { ...type.heading, color: color.fg }, holdCardTitle: { ...type.heading, color: color.onDark }, muted: { ...type.body, color: color.muted }, note: { ...type.caption, color: color.faint, textAlign: 'center' }, weekNote: { ...type.body, fontFamily: fonts.hand, color: color.fg }, weekNoteInput: { ...type.body, color: color.fg, backgroundColor: color.card, borderWidth: 1, borderColor: color.line, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md }, center: { flex: 1, padding: space.screen, justifyContent: 'center', gap: space.md, backgroundColor: color.bg },
+  root: { flex: 1, backgroundColor: color.bg }, holdArea: { alignItems: 'center', paddingVertical: space.lg }, screen: { backgroundColor: color.bg }, content: { padding: space.screen, paddingBottom: 48, gap: space.md }, back: { ...type.heading, color: color.muted }, kicker: { ...type.label, color: color.muted }, title: { ...type.display, color: color.fg }, card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs }, paper: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.lg, gap: space.md }, holdCard: { backgroundColor: color.fg, borderRadius: radius.poster, padding: space.xl, alignItems: 'center', gap: space.sm }, witnessCard: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.sm }, cardTitle: { ...type.heading, color: color.fg }, holdCardTitle: { ...type.heading, color: color.onDark }, muted: { ...type.body, color: color.muted }, note: { ...type.caption, color: color.faint, textAlign: 'center' }, weekNote: { ...type.body, fontFamily: fonts.hand, color: color.fg }, weekNoteInput: { ...type.body, color: color.fg, backgroundColor: color.card, borderWidth: 1, borderColor: color.line, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md }, center: { flex: 1, padding: space.screen, justifyContent: 'center', gap: space.md, backgroundColor: color.bg },
 })

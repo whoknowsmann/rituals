@@ -9,6 +9,7 @@ import { color, memberColor, radius, space, type } from '../../theme'
 import { HoldButton } from './HoldButton'
 
 export { HoldButton }
+export { Confetti } from './Confetti'
 export { Stamp } from './Stamp'
 export { STAMP_KINDS, stampSpec, type StampKind } from './stampSpec'
 

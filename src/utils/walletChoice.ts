@@ -35,6 +35,16 @@ export function walletOptionById(id: string): WalletOption | undefined {
   return WALLET_OPTIONS.find((option) => option.id === id)
 }
 
+/**
+ * Seed Vault Wallet signs on whichever network its own settings name and
+ * refuses a devnet transaction with "Network mismatch" when set to mainnet.
+ * There is no MWA request that switches it, so the app must ask the user.
+ */
+export function needsDevnetSwitchHint(androidPackage: string | undefined | null): boolean {
+  return walletOptionByPackage(androidPackage)?.id === 'seed-vault'
+}
+export const SEED_VAULT_DEVNET_HINT = 'Seed Vault Wallet must be set to Devnet: open it, go to Settings and switch the network to Devnet. Otherwise it will say "Network mismatch".'
+
 export function walletOptionByPackage(androidPackage: string | undefined | null): WalletOption | undefined {
   if (!androidPackage) return undefined
   return WALLET_OPTIONS.find((option) => option.androidPackage === androidPackage)
