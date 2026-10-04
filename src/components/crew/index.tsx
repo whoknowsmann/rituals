@@ -7,7 +7,7 @@ import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewS
 import * as Haptics from 'expo-haptics'
 import { color, memberColor, radius, space, type, themedStyles, useColors } from '../../theme'
 import { HoldButton } from './HoldButton'
-import { weekCellLabel, weekSummary, type WeekCell } from './weekStripLogic'
+import { weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
 
 export { HoldButton }
 export { Confetti } from './Confetti'
@@ -65,7 +65,7 @@ export function PosterLine({ label, value }: { label: string; value: string }) {
   )
 }
 
-export { type WeekCell, weekCellLabel, weekSummary } from './weekStripLogic'
+export { type WeekCell, weekCellLabel, weekSummary, weekSummaryShort } from './weekStripLogic'
 
 /**
  * The punch card. Full: one cell per week (✓ kept, ✕ missed, NOW, numbers to
@@ -73,7 +73,7 @@ export { type WeekCell, weekCellLabel, weekSummary } from './weekStripLogic'
  */
 export function WeekStrip({ cells, tint, compact = false, summary = true }: { cells: readonly WeekCell[]; tint: string; compact?: boolean; summary?: boolean }) {
   const s = useS()
-  const line = weekSummary(cells)
+  const line = compact ? weekSummaryShort(cells) : weekSummary(cells)
   return (
     <View accessibilityLabel={line}>
       <View style={[s.strip, compact && s.stripCompact]}>

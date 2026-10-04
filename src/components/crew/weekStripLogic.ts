@@ -19,3 +19,8 @@ export function weekSummary(cells: readonly WeekCell[]): string {
   const lead = now >= 0 ? `Week ${now + 1} of ${cells.length}` : finished ? `All ${cells.length} weeks done` : `${cells.length} weeks`
   return [lead, kept ? `${kept} kept` : null, missed ? `${missed} missed` : null].filter(Boolean).join(' · ')
 }
+
+/** The short form for small Home tiles: "1 of 4 kept". */
+export function weekSummaryShort(cells: readonly WeekCell[]): string {
+  return `${cells.filter((cell) => cell === 'done').length} of ${cells.length} kept`
+}
