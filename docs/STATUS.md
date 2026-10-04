@@ -3,11 +3,10 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-09-28 ~11:00 CDT** (feat/solo-screens @ 906d577 + docs:
-tsc clean, **2,146 tests / 99 files**; solo + Seasons program **deployed** on
-devnet slot 504946601; devnet smoke honor 8/8 + miss 9/9; final APK installed
-on the Seeker; phone test NOT yet run)
-Deadline: **2026-10-09 06:59 UTC** (01:59 CDT) · internal ship target **2026-10-08**
+Last verified: **2026-10-04 ~14:30 CDT** — `feat/solo-screens` @ 6872860, clean
+and pushed; tsc clean; **2,247 tests / 125 files**; `verify-devnet-config` 5/5
+PASS; phone has **d15** (35c5101), **d17** (6872860) built and being installed.
+Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT) · **submit Wed Oct 7, 8pm CDT**
 
 ## How to re-verify in one minute
 
@@ -16,14 +15,106 @@ Do this instead of trusting any prose, including this file:
 ```bash
 cd ~/projects/preflight-solo               # active worktree (feat/solo-screens)
 git log --oneline -8                       # what actually landed
-npm test                                   # real test count
+npm test                                   # whole suite, ~7 s; read the summary line only
+export NODE_OPTIONS="--require $HOME/.hermes/skills/software-development/solana-mobile-app-development/scripts/ipv4-only.cjs"
 npx tsx scripts/verify-devnet-config.ts    # live chain matches the client
-./scripts/check-device.sh                  # Seeker, profiles, wallets
+./scripts/check-device.sh                  # Seeker, app install time = which build
 ```
 
-If a document disagrees with those four commands, the document is wrong. Fix it.
+If a document disagrees with those commands, the document is wrong. Fix it.
 
-## START HERE (2026-10-02)
+## START HERE (2026-10-04)
+
+**Plan of record:** `docs/plans/single-blade-2026-10-02.md` (solo only, ship
+order to Wed Oct 7; progress recorded in its §7). Load the skill
+`solana-mobile-app-development` before touching the phone.
+
+### What the app is now (all proven on the Seeker unless marked)
+
+One loop, solo only: **start a ritual → hold to stamp each week → weeks close by
+themselves → receipts.**
+- **Create, 2 steps, 1 wallet approval.** Step 1: what's your ritual (typed
+  text is cleaned to a name: "to read" → "Read"; suggestions optional). Step 2:
+  weeks (− / +, 1–16), stake per week (input + 1/5/10/25 picks), the wallet's
+  TEST balance (blocks the button if stake + fee won't fit), the locked cause
+  (Northside Food Bank (demo)), the signed card. The one approval creates,
+  stakes, activates and **pre-pays the app's settle key** (~0.001 + 0.002/week
+  SOL). *(d17: weeks/stake/balance/clean names not yet seen on the phone.)*
+- **Stamp, 1 approval per week:** big centered HOLD that fills (1.4 s, ring,
+  quarter ticks, buzz), optional one-line note, then confetti + SHOWED UP stamp
+  with a line from the sayings basket (`solo/sayings.ts`).
+- **Weeks close by themselves:** the settle key (`solo/settler/`) opens a
+  missed week and settles every finished week, no wallet. Missed → stake to the
+  cause, MISSED stamp ("That's a week, not a verdict."); kept → stake back,
+  KEPT receipt with the note. Wallet button stays only as a fallback.
+- **Home:** two-column tiles, a colour per ritual (`ritualTint`), compact punch
+  card ("1 of 4 kept"), status pill ("Stamp this week" in lime), "+ New ritual".
+- **Night mode:** follows the phone; sun/moon toggle in the top bar overrides
+  (remembered). Solo screens + shared components are themed; hidden group
+  screens stay light-only.
+- Hidden by `SOLO_ONLY` (code kept): friends, witness, Join, Seasons, person
+  destination. Wording is "ritual" everywhere.
+
+Demo timing (devnet only): a "week" is 6.5 min — opens ~2 min after create,
+5-min stamp window, 1 min grace, then the app settles it.
+
+### Phone / wallet setup
+
+- Seeker `SM02G40619100656` via `./scripts/adb.sh`; UI driver `scripts/ui.py`
+  (dump / type / shot). Launch `am start -n com.whoknowsmann.rituals/.MainActivity`.
+- **Demo wallet: Seed Vault Wallet**, account "test" =
+  `Da59UWdaoBej5xdX9atiaZahMYLxJNsdXHVY6GMh8VmV` (same key as Phantom Account 2;
+  0 mainnet). Topped up 2026-10-04: **0.214 devnet SOL, 145 TEST**. Seed Vault
+  Wallet must be set to **Devnet** in its settings (it says "Network mismatch"
+  otherwise); Jack switches it back to Mainnet after testing. Approval = double
+  tap + fingerprint, ~13 s; approve within ~60 s or the tx expires.
+- Build + install: `TAG=dN scripts/build-apk-local.sh` (~4 min, stages to
+  `C:\Users\hound\AppData\Local\Temp\rituals\`), then `adb push` to
+  `/data/local/tmp` + `adb shell pm install -r` in the background, and tap
+  Play Protect **"Don't send"** at (600, 2027).
+- Gates before a build Jack will touch: `tsc`, `npm test`, and for chain-path
+  changes `scripts/smoke-app-solo.ts` (2 weeks: kept + missed, settle key;
+  `--simulate-wallet-fee-change` for the wallet-rewrites-fees path). Then walk
+  the new build on the phone up to the wallet prompt, with screenshots.
+
+### Next actions, in order (owner · when)
+
+1. **Walk d17 on the phone** (Hermes, then Jack's thumbs up): weeks/stake
+   controls, balance line, "to read" → "Read", signed card, day + night.
+2. **Rewrite the submission docs for the shipped app** (Hermes, Sonnet
+   writers · Mon): README, video script, pitch outline, store/privacy. The
+   drafts on `docs/submission-solo` are stale (Seasons/friends-first, Phantom,
+   no settle key, no night mode).
+3. **Organizer email** (Jack · this weekend): devnet + valueless token
+   eligibility (Monolith's Echo won while "live on devnet", so low risk), plus
+   the other questions in the draft (Hub note "Clock In Organizer Questions";
+   repo copy `docs/submission/organizer-questions-email.md` on branch
+   `docs/submission-solo`).
+4. **Repo goes public** (Jack picks a license; Hermes merges
+   `feat/solo-screens` → `main` with the new README, re-scans) **before Wed
+   01:59 CDT**, when cron job `rituals-make-repo-public` (cd4e3bd1e174) scans
+   history for secrets, flips it public and reports to Telegram.
+5. **MWA identity off "github.com"** (Jack approves a GitHub Pages origin ·
+   after 4): Seed Vault shows "We don't recognize this domain".
+6. **Judge access** (Jack decides): how judges get TEST (faucet button or
+   organizer guidance) + "switch Seed Vault Wallet to Devnet" instructions.
+7. **Video** (after the UI is final · Mon–Tue): script → one clean recorded
+   run (Hermes drives, Jack approves; film the Seed Vault approval with a
+   second phone because wallet screens record black) → Jack's voiceover →
+   Hermes edits with ffmpeg → unlisted YouTube.
+8. Deck (~8 slides), release APK on a GitHub release, dApp Store kit.
+9. **Submit Wed Oct 7 8pm**; Hermes checks every link logged-out.
+
+### Open items (small)
+
+- Devnet hint names no exact menu path yet (Jack to send the Seed Vault
+  Wallet path to its network setting).
+- Last week's old Phantom-Account-3 "Call mom" tile reads "Closing…" forever
+  (test data from another wallet; opening it lets the settle key close it).
+- Log line "wallet.fee-adjusted failed" is a note, not a failure (rename).
+- Untracked `scripts/diag-event-decode.ts`: never run; delete.
+
+## Log 2026-10-02 → 2026-10-04 (newest first)
 
 **Plan of record: `docs/plans/single-blade-2026-10-02.md`.** Jack chose solo
 only: "put a stake on a weekly promise, stamp it to keep it, miss and it goes to

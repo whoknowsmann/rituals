@@ -136,12 +136,39 @@ night, remove every SKR claim from the docs. **AI:** no.
   $HOME/.hermes/skills/software-development/solana-mobile-app-development/scripts/ipv4-only.cjs"`.
 - Device: `./scripts/adb.sh`, `scripts/ui.py` (dump / tap / type / shot); launch
   with `am start -n com.whoknowsmann.rituals/.MainActivity`.
-- Local APK build: `~/.hermes/cache/scratch/build-d3.sh` pattern (EAS local,
-  JDK17 at `~/.local/jdk`, retry on GraphQL 503). Scratch is pruned; copy the
-  script into `scripts/` if needed.
-- Delegation: writing goes to Anthropic Sonnet 5.5 (`hermes chat -Q --oneshot
-  --provider anthropic -m claude-sonnet-5-5 -t file`); code goes to the
-  configured gpt-5.6-luna `delegate_task`, one worktree per agent, disjoint files.
+- Local APK build: `TAG=dN scripts/build-apk-local.sh` (EAS local, JDK17 at
+  `~/.local/jdk`, retries GraphQL 503, stages the APK for adb).
+- Delegation (updated 2026-10-04): Anthropic models only. Writing goes to
+  Sonnet 5.5 (`hermes chat -Q --oneshot --provider anthropic -m
+  claude-sonnet-5-5 -t file`); code subagents also run on Anthropic (check the
+  routing before dispatching), one worktree per agent, disjoint files.
 - Devnet keys: `../preflight/.keys/rituals-devnet-deployer.json` (config
   authority, mint authority), `.keys/rituals-solo-smoke-owner.json`. Never the
   CLI default wallet.
+
+## 7. Progress against the ship order (updated 2026-10-04, Hermes)
+
+| # | Item | State |
+|---|---|---|
+| 1 | The fold, d4, walk | **Done** 10-02 (9d6a387). |
+| 2 | Phone run, create → stamp → settle → KEPT, missed week | **Done** 10-02 on Phantom (found 3 bugs + 5 fingerprints per approval) and again 10-03/04 on **Seed Vault Wallet**: create + 1 stamp per week, weeks close by themselves. Recording of the final run still to do (item 10). |
+| 3 | Organizer email | **Open (Jack).** Devnet risk now low: Monolith's Echo won while "live on devnet". |
+| 4 | Visual pass | **Done** 10-04 from Jack's list: "ritual" wording, sayings on stamps, punch card, 2-column coloured tiles, night mode, big HOLD, weeks/stake controls, clean names, signed-card frame. Jack's thumbs-up on d17 pending. |
+| 5 | Submission docs for the single blade | **Open (Hermes, Sonnet writers).** Drafts on `docs/submission-solo` are stale. |
+| 6 | Test tokens for judges | **Open (Jack decides).** |
+| 7 | Public repo + license | **Open (Jack: license).** Cron flips the repo public Wed 01:59 CDT after a secrets scan; merge to `main` + README must happen first. |
+| 8 | MWA identity off github.com | **Open (Jack approves Pages).** Now more important: Seed Vault warns "We don't recognize this domain". |
+| 9–13 | Release APK, video, deck, dApp Store kit, submit | Not started; video after Jack's UI thumbs-up. |
+
+Decisions made since §1 (all Jack's unless noted):
+- **Demo wallet = Seed Vault Wallet** (approve + fingerprint), not Phantom
+  (Phantom with a Seed Vault key costs ~5 fingerprints per approval).
+- **No settle/close approvals:** the app's own settle key, pre-paid inside
+  the create approval, runs the permissionless open/settle steps
+  (Hermes design, Jack asked for "lean as hell").
+- **Stay on devnet** with the valueless TEST token; mainnet only after the
+  hackathon (dApp Store publication within 30 days of a win).
+- Night mode follows the phone with a sun/moon override; "ritual" everywhere;
+  stamp sayings may be cheeky but never mock a miss.
+- Delegation: Jack upgraded to the Claude Max plan (2026-10-04) and wants
+  Anthropic models for subagents; no GPT subagents are running.
