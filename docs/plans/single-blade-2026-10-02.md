@@ -161,13 +161,14 @@ night, remove every SKR claim from the docs. **AI:** no.
 | 9–13 | Release APK, video, deck, dApp Store kit, submit | Not started; video after Jack's UI thumbs-up. |
 
 **Added 2026-10-04 evening (Jack approved; do before the video):**
-- **Free: remove the activation fee.** Program change (allow zero fee + an
-  authority-only `update_protocol_config`, no account layout change), devnet
-  upgrade, set fee to 0, client and copy follow, drop SKR claims. Overrides
-  the "no program changes before Oct 8" freeze in §1. Steps in STATUS item 1.
-- **Demo / Real weeks toggle on create**, Demo default; real weeks = stamp
-  any day in the first 6 days, settles on day 7; in-app "Demo speed" notice
-  and a line in the video. Steps in STATUS item 2.
+- ~~**Free: remove the activation fee.**~~ **Done 2026-10-04 17:00.** Program
+  upgraded on devnet (slot 507505707, no layout change, native 206/0), config
+  set to 0 / 0 / 0 via the new `update_protocol_config`, client quotes the fee
+  from the live config, SKR claims dropped. Both app-path smokes green on the
+  free program. d19 on the phone; Jack's −20 TEST create pending.
+- ~~**Demo / Real weeks toggle on create**~~ **Done 2026-10-04 17:00.** Demo
+  default; real weeks = 2-min lead, 6-day window, 23 h grace, 7-day period,
+  proven on devnet (`7bT37Hfz…`, stamped); in-app "Demo speed" notice. d19.
 - UI thumbs-up given on d17; "Lock it in" / "Locked in." on d18.
 
 Decisions made since §1 (all Jack's unless noted):

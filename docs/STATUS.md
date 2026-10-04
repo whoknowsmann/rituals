@@ -3,11 +3,11 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-10-04 ~15:45 CDT** — `feat/solo-screens` @ 9ca6c32 (+ docs),
-clean and pushed; tsc clean; **2,248 tests / 125 files**; `verify-devnet-config` 5/5
-PASS; phone has **d18** (9ca6c32: "Lock it in" / "Locked in."), installed
-15:30. Jack created a ritual on d17 with the new controls (`59qRwsMj…`) and
-gave the UI a thumbs up.
+Last verified: **2026-10-04 ~17:15 CDT** — `feat/solo-screens` @ 055f1fa + docs,
+clean and pushed; tsc clean; **2,275 tests / 126 files**; native **206 / 0**;
+`verify-devnet-config` 8/8 PASS (fee **0 / 0 / 0**); both app-path smokes
+GREEN on the free program; phone has **d19** (055f1fa: free + Demo/Real
+weeks), installed 16:47, walked to the wallet prompt.
 Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT) · **submit Wed Oct 7, 8pm CDT**
 
 ## How to re-verify in one minute
@@ -82,83 +82,80 @@ Demo timing (devnet only): a "week" is 6.5 min — opens ~2 min after create,
 ### Next actions, in order (owner · when)
 
 Jack, 2026-10-04 evening: "we have time right now to crank this all out."
-Items 1 and 2 are approved builds; do them first, in this order.
 
-1. **Make Rituals free: remove the activation fee (approved by Jack; this
-   overrides the "no program changes before Oct 8" freeze).** Why: the fee
-   funds nothing (no servers; users already pay network fees, rent and the
-   settle-key top-up), it is charged even on fully kept rituals, and the pitch
-   is stronger as "missed stakes go to a cause; Rituals takes nothing".
-   Today the program enforces it and has no off switch:
-   - `initialize_protocol_config` (`programs/rituals/src/lib.rs` ~L18–48)
-     requires `fee_basis_points` in 1..=10000 and `minimum_fee > 0`; the
-     config PDA (`["protocol-config"]`) is written once and **no instruction
-     updates it**. Live devnet config: 200 bps, min 500000, max 5000000
-     (0.5–5 TEST).
-   - Fee is computed in `create_ritual` / `create_solo_ritual` (~L174–180,
-     ~L310–316: `fee.clamp(min, max)`), funded in `fund_member`, paid out in
-     `activate_ritual` (~L510–560, `ActivationFeeVaultShort`).
-   Plan: (a) allow a zero fee (bps 0, min 0, max 0 valid; clamp → 0) and add an
-   authority-only `update_protocol_config` (same account, **no layout change**,
-   so existing rituals and the installed APK keep decoding); make sure a 0 fee
-   transfers nothing and still activates (check `ActivationFeeVaultShort`, SPL
-   0-amount transfers). Append any new error codes at the END of the enum.
-   (b) Native tests: `cd program-tests && cargo test --locked` (197 passing
-   before) + new tests for zero fee and the update instruction. (c) Client:
-   `RITUAL_FEE_CONFIG` (`src/features/rituals/create/draftForm.ts`) and
-   `quoteActivationFee`/`validateFeeConfig` (`src/domain/rituals/money.ts`)
-   must accept 0; better, read the fee from the live config. Remove fee copy
-   ("stake plus the activation fee"), keep the balance check. (d) Devnet
-   upgrade with the deployer `../preflight/.keys/rituals-devnet-deployer.json`
-   (upgrade authority `ETQ9…hXbx`, ~4.5 SOL): `anchor build`, then
-   `scripts/write-program-buffer.ts` (paced writes; `solana program deploy`
-   fails on public devnet, see the 2026-09-27 log below), `solana program
-   extend` if needed, `solana program upgrade <buffer> <program>`, verify the
-   dump byte-for-byte, then call `update_protocol_config` → 0/0/0 and update
-   `verify-devnet-config.ts` to assert it. (e) Gates: `smoke-app-solo.ts`
-   (both normal and `--simulate-wallet-fee-change`), then a phone create: the
-   Seed Vault sheet should show −20 TEST, not −20.5. Drop every SKR-discount
-   claim from docs (the fee was its only hook; it was never wired).
-2. **Demo / Real weeks toggle on create (approved; Demo is the default).**
-   A two-option switch in the "How many weeks" card: **Demo speed · Real
-   weeks**. Demo = today's `DEMO_SOLO_CADENCE` (opens ~2 min after create,
-   5-min stamp window, 1-min grace, 6.5-min period). Real weeks (Jack's
-   choice: "stamp any day this week"): week 1 opens ~2 min after create,
-   check-in window **6 days**, grace ~23 h, period **7 days** (claim + grace <
-   period; program only needs opens < deadline < resolution < next opens).
-   Note `firstEventStart` uses next-same-weekday (7 days out) for
-   non-accelerated cadences, so add a solo real cadence with the short lead.
-   Summary line: "4 demo weeks · 6.5 min each" vs "4 weeks · ends Nov 1".
-   Add a plain in-app notice on demo rituals (e.g. on the ritual screen:
-   "Demo speed: a week here is 6.5 minutes") and say it in the video. With
-   real weeks a finished week settles the next time the app is opened (or the
-   wallet fallback); state that honestly. Prove: devnet create of a real-weeks
-   ritual reads back with the right timestamps, opens, and takes a stamp.
-3. **Rewrite the submission docs for the shipped app** (Hermes, Sonnet 5.5
+1. ~~**Make Rituals free: remove the activation fee.**~~ **Done 2026-10-04 (program
+   + chain + client; phone proof pending d19).** What landed:
+   - Program (`feat/free-program`, merged): `initialize_protocol_config` accepts
+     0..=10000 bps and 0 <= min <= max; new authority-only
+     `update_protocol_config` (config PDA + authority signer, writes the three
+     fee fields, **no layout change**); `activate_ritual` skips the fee CPI at
+     0; `validate_common_state` / `validate_cancellation_state` no longer require
+     a positive fee. Native **206 / 0** (`program-tests/tests/free_program.rs`:
+     solo kept + missed, group Host/Split, cancel, close vaults, legacy ritual
+     keeps its locked fee after the update).
+   - **Devnet upgraded** slot 507505707, tx `4QrKUTnb…5Wx1`, .so sha256
+     `763d1cfd3fae86cf` (728,040 B; dump equals the build byte for byte;
+     ProgramData 855,304 B unchanged, no extend). Buffer written with
+     `write-buffer --use-rpc` (created the account, timed out) then
+     `scripts/write-program-buffer.ts` (4 rounds); buffer rent returned.
+   - **Config set to 0 / 0 / 0**: `scripts/update-protocol-config.ts`, tx
+     `5TSKS7xY…weYT`; `verify-devnet-config.ts` now asserts the triple mirrors
+     `RITUAL_FEE_CONFIG` (0/0/0). Rituals created before keep their locked fee.
+   - Client: decoders accept a zero fee; the create deps quote the fee from the
+     **live** config (`feeConfigFromProtocol`), the create screen too (balance
+     check, no "plus the activation fee" copy at 0); frozen IDL + builder for
+     `update_protocol_config`; PRODUCT/ROADMAP: "Rituals takes nothing", SKR
+     claim dropped.
+   - **Note:** d18 on the phone cannot decode the 0-fee config (old invariant);
+     install d19 before any phone use.
+2. ~~**Demo / Real weeks toggle on create.**~~ **Done in code 2026-10-04
+   (`feat/weeks-toggle`, merged; phone proof pending d19).** Two pills under the
+   weeks stepper: **Demo speed** (default) · **Real weeks**; `REAL_SOLO_CADENCE`
+   = 120 s lead, 6 d check-in, 23 h grace, 7 d period
+   (`RitualCadence.firstEventLeadSeconds`); summary line "4 demo weeks · 6.5 min
+   each · 20 TEST in all" / "4 weeks · ends Sun, Nov 1 · 20 TEST in all"
+   (`soloScheduleSummary`); ritual screen shows "Demo speed: a week here is 6.5
+   minutes." derived from the on-chain schedule (`model.demoSpeedNotice`);
+   settle-key line says "closes itself when you next open the app" on real
+   weeks. `smoke-app-solo.ts --cadence real` creates, asserts the windows,
+   stamps, exits (no 7-day wait).
+3. **Gates for d19:** `smoke-app-solo.ts --cadence real` **GREEN** (ritual
+   `7bT37Hfz…`, fee 0, week 1 opened 115 s after create, 6 d / 23 h / 7 d
+   windows read back, stamp `wSEHopC5…`; `artifacts/logs/smoke-app-solo-real-weeks.log`);
+   demo smoke **GREEN** (ritual `ESujNUaA…`: create, stamp, kept week settled
+   and missed week to the cause by the settle key; owner signatures 2; creator
+   TEST delta exactly −1 = the missed week, **no fee**;
+   `smoke-app-solo-free.log`); `--simulate-wallet-fee-change` running.
+   **d19 (055f1fa) INSTALLED** 16:47:53 and walked to the wallet prompt
+   (`artifacts/shots/d19-*`): pills, both summary lines, "You have 83.8 TEST",
+   no fee copy, settle line per speed. Still to do: Jack's create on d19 (Seed
+   Vault sheet should show **−20 TEST**) and a look at the ritual screen's
+   demo-speed line.
+4. **Rewrite the submission docs for the shipped app** (Hermes, Sonnet 5.5
    writers): README, video script, pitch outline, store/privacy. The drafts on
    `docs/submission-solo` are stale (Seasons/friends-first, Phantom, fee, SKR,
    no settle key, no night mode). New facts: free, 2 approvals, Seed Vault
    Wallet, weeks close themselves, demo vs real weeks.
-4. **Organizer email** (Jack): devnet + valueless token eligibility (low
+5. **Organizer email** (Jack): devnet + valueless token eligibility (low
    risk: Monolith's Echo won while "live on devnet") plus the other questions
    in the draft (Hub note "Clock In Organizer Questions"; repo copy
    `docs/submission/organizer-questions-email.md` on branch
    `docs/submission-solo`).
-5. **Repo goes public** (Jack picks a license; Hermes merges
+6. **Repo goes public** (Jack picks a license; Hermes merges
    `feat/solo-screens` → `main` with the new README, re-scans) **before Wed
    01:59 CDT**, when cron job `rituals-make-repo-public` (cd4e3bd1e174) scans
    history for secrets, flips it public and reports to Telegram.
-6. **MWA identity off "github.com"** (Jack approves a GitHub Pages origin ·
+7. **MWA identity off "github.com"** (Jack approves a GitHub Pages origin ·
    after 5): Seed Vault shows "We don't recognize this domain".
-7. **Judge access** (Jack decides): how judges get TEST (faucet button or
+8. **Judge access** (Jack decides): how judges get TEST (faucet button or
    organizer guidance) + "switch Seed Vault Wallet to Devnet" instructions.
-8. **Video** (after 1–2 land): script → one clean recorded run on Demo speed
+9. **Video** (after 1–2 land): script → one clean recorded run on Demo speed
    (Hermes drives, Jack approves; film the Seed Vault approval with a second
    phone because wallet screens record black) → Jack's voiceover → Hermes
    edits with ffmpeg (`~/.hermes/tools/ffmpeg-9.0.1-linux-x64/bin`) →
    unlisted YouTube.
-9. Deck (~8 slides), release APK on a GitHub release, dApp Store kit.
-10. **Submit Wed Oct 7 8pm**; Hermes checks every link logged-out.
+10. Deck (~8 slides), release APK on a GitHub release, dApp Store kit.
+11. **Submit Wed Oct 7 8pm**; Hermes checks every link logged-out.
 
 ### Open items (small)
 
