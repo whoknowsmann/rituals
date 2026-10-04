@@ -14,9 +14,12 @@ export function useSoloRitualBundle(clientState: RitualClientState, addressText:
   const current = useRitualBundle(clientState, addressText)
   const [history, setHistory] = useState<readonly RitualBundleRead[]>([])
   const generation = useRef(0)
+  const historyFor = useRef<string | null>(null)
   useEffect(() => {
     const generationValue = ++generation.current
-    setHistory([])
+    // Keep the last history while re-reading the same ritual (no flicker);
+    // clear it only when the screen shows a different ritual.
+    if (historyFor.current !== addressText) { historyFor.current = addressText; setHistory([]) }
     if (current.status !== 'ready' || clientState.status !== 'ready' || !current.bundle) return
     const readyBundle = current.bundle
     const account = readyBundle.ritual.account

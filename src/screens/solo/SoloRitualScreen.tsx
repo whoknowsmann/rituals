@@ -223,7 +223,7 @@ export function SoloRitualScreen({ route }: Props) {
           <ActionButton tone="quiet" label="Copy address" onPress={() => { void Clipboard.setStringAsync(shareAddress) }} accessibilityLabel="Copy ritual address" />
         </View>
       )}
-      {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote, settlingByItself)}
+      {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote, settlingByItself, celebrate > 0)}
       {actionError && <ErrorLine>{actionError}</ErrorLine>}
       {actionError && needsDevnetSwitchHint(walletPackage) && <Text style={s.muted}>{SEED_VAULT_DEVNET_HINT}</Text>}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
@@ -241,7 +241,7 @@ export function SoloRitualScreen({ route }: Props) {
   )
 }
 
-function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined, weekNote: string | null, settlingByItself: boolean) {
+function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined, weekNote: string | null, settlingByItself: boolean, freshStamp: boolean) {
   if (model.state === 'funding') return <View style={s.card}><Text style={s.cardTitle}>Waiting for funding</Text><Text style={s.muted}>This solo ritual is not active yet.</Text></View>
   if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text><Text style={s.muted}>Your promise is still here.</Text></View>
   if (model.state === 'open-not-initialized') return <View style={s.card}><Text style={s.cardTitle}>This week is open</Text><Text style={s.muted}>Your first check-in will open the week.</Text></View>
@@ -250,7 +250,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'resolving/settle') return <View style={s.card}><Text style={s.cardTitle}>{settlingByItself ? 'Closing this week…' : 'This week is ready to settle'}</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : `${model.destinationLabel} gets this week's stake.`}</Text></View>
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
-  if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note="You showed up." animate={action.state.status !== 'confirmed'} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
+  if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note="You showed up." animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
   if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Checking this week</Text><Text style={s.muted}>Looking for the updated stamp.</Text></View>
   if (action.state.status !== 'idle') return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{action.state.status === 'awaiting-wallet' ? actionCopy.body : action.state.status === 'error' ? actionCopy.body : 'Getting this week ready…'}</Text></View>
   return <View style={s.holdCard}><Text style={s.cardTitle}>Make it official</Text><Text style={s.muted}>Hold to stamp this week.</Text>{ready ? <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text> : null}</View>

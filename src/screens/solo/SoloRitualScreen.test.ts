@@ -41,4 +41,10 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain("model.state === 'resolving/settle' && !settlingByItself && <ActionButton")
     expect(source).toContain('settlerCanPay(settlerBalance, model.needsEventInit)')
   })
+
+  it('celebrates a stamp once: confetti and the stamp animation only for a stamp made here (double pop, 2026-10-04)', () => {
+    expect(source).toContain('<Confetti fire={celebrate}')
+    expect(source).toContain('animate={freshStamp}')
+    expect(source).not.toContain("animate={action.state.status !== 'confirmed'}")
+  })
 })

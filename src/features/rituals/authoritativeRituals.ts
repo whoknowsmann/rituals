@@ -66,19 +66,33 @@ function isPermanentlyUnreadable(error: unknown): boolean {
   return error instanceof RitualRpcError && (error.category === 'decode' || error.category === 'not-found')
 }
 
+/**
+ * Re-reading the same ritual keeps the last good read on screen. Dropping to
+ * 'loading' unmounted the whole screen on every refresh, so after a stamp the
+ * stamp and the confetti played twice (phone, 2026-10-04).
+ */
+export function stateWhileReloading<T extends { status: string }>(previous: T, sameTarget: boolean, loading: T): T {
+  return sameTarget && previous.status === 'ready' ? previous : loading
+}
+
 export function useRitualBundle(clientState: RitualClientState, addressText: string, eventIndex?: number): BundleState {
   const [state, setState] = useState<BundleSnapshot>({ status: 'loading' })
   const [retryCount, setRetryCount] = useState(0)
   const generation = useRef(0)
+  const target = useRef<string | null>(null)
   useEffect(() => {
     const generationValue = ++generation.current
+    const key = `${addressText}:${eventIndex ?? ''}`
+    const sameTarget = target.current === key
+    target.current = key
     if (clientState.status !== 'ready') { setState({ status: 'error', message: clientState.reason }); return }
     let address: PublicKey
     try { address = new PublicKey(addressText) } catch { setState({ status: 'error', message: 'This Ritual address is invalid.' }); return }
-    setState({ status: 'loading' })
+    setState((previous) => stateWhileReloading(previous, sameTarget, { status: 'loading' } as BundleSnapshot))
     void (eventIndex === undefined ? clientState.client.getRitualBundle(address) : clientState.client.getEventBundle(address, eventIndex))
       .then((bundle) => { if (generation.current === generationValue) setState({ status: 'ready', bundle }) })
-      .catch(() => { if (generation.current === generationValue) setState({ status: 'error', message: 'Ritual data could not be read from devnet. Check your connection and try again.' }) })
+      // A failed background refresh keeps the last good read; a first read shows the error.
+      .catch(() => { if (generation.current === generationValue) setState((previous) => stateWhileReloading(previous, sameTarget, { status: 'error', message: 'Ritual data could not be read from devnet. Check your connection and try again.' } as BundleSnapshot)) })
   }, [clientState, addressText, eventIndex, retryCount])
   return Object.freeze({ ...state, retry: () => setRetryCount((value) => value + 1) })
 }

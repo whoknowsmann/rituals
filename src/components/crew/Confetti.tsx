@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native'
 import { color, memberColors } from '../../theme'
 
@@ -9,6 +9,9 @@ import { color, memberColors } from '../../theme'
  */
 export function Confetti({ fire, originY = 260, pieces = 42 }: { fire: number; originY?: number; pieces?: number }) {
   const t = useRef(new Animated.Value(0)).current
+  // Fire only when `fire` changes after mount: a remount must never replay a burst.
+  const lastFire = useRef(fire)
+  const [active, setActive] = useState(false)
   const { width } = Dimensions.get('window')
   const bits = useMemo(() => Array.from({ length: pieces }, (_, index) => {
     const angle = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.1
@@ -26,12 +29,14 @@ export function Confetti({ fire, originY = 260, pieces = 42 }: { fire: number; o
   }), [fire, pieces])
 
   useEffect(() => {
-    if (fire === 0) return
+    if (fire === lastFire.current) return
+    lastFire.current = fire
+    setActive(true)
     t.setValue(0)
-    Animated.timing(t, { toValue: 1, duration: 1700, easing: Easing.out(Easing.quad), useNativeDriver: true }).start()
+    Animated.timing(t, { toValue: 1, duration: 1700, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => setActive(false))
   }, [fire, t])
 
-  if (fire === 0) return null
+  if (!active) return null
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {bits.map((bit) => (
