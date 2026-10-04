@@ -30,6 +30,11 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('· ${totalStakeLabel} in all')
   })
 
+  it('says "Lock it in" / "Locked in." (Jack, 2026-10-04)', () => {
+    expect(source).toContain("'Lock it in'")
+    expect(source).toContain('>Locked in.</Hero>')
+  })
+
   it('lets the user set the length (1–16 weeks) and the weekly stake (typed or quick picks)', () => {
     expect(source).toContain('stepWeeks(weekCount, -1)')
     expect(source).toContain('stepWeeks(weekCount, 1)')

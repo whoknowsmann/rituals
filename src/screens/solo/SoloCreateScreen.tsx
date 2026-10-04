@@ -252,7 +252,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   if (create.state.status === 'confirmed' && confirmedReadback) {
     return (
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <Hero kicker="Ritual started">You showed up for yourself.</Hero>
+        <Hero kicker="Ritual started">Locked in.</Hero>
         <View style={styles.confirmedCard}>
           <Stamp kind="promise" note={startedSaying(confirmedAddress ?? '')} />
         </View>
@@ -403,7 +403,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           )}
           {create.state.status === 'idle' && selectedAccount && !stepThreeErrors.length && <Text style={styles.walletNote}>{walletHandoffNote(walletPackage)}</Text>}
           {create.state.status !== 'confirmed' && (
-            <ActionButton label={create.isBusy ? 'Working…' : 'Make it real'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Approve and start the ritual" />
+            <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}
           {create.state.status === 'error' && create.canSubmit && <ActionButton label="Try again" tone="quiet" onPress={create.start} accessibilityLabel="Try starting the ritual again" />}
         </>
