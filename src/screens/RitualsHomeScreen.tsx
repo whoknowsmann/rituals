@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { ActivityIndicator, Button, Text, useTheme, type MD3Theme } from 'react-native-paper'
 import { useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
-import { ActionButton, Footnote, Poster, PosterLine, Section, WeekStrip, type WeekCell } from '../components/crew'
+import { ActionButton, Footnote, Section, WeekStrip, weekSummary, type WeekCell } from '../components/crew'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
 import { loadKnownRitualBundles, formatAtomic, statusLabel, type KnownRitual } from '../features/rituals/authoritativeRituals'
 import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
@@ -18,9 +18,11 @@ import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/so
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { COMING_SOON_LINE, SCOPE } from '../features/rituals/productScope'
 import { readSoloWeekOutcomes, soloHomeCells } from '../features/rituals/home/soloHistory'
+import { tileStatus } from '../features/rituals/home/tileStatus'
+import { soloRitualModel } from '../features/rituals/solo/lifecycle/soloRitualModel'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
 import { PublicKey } from '@solana/web3.js'
-import { color, memberColor, radius, space, type } from '../theme'
+import { color, radius, ritualTint, space, type } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
 type HomeRitual = LoadedRitual & { id: string }
@@ -135,13 +137,18 @@ function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => 
 }
 
 function ActiveRituals({ rituals, outcomes, onOpen, onPromise, styles }: { rituals: readonly HomeRitual[]; outcomes: WeekOutcomes; onOpen: (ritual: HomeRitual) => void; onPromise: () => void; styles: ReturnType<typeof makeStyles> }) {
+  // Two columns, about four tiles a screen; each ritual in its own colour.
+  const { width } = useWindowDimensions()
+  const tileWidth = Math.floor((width - space.screen * 2 - space.md) / 2)
   return <View accessibilityLabel="Your rituals">
     <Section title="Keep showing up" />
-    {rituals.map((ritual) => <View key={ritual.id} style={styles.ritualCard}>
-      <CrewPoster ritual={ritual} outcomes={outcomes.get(ritual.address)} styles={styles} />
-      <ActionButton tone="quiet" label="Open" onPress={() => onOpen(ritual)} style={styles.openButton} />
-    </View>)}
-    <ActionButton tone="quiet" label="Start another ritual" onPress={onPromise} />
+    <View style={styles.grid}>
+      {rituals.map((ritual) => <RitualTile key={ritual.id} ritual={ritual} outcomes={outcomes.get(ritual.address)} width={tileWidth} onPress={() => onOpen(ritual)} styles={styles} />)}
+      <Pressable onPress={onPromise} accessibilityRole="button" accessibilityLabel="Start another ritual" style={({ pressed }) => [styles.newTile, { width: tileWidth }, pressed && styles.tilePressed]}>
+        <Text style={styles.newPlus}>+</Text>
+        <Text style={styles.newText}>New ritual</Text>
+      </Pressable>
+    </View>
   </View>
 }
 
@@ -164,17 +171,32 @@ function seasonCountLine(season: SeasonAccountView): string {
   return `${seasonParticipantLine(season.participantCount)} · ${current.count} checked in this week`
 }
 
-function CrewPoster({ ritual, outcomes, styles }: { ritual: HomeRitual; outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined; styles: ReturnType<typeof makeStyles> }) {
+function RitualTile({ ritual, outcomes, width, onPress, styles }: { ritual: HomeRitual; outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined; width: number; onPress: () => void; styles: ReturnType<typeof makeStyles> }) {
   const account = ritual.bundle.ritual.account
-  const kicker = account.kind === 'Solo' ? `Solo · ${statusLabel(account.status)}` : `${statusLabel(account.status)} · ${account.fundedMemberCount} of ${account.members.length} ready`
+  const tint = ritualTint(ritual.address)
   const cells: WeekCell[] = account.kind === 'Solo'
     ? soloHomeCells(account, outcomes)
     : weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
-  return <Poster tint={memberColor(0)} kicker={kicker} title={ritual.title}>
-    <WeekStrip cells={cells} tint={memberColor(0)} />
-    <PosterLine label="Per event" value={formatAtomic(account.perEventAllocation, account.stakeDecimals)} />
-    <Text style={styles.requirement}>{ritual.requirement}</Text>
-  </Poster>
+  // The solo creator is the only member, so the model can tell "stamped".
+  const status = account.kind === 'Solo'
+    ? tileStatus(soloRitualModel(ritual.bundle, Math.floor(Date.now() / 1000), account.members[0] ?? null))
+    : { text: statusLabel(account.status), act: false }
+  return <Pressable
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={`${ritual.title}. ${status.text}. ${weekSummary(cells)}. ${formatAtomic(account.perEventAllocation, account.stakeDecimals)} a week.`}
+    style={({ pressed }) => [styles.tile, { width, backgroundColor: tint }, pressed && styles.tilePressed]}
+  >
+    <View style={styles.tileOrb} />
+    <View style={styles.tileHead}>
+      <Text style={styles.tileStake}>{formatAtomic(account.perEventAllocation, account.stakeDecimals)} / wk</Text>
+      <Text style={styles.tileTitle} numberOfLines={3}>{ritual.title}</Text>
+    </View>
+    <View style={styles.tileFoot}>
+      <WeekStrip cells={cells} tint={tint} compact />
+      <View style={[styles.tilePill, status.act && styles.tilePillAct]}><Text style={[styles.tilePillText, status.act && styles.tilePillActText]} numberOfLines={1}>{status.text}</Text></View>
+    </View>
+  </Pressable>
 }
 
 function openRitual(navigation: NativeStackNavigationProp<RootStackParamList>, ritual: HomeRitual) {
@@ -198,9 +220,21 @@ const makeStyles = (theme: MD3Theme) => StyleSheet.create({
   hero: { marginTop: space.lg, marginBottom: space.lg },
   wordmark: { ...type.display, color: color.fg, includeFontPadding: false },
   tagline: { ...type.body, color: color.muted, marginTop: space.xs },
-  requirement: { ...type.body, color: color.white, marginTop: space.lg, opacity: 0.92 },
-  ritualCard: { marginTop: space.sm },
-  openButton: { marginTop: space.sm },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  tile: { minHeight: 196, borderRadius: radius.lg, padding: space.lg, overflow: 'hidden', justifyContent: 'space-between' },
+  tilePressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  tileOrb: { position: 'absolute', right: -40, top: -40, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.14)' },
+  tileHead: { gap: space.xs },
+  tileStake: { ...type.label, color: color.white, opacity: 0.85 },
+  tileTitle: { ...type.heading, color: color.white },
+  tileFoot: { gap: space.sm, marginTop: space.md },
+  tilePill: { alignSelf: 'flex-start', maxWidth: '100%', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 4 },
+  tilePillText: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.white },
+  tilePillAct: { backgroundColor: color.go },
+  tilePillActText: { color: color.goInk },
+  newTile: { minHeight: 196, borderRadius: radius.lg, borderWidth: 2, borderStyle: 'dashed', borderColor: color.line, alignItems: 'center', justifyContent: 'center', gap: space.xs },
+  newPlus: { ...type.display, color: color.muted },
+  newText: { ...type.bodyStrong, color: color.muted },
   actions: { gap: space.sm, marginTop: space.xl },
   empty: { backgroundColor: color.card, borderColor: color.line, borderWidth: 1, borderRadius: radius.lg, padding: space.xl, marginTop: space.sm },
   emptyKicker: { ...type.label, color: color.muted },

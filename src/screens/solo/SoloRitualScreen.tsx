@@ -26,7 +26,7 @@ import { shortRosterAddress } from '../../features/rituals/create/roster'
 import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { ActionButton, Confetti, ErrorLine, Footnote, HoldButton, haptic, Poster, PosterLine, Stamp, WeekStrip } from '../../components/crew'
-import { color, fonts, memberColor, radius, space, type } from '../../theme'
+import { color, fonts, radius, ritualTint, space, type } from '../../theme'
 import { soloRitualModel, type SoloRitualModel } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloActionDeps'
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
@@ -199,7 +199,7 @@ export function SoloRitualScreen({ route }: Props) {
   const actionCopy = withWalletHandoff(action.copy, action.state.status, walletPackage)
   const actionError = action.state.status === 'error' ? action.copy.body : null
   const readyForWallet = Boolean(selectedAccount && readyBundle.ritual.account.members.some((member) => member.equals(selectedAccount.publicKey)))
-  const tint = memberColor(0)
+  const tint = ritualTint(route.params.ritualId)
   const holdVisible = (model.state === 'claimable' || model.state === 'open-not-initialized') && !model.showedUp
   const weekNote = soloNotes?.notes[String(model.eventIndex)] ?? null
   const witness = readyBundle.ritual.account.witness

@@ -49,7 +49,7 @@ describe('RitualsHomeScreen safety and accessibility structure', () => {
   })
 
   it('lets a user with rituals start another ritual', () => {
-    expect(source).toContain('label="Start another ritual"')
+    expect(source).toContain('accessibilityLabel="Start another ritual"')
   })
 
   it('uses the shared Season count line (no "1 people in")', () => {

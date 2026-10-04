@@ -8,9 +8,9 @@
 
 import { MD3LightTheme, configureFonts, type MD3Theme } from 'react-native-paper'
 import { DefaultTheme as NavigationLightTheme } from '@react-navigation/native'
-import { color, fonts, memberColor, memberColors, palette, radius, space, type } from './tokens'
+import { color, fonts, memberColor, memberColors, palette, radius, ritualPalette, ritualTint, space, type } from './tokens'
 
-export { color, fonts, memberColor, memberColors, palette, radius, space, type }
+export { color, fonts, memberColor, memberColors, palette, radius, ritualPalette, ritualTint, space, type }
 
 const face = (fontFamily: string) => ({ fontFamily })
 

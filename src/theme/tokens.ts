@@ -38,6 +38,21 @@ export function memberColor(index: number): string {
 }
 
 /**
+ * One colour per ritual, picked from its address so it never changes. Deep
+ * enough for white text on every swatch (Home tiles, ritual poster).
+ */
+export const ritualPalette = ['#F0623F', '#2F6FE8', '#8657E8', '#13917A', '#D93A84', '#C9711F', '#4E7D2A', '#5A5F73'] as const
+
+export function ritualTint(address: string): string {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < address.length; index += 1) {
+    hash ^= address.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return ritualPalette[hash % ritualPalette.length]
+}
+
+/**
  * Legacy aliases so screens not yet rebuilt keep compiling while they are
  * migrated. Mapped onto the Crew palette, so they already render in the new
  * look. Remove once every screen uses `color`.
