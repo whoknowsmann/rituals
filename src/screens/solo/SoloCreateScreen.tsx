@@ -28,7 +28,7 @@ import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settler
 import { formatSol, settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
 import { startedSaying } from '../../features/rituals/solo/sayings'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { deriveGroupPool, quoteActivationFee } from '../../domain/rituals/money'
+import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee, type FeeConfig } from '../../domain/rituals/money'
 import { RITUAL_FEE_CONFIG } from '../../features/rituals/create/draftForm'
 import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
@@ -136,12 +136,20 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       return soloScheduleSummary({ weekCount, totalStakeLabel, schedule: selection.schedule, nowSeconds })
     } catch { return `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${totalStakeLabel} in all` }
   })()
-  // What the approval will take in TEST (stake for every week + activation fee),
-  // checked against the wallet so a short balance never reaches the wallet.
+  // What the approval will take in TEST: stake for every week, plus whatever
+  // activation fee the live ProtocolConfig says (0 once the protocol is free).
+  // Checked against the wallet so a short balance never reaches the wallet.
+  const [liveFeeConfig, setLiveFeeConfig] = useState<FeeConfig>(RITUAL_FEE_CONFIG)
+  const feeAtomic = (() => {
+    try {
+      const total = parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount)
+      return total > 0n ? quoteActivationFee(deriveGroupPool(total, 1), liveFeeConfig) : 0n
+    } catch { return 0n }
+  })()
   const neededAtomic = (() => {
     try {
       const total = parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount)
-      return total > 0n ? total + quoteActivationFee(deriveGroupPool(total, 1), RITUAL_FEE_CONFIG) : null
+      return total > 0n ? total + feeAtomic : null
     } catch { return null }
   })()
   const [testBalance, setTestBalance] = useState<bigint | null>(null)
@@ -149,6 +157,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     if (client.status !== 'ready' || !selectedAccount) { setTestBalance(null); return }
     let active = true
     void client.client.getProtocolConfig().then(async (config) => {
+      if (active) { try { setLiveFeeConfig(feeConfigFromProtocol(config.account, RITUAL_FEE_CONFIG.tokenDecimals)) } catch { /* keep the constant */ } }
       const ata = getAssociatedTokenAddressSync(config.account.allowedStakeMint, selectedAccount.publicKey)
       const balance = await connection.getTokenAccountBalance(ata, 'confirmed').then((read) => BigInt(read.value.amount)).catch((error: unknown) => {
         if (String((error as Error)?.message ?? error).toLowerCase().includes('could not find account')) return 0n
@@ -376,7 +385,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
             {testBalance !== null && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
-            {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough TEST: this needs ${formatAtomic(neededAtomic, 6)} (stake plus the activation fee).`}</ErrorLine>}
+            {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough TEST: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</ErrorLine>}
             {settlerKey && <Text style={styles.quiet}>{`+ ${formatSol(settlerBudgetLamports(weekCount))} so each week closes ${speed === 'real' ? 'itself when you next open the app' : 'on its own'}`}</Text>}
           </View>
           <Section title="If I miss, it goes to" aside="LOCKED BEFORE YOU START" />

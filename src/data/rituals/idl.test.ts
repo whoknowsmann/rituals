@@ -17,7 +17,7 @@ const idlType = (type: unknown): string => {
 
 describe('frozen Rituals IDL', () => {
   it('contains the exact current instruction and account/type surface', () => {
-    const instructions = ['activate_ritual','approve_claim','cancel_unactivated','claim_completion','close_terminal_vaults','create_ritual','create_solo_ritual','declare_skip','finalize_event','fund_member','initialize_current_event','initialize_protocol_config','initialize_season','question_claim']
+    const instructions = ['activate_ritual','approve_claim','cancel_unactivated','claim_completion','close_terminal_vaults','create_ritual','create_solo_ritual','declare_skip','finalize_event','fund_member','initialize_current_event','initialize_protocol_config','initialize_season','question_claim','update_protocol_config']
     expect(idl.instructions.map(x => x.name)).toEqual(instructions)
     expect(idl.accounts.map(x => x.name).sort()).toEqual(['CompletionClaim','ProtocolConfig','Ritual','RitualEvent','Season'].sort())
     expect(idl.types.map(x => x.name)).toEqual(expect.arrayContaining(['EventWindow','FeePayerMode','RitualStatus','EventStatus','ClaimStatus','VoidReason']))
@@ -31,6 +31,7 @@ describe('frozen Rituals IDL', () => {
       create_ritual: [['nonce', 'u64'], ['rule_digest', '[u8;32]'], ['members', 'Vec<Pubkey>'], ['member_total_stake', 'u64'], ['schedule', 'Vec<EventWindow>'], ['additional_confirmation_threshold', 'u8'], ['fee_payer_mode', 'FeePayerMode']],
       create_solo_ritual: [['nonce', 'u64'], ['rule_digest', '[u8;32]'], ['member_total_stake', 'u64'], ['schedule', 'Vec<EventWindow>'], ['witness', 'unknown']], declare_skip: [['event_index', 'u8']],
       finalize_event: [['event_index', 'u8']], fund_member: [], initialize_current_event: [['event_index', 'u8']], initialize_protocol_config: [['allowed_stake_mint', 'Pubkey'], ['fee_recipient', 'Pubkey'], ['fee_basis_points', 'u16'], ['minimum_fee', 'u64'], ['maximum_fee', 'u64'], ['maximum_member_stake', 'u64']], initialize_season: [['season_id', '[u8;32]'], ['title_digest', '[u8;32]'], ['schedule', 'Vec<EventWindow>'], ['start_at', 'i64'], ['end_at', 'i64']], question_claim: [['claim_version', 'u8']],
+      update_protocol_config: [['fee_basis_points', 'u16'], ['minimum_fee', 'u64'], ['maximum_fee', 'u64']],
     }
     for (const instruction of idl.instructions) {
       expect(Array.from(instruction.discriminator)).toEqual(Array.from(INSTRUCTION_DISCRIMINATORS[instruction.name as keyof typeof INSTRUCTION_DISCRIMINATORS]))

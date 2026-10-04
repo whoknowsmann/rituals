@@ -1485,6 +1485,76 @@
           "type": "u8"
         }
       ]
+    },
+    {
+      "name": "update_protocol_config",
+      "docs": [
+        "Update the protocol fee settings in place. Only the three fee fields",
+        "change; the account layout, authority, mint, recipient and limits are",
+        "untouched so existing readers keep decoding the same bytes. Rituals",
+        "that already locked a fee keep paying that locked fee."
+      ],
+      "discriminator": [
+        197,
+        97,
+        123,
+        54,
+        221,
+        168,
+        11,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "protocol_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "fee_basis_points",
+          "type": "u16"
+        },
+        {
+          "name": "minimum_fee",
+          "type": "u64"
+        },
+        {
+          "name": "maximum_fee",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -1558,17 +1628,17 @@
     {
       "code": 6000,
       "name": "InvalidFeeBasisPoints",
-      "msg": "fee basis points must be between 1 and 10,000"
+      "msg": "fee basis points must be between 0 and 10,000"
     },
     {
       "code": 6001,
       "name": "InvalidMinimumFee",
-      "msg": "minimum fee must be positive"
+      "msg": "minimum fee is invalid"
     },
     {
       "code": 6002,
       "name": "InvalidMaximumFee",
-      "msg": "maximum fee must be positive"
+      "msg": "maximum fee is invalid"
     },
     {
       "code": 6003,
