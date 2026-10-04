@@ -107,12 +107,16 @@ describe('ProtocolConfig framing and envelope mutation matrix', () => {
   })
 
   it('covers fee boundaries and all three default public keys', () => {
-    for (const basisPoints of [1, 10000]) { const bytes = validBytes(); writeU16(bytes, PROTOCOL_CONFIG_OFFSETS.feeBasisPoints, basisPoints); expect(decode(bytes).feeBasisPoints).toBe(basisPoints) }
-    for (const basisPoints of [0, 10001, 0xffff]) { const bytes = validBytes(); writeU16(bytes, PROTOCOL_CONFIG_OFFSETS.feeBasisPoints, basisPoints); expectCategory(() => decode(bytes), 'invariant') }
+    for (const basisPoints of [0, 1, 10000]) { const bytes = validBytes(); writeU16(bytes, PROTOCOL_CONFIG_OFFSETS.feeBasisPoints, basisPoints); expect(decode(bytes).feeBasisPoints).toBe(basisPoints) }
+    for (const basisPoints of [10001, 0xffff]) { const bytes = validBytes(); writeU16(bytes, PROTOCOL_CONFIG_OFFSETS.feeBasisPoints, basisPoints); expectCategory(() => decode(bytes), 'invariant') }
     const tooHigh = validBytes(); writeU16(tooHigh, PROTOCOL_CONFIG_OFFSETS.feeBasisPoints, 10001); expectCategory(() => decode(tooHigh), 'invariant')
     const maxU16 = validBytes(); writeU16(maxU16, PROTOCOL_CONFIG_OFFSETS.feeBasisPoints, 0xffff); expectCategory(() => decode(maxU16), 'invariant')
     const equal = validBytes(); writeU64(equal, PROTOCOL_CONFIG_OFFSETS.minimumFee, 999n); expect(decode(equal).minimumFee).toBe(999n)
-    for (const [minimum, maximum] of [[0n, 999n], [11n, 0n]] as const) { const bytes = validBytes(); writeU64(bytes, PROTOCOL_CONFIG_OFFSETS.minimumFee, minimum); writeU64(bytes, PROTOCOL_CONFIG_OFFSETS.maximumFee, maximum); expectCategory(() => decode(bytes), 'invariant') }
+    // A free protocol (0 bps, 0 / 0 bounds) decodes; only reversed bounds are invalid.
+    const free = validBytes(); writeU16(free, PROTOCOL_CONFIG_OFFSETS.feeBasisPoints, 0); writeU64(free, PROTOCOL_CONFIG_OFFSETS.minimumFee, 0n); writeU64(free, PROTOCOL_CONFIG_OFFSETS.maximumFee, 0n)
+    expect(decode(free)).toMatchObject({ feeBasisPoints: 0, minimumFee: 0n, maximumFee: 0n })
+    for (const [minimum, maximum] of [[0n, 999n]] as const) { const bytes = validBytes(); writeU64(bytes, PROTOCOL_CONFIG_OFFSETS.minimumFee, minimum); writeU64(bytes, PROTOCOL_CONFIG_OFFSETS.maximumFee, maximum); expect(decode(bytes)).toMatchObject({ minimumFee: minimum, maximumFee: maximum }) }
+    for (const [minimum, maximum] of [[11n, 0n], [1000n, 999n]] as const) { const bytes = validBytes(); writeU64(bytes, PROTOCOL_CONFIG_OFFSETS.minimumFee, minimum); writeU64(bytes, PROTOCOL_CONFIG_OFFSETS.maximumFee, maximum); expectCategory(() => decode(bytes), 'invariant') }
     const minStake = validBytes(); writeU64(minStake, PROTOCOL_CONFIG_OFFSETS.maximumMemberStake, 1n); expect(decode(minStake).maximumMemberStake).toBe(1n)
     const maxStake = validBytes(); writeU64(maxStake, PROTOCOL_CONFIG_OFFSETS.maximumMemberStake, 0xffffffffffffffffn); expect(decode(maxStake).maximumMemberStake).toBe(0xffffffffffffffffn)
     for (const offset of [PROTOCOL_CONFIG_OFFSETS.authority, PROTOCOL_CONFIG_OFFSETS.allowedStakeMint, PROTOCOL_CONFIG_OFFSETS.feeRecipient]) { const bytes = validBytes(); writeKey(bytes, offset, PublicKey.default); expectCategory(() => decode(bytes), 'unusable') }

@@ -18,6 +18,7 @@ export const INSTRUCTION_DISCRIMINATORS = Object.freeze({
   initialize_protocol_config: frozenDiscriminator([28, 50, 43, 233, 244, 98, 123, 118]),
   initialize_season: frozenDiscriminator([48, 218, 111, 51, 235, 207, 4, 119]),
   question_claim: frozenDiscriminator([50, 41, 214, 168, 245, 45, 251, 152]),
+  update_protocol_config: frozenDiscriminator([197, 97, 123, 54, 221, 168, 11, 135]),
 })
 
 export class RitualInstructionDataError extends Error {
@@ -36,6 +37,12 @@ export type InitializeProtocolConfigInput = Readonly<{
   minimumFee: bigint
   maximumFee: bigint
   maximumMemberStake: bigint
+}>
+/** Authority-only fee update (`update_protocol_config`); 0 / 0n / 0n makes the protocol free. */
+export type UpdateProtocolConfigInput = Readonly<{
+  feeBasisPoints: number
+  minimumFee: bigint
+  maximumFee: bigint
 }>
 export type EventWindowInput = Readonly<{ opens: bigint; deadline: bigint; resolution: bigint }>
 export type InitializeSeasonInput = Readonly<{
@@ -153,11 +160,26 @@ export function encodeInitializeSeasonData(input: InitializeSeasonInput): Uint8A
 export function encodeInitializeProtocolConfigData(input: InitializeProtocolConfigInput): Uint8Array {
   try {
     const o = record(input); const mint = keyBytes(prop(o, 'allowedStakeMint'), 'allowedStakeMint'); const recipient = keyBytes(prop(o, 'feeRecipient'), 'feeRecipient')
-    const bps = prop<number>(o, 'feeBasisPoints'); if (typeof bps !== 'number' || !Number.isInteger(bps) || bps < 1 || bps > 10000) throw new RitualInstructionDataError('input', 'feeBasisPoints must be 1..10000')
-    const min = bigintValue(prop(o, 'minimumFee'), 'minimumFee'); const max = bigintValue(prop(o, 'maximumFee'), 'maximumFee'); const stake = bigintValue(prop(o, 'maximumMemberStake'), 'maximumMemberStake')
-    if (min === 0n || max === 0n || stake === 0n || min > max) throw new RitualInstructionDataError('invariant', 'fee and stake bounds are invalid')
+    const { bps, min, max } = feeFields(o)
+    const stake = bigintValue(prop(o, 'maximumMemberStake'), 'maximumMemberStake')
+    if (stake === 0n) throw new RitualInstructionDataError('invariant', 'maximum member stake must be positive')
     const w = new Writer(8 + 32 + 32 + 2 + 8 + 8 + 8); w.bytes(INSTRUCTION_DISCRIMINATORS.initialize_protocol_config); w.bytes(mint); w.bytes(recipient); w.u16(bps); w.u64(min); w.u64(max); w.u64(stake); return w.finish()
   } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode protocol config') }
+}
+
+/** Fee triple shared by initialize and update: 0..=10000 bps, 0 <= min <= max (the program's rule). */
+function feeFields(o: Record<string, unknown>): { bps: number; min: bigint; max: bigint } {
+  const bps = prop<number>(o, 'feeBasisPoints'); if (typeof bps !== 'number' || !Number.isInteger(bps) || bps < 0 || bps > 10000) throw new RitualInstructionDataError('input', 'feeBasisPoints must be 0..10000')
+  const min = bigintValue(prop(o, 'minimumFee'), 'minimumFee'); const max = bigintValue(prop(o, 'maximumFee'), 'maximumFee')
+  if (min > max) throw new RitualInstructionDataError('invariant', 'minimum fee must not exceed maximum fee')
+  return { bps, min, max }
+}
+
+export function encodeUpdateProtocolConfigData(input: UpdateProtocolConfigInput): Uint8Array {
+  try {
+    const { bps, min, max } = feeFields(record(input))
+    const w = new Writer(8 + 2 + 8 + 8); w.bytes(INSTRUCTION_DISCRIMINATORS.update_protocol_config); w.u16(bps); w.u64(min); w.u64(max); return w.finish()
+  } catch (e) { if (e instanceof RitualInstructionDataError) throw e; throw new RitualInstructionDataError('input', 'could not encode protocol config update') }
 }
 
 export function encodeCreateRitualData(input: CreateRitualInput): Uint8Array {

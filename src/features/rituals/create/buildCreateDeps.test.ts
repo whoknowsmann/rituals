@@ -31,6 +31,8 @@ const config = {
     allowedStakeMint: MINT,
     feeRecipient: FEE_RECIPIENT,
     feeBasisPoints: 200,
+    minimumFee: 500_000n,
+    maximumFee: 5_000_000n,
     paused: false,
   },
 }

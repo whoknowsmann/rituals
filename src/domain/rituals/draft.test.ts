@@ -79,7 +79,7 @@ describe('locked Ritual rules', () => {
       { ...base, title: '😀'.repeat(81) },
       { ...base, requirement: 'x'.repeat(281) },
       { ...base, memberTotalStake: 11n, schedule: [{ eventIndex: 0, claimOpensAt: 1, claimDeadlineAt: 2, resolutionDeadlineAt: 3 }, { eventIndex: 1, claimOpensAt: 4, claimDeadlineAt: 5, resolutionDeadlineAt: 6 }] },
-      { ...base, memberTotalStake: 1n, activationFee: 0n },
+      { ...base, memberTotalStake: 0n, activationFee: 1n },
       { ...base, stakeMint: 'not-a-key' },
       { ...base, tokenDecimals: 256 },
       { ...base, schedule: [{ eventIndex: 1, claimOpensAt: 1, claimDeadlineAt: 2, resolutionDeadlineAt: 3 }] },
@@ -212,11 +212,13 @@ describe('locked Ritual rules', () => {
     expect(() => canonicalizeRules(base)).not.toThrow()
   })
 
-  it('accepts both free zero-zero and funded positive-positive fee pairs', () => {
+  it('accepts a zero fee on free and funded rituals; only an unfunded ritual owing a fee is rejected', () => {
     const base = validRules()
     expect(() => assertValidLockedRitualRules({ ...base, memberTotalStake: 0n, activationFee: 0n })).not.toThrow()
     expect(() => assertValidLockedRitualRules({ ...base, memberTotalStake: 0n, activationFee: 1n })).toThrow()
     expect(() => assertValidLockedRitualRules({ ...base, memberTotalStake: 10n, activationFee: 1n })).not.toThrow()
+    // The protocol is free: a staked ritual with no activation fee is the normal case.
+    expect(() => assertValidLockedRitualRules({ ...base, memberTotalStake: 10n, activationFee: 0n })).not.toThrow()
   })
 
   it('changes its SHA-256 digest for every valid digest-bearing mutation', async () => {

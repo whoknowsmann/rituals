@@ -104,8 +104,12 @@ describe('Ritual lifecycle builder states and boundaries', () => {
   })
 
   it.each([
-    ['bps string', { feeBasisPoints: '250' }], ['minimum zero', { minimumFee: 0n }], ['maximum below minimum', { minimumFee: 9n, maximumFee: 8n }], ['stake string', { maximumMemberStake: '1000' }],
+    ['bps string', { feeBasisPoints: '250' }], ['bps above 10000', { feeBasisPoints: 10_001 }], ['maximum below minimum', { minimumFee: 9n, maximumFee: 8n }], ['stake string', { maximumMemberStake: '1000' }],
   ])('initialize rejects invalid raw fee config with stable BuildError: %s', (_name, values) => expectInputError(() => buildInitializeProtocolConfigInstruction(initialize(values))))
+
+  it('initialize accepts a free protocol (0 bps, 0 / 0 bounds)', () => {
+    expect(buildInitializeProtocolConfigInstruction(initialize({ feeBasisPoints: 0, minimumFee: 0n, maximumFee: 0n })).data.length).toBe(98)
+  })
 
   it('create rejects missing creator membership and preserves exact direct mint/recipient metas', () => {
     expectInvariantError(() => buildCreateRitualInstruction({ ...create(), ritual: { ...createInput(), members: [lifecycleKey(61), lifecycleKey(62), lifecycleKey(63)] } }))

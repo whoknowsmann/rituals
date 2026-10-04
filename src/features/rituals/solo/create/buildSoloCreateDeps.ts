@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js'
 import type { RitualClient } from '../../../../data/rituals/ritualClient'
 import type { PreparedRitualAction, SettlerFunding } from '../../../../data/rituals/ritualPreparedAction'
 import type { SubmittedRitualActionHandle } from '../../../../data/rituals/ritualSubmission'
-import { deriveGroupPool, quoteActivationFee } from '../../../../domain/rituals/money'
+import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee } from '../../../../domain/rituals/money'
 import { generateRitualNonce } from '../../../../domain/rituals/nonce'
 import { RITUAL_FEE_CONFIG } from '../../../rituals/create/draftForm'
 import { CreateDepsError } from '../../../rituals/create/buildCreateDeps'
@@ -114,7 +114,9 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
 
       const memberTotalStake = stakePerWeekAtomic * BigInt(eventCount)
       if (memberTotalStake <= 0n) fail('stake must be greater than zero')
-      const activationFee = quoteActivationFee(deriveGroupPool(memberTotalStake, 1), RITUAL_FEE_CONFIG)
+      // Fee from the live config: 0 once the protocol is free, never a client guess.
+      const feeConfig = feeConfigFromProtocol(config.account, RITUAL_FEE_CONFIG.tokenDecimals)
+      const activationFee = quoteActivationFee(deriveGroupPool(memberTotalStake, 1), feeConfig)
       const members = [creator.toBase58() as PublicKeyText]
       const rules = {
         schemaVersion: 1 as const,

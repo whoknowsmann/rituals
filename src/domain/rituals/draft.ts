@@ -115,7 +115,8 @@ export function parseLockedRitualRules(value: unknown): LockedRitualRules {
   const memberTotalStake = u64(rules.memberTotalStake, 'memberTotalStake')
   try { derivePerEventAllocation(memberTotalStake, schedule.length) } catch { fail('memberTotalStake must divide across schedule events') }
   const activationFee = u64(rules.activationFee, 'activationFee')
-  if ((memberTotalStake === 0n) !== (activationFee === 0n)) fail('free rituals require zero fee and funded rituals require a positive fee')
+  // A funded ritual may carry a zero fee (the protocol is free); a free ritual (no stake) can never owe a fee.
+  if (memberTotalStake === 0n && activationFee !== 0n) fail('free rituals require zero fee')
   const stakeMint = canonicalAddress(rules.stakeMint, 'stakeMint')
   if (typeof rules.tokenDecimals !== 'number' || !Number.isInteger(rules.tokenDecimals) || rules.tokenDecimals < 0 || rules.tokenDecimals > 255) fail('tokenDecimals is invalid')
   if (typeof rules.confirmationMode !== 'string' || !(CONFIRMATION_MODES as readonly string[]).includes(rules.confirmationMode)) fail('confirmationMode is invalid')

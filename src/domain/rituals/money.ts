@@ -41,15 +41,16 @@ export interface FeeConfig {
   readonly tokenDecimals: number
 }
 
+/**
+ * Mirrors the program: 0..=10000 basis points and non-negative bounds, so a
+ * free protocol (0 / 0 / 0) quotes a zero fee instead of throwing.
+ */
 function validateFeeConfig(config: FeeConfig): void {
-  if (!Number.isInteger(config.basisPoints) || config.basisPoints < 1 || config.basisPoints > 10_000) {
-    throw new RangeError('basisPoints must be an integer from 1 through 10000')
+  if (!Number.isInteger(config.basisPoints) || config.basisPoints < 0 || config.basisPoints > 10_000) {
+    throw new RangeError('basisPoints must be an integer from 0 through 10000')
   }
   assertAtomicUnits(config.minimumFee, 'minimumFee')
   assertAtomicUnits(config.maximumFee, 'maximumFee')
-  if (config.minimumFee <= 0n || config.maximumFee <= 0n) {
-    throw new RangeError('fee bounds must be positive')
-  }
   if (config.minimumFee > config.maximumFee) {
     throw new RangeError('minimumFee must not exceed maximumFee')
   }
@@ -66,6 +67,25 @@ export function quoteActivationFee(pool: bigint, config: FeeConfig): bigint {
   const clamped = raw < config.minimumFee ? config.minimumFee : raw > config.maximumFee ? config.maximumFee : raw
   assertAtomicUnits(clamped, 'activation fee')
   return clamped
+}
+
+/**
+ * The fee the chain will actually lock: built from the live ProtocolConfig
+ * read, never from a client constant, so a config change (e.g. going free)
+ * cannot leave the app quoting or funding a fee the program no longer takes.
+ */
+export function feeConfigFromProtocol(
+  account: Readonly<{ feeBasisPoints: number; minimumFee: bigint; maximumFee: bigint }>,
+  tokenDecimals: number,
+): FeeConfig {
+  const config: FeeConfig = Object.freeze({
+    basisPoints: account.feeBasisPoints,
+    minimumFee: account.minimumFee,
+    maximumFee: account.maximumFee,
+    tokenDecimals,
+  })
+  validateFeeConfig(config)
+  return config
 }
 
 export function splitAtomicUnits(

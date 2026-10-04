@@ -3,7 +3,7 @@ import { PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.j
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import type { RitualAccountView } from './accounts'
 import { feeVaultPda, protocolConfigPda, ritualPda, seasonPda, stakeVaultPda } from './pdas'
-import { encodeActivateRitualData, encodeCancelUnactivatedData, encodeCreateRitualData, encodeCreateSoloRitualData, encodeDeclareSkipData, encodeFundMemberData, encodeInitializeProtocolConfigData, encodeInitializeSeasonData, type CreateRitualInput, type CreateSoloRitualInput, type InitializeProtocolConfigInput, type InitializeSeasonInput } from './instructionData'
+import { encodeActivateRitualData, encodeCancelUnactivatedData, encodeCreateRitualData, encodeCreateSoloRitualData, encodeDeclareSkipData, encodeFundMemberData, encodeInitializeProtocolConfigData, encodeInitializeSeasonData, encodeUpdateProtocolConfigData, type CreateRitualInput, type CreateSoloRitualInput, type InitializeProtocolConfigInput, type InitializeSeasonInput, type UpdateProtocolConfigInput } from './instructionData'
 
 export type RitualInstructionBuildErrorCategory = 'input' | 'canonical' | 'invariant' | 'authorization'
 export class RitualInstructionBuildError extends Error {
@@ -12,6 +12,7 @@ export class RitualInstructionBuildError extends Error {
 }
 export type RitualAccountContext = Readonly<{ address: PublicKey; account: RitualAccountView }>
 export type BuildInitializeProtocolConfigArgs = Readonly<{ programId: PublicKey; authority: PublicKey; config: InitializeProtocolConfigInput }>
+export type BuildUpdateProtocolConfigArgs = Readonly<{ programId: PublicKey; authority: PublicKey; config: UpdateProtocolConfigInput }>
 export type BuildInitializeSeasonArgs = Readonly<{ programId: PublicKey; authority: PublicKey; season: InitializeSeasonInput }>
 export type BuildCreateRitualArgs = Readonly<{ programId: PublicKey; creator: PublicKey; stakeMint: PublicKey; feeRecipientToken: PublicKey; ritual: CreateRitualInput }>
 export type BuildCreateSoloRitualArgs = Readonly<{ programId: PublicKey; creator: PublicKey; stakeMint: PublicKey; feeRecipientToken: PublicKey; forfeitDestination: PublicKey; season?: PublicKey | null; ritual: CreateSoloRitualInput }>
@@ -77,6 +78,10 @@ export function deriveCreateRitualAccounts(programIdInput: PublicKey, creatorInp
 
 export function buildInitializeProtocolConfigInstruction(args: BuildInitializeProtocolConfigArgs): TransactionInstruction {
   try { const p = program(read(args, 'programId')); const authority = key(read(args, 'authority'), 'authority'); const config = read(args, 'config'); const allowedStakeMint = key(read(config, 'allowedStakeMint'), 'allowedStakeMint'); const feeRecipient = key(read(config, 'feeRecipient'), 'feeRecipient'); const feeBasisPoints = read(config, 'feeBasisPoints'); const minimumFee = read(config, 'minimumFee'); const maximumFee = read(config, 'maximumFee'); const maximumMemberStake = read(config, 'maximumMemberStake'); return instruction(p, [{ pubkey: protocolConfigPda(p)[0], isWritable: true, isSigner: false }, { pubkey: authority, isWritable: true, isSigner: true }, { pubkey: SystemProgram.programId, isWritable: false, isSigner: false }], encodeInitializeProtocolConfigData({ allowedStakeMint, feeRecipient, feeBasisPoints: feeBasisPoints as number, minimumFee: minimumFee as bigint, maximumFee: maximumFee as bigint, maximumMemberStake: maximumMemberStake as bigint })) } catch (error) { if (error instanceof RitualInstructionBuildError) throw error; return fail('input', 'could not build initialize protocol config instruction') }
+}
+/** Accounts mirror the program's UpdateProtocolConfig: the config PDA (writable) and its authority (signer). */
+export function buildUpdateProtocolConfigInstruction(args: BuildUpdateProtocolConfigArgs): TransactionInstruction {
+  try { const p = program(read(args, 'programId')); const authority = key(read(args, 'authority'), 'authority'); const config = read(args, 'config'); const feeBasisPoints = read(config, 'feeBasisPoints'); const minimumFee = read(config, 'minimumFee'); const maximumFee = read(config, 'maximumFee'); return instruction(p, [{ pubkey: protocolConfigPda(p)[0], isWritable: true, isSigner: false }, { pubkey: authority, isWritable: false, isSigner: true }], encodeUpdateProtocolConfigData({ feeBasisPoints: feeBasisPoints as number, minimumFee: minimumFee as bigint, maximumFee: maximumFee as bigint })) } catch (error) { if (error instanceof RitualInstructionBuildError) throw error; return fail('input', 'could not build update protocol config instruction') }
 }
 export function buildInitializeSeasonInstruction(args: BuildInitializeSeasonArgs): TransactionInstruction {
   try { const p = program(read(args, 'programId')); const authority = key(read(args, 'authority'), 'authority'); const season = read(args, 'season'); const seasonId = read(season, 'seasonId'); const [seasonAddress] = seasonPda(seasonId as Uint8Array, p); return instruction(p, [{ pubkey: protocolConfigPda(p)[0], isWritable: false, isSigner: false }, { pubkey: seasonAddress, isWritable: true, isSigner: false }, { pubkey: authority, isWritable: true, isSigner: true }, { pubkey: SystemProgram.programId, isWritable: false, isSigner: false }], encodeInitializeSeasonData(season as InitializeSeasonInput)) } catch (error) { if (error instanceof RitualInstructionBuildError) throw error; return fail('input', 'could not build initialize season instruction') }

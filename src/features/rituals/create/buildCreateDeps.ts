@@ -21,7 +21,7 @@ import { createRitualInvite, encodeRitualInvite } from '../invite/inviteCodec'
 import { generateRitualNonce } from '../../../domain/rituals/nonce'
 import { generateRitualSchedule, type RitualCadence } from '../../../domain/rituals/schedule'
 import { digestRulesSync, type LockedRitualRules } from '../../../domain/rituals/draft'
-import { deriveGroupPool, quoteActivationFee } from '../../../domain/rituals/money'
+import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee } from '../../../domain/rituals/money'
 import { RITUAL_FEE_CONFIG } from './draftForm'
 import type { PublicKeyText } from '../../../domain/rituals/types'
 
@@ -86,11 +86,11 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
         cadence,
       })
 
-      // Must match what the chain will charge: the domain layer rejects a
-      // funded ritual carrying a zero activation fee.
+      // Must match what the chain will charge, so the fee comes from the live
+      // ProtocolConfig read (0 once the protocol is free), not a client constant.
       const activationFee = quoteActivationFee(
         deriveGroupPool(draft.memberTotalStakeAtomic, draft.memberCount),
-        RITUAL_FEE_CONFIG,
+        feeConfigFromProtocol(config.account, RITUAL_FEE_CONFIG.tokenDecimals),
       )
 
       const rules: LockedRitualRules = {

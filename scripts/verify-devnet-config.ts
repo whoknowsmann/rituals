@@ -14,6 +14,7 @@ import {
   RITUALS_DEVNET_STAKE_MINT,
   RITUALS_DEVNET_FEE_RECIPIENT,
 } from '../src/data/rituals/programIds'
+import { RITUAL_FEE_CONFIG } from '../src/features/rituals/create/draftForm'
 
 const URL = 'https://api.devnet.solana.com'
 
@@ -53,6 +54,11 @@ async function main(): Promise<void> {
     ['protocol is not paused', config.paused === false],
     ['member bounds are 2..6', config.maxMembers === 6],
     ['event bound is 16', config.maxEvents === 16],
+    // The client constant (what the create screen shows before any read) must
+    // mirror the chain; the prepared transaction itself uses the live read.
+    [`fee basis points match the client constant (${RITUAL_FEE_CONFIG.basisPoints})`, config.feeBasisPoints === RITUAL_FEE_CONFIG.basisPoints],
+    [`minimum fee matches the client constant (${RITUAL_FEE_CONFIG.minimumFee})`, config.minimumFee === RITUAL_FEE_CONFIG.minimumFee],
+    [`maximum fee matches the client constant (${RITUAL_FEE_CONFIG.maximumFee})`, config.maximumFee === RITUAL_FEE_CONFIG.maximumFee],
   ]
 
   console.log('\n--- assertions ---')

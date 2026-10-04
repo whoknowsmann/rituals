@@ -51,11 +51,18 @@ describe('quoteActivationFee', () => {
     expect(quoteActivationFee(10_000_000_000n, config)).toBe(config.maximumFee)
     expect(quoteActivationFee(0n, config)).toBe(0n)
   })
+  it('quotes nothing when the protocol is free (0 bps, 0 / 0 bounds)', () => {
+    const free = { ...config, basisPoints: 0, minimumFee: 0n, maximumFee: 0n }
+    expect(quoteActivationFee(40_000_000n, free)).toBe(0n)
+    expect(quoteActivationFee(1n, free)).toBe(0n)
+    // A zero rate with positive bounds still floors at the minimum; the chain does the same clamp.
+    expect(quoteActivationFee(40_000_000n, { ...config, basisPoints: 0 })).toBe(config.minimumFee)
+  })
   it.each([
-    0, -1, 10_001, 1.5, Number.NaN, Number.POSITIVE_INFINITY,
+    -1, 10_001, 1.5, Number.NaN, Number.POSITIVE_INFINITY,
   ])('rejects basis points %s', (basisPoints) => expect(() => quoteActivationFee(0n, { ...config, basisPoints })).toThrow())
   it.each([
-    { minimumFee: 0n }, { minimumFee: -1n }, { maximumFee: 0n }, { maximumFee: -1n },
+    { minimumFee: -1n }, { maximumFee: -1n },
     { minimumFee: 6n, maximumFee: 5n }, { minimumFee: MAX_U64 + 1n },
     { tokenDecimals: -1 }, { tokenDecimals: 256 }, { tokenDecimals: 1.5 },
     { tokenDecimals: Number.NaN }, { tokenDecimals: Number.POSITIVE_INFINITY },
