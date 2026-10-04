@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
 import * as Haptics from 'expo-haptics'
-import { color, type } from '../../theme'
+import { color, type, themedStyles, useColors } from '../../theme'
 import { HOLD_DURATION_MS, quartersCrossed, shouldUseTapFallback } from './holdButtonLogic'
 
 export type HoldButtonProps = {
@@ -41,6 +41,8 @@ export function HoldButton({
   accessibilityLabel = 'Hold to continue',
   size = 196,
 }: HoldButtonProps) {
+  const styles = useStyles()
+  const color = useColors()
   const progress = useRef(new Animated.Value(done ? 1 : 0)).current
   const scale = useRef(new Animated.Value(1)).current
   const animation = useRef<Animated.CompositeAnimation | null>(null)
@@ -162,7 +164,7 @@ export function HoldButton({
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((color) => StyleSheet.create({
   wrap: { alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
   button: { overflow: 'hidden', backgroundColor: color.card, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.4 },
@@ -170,4 +172,4 @@ const styles = StyleSheet.create({
   labels: { alignItems: 'center', gap: 2 },
   label: { ...type.title, color: color.fg, letterSpacing: 2 },
   hint: { ...type.caption, color: color.muted },
-})
+}))

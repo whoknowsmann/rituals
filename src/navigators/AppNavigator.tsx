@@ -12,7 +12,7 @@ import React from "react";
 import { Appearance, useColorScheme } from "react-native";
 import * as Screens from "../screens";
 import { HomeNavigator } from "./HomeNavigator";
-import { ritualsNavigationTheme, color, fonts } from "../theme";
+import { ritualsDarkNavigationTheme, ritualsNavigationTheme, fonts, useScheme } from "../theme";
 import {
   MD3DarkTheme,
   MD3LightTheme,
@@ -75,6 +75,7 @@ declare global {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppStack = () => {
+  const { colors: color } = useScheme();
   return (
     <Stack.Navigator
       initialRouteName="RitualsHome"
@@ -116,9 +117,10 @@ export interface NavigationProps
   extends Partial<React.ComponentProps<typeof NavigationContainer>> {}
 
 export const AppNavigator = (props: NavigationProps) => {
+  const { scheme } = useScheme();
   return (
     <NavigationContainer
-      theme={ritualsNavigationTheme}
+      theme={scheme === "dark" ? ritualsDarkNavigationTheme : ritualsNavigationTheme}
       {...props}
     >
       <AppStack />

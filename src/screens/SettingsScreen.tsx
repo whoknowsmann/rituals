@@ -4,13 +4,14 @@ import Constants from 'expo-constants'
 import { useCluster } from '../components/cluster/cluster-data-access'
 import { ActionButton, Footnote, Hero } from '../components/crew'
 import { RITUALS_PROGRAM_ID } from '../data/rituals/programIds'
-import { color, radius, space, type } from '../theme'
+import { color, radius, space, type, themedStyles, useColors } from '../theme'
 
 export function shortProgramId(value: string): string {
   return `${value.slice(0, 6)}…${value.slice(-4)}`
 }
 
 export function SettingsScreen() {
+  const s = useS()
   const { getExplorerUrl } = useCluster()
   const programId = RITUALS_PROGRAM_ID.toBase58()
   const explorerUrl = getExplorerUrl(`address/${programId}`)
@@ -35,7 +36,7 @@ export function SettingsScreen() {
   )
 }
 
-const s = StyleSheet.create({
+const useS = themedStyles((color) => StyleSheet.create({
   screen: { backgroundColor: color.bg },
   content: { padding: space.screen, paddingBottom: 48, gap: space.md },
   card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs },
@@ -44,4 +45,4 @@ const s = StyleSheet.create({
   muted: { ...type.body, color: color.muted },
   explorerButton: { marginTop: space.md },
   version: { ...type.caption, color: color.faint, textAlign: 'center' },
-})
+}))

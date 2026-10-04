@@ -4,10 +4,12 @@
  */
 import React, { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'react-native'
-import { color, fonts } from '../../theme'
+import { color, fonts, themedStyles, useColors } from '../../theme'
 import { stampSpec, type StampKind } from './stampSpec'
 
 export function Stamp({ kind, note, animate = true }: { kind: StampKind; note?: string; animate?: boolean }) {
+  const s = useS()
+  const color = useColors()
   const spec = stampSpec(kind)
   const v = useRef(new Animated.Value(animate ? 0 : 1)).current
   useEffect(() => {
@@ -38,10 +40,10 @@ export function Stamp({ kind, note, animate = true }: { kind: StampKind; note?: 
   )
 }
 
-const s = StyleSheet.create({
+const useS = themedStyles((color) => StyleSheet.create({
   wrap: { alignItems: 'center', gap: 10, paddingVertical: 8 },
   stamp: { borderWidth: 3, borderRadius: 10, padding: 3 },
   inner: { borderWidth: 1.5, borderRadius: 7, paddingHorizontal: 18, paddingVertical: 8 },
   label: { fontFamily: fonts.heavy, fontSize: 22, letterSpacing: 3 },
   note: { fontFamily: fonts.hand, fontSize: 20, color: color.fg },
-})
+}))

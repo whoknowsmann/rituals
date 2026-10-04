@@ -6,11 +6,12 @@
  * the new look.
  */
 
-import { MD3LightTheme, configureFonts, type MD3Theme } from 'react-native-paper'
-import { DefaultTheme as NavigationLightTheme } from '@react-navigation/native'
-import { color, fonts, memberColor, memberColors, palette, radius, ritualPalette, ritualTint, space, type } from './tokens'
+import { MD3DarkTheme, MD3LightTheme, configureFonts, type MD3Theme } from 'react-native-paper'
+import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationLightTheme } from '@react-navigation/native'
+import { color, darkColor, fonts, memberColor, memberColors, palette, radius, ritualPalette, ritualTint, space, type, type Palette } from './tokens'
 
-export { color, fonts, memberColor, memberColors, palette, radius, ritualPalette, ritualTint, space, type }
+export { color, darkColor, fonts, memberColor, memberColors, palette, radius, ritualPalette, ritualTint, space, type, type Palette }
+export { ThemeModeProvider, themedStyles, useColors, useScheme } from './ThemeMode'
 
 const face = (fontFamily: string) => ({ fontFamily })
 
@@ -34,13 +35,15 @@ const paperFonts = configureFonts({
   },
 })
 
-export const ritualsTheme: MD3Theme = {
-  ...MD3LightTheme,
-  dark: false,
+export function makePaperTheme(color: Palette, dark: boolean): MD3Theme {
+  const base = dark ? MD3DarkTheme : MD3LightTheme
+  return {
+  ...base,
+  dark,
   roundness: radius.md,
   fonts: paperFonts,
   colors: {
-    ...MD3LightTheme.colors,
+    ...base.colors,
     primary: color.fg,
     onPrimary: color.onDark,
     primaryContainer: color.go,
@@ -65,8 +68,8 @@ export const ritualsTheme: MD3Theme = {
     onSurface: color.fg,
     surfaceVariant: color.card,
     onSurfaceVariant: color.muted,
-    surfaceDisabled: 'rgba(29,26,22,0.08)',
-    onSurfaceDisabled: 'rgba(29,26,22,0.38)',
+    surfaceDisabled: dark ? 'rgba(242,236,226,0.10)' : 'rgba(29,26,22,0.08)',
+    onSurfaceDisabled: dark ? 'rgba(242,236,226,0.38)' : 'rgba(29,26,22,0.38)',
     outline: color.line,
     outlineVariant: color.line,
     inverseSurface: color.fg,
@@ -81,16 +84,27 @@ export const ritualsTheme: MD3Theme = {
       level5: color.card,
     },
   },
+  }
 }
 
-export const ritualsNavigationTheme = {
-  ...NavigationLightTheme,
-  colors: {
-    ...NavigationLightTheme.colors,
-    primary: color.fg,
-    background: color.bg,
-    card: color.bg,
-    text: color.fg,
-    border: color.line,
-  },
+export function makeNavigationTheme(color: Palette, dark: boolean) {
+  const base = dark ? NavigationDarkTheme : NavigationLightTheme
+  return {
+    ...base,
+    dark,
+    colors: {
+      ...base.colors,
+      primary: color.fg,
+      background: color.bg,
+      card: color.bg,
+      text: color.fg,
+      border: color.line,
+    },
+  }
 }
+
+/** Day themes, kept for screens outside the solo app (still light-only). */
+export const ritualsTheme: MD3Theme = makePaperTheme(color, false)
+export const ritualsNavigationTheme = makeNavigationTheme(color, false)
+export const ritualsDarkTheme: MD3Theme = makePaperTheme(darkColor, true)
+export const ritualsDarkNavigationTheme = makeNavigationTheme(darkColor, true)

@@ -16,10 +16,11 @@ describe('app shell (Crew)', () => {
     expect(app).toMatch(/if \(!fontsLoaded(?: && !fontError)?\) return null/)
   })
 
-  it('uses the light Crew chrome, not the old dark shell', () => {
-    expect(app).toContain('<StatusBar style="dark"')
-    expect(app).not.toContain('style="light"')
-    expect(app).toContain('color.bg')
+  it('follows day / night: shell, status bar and navigator all read the scheme', () => {
+    expect(app).toContain('<ThemeModeProvider>')
+    expect(app).toContain('<StatusBar style={scheme === "dark" ? "light" : "dark"}')
+    expect(app).toContain('colors.bg')
+    expect(nav).toContain('useScheme()')
     expect(nav).toContain('backgroundColor: color.bg')
     expect(nav).not.toContain('palette.ink900')
     // A second, unstyled StatusBar inside the navigator would override the shell's.

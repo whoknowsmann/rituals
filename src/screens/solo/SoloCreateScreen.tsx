@@ -19,7 +19,7 @@ import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
 import { DEMO_SOLO_CADENCE } from '../../domain/rituals/schedule'
 import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
-import { color, fonts, radius, space, type } from '../../theme'
+import { color, fonts, radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
 import { selectSoloSchedule, soloEventCount } from '../../features/rituals/solo/create/schedule'
 import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
@@ -59,7 +59,7 @@ const initialDraft: SoloCreateDraft = {
   personAddress: '',
 }
 
-export function SoloCreateScreen({ route }: Props) {
+export function SoloCreateScreen({ route }: Props) { const styles = useStyles(); const color = useColors();
   const navigation = useNavigation<Navigation>()
   const { connection } = useConnection()
   const client = useRitualClient()
@@ -373,15 +373,15 @@ function validatePersonError(address: string, creator: PublicKey, witness: Publi
   return errors.find((error) => error !== SOLO_CREATE_MESSAGES.stakeRequired) ?? ''
 }
 
-function OptionRow({ selected, disabled, title, detail, onPress }: { selected: boolean; disabled?: boolean; title: string; detail: string; onPress: () => void }) {
+function OptionRow({ selected, disabled, title, detail, onPress }: { selected: boolean; disabled?: boolean; title: string; detail: string; onPress: () => void }) { const styles = useStyles();
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ selected, disabled }} style={[styles.option, selected && styles.optionSelected, disabled && styles.optionDisabled]}><View style={[styles.radio, selected && styles.radioSelected]} /><View style={styles.optionCopy}><Text style={styles.optionTitle}>{title}</Text><Text style={styles.optionDetail}>{detail}</Text></View></Pressable>
 }
 
-function ProofOption({ selected, title, detail, onPress }: { selected: boolean; title: string; detail: string; onPress: () => void }) {
+function ProofOption({ selected, title, detail, onPress }: { selected: boolean; title: string; detail: string; onPress: () => void }) { const styles = useStyles();
   return <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected }} style={[styles.proof, selected && styles.optionSelected]}><View style={[styles.radio, selected && styles.radioSelected]} /><Text style={styles.optionTitle}>{title}</Text><Text style={styles.optionDetail}>{detail}</Text></Pressable>
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((color) => StyleSheet.create({
   screen: { backgroundColor: color.bg },
   content: { padding: space.screen, paddingBottom: 48, gap: space.md },
   progress: { gap: space.xs },
@@ -426,4 +426,4 @@ const styles = StyleSheet.create({
   confirmedCard: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.xl },
   devnetCard: { backgroundColor: color.card, borderColor: color.goDeep, borderWidth: 1.5, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
   devnetTitle: { ...type.bodyStrong, color: color.fg },
-})
+}))

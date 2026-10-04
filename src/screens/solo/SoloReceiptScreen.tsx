@@ -10,12 +10,12 @@ import { readSoloNotes, type SoloNotes } from '../../features/rituals/solo/notes
 import { keptSaying } from '../../features/rituals/solo/sayings'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { ActionButton, ErrorLine, Footnote, Stamp } from '../../components/crew'
-import { color, fonts, radius, space, type } from '../../theme'
+import { color, fonts, radius, space, type, themedStyles, useColors } from '../../theme'
 import { soloReceiptModel } from '../../features/rituals/solo/lifecycle/soloReceiptModel'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SoloReceipt'>
 
-export function SoloReceiptScreen({ route }: Props) {
+export function SoloReceiptScreen({ route }: Props) { const s = useS();
   const navigation = useNavigation()
   const client = useRitualClient()
   const { selectedAccount } = useAuthorization()
@@ -46,10 +46,10 @@ export function SoloReceiptScreen({ route }: Props) {
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) { return <View style={s.row}><Text style={s.muted}>{label}</Text><Text style={s.value}>{value}</Text></View> }
-function Centered({ children }: { children: React.ReactNode }) { return <View style={s.center}><Text style={s.muted}>{children}</Text></View> }
-function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { return <View style={s.center}><Text style={s.title}>Receipt unavailable</Text><ErrorLine>{message}</ErrorLine><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back" onPress={onHome} /></View> }
+function Row({ label, value }: { label: string; value: string }) { const s = useS(); return <View style={s.row}><Text style={s.muted}>{label}</Text><Text style={s.value}>{value}</Text></View> }
+function Centered({ children }: { children: React.ReactNode }) { const s = useS(); return <View style={s.center}><Text style={s.muted}>{children}</Text></View> }
+function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { const s = useS(); return <View style={s.center}><Text style={s.title}>Receipt unavailable</Text><ErrorLine>{message}</ErrorLine><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back" onPress={onHome} /></View> }
 
-const s = StyleSheet.create({
+const useS = themedStyles((color) => StyleSheet.create({
   screen: { backgroundColor: color.bg }, content: { padding: space.screen, paddingBottom: 48, gap: space.md }, kicker: { ...type.label, color: color.muted }, title: { ...type.display, color: color.fg }, card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.md }, paper: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.lg, gap: space.md }, cardTitle: { ...type.title, color: color.fg }, muted: { ...type.body, color: color.muted }, value: { ...type.bodyStrong, color: color.fg, textAlign: 'right', flexShrink: 1 }, row: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md, borderTopWidth: 1, borderTopColor: color.line, paddingTop: space.sm }, receiptNote: { gap: space.xs }, noteLabel: { ...type.label, color: color.muted }, consequence: { ...type.body, color: color.danger }, hand: { ...type.body, fontFamily: fonts.hand, color: color.fg }, center: { flex: 1, padding: space.screen, justifyContent: 'center', gap: space.md, backgroundColor: color.bg },
-})
+}))

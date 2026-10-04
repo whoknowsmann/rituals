@@ -5,7 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { color, memberColor, radius, space, type } from '../../theme'
+import { color, memberColor, radius, space, type, themedStyles, useColors } from '../../theme'
 import { HoldButton } from './HoldButton'
 import { weekCellLabel, weekSummary, type WeekCell } from './weekStripLogic'
 
@@ -21,6 +21,7 @@ export const haptic = {
 }
 
 export function Hero({ children, kicker }: { children: React.ReactNode; kicker?: string }) {
+  const s = useS()
   return (
     <View style={s.hero}>
       {kicker ? <Text style={s.heroKicker}>{kicker}</Text> : null}
@@ -30,6 +31,7 @@ export function Hero({ children, kicker }: { children: React.ReactNode; kicker?:
 }
 
 export function Section({ title, aside, children }: { title: string; aside?: string; children?: React.ReactNode }) {
+  const s = useS()
   return (
     <View style={s.section}>
       <View style={s.sectionHead}>
@@ -42,6 +44,7 @@ export function Section({ title, aside, children }: { title: string; aside?: str
 }
 
 export function Poster({ tint, kicker, title, children }: { tint: string; kicker?: string; title: string; children?: React.ReactNode }) {
+  const s = useS()
   return (
     <View style={[s.poster, { backgroundColor: tint }]} accessibilityLabel={`${title}${kicker ? `, ${kicker}` : ''}`}>
       <View style={s.posterOrb} />
@@ -53,6 +56,7 @@ export function Poster({ tint, kicker, title, children }: { tint: string; kicker
 }
 
 export function PosterLine({ label, value }: { label: string; value: string }) {
+  const s = useS()
   return (
     <View style={s.posterLine}>
       <Text style={s.posterLineLabel}>{label}</Text>
@@ -68,6 +72,7 @@ export { type WeekCell, weekCellLabel, weekSummary } from './weekStripLogic'
  * come) with a summary line under it. Compact (Home tiles): small dots + line.
  */
 export function WeekStrip({ cells, tint, compact = false, summary = true }: { cells: readonly WeekCell[]; tint: string; compact?: boolean; summary?: boolean }) {
+  const s = useS()
   const line = weekSummary(cells)
   return (
     <View accessibilityLabel={line}>
@@ -86,6 +91,7 @@ export function WeekStrip({ cells, tint, compact = false, summary = true }: { ce
 }
 
 export function MemberTile({ index, label, ok, size = 42 }: { index: number; label: string; ok?: boolean; size?: number }) {
+  const s = useS()
   const initial = (label.trim()[0] ?? '?').toUpperCase()
   return (
     <View style={{ width: size, height: size }}>
@@ -98,6 +104,7 @@ export function MemberTile({ index, label, ok, size = 42 }: { index: number; lab
 }
 
 export function Chip({ children, ok, onPress, accessibilityLabel }: { children: React.ReactNode; ok?: boolean; onPress?: () => void; accessibilityLabel?: string }) {
+  const s = useS()
   const body = <Text style={s.chipText}>{children}</Text>
   if (!onPress) return <View style={[s.chip, ok && s.chipOk]}>{body}</View>
   return (
@@ -109,6 +116,7 @@ export function Chip({ children, ok, onPress, accessibilityLabel }: { children: 
 
 /** A row in a feed: member tile + name + what happened + optional chips. */
 export function FeedRow({ index, name, action, when, faded, children }: { index: number; name: string; action: string; when?: string; faded?: boolean; children?: React.ReactNode }) {
+  const s = useS()
   return (
     <View style={[s.feedRow, faded && { opacity: 0.5 }]}>
       <MemberTile index={index} label={name} />
@@ -123,6 +131,8 @@ export function FeedRow({ index, name, action, when, faded, children }: { index:
 
 /** Primary action. `go` = lime, `dark` = ink. Never more than one per screen. */
 export function ActionButton({ label, onPress, tone = 'go', disabled, loading, accessibilityLabel, style }: { label: string; onPress: () => void; tone?: 'go' | 'dark' | 'quiet'; disabled?: boolean; loading?: boolean; accessibilityLabel?: string; style?: StyleProp<ViewStyle> }) {
+  const s = useS()
+  const color = useColors()
   const off = disabled || loading
   return (
     <Pressable
@@ -138,6 +148,7 @@ export function ActionButton({ label, onPress, tone = 'go', disabled, loading, a
 }
 
 export function Dock({ title, body, children }: { title: string; body?: string; children?: React.ReactNode }) {
+  const s = useS()
   return (
     <View style={s.dock}>
       <View style={{ flex: 1 }}>
@@ -158,6 +169,7 @@ export function DropIn({ children }: { children: React.ReactNode }) {
 
 /** Funding roster in Crew language: tile, name, short address, In / Not in yet. */
 export function PeopleList({ people }: { people: readonly { index: number; name: string; short: string; status: string }[] }) {
+  const s = useS()
   return (
     <View style={s.people} accessibilityLabel="Who is in">
       {people.map((person, i) => (
@@ -175,14 +187,16 @@ export function PeopleList({ people }: { people: readonly { index: number; name:
 }
 
 export function Footnote({ children }: { children: React.ReactNode }) {
+  const s = useS()
   return <Text style={s.footnote}>{children}</Text>
 }
 
 export function ErrorLine({ children }: { children: React.ReactNode }) {
+  const s = useS()
   return <Text style={s.error} accessibilityLiveRegion="polite">{children}</Text>
 }
 
-const s = StyleSheet.create({
+const useS = themedStyles((color) => StyleSheet.create({
   people: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, paddingHorizontal: space.lg },
   person: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
   personRule: { borderBottomWidth: 1, borderBottomColor: color.line },
@@ -251,4 +265,4 @@ const s = StyleSheet.create({
 
   footnote: { ...type.caption, color: color.faint, textAlign: 'center', marginTop: space.xl },
   error: { ...type.body, color: color.danger, marginTop: space.sm },
-})
+}))

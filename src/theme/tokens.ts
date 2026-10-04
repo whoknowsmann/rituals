@@ -29,6 +29,35 @@ export const color = {
   paperMuted: '#EAE3D6',
 } as const
 
+export type Palette = { readonly [K in keyof typeof color]: string }
+
+/**
+ * Night palette (2026-10-04): warm near-black, same lime. Keys mirror the day
+ * palette so every style reads the same token. `onDark` is the text colour on
+ * an `fg` background, so it inverts too; `white` stays white (text on posters).
+ */
+export const darkColor: Palette = {
+  bg: '#141210',
+  card: '#1E1B17',
+  line: '#353029',
+  fg: '#F2ECE2',
+  muted: '#A69C8E',
+  faint: '#7C7366',
+  go: '#C8F169',
+  goDeep: '#A5D84B',
+  goInk: '#1B2606',
+  danger: '#FF7B5E',
+  dangerSoft: '#3A1D16',
+  onDark: '#1D1A16',
+  onDarkMuted: '#5C554C',
+  white: '#FFFFFF',
+  scrim: 'rgba(0,0,0,0.22)',
+  glass: 'rgba(255,255,255,0.18)',
+  stampInk: '#93D38C',
+  stampQuiet: '#9D9486',
+  paperMuted: '#26221D',
+}
+
 /** Assigned by roster index. A ritual's poster takes its host's colour (index 0). */
 export const memberColors = ['#FF7A59', '#2F7BFF', '#9B6BFF', '#16A085', '#F2A516', '#E84393'] as const
 

@@ -22,7 +22,7 @@ import { tileStatus } from '../features/rituals/home/tileStatus'
 import { soloRitualModel } from '../features/rituals/solo/lifecycle/soloRitualModel'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
 import { PublicKey } from '@solana/web3.js'
-import { color, radius, ritualTint, space, type } from '../theme'
+import { radius, ritualTint, space, type, useColors, type Palette } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
 type HomeRitual = LoadedRitual & { id: string }
@@ -41,7 +41,8 @@ const initialState: HomeState = { status: 'loading', rituals: [], season: null, 
 export function RitualsHomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const theme = useTheme()
-  const styles = useMemo(() => makeStyles(theme), [theme])
+  const colors = useColors()
+  const styles = useMemo(() => makeStyles(theme, colors), [theme, colors])
   const client = useRitualClient()
   const { connection } = useConnection()
   const [homeState, setHomeState] = useState<HomeState>(initialState)
@@ -215,7 +216,7 @@ function weekCells(status: string, length: number, current: number, settled: num
 
 export const safeErrorMessage = (_error: unknown): string => 'Unable to load rituals right now. Check your connection and try again.'
 
-const makeStyles = (theme: MD3Theme) => StyleSheet.create({
+const makeStyles = (theme: MD3Theme, color: Palette) => StyleSheet.create({
   content: { paddingHorizontal: space.screen, paddingTop: space.sm, paddingBottom: space.xxl, backgroundColor: theme.colors.background },
   hero: { marginTop: space.lg, marginBottom: space.lg },
   wordmark: { ...type.display, color: color.fg, includeFontPadding: false },
