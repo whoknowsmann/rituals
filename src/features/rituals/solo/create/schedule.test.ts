@@ -1,4 +1,16 @@
 import { describe, expect, it } from 'vitest'
+import { stepWeeks, STAKE_PRESETS } from './schedule'
+
+describe('create controls (weeks stepper, stake picks)', () => {
+  it('steps weeks one at a time within the program limit 1..16', () => {
+    expect(stepWeeks(4, 1)).toBe(5)
+    expect(stepWeeks(1, -1)).toBe(1)
+    expect(stepWeeks(16, 1)).toBe(16)
+  })
+  it('offers small whole-TEST quick picks', () => {
+    expect(STAKE_PRESETS).toEqual(['1', '5', '10', '25'])
+  })
+})
 import { DEMO_CADENCE } from '../../../../domain/rituals/schedule'
 import { selectSoloSchedule, soloEventCount } from './schedule'
 

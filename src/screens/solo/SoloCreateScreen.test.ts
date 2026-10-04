@@ -27,7 +27,14 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
   })
 
   it('shows how many weeks and the total at stake before the approval', () => {
-    expect(source).toContain('weeks · ${totalStakeLabel} in all')
+    expect(source).toContain('· ${totalStakeLabel} in all')
+  })
+
+  it('lets the user set the length (1–16 weeks) and the weekly stake (typed or quick picks)', () => {
+    expect(source).toContain('stepWeeks(weekCount, -1)')
+    expect(source).toContain('stepWeeks(weekCount, 1)')
+    expect(source).toContain('STAKE_PRESETS.map(')
+    expect(source).toContain('accessibilityLabel="Stake each week"')
   })
 
   it('journals the one-approval solo create so a killed app can recover it', () => {

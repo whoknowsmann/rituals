@@ -22,6 +22,18 @@ export function soloEventCount(input: Readonly<{ seasonWindows?: number; picked?
   return Number.isInteger(picked) && picked >= 1 && picked <= 16 ? picked : 4
 }
 
+/** The program allows 1..16 weekly events per ritual. */
+export const SOLO_MIN_WEEKS = 1
+export const SOLO_MAX_WEEKS = 16
+
+/** The weeks stepper on create: one step at a time, never outside 1..16. */
+export function stepWeeks(current: number, delta: number): number {
+  return Math.min(SOLO_MAX_WEEKS, Math.max(SOLO_MIN_WEEKS, current + delta))
+}
+
+/** Quick picks for the weekly stake (TEST); any amount can still be typed. */
+export const STAKE_PRESETS = Object.freeze(['1', '5', '10', '25'])
+
 /** Selects the exact Season template when linked; otherwise creates the demo schedule. */
 export function selectSoloSchedule(input: Readonly<{
   cadence: RitualCadence

@@ -21,7 +21,7 @@ import { DEMO_SOLO_CADENCE } from '../../domain/rituals/schedule'
 import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
 import { color, fonts, radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
-import { selectSoloSchedule, soloEventCount } from '../../features/rituals/solo/create/schedule'
+import { selectSoloSchedule, soloEventCount, SOLO_MAX_WEEKS, SOLO_MIN_WEEKS, STAKE_PRESETS, stepWeeks } from '../../features/rituals/solo/create/schedule'
 import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
 import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, soloCreateSteps, type SoloCreateStep } from '../../features/rituals/solo/create/steps'
 import { SCOPE } from '../../features/rituals/productScope'
@@ -310,12 +310,25 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           <Hero>If I miss a week</Hero>
           <Text style={styles.helper}>A quiet consequence, chosen before you start.</Text>
           <View style={styles.stakeCard}>
-            <Text style={styles.label}>YOUR STAKE · EACH WEEK</Text>
-            <View style={styles.stakeLine}>
-              <TextInput value={draft.stakePerWeek} onChangeText={(value) => setDraft((current) => ({ ...current, stakePerWeek: value }))} keyboardType="decimal-pad" style={styles.stakeInput} accessibilityLabel="Stake each week" />
+            <Text style={styles.label}>HOW MANY WEEKS</Text>
+            <View style={styles.stepper}>
+              <Pressable onPress={() => setPickedEventCount(stepWeeks(weekCount, -1))} disabled={weekCount <= SOLO_MIN_WEEKS || season.account !== undefined} accessibilityRole="button" accessibilityLabel="One week fewer" style={({ pressed }) => [styles.stepButton, (weekCount <= SOLO_MIN_WEEKS || season.account !== undefined) && styles.stepButtonOff, pressed && styles.pressed]}><Text style={styles.stepButtonText}>−</Text></Pressable>
+              <Text style={styles.stepValue} accessibilityLiveRegion="polite">{weekCount} {weekCount === 1 ? 'week' : 'weeks'}</Text>
+              <Pressable onPress={() => setPickedEventCount(stepWeeks(weekCount, 1))} disabled={weekCount >= SOLO_MAX_WEEKS || season.account !== undefined} accessibilityRole="button" accessibilityLabel="One more week" style={({ pressed }) => [styles.stepButton, (weekCount >= SOLO_MAX_WEEKS || season.account !== undefined) && styles.stepButtonOff, pressed && styles.pressed]}><Text style={styles.stepButtonText}>+</Text></Pressable>
+            </View>
+            <View style={styles.divider} />
+            <Text style={styles.label}>STAKE EACH WEEK</Text>
+            <View style={styles.amountBox}>
+              <TextInput value={draft.stakePerWeek} onChangeText={(value) => setDraft((current) => ({ ...current, stakePerWeek: value }))} keyboardType="decimal-pad" selectTextOnFocus style={styles.stakeInput} accessibilityLabel="Stake each week" />
               <Text style={styles.money}>TEST</Text>
             </View>
-            <Text style={styles.quiet}>{`${weekCount} weeks · ${totalStakeLabel} in all · Demo speed`}</Text>
+            <View style={styles.presets}>
+              {STAKE_PRESETS.map((amount) => {
+                const chosen = draft.stakePerWeek === amount
+                return <Pressable key={amount} onPress={() => setDraft((current) => ({ ...current, stakePerWeek: amount }))} accessibilityRole="button" accessibilityState={{ selected: chosen }} accessibilityLabel={`${amount} TEST each week`} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{amount}</Text></Pressable>
+              })}
+            </View>
+            <Text style={styles.quiet}>{`${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${totalStakeLabel} in all · Demo speed`}</Text>
             {settlerKey && <Text style={styles.quiet}>{`+ ${formatSol(settlerBudgetLamports(weekCount))} so each week closes on its own`}</Text>}
           </View>
           <Section title="If I miss, it goes to" aside="LOCKED BEFORE YOU START" />
@@ -413,7 +426,19 @@ const useStyles = themedStyles((color) => StyleSheet.create({
   stakeCard: { backgroundColor: color.card, borderRadius: radius.lg, padding: space.lg, borderColor: color.line, borderWidth: 1, gap: space.xs },
   label: { ...type.label, color: color.muted },
   stakeLine: { flexDirection: 'row', alignItems: 'center' },
-  stakeInput: { ...type.money, color: color.fg, padding: 0, minWidth: 80 },
+  stakeInput: { ...type.money, color: color.fg, padding: 0, flex: 1 },
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.xs },
+  stepButton: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: color.line, backgroundColor: color.bg, alignItems: 'center', justifyContent: 'center' },
+  stepButtonOff: { opacity: 0.35 },
+  stepButtonText: { ...type.title, color: color.fg },
+  stepValue: { ...type.money, color: color.fg },
+  divider: { height: 1, backgroundColor: color.line, marginVertical: space.md },
+  amountBox: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderWidth: 1.5, borderColor: color.line, borderRadius: radius.md, paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: color.bg, marginTop: space.xs },
+  presets: { flexDirection: 'row', gap: space.sm, marginTop: space.sm, marginBottom: space.xs },
+  preset: { flex: 1, borderWidth: 1.5, borderColor: color.line, borderRadius: radius.pill, paddingVertical: space.sm, alignItems: 'center' },
+  presetChosen: { backgroundColor: color.go, borderColor: color.goDeep },
+  presetText: { ...type.bodyStrong, color: color.fg },
+  presetTextChosen: { color: color.goInk },
   money: { ...type.money, color: color.fg },
   quiet: { ...type.caption, color: color.muted },
   skip: { ...type.caption, color: color.muted, paddingHorizontal: 2 },
