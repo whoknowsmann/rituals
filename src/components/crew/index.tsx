@@ -142,7 +142,7 @@ export function ActionButton({ label, onPress, tone = 'go', disabled, loading, a
       accessibilityState={{ disabled: !!off, busy: !!loading }}
       style={({ pressed }) => [s.btn, tone === 'go' && s.btnGo, tone === 'dark' && s.btnDark, tone === 'quiet' && s.btnQuiet, off && { opacity: 0.45 }, pressed && !off && { transform: [{ scale: 0.97 }] }, style]}
     >
-      <Text style={[s.btnText, tone === 'dark' && { color: color.onDark }]}>{loading ? '…' : label}</Text>
+      <Text style={[s.btnText, tone === 'dark' && { color: color.onDark }, tone === 'go' && { color: color.goInk }]}>{loading ? '…' : label}</Text>
     </Pressable>
   )
 }

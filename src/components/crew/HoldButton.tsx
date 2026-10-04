@@ -126,6 +126,8 @@ export function HoldButton({
   const circumference = 2 * Math.PI * radiusPx
   const fillHeight = progress.interpolate({ inputRange: [0, 1], outputRange: [0, size] })
   const dashOffset = progress.interpolate({ inputRange: [0, 1], outputRange: [circumference, 0] })
+  // Night mode: light text would vanish on lime once the fill passes it.
+  const labelColor = progress.interpolate({ inputRange: [0, 0.45, 0.55, 1], outputRange: [color.fg, color.fg, color.goInk, color.goInk] })
 
   return (
     <Animated.View style={[styles.wrap, { width: size, height: size, transform: [{ scale }] }]}>
@@ -157,7 +159,7 @@ export function HoldButton({
           />
         </Svg>
         <View style={styles.labels} pointerEvents="none">
-          <Text style={styles.label}>{done ? doneLabel : label}</Text>
+          <Animated.Text style={[styles.label, { color: labelColor }]}>{done ? doneLabel : label}</Animated.Text>
         </View>
       </Pressable>
     </Animated.View>
