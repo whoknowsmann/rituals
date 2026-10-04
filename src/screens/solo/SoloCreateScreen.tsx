@@ -124,6 +124,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const totalStakeLabel = (() => {
     try { return formatAtomic(parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount), 6) } catch { return '—' }
   })()
+  const stakeEachLabel = (() => {
+    try { return formatAtomic(parseTokenAmount(draft.stakePerWeek), 6) } catch { return 'stake' }
+  })()
   // What the approval will take in TEST (stake for every week + activation fee),
   // checked against the wallet so a short balance never reaches the wallet.
   const neededAtomic = (() => {
@@ -372,7 +375,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           <Text style={styles.skip}>✓ One declared skip · call it before the week opens and that week comes back to you.</Text>
           <View style={styles.promiseCard} accessibilityLabel="Your ritual">
             <Text style={styles.label}>YOUR RITUAL</Text>
-            <Text style={styles.promiseText}>I’ll show up for {draft.title || 'this'} every week.</Text>
+            {/* The name stands alone, so whatever was typed still reads right. */}
+            <Text style={styles.promiseText}>“{draft.title || 'Your ritual'}”</Text>
+            <Text style={styles.promiseTerms}>{`${weekCount === 1 ? 'This week only.' : `Every week, for ${weekCount} weeks.`} Miss a week and that week’s ${stakeEachLabel} goes to ${draft.destination === 'cause' ? DEMO_CAUSE.label : 'the person you picked'}.`}</Text>
             <Text style={styles.signature}>You · signing for yourself</Text>
           </View>
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
@@ -472,6 +477,7 @@ const useStyles = themedStyles((color) => StyleSheet.create({
   skip: { ...type.caption, color: color.muted, paddingHorizontal: 2 },
   promiseCard: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.xl, gap: space.md },
   promiseText: { fontFamily: fonts.hand, color: color.fg, fontSize: 21, lineHeight: 28 },
+  promiseTerms: { ...type.body, color: color.fg },
   signature: { fontFamily: fonts.hand, color: color.fg, fontSize: 18, alignSelf: 'flex-end' },
   status: { backgroundColor: color.card, borderRadius: radius.lg, borderColor: color.line, borderWidth: 1, padding: space.lg, gap: space.xs },
   statusTitle: { ...type.heading, color: color.fg },

@@ -1,4 +1,5 @@
 import { PublicKey } from '@solana/web3.js'
+import { cleanRitualTitle } from './ritualTitle'
 
 export type SoloWitnessMode = 'just-me' | 'one-witness'
 export type SoloProofMode = 'none' | 'note'
@@ -71,7 +72,7 @@ function validStake(value: string): boolean {
 export function applyTypedIntention(draft: SoloCreateDraft): SoloCreateDraft {
   const typed = draft.intention.trim()
   if (typed.length === 0) return draft
-  const title = draft.title.trim().length > 0 ? draft.title : typed
+  const title = draft.title.trim().length > 0 ? draft.title : (cleanRitualTitle(typed) || typed)
   const requirement = draft.requirement.trim().length > 0 ? draft.requirement : 'Do it, then check in before the week closes.'
   return title === draft.title && requirement === draft.requirement ? draft : Object.freeze({ ...draft, title, requirement })
 }
