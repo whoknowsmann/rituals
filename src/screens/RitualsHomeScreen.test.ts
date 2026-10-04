@@ -48,8 +48,8 @@ describe('RitualsHomeScreen safety and accessibility structure', () => {
     expect(source).toContain('if (focused) load()')
   })
 
-  it('lets a user with rituals start another promise', () => {
-    expect(source).toContain('label="Make another promise"')
+  it('lets a user with rituals start another ritual', () => {
+    expect(source).toContain('label="Start another ritual"')
   })
 
   it('uses the shared Season count line (no "1 people in")', () => {

@@ -7,6 +7,7 @@ import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { useAuthorization } from '../../utils/useAuthorization'
 import { useRitualBundle } from '../../features/rituals/authoritativeRituals'
 import { readSoloNotes, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
+import { keptSaying } from '../../features/rituals/solo/sayings'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { ActionButton, ErrorLine, Footnote, Stamp } from '../../components/crew'
 import { color, fonts, radius, space, type } from '../../theme'
@@ -35,7 +36,7 @@ export function SoloReceiptScreen({ route }: Props) {
       <Text style={s.kicker}>A SMALL PAPER TRAIL</Text>
       <Text style={s.title} accessibilityRole="header">Week closed.</Text>
       {receipt.state === 'pending' ? <View style={s.card}><Text style={s.cardTitle}>Not closed yet</Text><Text style={s.muted}>This week has not settled. Come back after the week closes.</Text></View> : null}
-      {receipt.state === 'kept' ? <View style={s.card}><Text style={s.kicker}>WEEK {route.params.eventIndex + 1}</Text><Text style={s.cardTitle}>Your stake is {receipt.copy}</Text><Stamp kind="kept" note="You kept your word." />{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}<Row label="Your stake" value={`${formatAtomic(receipt.amount, decimals)} · ${receipt.copy}`} /></View> : null}
+      {receipt.state === 'kept' ? <View style={s.card}><Text style={s.kicker}>WEEK {route.params.eventIndex + 1}</Text><Text style={s.cardTitle}>Your stake is {receipt.copy}</Text><Stamp kind="kept" note={keptSaying(route.params.ritualId, route.params.eventIndex)} />{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}<Row label="Your stake" value={`${formatAtomic(receipt.amount, decimals)} · ${receipt.copy}`} /></View> : null}
       {receipt.state === 'missed' ? <View style={s.card}><Text style={s.kicker}>WEEK {route.params.eventIndex + 1}</Text><Text style={s.cardTitle}>This week was missed</Text><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Row label="Missed stake" value={formatAtomic(receipt.amount, decimals)} /><Row label="Destination" value={receipt.destinationLabel ?? 'the locked destination'} /><Text style={s.consequence}>That week's stake went where you chose before the ritual began.</Text></View> : null}
       {receipt.state === 'skipped' ? <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /><Text style={s.muted}>This week was declared skipped before it opened.</Text></View> : null}
       {receipt.state !== 'pending' ? <Text style={s.hand}>Put it back in the jar.</Text> : null}

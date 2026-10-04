@@ -17,7 +17,7 @@ export type SoloCreateDraft = Readonly<{
 }>
 
 export const SOLO_CREATE_MESSAGES = Object.freeze({
-  titleRequired: 'Name what you are promising.',
+  titleRequired: 'Name your ritual.',
   requirementRequired: 'Say what counts as showing up.',
   witnessRequired: 'Enter a witness wallet address.',
   witnessInvalid: 'That witness address is not valid.',

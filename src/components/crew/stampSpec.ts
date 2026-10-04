@@ -9,7 +9,7 @@ export type StampKind = (typeof STAMP_KINDS)[number]
 export type StampSpec = Readonly<{ label: string; tone: 'ink' | 'quiet'; rotateDeg: number }>
 
 const SPECS: Record<StampKind, StampSpec> = {
-  promise: { label: 'PROMISE MADE', tone: 'ink', rotateDeg: -6 },
+  promise: { label: 'RITUAL STARTED', tone: 'ink', rotateDeg: -6 },
   'showed-up': { label: 'SHOWED UP', tone: 'ink', rotateDeg: -4 },
   kept: { label: 'KEPT', tone: 'ink', rotateDeg: 5 },
   skipped: { label: 'SKIPPED', tone: 'quiet', rotateDeg: -3 },

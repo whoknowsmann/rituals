@@ -156,7 +156,6 @@ export function HoldButton({
         </Svg>
         <View style={styles.labels} pointerEvents="none">
           <Text style={styles.label}>{done ? doneLabel : label}</Text>
-          {!done && <Text style={styles.hint}>{holding ? 'keep holding' : 'until it fills'}</Text>}
         </View>
       </Pressable>
     </Animated.View>

@@ -27,6 +27,7 @@ import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, sol
 import { SCOPE } from '../../features/rituals/productScope'
 import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
 import { formatSol, settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
+import { startedSaying } from '../../features/rituals/solo/sayings'
 import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
   SOLO_CREATE_MESSAGES,
@@ -123,7 +124,7 @@ export function SoloCreateScreen({ route }: Props) {
 
   const makeDeps = useCallback(() => {
     if (client.status !== 'ready') throw new Error('Rituals are not ready.')
-    if (!selectedAccount) throw new Error('Connect your wallet before making this promise.')
+    if (!selectedAccount) throw new Error('Connect your wallet before starting this ritual.')
     if (seasonAddressText && season.status !== 'ready') throw new Error(season.message ?? 'This Season could not be read.')
     const eventCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
     const schedule = selectSoloSchedule({
@@ -189,7 +190,7 @@ export function SoloCreateScreen({ route }: Props) {
       void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).catch(() => undefined)
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
     }).catch(() => {
-      if (active) setReadbackError('Your promise was sent, but it is not ready to show yet. Keep this screen open and try again.')
+      if (active) setReadbackError('Your ritual was sent, but it is not ready to show yet. Keep this screen open and try again.')
     })
     return () => { active = false }
   }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title])
@@ -222,9 +223,9 @@ export function SoloCreateScreen({ route }: Props) {
   if (create.state.status === 'confirmed' && confirmedReadback) {
     return (
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <Hero kicker="A promise, made">You showed up for yourself.</Hero>
+        <Hero kicker="Ritual started">You showed up for yourself.</Hero>
         <View style={styles.confirmedCard}>
-          <Stamp kind="promise" note="I signed this for myself." />
+          <Stamp kind="promise" note={startedSaying(confirmedAddress ?? '')} />
         </View>
         <ActionButton label="See your ritual" onPress={() => navigation.navigate('SoloRitual', { ritualId: confirmedAddress! })} accessibilityLabel="See your ritual" />
         <Footnote>Devnet · TEST tokens have no real value</Footnote>
@@ -241,7 +242,7 @@ export function SoloCreateScreen({ route }: Props) {
 
       {step === 1 && (
         <>
-          <Hero>What are you promising?</Hero>
+          <Hero>What’s your ritual?</Hero>
           <Text style={styles.helper}>One clear thing you will do each week.</Text>
           <TextInput
             value={draft.intention}
@@ -256,7 +257,7 @@ export function SoloCreateScreen({ route }: Props) {
             autoCapitalize="sentences"
             maxLength={120}
             style={styles.input}
-            accessibilityLabel="Describe what you are promising"
+            accessibilityLabel="Describe your ritual"
           />
           {suggestions.length > 0 && (
             <View style={styles.suggestions}>
@@ -328,9 +329,9 @@ export function SoloCreateScreen({ route }: Props) {
             </View>
           )}
           <Text style={styles.skip}>✓ One declared skip · call it before the week opens and that week comes back to you.</Text>
-          <View style={styles.promiseCard} accessibilityLabel="Your promise">
-            <Text style={styles.label}>THE PROMISE</Text>
-            <Text style={styles.promiseText}>I’ll show up for {draft.title || 'this promise'} each week.</Text>
+          <View style={styles.promiseCard} accessibilityLabel="Your ritual">
+            <Text style={styles.label}>YOUR RITUAL</Text>
+            <Text style={styles.promiseText}>I’ll show up for {draft.title || 'this'} every week.</Text>
             <Text style={styles.signature}>You · signing for yourself</Text>
           </View>
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
@@ -342,8 +343,8 @@ export function SoloCreateScreen({ route }: Props) {
             </View>
           )}
           {create.state.status === 'confirmed' && !confirmedReadback && !readbackError && (
-            <View style={styles.status} accessibilityLabel="Checking your promise">
-              <Text style={styles.statusTitle}>Checking your promise…</Text>
+            <View style={styles.status} accessibilityLabel="Checking your ritual">
+              <Text style={styles.statusTitle}>Checking your ritual…</Text>
               <Text style={styles.quiet}>Your wallet approved. We are checking that your ritual is ready.</Text>
             </View>
           )}
@@ -356,12 +357,12 @@ export function SoloCreateScreen({ route }: Props) {
           )}
           {create.state.status === 'idle' && selectedAccount && !stepThreeErrors.length && <Text style={styles.walletNote}>{walletHandoffNote(walletPackage)}</Text>}
           {create.state.status !== 'confirmed' && (
-            <ActionButton label={create.isBusy ? 'Working…' : 'Make it real'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable} loading={create.isBusy} accessibilityLabel="Approve and make the promise real" />
+            <ActionButton label={create.isBusy ? 'Working…' : 'Make it real'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable} loading={create.isBusy} accessibilityLabel="Approve and start the ritual" />
           )}
-          {create.state.status === 'error' && create.canSubmit && <ActionButton label="Try again" tone="quiet" onPress={create.start} accessibilityLabel="Try creating the promise again" />}
+          {create.state.status === 'error' && create.canSubmit && <ActionButton label="Try again" tone="quiet" onPress={create.start} accessibilityLabel="Try starting the ritual again" />}
         </>
       )}
-      {!selectedAccount && <Text style={styles.quiet}>Connect your wallet to make this promise real.</Text>}
+      {!selectedAccount && <Text style={styles.quiet}>Connect your wallet to start this ritual.</Text>}
       <Footnote>Devnet · TEST tokens have no real value</Footnote>
     </ScrollView>
   )

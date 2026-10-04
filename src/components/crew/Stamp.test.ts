@@ -16,7 +16,7 @@ describe('stampSpec (DESIGN rule 4: a miss never gets the success mark)', () => 
       expect(spec.label).not.toMatch(/KEPT/)
     }
     expect(stampSpec('kept').label).toBe('KEPT')
-    expect(stampSpec('promise').label).toBe('PROMISE MADE')
+    expect(stampSpec('promise').label).toBe('RITUAL STARTED')
   })
   it('tilts a little, differently per kind (imperfect ink, not wallpaper)', () => {
     const tilts = STAMP_KINDS.map((k) => stampSpec(k).rotateDeg)
