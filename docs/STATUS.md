@@ -43,6 +43,17 @@ send"); walked to the wallet prompt (`artifacts/shots/d4-*`). Build with
 `TAG=dN scripts/build-apk-local.sh`.
 
 Next actions, in order:
+00000. **2026-10-04 UI pass (Jack's list), d15 (35c5101) on the Seeker:** "ritual"
+       everywhere; stamp lines from a basket of sayings (`solo/sayings.ts`,
+       stable per week); HOLD without hint text; punch card ✓/✕/NOW/numbers +
+       summary line; Home = 2-column tiles, colour per ritual (`ritualTint`),
+       status pill, "+ New ritual" tile, kept/missed via one batched read;
+       night mode (`theme/ThemeMode.tsx`: follows the phone, sun/moon toggle
+       in the top bar, remembered; solo screens + crew components use
+       `themedStyles`/`useColors`; group screens stay light-only); finished
+       rituals say so. Checked in day + night by screenshot. Cron
+       `rituals-make-repo-public` (job cd4e3bd1e174) flips the repo public Wed
+       Oct 7 01:59 CDT after a history secrets scan, reports to Telegram.
 0000. **2026-10-04 13:05: d9 (88df452) on the Seeker, confirmed by Jack.** Big
       centered hold button (1.4 s fill, ring, quarter ticks, buzz), one Seed
       Vault approval for the stamp (`4xe8aAVa…`), confetti + stamp shown once
