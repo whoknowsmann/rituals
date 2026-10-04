@@ -7,6 +7,7 @@ import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewS
 import * as Haptics from 'expo-haptics'
 import { color, memberColor, radius, space, type } from '../../theme'
 import { HoldButton } from './HoldButton'
+import { weekCellLabel, weekSummary, type WeekCell } from './weekStripLogic'
 
 export { HoldButton }
 export { Confetti } from './Confetti'
@@ -60,17 +61,26 @@ export function PosterLine({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** 'closed' = a finished week whose result is not known (yet): neutral, never a guessed tick. */
-export type WeekCell = 'done' | 'now' | 'future' | 'missed' | 'closed'
+export { type WeekCell, weekCellLabel, weekSummary } from './weekStripLogic'
 
-export function WeekStrip({ cells, tint }: { cells: readonly WeekCell[]; tint: string }) {
+/**
+ * The punch card. Full: one cell per week (✓ kept, ✕ missed, NOW, numbers to
+ * come) with a summary line under it. Compact (Home tiles): small dots + line.
+ */
+export function WeekStrip({ cells, tint, compact = false, summary = true }: { cells: readonly WeekCell[]; tint: string; compact?: boolean; summary?: boolean }) {
+  const line = weekSummary(cells)
   return (
-    <View style={s.strip} accessibilityLabel={`${cells.filter((c) => c === 'done').length} of ${cells.length} done`}>
-      {cells.map((cell, i) => (
-        <View key={i} style={[s.cell, cell === 'done' && s.cellDone, cell === 'now' && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]}>
-          <Text style={[s.cellText, cell === 'done' && { color: tint }]}>{cell === 'done' ? '✓' : cell === 'missed' ? '–' : cell === 'closed' ? '·' : `W${i + 1}`}</Text>
-        </View>
-      ))}
+    <View accessibilityLabel={line}>
+      <View style={[s.strip, compact && s.stripCompact]}>
+        {cells.map((cell, i) => compact
+          ? <View key={i} style={[s.dot, cell === 'done' && s.dotDone, cell === 'now' && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
+          : (
+            <View key={i} style={[s.cell, cell === 'done' && s.cellDone, cell === 'now' && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]}>
+              <Text style={[s.cellText, cell === 'done' && { color: tint }, cell === 'now' && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
+            </View>
+          ))}
+      </View>
+      {summary && <Text style={[s.stripSummary, compact && s.stripSummaryCompact]} numberOfLines={1}>{line}</Text>}
     </View>
   )
 }
@@ -198,9 +208,17 @@ const s = StyleSheet.create({
   strip: { flexDirection: 'row', gap: 6 },
   cell: { flex: 1, height: 34, borderRadius: 12, backgroundColor: color.scrim, alignItems: 'center', justifyContent: 'center' },
   cellDone: { backgroundColor: color.white },
-  cellNow: { backgroundColor: color.glass, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.75)' },
+  cellNow: { backgroundColor: color.glass, borderWidth: 2, borderColor: color.white },
+  cellNowText: { letterSpacing: 1 },
   cellMissed: { backgroundColor: 'rgba(0,0,0,0.28)' },
   cellText: { ...type.caption, fontFamily: type.heading.fontFamily, color: color.white },
+  stripCompact: { gap: 5, flexWrap: 'wrap' },
+  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: color.scrim, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' },
+  dotDone: { backgroundColor: color.white, borderColor: color.white },
+  dotNow: { backgroundColor: 'transparent', borderColor: color.white, borderWidth: 2.5 },
+  dotMissed: { backgroundColor: 'rgba(0,0,0,0.35)', borderColor: 'transparent' },
+  stripSummary: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.white, opacity: 0.95, marginTop: space.sm },
+  stripSummaryCompact: { marginTop: space.xs },
 
   tile: { alignItems: 'center', justifyContent: 'center' },
   tileText: { fontFamily: type.heading.fontFamily, color: color.white },
