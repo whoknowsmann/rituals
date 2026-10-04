@@ -17,10 +17,13 @@ import { seasonStatusForError } from '../features/rituals/solo/season/seasonStat
 import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/solo/season/seasonViewModel'
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { COMING_SOON_LINE, SCOPE } from '../features/rituals/productScope'
+import { readSoloHistory } from '../features/rituals/home/soloHistory'
+import { soloWeekCells } from '../features/rituals/solo/lifecycle/soloRitualModel'
+import type { RitualBundleRead } from '../data/rituals/ritualsRpc'
 import { color, memberColor, radius, space, type } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
-type HomeRitual = LoadedRitual & { id: string }
+type HomeRitual = LoadedRitual & { id: string; history?: readonly RitualBundleRead[] }
 
 type HomeState = Readonly<{
   status: 'loading' | 'ready' | 'error'
@@ -59,11 +62,16 @@ export function RitualsHomeScreen() {
         .catch((error: unknown) => ({ season: null, status: seasonStatusForError(error) }))
 
     void Promise.all([loadKnownRitualBundles(client.client), seasonPromise])
-      .then(([rituals, season]) => {
+      .then(async ([rituals, season]) => {
+        // Closed weeks, so a missed week shows as missed instead of a tick.
+        const withHistory = await Promise.all(rituals.map(async (ritual) => ({
+          ...ritual,
+          history: await readSoloHistory(client.client, ritual.address, ritual.bundle.ritual.account).catch(() => [] as readonly RitualBundleRead[]),
+        })))
         if (!mounted.current || generation !== requestGeneration.current) return
         setHomeState({
           status: 'ready',
-          rituals: rituals.map((ritual) => ({ ...ritual, id: ritual.address })),
+          rituals: withHistory.map((ritual) => ({ ...ritual, id: ritual.address })),
           season: season.season,
           seasonStatus: season.status,
         })
@@ -157,7 +165,9 @@ function seasonCountLine(season: SeasonAccountView): string {
 function CrewPoster({ ritual, styles }: { ritual: HomeRitual; styles: ReturnType<typeof makeStyles> }) {
   const account = ritual.bundle.ritual.account
   const kicker = account.kind === 'Solo' ? `Solo · ${statusLabel(account.status)}` : `${statusLabel(account.status)} · ${account.fundedMemberCount} of ${account.members.length} ready`
-  const cells = weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
+  const cells: WeekCell[] = account.kind === 'Solo'
+    ? [...soloWeekCells({ ...ritual.bundle, history: ritual.history ?? [] })]
+    : weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
   return <Poster tint={memberColor(0)} kicker={kicker} title={ritual.title}>
     <WeekStrip cells={cells} tint={memberColor(0)} />
     <PosterLine label="Per event" value={formatAtomic(account.perEventAllocation, account.stakeDecimals)} />

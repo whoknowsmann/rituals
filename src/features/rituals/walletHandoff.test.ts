@@ -17,6 +17,7 @@ describe('B3: wallet handoff copy', () => {
     const note = walletHandoffNote('app.phantom')
     expect(note).toContain('opens Phantom')
     expect(note).toMatch(/come back/i)
+    expect(note).toMatch(/within a minute/i)
   })
 
   it('replaces the awaiting-wallet copy with an explicit "Opening <wallet>" handoff', () => {

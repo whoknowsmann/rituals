@@ -16,7 +16,8 @@ export function walletDisplayName(walletPackage: string | null | undefined): str
 
 /** One line shown next to the button, before anything is tapped. */
 export function walletHandoffNote(walletPackage: string | null | undefined): string {
-  return `This opens ${walletDisplayName(walletPackage)} to approve. When it's done, come back here.`
+  // The prepared transaction expires ~60 s after it is built (blockhash).
+  return `This opens ${walletDisplayName(walletPackage)}. Approve within a minute, then come back here.`
 }
 
 /** Replaces the generic awaiting-wallet copy; every other state passes through. */
@@ -25,7 +26,7 @@ export function withWalletHandoff(copy: Copy, status: string, walletPackage: str
   const name = walletDisplayName(walletPackage)
   return Object.freeze({
     title: `Opening ${name}…`,
-    body: `Approve in ${name}, then come back to Rituals. Don't swipe Rituals away while ${name} is open. If Android asks about notifications first, answer that, then approve.`,
+    body: `Approve in ${name} within a minute, then come back to Rituals. Don't swipe Rituals away. If Android asks about notifications first, answer that.`,
     tone: 'progress',
   })
 }

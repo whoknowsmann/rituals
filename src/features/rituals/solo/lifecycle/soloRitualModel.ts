@@ -65,6 +65,11 @@ function outcomeOf(terminalEvent: Terminal | null, me: PublicKey | null): 'skipp
   return null
 }
 
+/** Week strip from the current bundle plus history: kept ✓, missed –, now, future. Home uses it too. */
+export function soloWeekCells(bundle: SoloRitualBundle): readonly SoloWeekCell[] {
+  return weekCells(bundle)
+}
+
 function weekCells(bundle: SoloRitualBundle): readonly SoloWeekCell[] {
   const account = bundle.ritual.account
   const byIndex = new Map<number, SoloWeekCell>()
