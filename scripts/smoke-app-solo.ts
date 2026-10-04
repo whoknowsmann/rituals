@@ -14,10 +14,15 @@
  *
  * Usage (devnet only; never the Solana CLI default wallet):
  *   npx tsx scripts/smoke-app-solo.ts --keypair .keys/rituals-solo-smoke-owner.json \
- *     --creator-token-account <TEST ATA> [--season <address>] [--claim-window-seconds N]
+ *     --creator-token-account <TEST ATA> [--season <address>] [--claim-window-seconds N] [--cadence demo|real]
  * Without --season it creates a standalone solo ritual on the app's own solo
  * cadence (DEMO_SOLO_CADENCE: 120 s lead, 300 s check-in, ~8 min end to end).
  * --claim-window-seconds N swaps in a shorter test cadence instead.
+ * --cadence real creates on REAL_SOLO_CADENCE (the create screen's "Real
+ * weeks": 120 s lead, 6 d check-in, 23 h grace, 7 d period), prints every
+ * window read back from chain as ±seconds from now, asserts the shape, waits
+ * for week 1 to open, stamps, verifies the claim and exits 0. It does NOT wait
+ * for settlement (that is a week away); the demo path is unchanged.
  */
 import { ComputeBudgetProgram, Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js'
 import { getAccount } from '@solana/spl-token'
@@ -36,10 +41,13 @@ import { decodeSeason } from '../src/data/rituals/accounts'
 import { connectionFor, integerOption, option, parseCli, readKeypair, requiredOption } from './lib/cli'
 import { refuseMainnetFundedPayer } from './lib/chain'
 import { demoCadenceFrom } from './lib/demoCadence'
-import { DEMO_SOLO_CADENCE } from '../src/domain/rituals/schedule'
+import { DEMO_SOLO_CADENCE, REAL_SOLO_CADENCE } from '../src/domain/rituals/schedule'
 import { autoSettleWeek } from '../src/features/rituals/solo/settler/autoSettle'
 import { createSettlerClient } from '../src/features/rituals/solo/settler/settlerClient'
 import { settlerBudgetLamports } from '../src/features/rituals/solo/settler/settlerBudget'
+
+const HOUR = 3600
+const DAY = 24 * HOUR
 
 function stateRunner() {
   let state: LifecycleState = lifecycleInitialState()
@@ -85,10 +93,18 @@ async function main(): Promise<void> {
     : null
   // Two weeks standalone: week 1 kept (stamp), week 2 missed (nobody checks in).
   const eventCount = season ? season.schedule.length : 2
+  // --cadence real: the create screen's "Real weeks" option. Its windows are
+  // the point of the run, so a Season template or a test cadence is refused.
+  const speed = option(args, 'cadence', 'demo')
+  if (speed !== 'demo' && speed !== 'real') throw new Error('--cadence must be demo or real')
+  const realWeeks = speed === 'real'
+  if (realWeeks && (seasonText !== undefined || option(args, 'claim-window-seconds') !== undefined)) throw new Error('--cadence real cannot be combined with --season or --claim-window-seconds')
   // Default to exactly what SoloCreateScreen ships, so a green run proves it.
-  const cadence = option(args, 'claim-window-seconds') === undefined
-    ? DEMO_SOLO_CADENCE
-    : demoCadenceFrom({ claimWindowSeconds: integerOption(args, 'claim-window-seconds', 120) })
+  const cadence = realWeeks
+    ? REAL_SOLO_CADENCE
+    : option(args, 'claim-window-seconds') === undefined
+      ? DEMO_SOLO_CADENCE
+      : demoCadenceFrom({ claimWindowSeconds: integerOption(args, 'claim-window-seconds', 120) })
   console.log(`cadence: ${cadence.claimWindowSeconds}s check-in, ${cadence.resolutionGraceSeconds}s grace, ${cadence.periodSeconds}s period`)
   const schedule = selectSoloSchedule({ cadence, referenceSeconds: Math.floor(Date.now() / 1000), eventCount, seasonSchedule: season?.schedule })
   const before = (await getAccount(connection, creatorToken, 'confirmed')).amount
@@ -125,6 +141,19 @@ async function main(): Promise<void> {
   console.log('PASS settle key funded inside the same approval:', settlerBalance, 'lamports')
 
   const window0 = active.account.schedule[0]
+  if (realWeeks) {
+    console.log('\n[real weeks] windows read back from chain, as seconds from now')
+    const now = Math.floor(Date.now() / 1000)
+    const fromNow = (value: bigint) => { const delta = Number(value) - now; return `${delta >= 0 ? '+' : ''}${delta}s` }
+    active.account.schedule.forEach((window, index) => console.log(`week ${index + 1}: opens ${fromNow(window.opens)} · deadline ${fromNow(window.deadline)} · resolution ${fromNow(window.resolution)}`))
+    const window1 = active.account.schedule[1]
+    const lead = Number(window0.opens) - Number(active.account.createdAt)
+    if (Math.abs(lead - 120) > 30) throw new Error(`week 1 opens ${lead}s after the chain's create time; expected 120s ±30s`)
+    if (Number(window0.deadline) - Number(window0.opens) !== 6 * DAY) throw new Error(`week 1 check-in is ${Number(window0.deadline) - Number(window0.opens)}s, expected 6 days`)
+    if (Number(window0.resolution) - Number(window0.deadline) !== 23 * HOUR) throw new Error(`week 1 grace is ${Number(window0.resolution) - Number(window0.deadline)}s, expected 23 hours`)
+    if (Number(window1.opens) - Number(window0.opens) !== 7 * DAY) throw new Error(`week 2 opens ${Number(window1.opens) - Number(window0.opens)}s after week 1, expected 7 days`)
+    console.log(`PASS real-weeks windows: week 1 opens ${lead}s after create, 6 d check-in, 23 h grace, week 2 opens 7 d later`)
+  }
   await sleepUntil(Number(window0.opens), 'week 1 to open')
 
   console.log('\n[hold to stamp] (SoloRitualScreen HOLD path, week not yet opened)')
@@ -135,6 +164,14 @@ async function main(): Promise<void> {
   const claim = afterClaim.claims.find((entry) => entry.member.equals(owner.publicKey))?.account
   if (!claim || claim.status !== 'Confirmed') throw new Error('stamp readback is not Confirmed')
   console.log('PASS stamp confirmed through the app path:', claimed.result.signature)
+
+  if (realWeeks) {
+    // Settlement is a week away; the ritual screen (settle key) or the wallet
+    // fallback closes it then. Leave the ritual on devnet and stop here.
+    const settlerLeft = await connection.getBalance(settler.publicKey, 'confirmed')
+    console.log(JSON.stringify({ script: 'smoke-app-solo', cadence: 'real', ritual: ritualAddress.toBase58(), ownerSignatures: 2, settleKeySignatures: 0, settleKeyLamportsLeft: settlerLeft, week1SettlesAfter: new Date(Number(window0.resolution) * 1000).toISOString(), status: 'APP SOLO REAL-WEEKS CREATE + STAMP VERIFIED ON DEVNET (settlement not awaited)' }))
+    return
+  }
 
   await sleepUntil(Number(window0.resolution), 'the week to close')
   console.log('\n[auto-settle week 1] (SoloRitualScreen, settle key, no owner signature)')

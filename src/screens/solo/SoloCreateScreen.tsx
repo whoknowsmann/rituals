@@ -17,11 +17,10 @@ import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
-import { DEMO_SOLO_CADENCE } from '../../domain/rituals/schedule'
 import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
 import { color, fonts, radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
-import { selectSoloSchedule, soloEventCount, SOLO_MAX_WEEKS, SOLO_MIN_WEEKS, STAKE_PRESETS, stepWeeks } from '../../features/rituals/solo/create/schedule'
+import { DEFAULT_SOLO_SPEED, SOLO_SPEEDS, selectSoloSchedule, soloCadenceFor, soloEventCount, soloScheduleSummary, SOLO_MAX_WEEKS, SOLO_MIN_WEEKS, STAKE_PRESETS, stepWeeks, type SoloSpeed } from '../../features/rituals/solo/create/schedule'
 import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
 import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, soloCreateSteps, type SoloCreateStep } from '../../features/rituals/solo/create/steps'
 import { SCOPE } from '../../features/rituals/productScope'
@@ -73,6 +72,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const stepPosition = soloCreateStepPosition(step, CREATE_STEPS)
   const [draft, setDraft] = useState<SoloCreateDraft>(initialDraft)
   const [pickedEventCount, setPickedEventCount] = useState<string | number | undefined>(undefined)
+  // Demo speed (6.5-minute weeks) by default; Real weeks writes 7-day windows.
+  const [speed, setSpeed] = useState<SoloSpeed>(DEFAULT_SOLO_SPEED)
   const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
   const [suggestionRound, setSuggestionRound] = useState(0)
@@ -127,6 +128,14 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const stakeEachLabel = (() => {
     try { return formatAtomic(parseTokenAmount(draft.stakePerWeek), 6) } catch { return 'stake' }
   })()
+  // The windows this create will write, summarised honestly for either speed.
+  const scheduleLine = (() => {
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    try {
+      const selection = selectSoloSchedule({ cadence: soloCadenceFor(speed), referenceSeconds: nowSeconds, eventCount: weekCount, seasonSchedule: season.account?.schedule })
+      return soloScheduleSummary({ weekCount, totalStakeLabel, schedule: selection.schedule, nowSeconds })
+    } catch { return `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${totalStakeLabel} in all` }
+  })()
   // What the approval will take in TEST (stake for every week + activation fee),
   // checked against the wallet so a short balance never reaches the wallet.
   const neededAtomic = (() => {
@@ -157,7 +166,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     if (seasonAddressText && season.status !== 'ready') throw new Error(season.message ?? 'This Season could not be read.')
     const eventCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
     const schedule = selectSoloSchedule({
-      cadence: DEMO_SOLO_CADENCE,
+      cadence: soloCadenceFor(speed),
       referenceSeconds: Math.floor(Date.now() / 1000),
       eventCount,
       seasonSchedule: season.account?.schedule,
@@ -182,7 +191,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
       pendingActionStore: asyncStoragePendingActionStore,
     })
-  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey])
+  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey, speed])
 
   const create = useCreateRitual(makeDeps)
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
@@ -345,6 +354,14 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               <Text style={styles.stepValue} accessibilityLiveRegion="polite">{weekCount} {weekCount === 1 ? 'week' : 'weeks'}</Text>
               <Pressable onPress={() => setPickedEventCount(stepWeeks(weekCount, 1))} disabled={weekCount >= SOLO_MAX_WEEKS || season.account !== undefined} accessibilityRole="button" accessibilityLabel="One more week" style={({ pressed }) => [styles.stepButton, (weekCount >= SOLO_MAX_WEEKS || season.account !== undefined) && styles.stepButtonOff, pressed && styles.pressed]}><Text style={styles.stepButtonText}>+</Text></Pressable>
             </View>
+            {/* Demo speed · Real weeks: the same pills as the stake picks. A joined Season fixes the windows, so it locks this too. */}
+            <View style={styles.presets}>
+              {SOLO_SPEEDS.map((option) => {
+                const chosen = speed === option.speed
+                const locked = season.account !== undefined
+                return <Pressable key={option.speed} onPress={() => setSpeed(option.speed)} disabled={locked} accessibilityRole="button" accessibilityState={{ selected: chosen, disabled: locked }} accessibilityLabel={option.accessibilityLabel} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, locked && styles.stepButtonOff, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{option.label}</Text></Pressable>
+              })}
+            </View>
             <View style={styles.divider} />
             <Text style={styles.label}>STAKE EACH WEEK</Text>
             <View style={styles.amountBox}>
@@ -357,10 +374,10 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
                 return <Pressable key={amount} onPress={() => setDraft((current) => ({ ...current, stakePerWeek: amount }))} accessibilityRole="button" accessibilityState={{ selected: chosen }} accessibilityLabel={`${amount} TEST each week`} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{amount}</Text></Pressable>
               })}
             </View>
-            <Text style={styles.quiet}>{`${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${totalStakeLabel} in all · Demo speed`}</Text>
+            <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
             {testBalance !== null && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
             {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough TEST: this needs ${formatAtomic(neededAtomic, 6)} (stake plus the activation fee).`}</ErrorLine>}
-            {settlerKey && <Text style={styles.quiet}>{`+ ${formatSol(settlerBudgetLamports(weekCount))} so each week closes on its own`}</Text>}
+            {settlerKey && <Text style={styles.quiet}>{`+ ${formatSol(settlerBudgetLamports(weekCount))} so each week closes ${speed === 'real' ? 'itself when you next open the app' : 'on its own'}`}</Text>}
           </View>
           <Section title="If I miss, it goes to" aside="LOCKED BEFORE YOU START" />
           {destinationChoices(DEMO_CAUSE).filter((choice) => SCOPE.personDestination || choice.kind === 'cause').map((choice) => (

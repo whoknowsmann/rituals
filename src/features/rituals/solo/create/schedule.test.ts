@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { stepWeeks, STAKE_PRESETS } from './schedule'
+import { DEFAULT_SOLO_SPEED, SOLO_SPEEDS, soloCadenceFor, soloScheduleSummary, stepWeeks, STAKE_PRESETS } from './schedule'
+import { DEMO_SOLO_CADENCE, REAL_SOLO_CADENCE } from '../../../../domain/rituals/schedule'
 
 describe('create controls (weeks stepper, stake picks)', () => {
   it('steps weeks one at a time within the program limit 1..16', () => {
@@ -9,6 +10,33 @@ describe('create controls (weeks stepper, stake picks)', () => {
   })
   it('offers small whole-TEST quick picks', () => {
     expect(STAKE_PRESETS).toEqual(['1', '5', '10', '25'])
+  })
+})
+
+describe('week speed on create (Demo speed · Real weeks, approved 2026-10-04)', () => {
+  it('offers exactly the two options, Demo speed first and default, each on its solo cadence', () => {
+    expect(SOLO_SPEEDS.map((option) => option.label)).toEqual(['Demo speed', 'Real weeks'])
+    expect(DEFAULT_SOLO_SPEED).toBe('demo')
+    expect(soloCadenceFor('demo')).toBe(DEMO_SOLO_CADENCE)
+    expect(soloCadenceFor('real')).toBe(REAL_SOLO_CADENCE)
+  })
+
+  // Built from local date parts like displayFormat.test.ts, so the day holds in any zone.
+  const now = Math.floor(new Date(2026, 9, 4, 15, 0, 0).getTime() / 1000)
+
+  it('says how long demo weeks are, singular for one week', () => {
+    const four = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 4 }).schedule
+    expect(soloScheduleSummary({ weekCount: 4, totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 6.5 min each · 20 TEST in all')
+    const one = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 1 }).schedule
+    expect(soloScheduleSummary({ weekCount: 1, totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('1 demo week · 6.5 min · 5 TEST in all')
+  })
+
+  it('names the day the last real week settles, in the app date style', () => {
+    const four = selectSoloSchedule({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, eventCount: 4 }).schedule
+    // 2 min lead + 3 full weeks + 6 d + 23 h after Sun Oct 4 → Sun Nov 1.
+    expect(soloScheduleSummary({ weekCount: 4, totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 weeks · ends Sun, Nov 1 · 20 TEST in all')
+    const one = selectSoloSchedule({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, eventCount: 1 }).schedule
+    expect(soloScheduleSummary({ weekCount: 1, totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('1 week · ends Sun, Oct 11 · 5 TEST in all')
   })
 })
 import { DEMO_CADENCE } from '../../../../domain/rituals/schedule'
