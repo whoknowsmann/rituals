@@ -203,6 +203,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error('FAILED:', error instanceof Error ? error.message : String(error))
+  // Name + message: spl-token's TokenAccountNotFoundError has an empty message,
+  // which once printed a bare "FAILED:" when the mint was passed as the ATA.
+  console.error('FAILED:', error instanceof Error ? `${error.name}: ${error.message}` : String(error))
   process.exit(1)
 })
