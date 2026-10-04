@@ -32,8 +32,8 @@ Rituals has no chance element.
   or the protocol.
 - You cannot lose because someone else got lucky. You can only lose by not doing
   the thing you said you would do.
-- Rituals takes **no share** of stakes or forfeitures. The protocol's only revenue
-  is a separate, disclosed activation fee.
+- Rituals takes **nothing**: no share of stakes or forfeitures, and since
+  2026-10-04 no activation fee either (the on-chain fee settings are 0 / 0 / 0).
 
 The closest legal analogue is a forfeitable deposit, not a wager.
 
@@ -85,18 +85,20 @@ loosely:
 
 ## Revenue model
 
-Free: non-financial rituals, and one simple active group during initial testing.
+None. Rituals is free (Jack's decision, 2026-10-04). Users pay only what the
+chain charges them: network fees, account rent (vault rent comes back when a
+ritual closes), and a small pre-payment to the app's settle key so weeks close
+without a wallet prompt. The fee funded nothing (no servers, no fee key we
+run), it was charged even on fully kept rituals, and "missed stakes go to a
+cause; Rituals takes nothing" is the honest pitch.
 
-Funded ritual: one activation fee after every member funds and terms lock.
-Hypothesis is 2% of the committed pool, 0.50 TEST/USDC minimum and 5.00 maximum
-per group, host-paid or split equally, selected before invitations. No completion
-fee. No cut of forfeitures. Network fee displayed separately.
-
-On-chain configuration currently matches this: `feeBasisPoints` 200,
-`minimumFee` 500000, `maximumFee` 5000000 (6 decimals).
-
-The exact fee is stored per ritual at activation, so later protocol configuration
-changes cannot alter an existing commitment.
+Mechanically the program still supports a fee: `ProtocolConfig` holds
+`feeBasisPoints` / `minimumFee` / `maximumFee`, and the config authority can
+change them with `update_protocol_config` (no redeploy). The live devnet
+settings are **0 / 0 / 0**, asserted by `scripts/verify-devnet-config.ts`.
+The exact fee is still locked per ritual at creation, so a later change can
+never alter an existing commitment; rituals created before the change paid
+the fee they locked (2 % of the pool, 0.5–5 TEST).
 
 ## Confirmation modes
 

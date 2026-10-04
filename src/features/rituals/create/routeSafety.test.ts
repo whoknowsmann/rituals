@@ -91,7 +91,7 @@ describe('Ritual draft boundaries', () => {
     const validation = validateRitualDraft(DEFAULT_RITUAL_DRAFT)
     if (!validation.ok) throw new Error('default draft should be valid')
     expect(draftEconomics(validation.value).fee)
-      .toBe(800_000n)
+      .toBe(0n) // free protocol: the constant mirrors the live 0 / 0 / 0 config
   })
 
   it('limits Unicode by code point and clears only the edited error', () => {

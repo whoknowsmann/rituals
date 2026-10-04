@@ -25,10 +25,15 @@ export const DEFAULT_RITUAL_DRAFT: RitualDraft = {
   feePayerMode: 'HOST',
 }
 
+/**
+ * Mirrors the live devnet ProtocolConfig (asserted by scripts/verify-devnet-config.ts).
+ * Rituals is free since 2026-10-04: 0 bps, 0 minimum, 0 maximum. Transactions
+ * never trust this constant; they quote from the live config read.
+ */
 export const RITUAL_FEE_CONFIG: Readonly<FeeConfig> = Object.freeze({
-  basisPoints: 200,
-  minimumFee: 500_000n,
-  maximumFee: 5_000_000n,
+  basisPoints: 0,
+  minimumFee: 0n,
+  maximumFee: 0n,
   tokenDecimals: 6,
 })
 

@@ -55,23 +55,10 @@ describe('Ritual creation journey', () => {
     }
   })
 
-  it('clamps activation fees at the minimum and maximum', () => {
-    expect(buildReviewViewModel({
-      ...validDraft,
-      memberTotalStake: '10',
-    }).activationFee).toBe('0.5 TEST')
-    expect(buildReviewViewModel({
-      ...validDraft,
-      memberTotalStake: '200',
-    }).activationFee).toBe('5 TEST')
-  })
-
-  it('floors fractional atomic-unit activation fees', () => {
-    expect(buildReviewViewModel({
-      ...validDraft,
-      eventCount: '2',
-      memberTotalStake: '20.000002',
-    }).activationFee).toBe('0.8 TEST')
+  it('quotes no activation fee at any pool size (the protocol is free)', () => {
+    expect(buildReviewViewModel({ ...validDraft, memberTotalStake: '10' }).activationFee).toBe('0 TEST')
+    expect(buildReviewViewModel({ ...validDraft, memberTotalStake: '200' }).activationFee).toBe('0 TEST')
+    expect(buildReviewViewModel({ ...validDraft, eventCount: '2', memberTotalStake: '20.000002' }).activationFee).toBe('0 TEST')
   })
 
   it('validates Unicode and numeric boundaries without throwing', () => {
@@ -120,7 +107,7 @@ describe('Ritual creation journey', () => {
     expect(review.perMemberTotal).toBe('20 TEST')
     expect(review.perEventAllocation).toBe('5 TEST')
     expect(review.groupPool).toBe('40 TEST')
-    expect(review.activationFee).toBe('0.8 TEST')
+    expect(review.activationFee).toBe('0 TEST')
     expect(review.confirmationMode).toBe('One friend')
     expect(review.confirmationThreshold).toBe('1 friend confirmation beyond the claimant')
     expect(review.feePayer).toBe('Host pays activation fee')
