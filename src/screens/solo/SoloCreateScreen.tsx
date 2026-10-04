@@ -28,6 +28,9 @@ import { SCOPE } from '../../features/rituals/productScope'
 import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
 import { formatSol, settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
 import { startedSaying } from '../../features/rituals/solo/sayings'
+import { getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { deriveGroupPool, quoteActivationFee } from '../../domain/rituals/money'
+import { RITUAL_FEE_CONFIG } from '../../features/rituals/create/draftForm'
 import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
   SOLO_CREATE_MESSAGES,
@@ -121,6 +124,29 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const totalStakeLabel = (() => {
     try { return formatAtomic(parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount), 6) } catch { return '—' }
   })()
+  // What the approval will take in TEST (stake for every week + activation fee),
+  // checked against the wallet so a short balance never reaches the wallet.
+  const neededAtomic = (() => {
+    try {
+      const total = parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount)
+      return total > 0n ? total + quoteActivationFee(deriveGroupPool(total, 1), RITUAL_FEE_CONFIG) : null
+    } catch { return null }
+  })()
+  const [testBalance, setTestBalance] = useState<bigint | null>(null)
+  useEffect(() => {
+    if (client.status !== 'ready' || !selectedAccount) { setTestBalance(null); return }
+    let active = true
+    void client.client.getProtocolConfig().then(async (config) => {
+      const ata = getAssociatedTokenAddressSync(config.account.allowedStakeMint, selectedAccount.publicKey)
+      const balance = await connection.getTokenAccountBalance(ata, 'confirmed').then((read) => BigInt(read.value.amount)).catch((error: unknown) => {
+        if (String((error as Error)?.message ?? error).toLowerCase().includes('could not find account')) return 0n
+        throw error
+      })
+      if (active) setTestBalance(balance)
+    }).catch(() => { if (active) setTestBalance(null) }) // unknown: never block on a failed read
+    return () => { active = false }
+  }, [client, connection, selectedAccount])
+  const shortOfTest = testBalance !== null && neededAtomic !== null && testBalance < neededAtomic
 
   const makeDeps = useCallback(() => {
     if (client.status !== 'ready') throw new Error('Rituals are not ready.')
@@ -329,6 +355,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               })}
             </View>
             <Text style={styles.quiet}>{`${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${totalStakeLabel} in all · Demo speed`}</Text>
+            {testBalance !== null && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
+            {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough TEST: this needs ${formatAtomic(neededAtomic, 6)} (stake plus the activation fee).`}</ErrorLine>}
             {settlerKey && <Text style={styles.quiet}>{`+ ${formatSol(settlerBudgetLamports(weekCount))} so each week closes on its own`}</Text>}
           </View>
           <Section title="If I miss, it goes to" aside="LOCKED BEFORE YOU START" />
@@ -370,7 +398,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           )}
           {create.state.status === 'idle' && selectedAccount && !stepThreeErrors.length && <Text style={styles.walletNote}>{walletHandoffNote(walletPackage)}</Text>}
           {create.state.status !== 'confirmed' && (
-            <ActionButton label={create.isBusy ? 'Working…' : 'Make it real'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable} loading={create.isBusy} accessibilityLabel="Approve and start the ritual" />
+            <ActionButton label={create.isBusy ? 'Working…' : 'Make it real'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Approve and start the ritual" />
           )}
           {create.state.status === 'error' && create.canSubmit && <ActionButton label="Try again" tone="quiet" onPress={create.start} accessibilityLabel="Try starting the ritual again" />}
         </>
