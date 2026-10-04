@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { COMING_SOON_LINE, SCOPE, SOLO_ONLY, scopeFor } from './productScope'
+import { DEMO_SOLO_CADENCE, REAL_SOLO_CADENCE } from '../../domain/rituals/schedule'
+import { DEFAULT_SOLO_SPEED, SOLO_SPEEDS, soloCadenceFor } from './solo/create/schedule'
 
 const read = (path: string) => readFileSync(resolve(__dirname, '../../', path), 'utf8')
 const home = read('screens/RitualsHomeScreen.tsx')
@@ -47,9 +49,14 @@ describe('single-blade fold (solo only)', () => {
     expect(create).toMatch(/proofMode: SCOPE\.proofChooser \? 'none' : 'note'/)
   })
 
-  it('Create uses the solo cadence (5-minute check-in), not the group demo cadence', () => {
-    expect(create).toContain('cadence: DEMO_SOLO_CADENCE')
+  it('Create writes a solo cadence chosen by the Demo speed · Real weeks switch (Demo default), never the group demo cadence', () => {
+    expect(create).toContain('cadence: soloCadenceFor(speed)')
+    expect(create).toContain('useState<SoloSpeed>(DEFAULT_SOLO_SPEED)')
+    expect(create).toContain('SOLO_SPEEDS.map(')
     expect(create).not.toContain('cadence: DEMO_CADENCE')
+    expect(DEFAULT_SOLO_SPEED).toBe('demo')
+    expect(SOLO_SPEEDS.map((option) => option.cadence)).toEqual([DEMO_SOLO_CADENCE, REAL_SOLO_CADENCE])
+    expect(soloCadenceFor(DEFAULT_SOLO_SPEED)).toBe(DEMO_SOLO_CADENCE)
   })
 
   it('Ritual screen hides the witness card and offers the note line at every stamp', () => {

@@ -1,5 +1,6 @@
-import { firstEventStart, generateRitualSchedule, type RitualCadence } from '../../../../domain/rituals/schedule'
+import { DEMO_SOLO_CADENCE, REAL_SOLO_CADENCE, demoWeekMinutesLabel, firstEventStart, generateRitualSchedule, isDemoSpeedWindow, type RitualCadence } from '../../../../domain/rituals/schedule'
 import type { EventWindowView } from '../../../../data/rituals/accounts'
+import { weekOpensLabel } from '../../displayFormat'
 
 export type SoloScheduleSelection = Readonly<{
   source: 'generated' | 'season'
@@ -33,6 +34,46 @@ export function stepWeeks(current: number, delta: number): number {
 
 /** Quick picks for the weekly stake (TEST); any amount can still be typed. */
 export const STAKE_PRESETS = Object.freeze(['1', '5', '10', '25'])
+
+/**
+ * How long a week is, chosen on create (approved 2026-10-04). Demo speed is
+ * the default so anyone sees the whole loop in one sitting; real weeks are the
+ * product. Labels are option text on the create screen: keep them out of every
+ * heading there (the device tap driver matches substrings).
+ */
+export type SoloSpeed = 'demo' | 'real'
+export const DEFAULT_SOLO_SPEED: SoloSpeed = 'demo'
+export const SOLO_SPEEDS: readonly Readonly<{ speed: SoloSpeed; label: string; cadence: RitualCadence; accessibilityLabel: string }>[] = Object.freeze([
+  Object.freeze({ speed: 'demo' as const, label: 'Demo speed', cadence: DEMO_SOLO_CADENCE, accessibilityLabel: 'Demo speed: a week lasts minutes' }),
+  Object.freeze({ speed: 'real' as const, label: 'Real weeks', cadence: REAL_SOLO_CADENCE, accessibilityLabel: 'Real weeks: seven days each, stamp any day' }),
+])
+
+export function soloCadenceFor(speed: SoloSpeed): RitualCadence {
+  const found = SOLO_SPEEDS.find((option) => option.speed === speed)
+  if (!found) throw new Error(`unknown solo speed: ${String(speed)}`)
+  return found.cadence
+}
+
+/**
+ * The one quiet line under the stake card, true to the windows that will be
+ * written on chain: "4 demo weeks · 6.5 min each · 20 TEST in all" or
+ * "4 weeks · ends Sun, Nov 1 · 20 TEST in all" (last week's resolution, phone
+ * local time, in the app's usual date style).
+ */
+export function soloScheduleSummary(input: Readonly<{ weekCount: number; totalStakeLabel: string; schedule: SoloScheduleSelection['schedule']; nowSeconds: number }>): string {
+  const { weekCount, totalStakeLabel, schedule, nowSeconds } = input
+  const first = schedule[0]
+  const last = schedule[schedule.length - 1]
+  const noun = weekCount === 1 ? 'week' : 'weeks'
+  if (!first || !last) return `${weekCount} ${noun} · ${totalStakeLabel} in all`
+  if (isDemoSpeedWindow(first.claimOpensAt, first.claimDeadlineAt)) {
+    const minutes = demoWeekMinutesLabel(schedule.map((entry) => entry.claimOpensAt))
+    return `${weekCount} demo ${noun} · ${minutes} min${weekCount === 1 ? '' : ' each'} · ${totalStakeLabel} in all`
+  }
+  // weekOpensLabel gives "Sun, Nov 1 · 2:47 PM"; the day is what matters here.
+  const ends = weekOpensLabel(last.resolutionDeadlineAt, nowSeconds).split(' · ')[0]
+  return `${weekCount} ${noun} · ends ${ends} · ${totalStakeLabel} in all`
+}
 
 /** Selects the exact Season template when linked; otherwise creates the demo schedule. */
 export function selectSoloSchedule(input: Readonly<{
