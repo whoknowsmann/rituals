@@ -5,7 +5,7 @@ import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { canonicalBase58Signature, decodeCanonicalBase58Signature } from './base58Signature'
 import { RitualActionPreparer, type PreparedExpectation, type PreparedRitualAction } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualActionExpectation, type ConfirmedRitualAction, type SubmittedRitualAction } from './ritualConfirmation'
-import { logFailure } from '../../utils/diagnostics'
+import { logFailure, logNote } from '../../utils/diagnostics'
 import { landedMessageIsFeeOnlyChange } from './walletFeeChange'
 
 export type RitualWalletSubmissionTransport = Readonly<{
@@ -130,7 +130,7 @@ export class RitualActionSubmitter {
         // reviewed transaction with nothing changed but the fee instructions.
         const landed = this.#landedMessage ? await this.#landedMessage(signature).catch(() => null) : null
         if (!landed || !landedMessageIsFeeOnlyChange(this.#preparer.getTransactionForWallet(prepared).transaction, landed, signature)) fail('signature', 'wallet signature does not verify the prepared message')
-        logFailure('wallet.fee-adjusted', new Error('wallet changed only the fee instructions; verified against the landed transaction'))
+        logNote('wallet.fee-adjusted', 'wallet changed only the fee instructions; verified against the landed transaction')
       }
     } catch (error) {
       // Keep the original error (and its category, e.g. the preparer's

@@ -20,3 +20,8 @@ export function logFailure(stage: string, error: unknown): void {
   } catch { /* hostile error */ }
   console.warn(`[rituals] ${stage} failed: ${name}${code}: ${message.slice(0, 300)}`)
 }
+
+/** Same tag, for things worth seeing in logcat that are not failures (e.g. the wallet rewrote the fee and the landed tx verified). */
+export function logNote(stage: string, message: string): void {
+  console.log(`[rituals] ${stage}: ${message.slice(0, 300)}`)
+}

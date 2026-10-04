@@ -125,7 +125,8 @@ Jack, 2026-10-04 evening: "we have time right now to crank this all out."
    demo smoke **GREEN** (ritual `ESujNUaA…`: create, stamp, kept week settled
    and missed week to the cause by the settle key; owner signatures 2; creator
    TEST delta exactly −1 = the missed week, **no fee**;
-   `smoke-app-solo-free.log`); `--simulate-wallet-fee-change` running.
+   `smoke-app-solo-free.log`); `--simulate-wallet-fee-change` **GREEN** too
+   (`Hu2i474F…`, fee-only rewrite verified against the landed tx).
    **d19 (055f1fa) INSTALLED** 16:47:53 and walked to the wallet prompt
    (`artifacts/shots/d19-*`): pills, both summary lines, "You have 83.8 TEST",
    no fee copy, settle line per speed. Still to do: Jack's create on d19 (Seed
@@ -163,7 +164,6 @@ Jack, 2026-10-04 evening: "we have time right now to crank this all out."
   Wallet path to its network setting).
 - Old Phantom-Account-3 "Call mom" tile reads "Closing…" (test data from
   another wallet; opening it lets the settle key close it).
-- Log line "wallet.fee-adjusted failed" is a note, not a failure (rename).
 
 ## Log 2026-10-02 → 2026-10-04 (newest first)
 
