@@ -60,14 +60,15 @@ export function PosterLine({ label, value }: { label: string; value: string }) {
   )
 }
 
-export type WeekCell = 'done' | 'now' | 'future' | 'missed'
+/** 'closed' = a finished week whose result is not known (yet): neutral, never a guessed tick. */
+export type WeekCell = 'done' | 'now' | 'future' | 'missed' | 'closed'
 
 export function WeekStrip({ cells, tint }: { cells: readonly WeekCell[]; tint: string }) {
   return (
     <View style={s.strip} accessibilityLabel={`${cells.filter((c) => c === 'done').length} of ${cells.length} done`}>
       {cells.map((cell, i) => (
-        <View key={i} style={[s.cell, cell === 'done' && s.cellDone, cell === 'now' && s.cellNow, cell === 'missed' && s.cellMissed]}>
-          <Text style={[s.cellText, cell === 'done' && { color: tint }]}>{cell === 'done' ? '✓' : cell === 'missed' ? '–' : `W${i + 1}`}</Text>
+        <View key={i} style={[s.cell, cell === 'done' && s.cellDone, cell === 'now' && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]}>
+          <Text style={[s.cellText, cell === 'done' && { color: tint }]}>{cell === 'done' ? '✓' : cell === 'missed' ? '–' : cell === 'closed' ? '·' : `W${i + 1}`}</Text>
         </View>
       ))}
     </View>

@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { PublicKey } from '@solana/web3.js'
-import { closedWeekCount, readSoloHistory } from './soloHistory'
+import { closedWeekCount, eventOutcome, soloHomeCells } from './soloHistory'
 
-const address = new PublicKey(new Uint8Array(32).fill(5)).toBase58()
+const solo = (status: string, currentEventIndex: number) => ({ kind: 'Solo' as const, status, currentEventIndex, schedule: [1, 2, 3, 4] })
 
-describe('Home solo history (missed weeks used to show as ticks)', () => {
-  it('reads every closed week of a solo ritual, none of a group ritual', () => {
-    expect(closedWeekCount({ kind: 'Solo', status: 'Active', currentEventIndex: 2, schedule: [1, 2, 3, 4] })).toBe(2)
-    expect(closedWeekCount({ kind: 'Solo', status: 'Completed', currentEventIndex: 3, schedule: [1, 2, 3, 4] })).toBe(4)
-    expect(closedWeekCount({ kind: 'Group', status: 'Active', currentEventIndex: 2, schedule: [1, 2, 3, 4] })).toBe(0)
+describe('Home solo week strip (missed weeks used to show as ticks)', () => {
+  it('counts closed weeks for solo rituals only', () => {
+    expect(closedWeekCount(solo('Active', 2))).toBe(2)
+    expect(closedWeekCount(solo('Completed', 3))).toBe(4)
+    expect(closedWeekCount({ ...solo('Active', 2), kind: 'Group' })).toBe(0)
   })
 
-  it('leaves out a week that fails to read instead of guessing', async () => {
-    const client = { getEventBundle: async (_key: PublicKey, index: number) => { if (index === 1) throw new Error('rpc'); return { index } as never } }
-    const history = await readSoloHistory(client, address, { kind: 'Solo', status: 'Completed', currentEventIndex: 3, schedule: [1, 2, 3] })
-    expect(history).toEqual([{ index: 0 }, { index: 2 }])
+  it('reads a week result from its event: forfeit = missed', () => {
+    expect(eventOutcome({ status: 'Settled', forfeitedTotal: 5_000_000n })).toBe('missed')
+    expect(eventOutcome({ status: 'Settled', forfeitedTotal: 0n })).toBe('done')
+    expect(eventOutcome({ status: 'Claiming', forfeitedTotal: 0n })).toBeNull()
+  })
+
+  it('shows kept / missed when known, a neutral closed mark when not, never a guessed tick', () => {
+    expect(soloHomeCells(solo('Completed', 3), new Map([[0, 'missed'], [2, 'done']]))).toEqual(['missed', 'closed', 'done', 'closed'])
+    expect(soloHomeCells(solo('Active', 1), undefined)).toEqual(['closed', 'now', 'future', 'future'])
   })
 })

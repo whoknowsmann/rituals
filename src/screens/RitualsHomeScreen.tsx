@@ -17,13 +17,14 @@ import { seasonStatusForError } from '../features/rituals/solo/season/seasonStat
 import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/solo/season/seasonViewModel'
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { COMING_SOON_LINE, SCOPE } from '../features/rituals/productScope'
-import { readSoloHistory } from '../features/rituals/home/soloHistory'
-import { soloWeekCells } from '../features/rituals/solo/lifecycle/soloRitualModel'
-import type { RitualBundleRead } from '../data/rituals/ritualsRpc'
+import { readSoloWeekOutcomes, soloHomeCells } from '../features/rituals/home/soloHistory'
+import { withReadRetry } from '../features/rituals/client/resilientRead'
+import { PublicKey } from '@solana/web3.js'
 import { color, memberColor, radius, space, type } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
-type HomeRitual = LoadedRitual & { id: string; history?: readonly RitualBundleRead[] }
+type HomeRitual = LoadedRitual & { id: string }
+type WeekOutcomes = ReadonlyMap<string, ReadonlyMap<number, 'done' | 'missed'>>
 
 type HomeState = Readonly<{
   status: 'loading' | 'ready' | 'error'
@@ -42,6 +43,8 @@ export function RitualsHomeScreen() {
   const client = useRitualClient()
   const { connection } = useConnection()
   const [homeState, setHomeState] = useState<HomeState>(initialState)
+  // Kept / missed per closed week, read in one batch after the cards render.
+  const [outcomes, setOutcomes] = useState<WeekOutcomes>(new Map())
   const mounted = useRef(false)
   const requestGeneration = useRef(0)
 
@@ -62,19 +65,18 @@ export function RitualsHomeScreen() {
         .catch((error: unknown) => ({ season: null, status: seasonStatusForError(error) }))
 
     void Promise.all([loadKnownRitualBundles(client.client), seasonPromise])
-      .then(async ([rituals, season]) => {
-        // Closed weeks, so a missed week shows as missed instead of a tick.
-        const withHistory = await Promise.all(rituals.map(async (ritual) => ({
-          ...ritual,
-          history: await readSoloHistory(client.client, ritual.address, ritual.bundle.ritual.account).catch(() => [] as readonly RitualBundleRead[]),
-        })))
+      .then(([rituals, season]) => {
         if (!mounted.current || generation !== requestGeneration.current) return
         setHomeState({
           status: 'ready',
-          rituals: withHistory.map((ritual) => ({ ...ritual, id: ritual.address })),
+          rituals: rituals.map((ritual) => ({ ...ritual, id: ritual.address })),
           season: season.season,
           seasonStatus: season.status,
         })
+        const getMany = withReadRetry((keys: PublicKey[]) => connection.getMultipleAccountsInfo(keys, 'confirmed'))
+        void readSoloWeekOutcomes(getMany, client.client.programId, rituals.map((ritual) => ({ address: new PublicKey(ritual.address), account: ritual.bundle.ritual.account })))
+          .then((read) => { if (mounted.current && generation === requestGeneration.current) setOutcomes(read) })
+          .catch(() => undefined) // cards keep the neutral "closed" mark
       })
       .catch((error: unknown) => {
         if (mounted.current && generation === requestGeneration.current) setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(error) })
@@ -110,7 +112,7 @@ export function RitualsHomeScreen() {
     <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>
     {homeState.rituals.length === 0
       ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
-      : <ActiveRituals rituals={homeState.rituals} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}
+      : <ActiveRituals rituals={homeState.rituals} outcomes={outcomes} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}
     {SCOPE.seasons && <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={load} onOpen={() => {
       if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
     }} styles={styles} />}
@@ -132,11 +134,11 @@ function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => 
   </View>
 }
 
-function ActiveRituals({ rituals, onOpen, onPromise, styles }: { rituals: readonly HomeRitual[]; onOpen: (ritual: HomeRitual) => void; onPromise: () => void; styles: ReturnType<typeof makeStyles> }) {
+function ActiveRituals({ rituals, outcomes, onOpen, onPromise, styles }: { rituals: readonly HomeRitual[]; outcomes: WeekOutcomes; onOpen: (ritual: HomeRitual) => void; onPromise: () => void; styles: ReturnType<typeof makeStyles> }) {
   return <View accessibilityLabel="Your rituals">
     <Section title="Keep showing up" />
     {rituals.map((ritual) => <View key={ritual.id} style={styles.ritualCard}>
-      <CrewPoster ritual={ritual} styles={styles} />
+      <CrewPoster ritual={ritual} outcomes={outcomes.get(ritual.address)} styles={styles} />
       <ActionButton tone="quiet" label="Open" onPress={() => onOpen(ritual)} style={styles.openButton} />
     </View>)}
     <ActionButton tone="quiet" label="Make another promise" onPress={onPromise} />
@@ -162,11 +164,11 @@ function seasonCountLine(season: SeasonAccountView): string {
   return `${seasonParticipantLine(season.participantCount)} · ${current.count} checked in this week`
 }
 
-function CrewPoster({ ritual, styles }: { ritual: HomeRitual; styles: ReturnType<typeof makeStyles> }) {
+function CrewPoster({ ritual, outcomes, styles }: { ritual: HomeRitual; outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined; styles: ReturnType<typeof makeStyles> }) {
   const account = ritual.bundle.ritual.account
   const kicker = account.kind === 'Solo' ? `Solo · ${statusLabel(account.status)}` : `${statusLabel(account.status)} · ${account.fundedMemberCount} of ${account.members.length} ready`
   const cells: WeekCell[] = account.kind === 'Solo'
-    ? [...soloWeekCells({ ...ritual.bundle, history: ritual.history ?? [] })]
+    ? soloHomeCells(account, outcomes)
     : weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
   return <Poster tint={memberColor(0)} kicker={kicker} title={ritual.title}>
     <WeekStrip cells={cells} tint={memberColor(0)} />

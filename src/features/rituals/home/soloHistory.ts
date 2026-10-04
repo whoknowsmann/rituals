@@ -1,23 +1,67 @@
-import { PublicKey } from '@solana/web3.js'
-import type { RitualClient } from '../../../data/rituals/ritualClient'
-import type { RitualBundleRead } from '../../../data/rituals/ritualsRpc'
+import type { AccountInfo, PublicKey } from '@solana/web3.js'
+import { decodeRitualEvent, type RitualEventAccountView } from '../../../data/rituals/accounts'
+import { eventPda } from '../../../data/rituals/pdas'
+
+export type HomeWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'future'
+type SoloAccount = Readonly<{ kind: 'Group' | 'Solo'; status: string; currentEventIndex: number; schedule: readonly unknown[] }>
 
 /** Closed weeks of a solo ritual: every week before the current one, or all of them once it completes. */
-export function closedWeekCount(account: Readonly<{ kind: 'Group' | 'Solo'; status: string; currentEventIndex: number; schedule: readonly unknown[] }>): number {
+export function closedWeekCount(account: SoloAccount): number {
   if (account.kind !== 'Solo') return 0
   const closed = account.status === 'Completed' ? account.schedule.length : account.currentEventIndex
   return Math.max(0, Math.min(closed, 16))
 }
 
+/** A solo week's result from its event alone: a forfeit means nobody checked in. */
+export function eventOutcome(event: Pick<RitualEventAccountView, 'status' | 'forfeitedTotal'>): 'done' | 'missed' | null {
+  if (event.status === 'Settled') return event.forfeitedTotal > 0n ? 'missed' : 'done'
+  if (event.status === 'Voided') return 'done' // declared skip or unresolved: the stake came back
+  return null
+}
+
 /**
- * Reads each closed week of a solo ritual so Home can show kept vs missed
- * (the ritual account alone only counts settled weeks, so Home used to tick
- * every one). A week that fails to read is left out, never guessed.
+ * Home's week strip. A closed week shows kept / missed once its result is
+ * read, and a neutral "closed" mark until then (or if the read failed),
+ * never a guessed tick.
  */
-export async function readSoloHistory(client: Pick<RitualClient, 'getEventBundle'>, address: string, account: Parameters<typeof closedWeekCount>[0]): Promise<readonly RitualBundleRead[]> {
-  const count = closedWeekCount(account)
-  if (count === 0) return []
-  const key = new PublicKey(address)
-  const reads = await Promise.all(Array.from({ length: count }, (_, index) => client.getEventBundle(key, index).catch(() => null)))
-  return reads.filter((read): read is RitualBundleRead => read !== null)
+export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined): HomeWeekCell[] {
+  const closed = closedWeekCount(account)
+  return account.schedule.map((_window, index) => {
+    if (index < closed) return outcomes?.get(index) ?? 'closed'
+    if (account.status === 'Active' && index === account.currentEventIndex) return 'now'
+    return 'future'
+  })
+}
+
+type GetMany = (keys: PublicKey[]) => Promise<readonly (AccountInfo<Buffer> | null)[]>
+
+/**
+ * Reads every closed week of every solo ritual in as few requests as
+ * possible (one per 100 weeks), so Home never fans out a dozen RPC calls
+ * against the rate-limited public devnet endpoint (2026-10-04: a per-week
+ * fan-out took ~30 s and most reads failed).
+ */
+export async function readSoloWeekOutcomes(
+  getMany: GetMany,
+  programId: PublicKey,
+  rituals: readonly Readonly<{ address: PublicKey; account: SoloAccount }>[],
+): Promise<Map<string, Map<number, 'done' | 'missed'>>> {
+  const wanted = rituals.flatMap((ritual) => Array.from({ length: closedWeekCount(ritual.account) }, (_, index) => ({ ritual: ritual.address, index, key: eventPda(ritual.address, index, programId)[0] })))
+  const result = new Map<string, Map<number, 'done' | 'missed'>>()
+  for (let start = 0; start < wanted.length; start += 100) {
+    const chunk = wanted.slice(start, start + 100)
+    const infos = await getMany(chunk.map((entry) => entry.key))
+    chunk.forEach((entry, position) => {
+      const info = infos[position]
+      if (!info) return
+      try {
+        const outcome = eventOutcome(decodeRitualEvent({ owner: info.owner, data: info.data }, programId))
+        if (!outcome) return
+        const id = entry.ritual.toBase58()
+        if (!result.has(id)) result.set(id, new Map())
+        result.get(id)!.set(entry.index, outcome)
+      } catch { /* unreadable week: stays "closed" */ }
+    })
+  }
+  return result
 }
