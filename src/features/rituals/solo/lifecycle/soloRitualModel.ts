@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js'
 import { DEMO_CAUSE } from '../../../../data/rituals/demoConfig'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
+import { demoWeekMinutesLabel, isDemoSpeedWindow } from '../../../../domain/rituals/schedule'
 import { shortRosterAddress } from '../../create/roster'
 import { weekOpensLabel } from '../../displayFormat'
 
@@ -33,6 +34,11 @@ export type SoloRitualModel = Readonly<{
   lastClosedEventIndex: number | null
   /** Chain second when the current week can be settled (resolution + 1). */
   settleOpensAt: number | null
+  /**
+   * One quiet line for rituals written at demo speed ("Demo speed: a week here
+   * is 6.5 minutes."), read off the on-chain windows; null for real weeks.
+   */
+  demoSpeedNotice: string | null
 }>
 
 type EventLike = NonNullable<RitualBundleRead['event']>
@@ -45,6 +51,13 @@ const short = (value: PublicKey): string => shortRosterAddress(value.toBase58())
 export function labelSoloDestination(destination: PublicKey, causeTokenAccount: PublicKey | null = DEMO_CAUSE.tokenAccount): string {
   if (causeTokenAccount && destination.equals(causeTokenAccount)) return DEMO_CAUSE.label
   return `the person you picked · ${short(destination)}`
+}
+
+/** Demo-speed disclosure from the schedule alone (DESIGN.md rule 5); nothing for real weeks. */
+export function demoSpeedNotice(schedule: readonly Readonly<{ opens: bigint; deadline: bigint }>[]): string | null {
+  const first = schedule[0]
+  if (!first || !isDemoSpeedWindow(Number(first.opens), Number(first.deadline))) return null
+  return `Demo speed: a week here is ${demoWeekMinutesLabel(schedule.map((window) => Number(window.opens)))} minutes.`
 }
 
 function latestTerminal(bundle: SoloRitualBundle): Terminal | null {
@@ -148,5 +161,6 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
     needsEventInit: mapped.state === 'resolving/settle' && !bundle.event,
     lastClosedEventIndex: latestTerminal(bundle)?.event.account.eventIndex ?? null,
     settleOpensAt: schedule ? Number(schedule.resolution) + 1 : null,
+    demoSpeedNotice: demoSpeedNotice(account.schedule),
   })
 }

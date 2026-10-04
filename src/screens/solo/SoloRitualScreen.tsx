@@ -215,6 +215,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         <WeekStrip cells={model.weekCells} tint={tint} />
         <PosterLine label="Your stake" value={formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)} />
       </Poster>
+      {model.demoSpeedNotice && <Text style={s.muted}>{model.demoSpeedNotice}</Text>}
       {canShareWitness && witness && (
         <View style={s.witnessCard}>
           <Text style={s.cardTitle}>Your witness</Text>

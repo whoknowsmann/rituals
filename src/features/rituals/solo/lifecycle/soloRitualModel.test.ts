@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
-import { soloRitualModel, labelSoloDestination, type SoloRitualBundle } from './soloRitualModel'
+import { soloRitualModel, labelSoloDestination, demoSpeedNotice, type SoloRitualBundle } from './soloRitualModel'
 
 const me = new PublicKey(new Uint8Array(32).fill(7))
 const witness = new PublicKey(new Uint8Array(32).fill(8))
@@ -54,6 +54,25 @@ describe('soloRitualModel', () => {
   it('labels the demo cause only for the exact configured destination', () => {
     expect(labelSoloDestination(destination, destination)).toContain('Northside Food Bank')
     expect(labelSoloDestination(destination, new PublicKey(new Uint8Array(32).fill(10)))).toContain('person you picked')
+  })
+
+  // DESIGN.md rule 5: demo timing is disclosed as "Demo speed" in muted text,
+  // decided from the on-chain windows so no local record is needed.
+  describe('demo speed notice', () => {
+    const DAY = 86_400n
+    const shipped = [{ opens: 1_000n, deadline: 1_300n }, { opens: 1_390n, deadline: 1_690n }]
+    const real = [{ opens: 1_000n, deadline: 1_000n + 6n * DAY }, { opens: 1_000n + 7n * DAY, deadline: 1_000n + 13n * DAY }]
+
+    it('reads the shipped solo demo schedule as 6.5-minute weeks and says so in every state', () => {
+      expect(demoSpeedNotice(shipped)).toBe('Demo speed: a week here is 6.5 minutes.')
+      expect(soloRitualModel(bundle({ schedule: shipped }), 50, me).demoSpeedNotice).toBe('Demo speed: a week here is 6.5 minutes.')
+      expect(soloRitualModel(bundle({ schedule: shipped, status: 'Completed', currentEventIndex: 2 }), 5_000, me).demoSpeedNotice).toBe('Demo speed: a week here is 6.5 minutes.')
+    })
+
+    it('shows nothing for real weeks', () => {
+      expect(demoSpeedNotice(real)).toBeNull()
+      expect(soloRitualModel(bundle({ schedule: real }), 50, me).demoSpeedNotice).toBeNull()
+    })
   })
 
   describe('closing a week (chain rules: finalize only after resolution)', () => {
