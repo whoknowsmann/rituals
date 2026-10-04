@@ -28,6 +28,12 @@ export interface RitualCadence {
   /** True only for the devnet demo cadence. Never silently true in production. */
   readonly accelerated: boolean
   readonly label: string
+  /**
+   * Seconds after create when week 1 opens. When set, `firstEventStart` uses
+   * it as-is; otherwise the cadence falls back to the next-same-weekday rule
+   * (real weeks) or the demo leads (accelerated).
+   */
+  readonly firstEventLeadSeconds?: number
 }
 
 export interface ScheduleRequest {
@@ -130,6 +136,7 @@ function assertCadence(cadence: RitualCadence): void {
   const claim = requirePositiveInteger(cadence.claimWindowSeconds, 'cadence.claimWindowSeconds')
   const grace = requirePositiveInteger(cadence.resolutionGraceSeconds, 'cadence.resolutionGraceSeconds')
   if (typeof cadence.accelerated !== 'boolean') fail('cadence.accelerated must be a boolean')
+  if (cadence.firstEventLeadSeconds !== undefined) requirePositiveInteger(cadence.firstEventLeadSeconds, 'cadence.firstEventLeadSeconds')
   // Each event must fully resolve before the next one opens, otherwise the
   // protocol's chronological-event invariant cannot hold.
   if (claim + grace > period) {
@@ -162,10 +169,49 @@ export const DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS = 120
 export const DEMO_GROUP_FIRST_EVENT_LEAD_SECONDS = 600
 
 /**
+ * Real solo weeks: "stamp any day this week". Week 1 opens two minutes after
+ * create (same lead as demo speed, so a create that lands always activates
+ * before week 1 opens), check-in stays open six days, then 23 h of grace for
+ * the week to settle; 6 d + 23 h = 167 h < the 168 h period the program
+ * needs between one week's resolution and the next week's opening. The group
+ * flow keeps WEEKLY_CADENCE (next same weekday, 48 h + 24 h).
+ */
+export const REAL_SOLO_CLAIM_WINDOW_SECONDS = 6 * DAY
+export const REAL_SOLO_RESOLUTION_GRACE_SECONDS = 23 * HOUR
+export const REAL_SOLO_CADENCE: RitualCadence = Object.freeze({
+  periodSeconds: WEEK,
+  claimWindowSeconds: REAL_SOLO_CLAIM_WINDOW_SECONDS,
+  resolutionGraceSeconds: REAL_SOLO_RESOLUTION_GRACE_SECONDS,
+  accelerated: false,
+  label: 'Weekly',
+  firstEventLeadSeconds: DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS,
+})
+
+/**
+ * A week whose check-in window is shorter than a day was written at demo
+ * speed. Derived from the schedule itself (which is on chain), so it needs no
+ * local record of how the ritual was created.
+ */
+export function isDemoSpeedWindow(opensSeconds: number, deadlineSeconds: number): boolean {
+  return deadlineSeconds - opensSeconds < DAY
+}
+
+/**
+ * How long a demo week is, in minutes, for people ("6.5"). Measured from the
+ * first two openings when the schedule has them; a one-week ritual falls back
+ * to the shipped solo demo period.
+ */
+export function demoWeekMinutesLabel(opens: readonly number[]): string {
+  const period = opens.length > 1 ? opens[1] - opens[0] : DEMO_SOLO_CADENCE.periodSeconds
+  return String(Number((period / 60).toFixed(1)))
+}
+
+/**
  * When week 1 opens for a ritual created at `referenceSeconds`.
  *
- * Weekly: the next same weekday (a week out). Demo speed: minutes, not a
- * week — otherwise nothing can be claimed or settled in one sitting (B1).
+ * An explicit lead on the cadence wins. Otherwise weekly: the next same
+ * weekday (a week out); demo speed: minutes, not a week — otherwise nothing
+ * can be claimed or settled in one sitting (B1).
  */
 export function firstEventStart(request: { cadence: RitualCadence; referenceSeconds: number; memberCount: number }): number {
   if (request === null || typeof request !== 'object') fail('first event request must be an object')
@@ -173,6 +219,9 @@ export function firstEventStart(request: { cadence: RitualCadence; referenceSeco
   const members = requirePositiveInteger(request.memberCount, 'memberCount')
   if (members > 6) fail('memberCount must be between 1 and 6')
   assertCadence(request.cadence)
+  if (request.cadence.firstEventLeadSeconds !== undefined) {
+    return reference + request.cadence.firstEventLeadSeconds
+  }
   if (!request.cadence.accelerated) {
     return nextWeekdayOccurrence(reference, new Date(reference * 1000).getUTCDay())
   }
