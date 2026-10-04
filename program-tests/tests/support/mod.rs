@@ -481,6 +481,14 @@ pub(crate) async fn submit(
     context.banks_client.process_transaction(tx).await
 }
 pub(crate) fn initialize_ix(authority: Pubkey) -> Instruction {
+    initialize_ix_with_fee(authority, 200, 50, 500)
+}
+pub(crate) fn initialize_ix_with_fee(
+    authority: Pubkey,
+    fee_basis_points: u16,
+    minimum_fee: u64,
+    maximum_fee: u64,
+) -> Instruction {
     let accounts = rituals::accounts::InitializeProtocolConfig {
         protocol_config: config_pda(),
         authority,
@@ -492,12 +500,104 @@ pub(crate) fn initialize_ix(authority: Pubkey) -> Instruction {
         data: rituals::instruction::InitializeProtocolConfig {
             allowed_stake_mint: MINT,
             fee_recipient: RECIPIENT,
-            fee_basis_points: 200,
-            minimum_fee: 50,
-            maximum_fee: 500,
+            fee_basis_points,
+            minimum_fee,
+            maximum_fee,
             maximum_member_stake: 1_000,
         }
         .data(),
+    }
+}
+/// The free-protocol configuration: 0 bps, 0 minimum, 0 maximum.
+pub(crate) fn initialize_free_ix(authority: Pubkey) -> Instruction {
+    initialize_ix_with_fee(authority, 0, 0, 0)
+}
+pub(crate) fn update_config_ix(
+    authority: Pubkey,
+    fee_basis_points: u16,
+    minimum_fee: u64,
+    maximum_fee: u64,
+) -> Instruction {
+    let accounts = rituals::accounts::UpdateProtocolConfig {
+        protocol_config: config_pda(),
+        authority,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::UpdateProtocolConfig {
+            fee_basis_points,
+            minimum_fee,
+            maximum_fee,
+        }
+        .data(),
+    }
+}
+pub(crate) fn deserialize_config(data: &[u8]) -> rituals::ProtocolConfig {
+    let mut data = data;
+    rituals::ProtocolConfig::try_deserialize(&mut data).unwrap()
+}
+pub(crate) fn create_solo_ix(
+    creator: Pubkey,
+    nonce: u64,
+    witness: Option<Pubkey>,
+    destination: Pubkey,
+    stake: u64,
+    opens: i64,
+) -> Instruction {
+    let ritual = ritual_pda(&creator, nonce);
+    let accounts = rituals::accounts::CreateSoloRitual {
+        protocol_config: config_pda(),
+        ritual,
+        creator,
+        stake_mint: MINT,
+        fee_recipient_token: RECIPIENT,
+        forfeit_destination: destination,
+        season: None,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        fee_vault: vault_pda(b"fee-vault", &ritual),
+        system_program: system_program::ID,
+        token_program: spl_token::ID,
+    };
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: accounts.to_account_metas(None),
+        data: rituals::instruction::CreateSoloRitual {
+            nonce,
+            rule_digest: [7; 32],
+            member_total_stake: stake,
+            schedule: vec![EventWindow {
+                opens,
+                deadline: opens + 1,
+                resolution: opens + 2,
+            }],
+            witness,
+        }
+        .data(),
+    }
+}
+pub(crate) fn finalize_solo_ix(
+    ritual: Pubkey,
+    event_index: u8,
+    member_destination: Pubkey,
+    forfeit_destination: Pubkey,
+) -> Instruction {
+    let accounts = rituals::accounts::FinalizeEvent {
+        ritual,
+        event: event_pda(&ritual, event_index),
+        stake_mint: MINT,
+        stake_vault: vault_pda(b"stake-vault", &ritual),
+        token_program: spl_token::ID,
+    };
+    let mut metas = accounts.to_account_metas(None);
+    metas.extend([
+        solana_sdk::instruction::AccountMeta::new(member_destination, false),
+        solana_sdk::instruction::AccountMeta::new(forfeit_destination, false),
+    ]);
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: metas,
+        data: rituals::instruction::FinalizeEvent { event_index }.data(),
     }
 }
 pub(crate) fn create_ix(

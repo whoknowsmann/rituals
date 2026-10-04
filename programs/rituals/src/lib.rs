@@ -26,13 +26,7 @@ pub mod rituals {
     ) -> Result<()> {
         // The initializer records the address only. CreateRitual validates the
         // concrete classic SPL token account and its mint for the first time.
-        require!(
-            (1..=10_000).contains(&fee_basis_points),
-            RitualsError::InvalidFeeBasisPoints
-        );
-        require!(minimum_fee > 0, RitualsError::InvalidMinimumFee);
-        require!(maximum_fee > 0, RitualsError::InvalidMaximumFee);
-        require!(minimum_fee <= maximum_fee, RitualsError::FeeBoundsReversed);
+        validate_fee_settings(fee_basis_points, minimum_fee, maximum_fee)?;
         require!(
             maximum_member_stake > 0,
             RitualsError::InvalidMaximumMemberStake
@@ -533,25 +527,28 @@ pub mod rituals {
         );
 
         let fee = ritual.locked_activation_fee;
-        let creator = ritual.creator;
-        let nonce = ritual.nonce.to_le_bytes();
-        let bump = [ritual.bump];
-        let signer_seeds: &[&[u8]] = &[b"ritual", creator.as_ref(), nonce.as_ref(), bump.as_ref()];
-        let cpi_accounts = token::TransferChecked {
-            from: ctx.accounts.fee_vault.to_account_info(),
-            mint: ctx.accounts.stake_mint.to_account_info(),
-            to: ctx.accounts.fee_recipient_token.to_account_info(),
-            authority: ctx.accounts.ritual.to_account_info(),
-        };
-        token::transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                cpi_accounts,
-                &[signer_seeds],
-            ),
-            fee,
-            ritual.stake_decimals,
-        )?;
+        if fee > 0 {
+            let creator = ritual.creator;
+            let nonce = ritual.nonce.to_le_bytes();
+            let bump = [ritual.bump];
+            let signer_seeds: &[&[u8]] =
+                &[b"ritual", creator.as_ref(), nonce.as_ref(), bump.as_ref()];
+            let cpi_accounts = token::TransferChecked {
+                from: ctx.accounts.fee_vault.to_account_info(),
+                mint: ctx.accounts.stake_mint.to_account_info(),
+                to: ctx.accounts.fee_recipient_token.to_account_info(),
+                authority: ctx.accounts.ritual.to_account_info(),
+            };
+            token::transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    cpi_accounts,
+                    &[signer_seeds],
+                ),
+                fee,
+                ritual.stake_decimals,
+            )?;
+        }
         record_season_participant(&ctx.accounts.ritual, ctx.accounts.season.as_mut())?;
 
         let ritual = &mut ctx.accounts.ritual;
@@ -1216,6 +1213,42 @@ pub mod rituals {
         ctx.accounts.ritual.vaults_closed = true;
         Ok(())
     }
+
+    /// Update the protocol fee settings in place. Only the three fee fields
+    /// change; the account layout, authority, mint, recipient and limits are
+    /// untouched so existing readers keep decoding the same bytes. Rituals
+    /// that already locked a fee keep paying that locked fee.
+    pub fn update_protocol_config(
+        ctx: Context<UpdateProtocolConfig>,
+        fee_basis_points: u16,
+        minimum_fee: u64,
+        maximum_fee: u64,
+    ) -> Result<()> {
+        validate_fee_settings(fee_basis_points, minimum_fee, maximum_fee)?;
+        let config = &mut ctx.accounts.protocol_config;
+        config.fee_basis_points = fee_basis_points;
+        config.minimum_fee = minimum_fee;
+        config.maximum_fee = maximum_fee;
+        Ok(())
+    }
+}
+
+/// Shared fee-setting validation for initialize and update. A zero fee
+/// (0 bps, 0 minimum, 0 maximum) is valid and makes activation free.
+fn validate_fee_settings(fee_basis_points: u16, minimum_fee: u64, maximum_fee: u64) -> Result<()> {
+    require!(
+        fee_basis_points <= 10_000,
+        RitualsError::InvalidFeeBasisPoints
+    );
+    require!(minimum_fee <= maximum_fee, RitualsError::FeeBoundsReversed);
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct UpdateProtocolConfig<'info> {
+    #[account(mut, seeds = [b"protocol-config"], bump = protocol_config.bump, has_one = authority)]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -2402,7 +2435,6 @@ impl Ritual {
         );
         require!(
             !self.rule_digest.iter().all(|byte| *byte == 0)
-                && self.locked_activation_fee > 0
                 && self.locked_fee_recipient != Pubkey::default(),
             RitualsError::ActivationStateInconsistent
         );
@@ -2515,7 +2547,6 @@ impl Ritual {
                 && self.per_event_allocation == self.member_total_stake / event_count as u64
                 && self.additional_confirmation_threshold <= (member_count - 1) as u8
                 && !self.rule_digest.iter().all(|byte| *byte == 0)
-                && self.locked_activation_fee > 0
                 && self.locked_fee_recipient != Pubkey::default(),
             RitualsError::CancellationStateInconsistent
         );
@@ -2605,11 +2636,11 @@ impl Ritual {
 
 #[error_code]
 pub enum RitualsError {
-    #[msg("fee basis points must be between 1 and 10,000")]
+    #[msg("fee basis points must be between 0 and 10,000")]
     InvalidFeeBasisPoints,
-    #[msg("minimum fee must be positive")]
+    #[msg("minimum fee is invalid")]
     InvalidMinimumFee,
-    #[msg("maximum fee must be positive")]
+    #[msg("maximum fee is invalid")]
     InvalidMaximumFee,
     #[msg("minimum fee must not exceed maximum fee")]
     FeeBoundsReversed,

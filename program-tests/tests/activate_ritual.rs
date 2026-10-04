@@ -181,9 +181,10 @@ async fn activation_rejects_locked_fee_not_derived_from_full_bitmap() {
     let nonce = 706;
     let mut context = make_fully_funded(&creator, &other, nonce, FeePayerMode::Host).await;
     let ritual = ritual_pda(&creator.pubkey(), nonce);
+    // A zero locked fee is a valid value now, so the inconsistency must come
+    // from the tracked fee total disagreeing with the locked fee (50 != 0).
     replace_ritual(&mut context, ritual, |r| {
         r.locked_activation_fee = 0;
-        r.funded_fee_total = 0;
     })
     .await;
     let before = funding_snapshot(&mut context, ritual).await;
@@ -439,7 +440,10 @@ async fn malformed_locked_activation_states_are_independently_rejected_with_full
             "recipient_default",
             Box::new(|r| r.locked_fee_recipient = Pubkey::default()),
         ),
-        ("fee_zero", Box::new(|r| r.locked_activation_fee = 0)),
+        (
+            "fee_zero_but_funded_fee_nonzero",
+            Box::new(|r| r.locked_activation_fee = 0),
+        ),
         ("bitmap_missing", Box::new(|r| r.funded_members_bitmap = 1)),
         (
             "bitmap_out_of_range",

@@ -174,7 +174,7 @@ async fn initialize_rejects_non_signing_authority() {
 
 #[tokio::test]
 async fn initialize_rejects_invalid_basis_points() {
-    for bps in [0, 10_001] {
+    for bps in [10_001, u16::MAX] {
         let (mut banks, payer, recent_blockhash) = start().await;
         let ix = initialize_ix(
             &payer.pubkey(),
@@ -190,8 +190,9 @@ async fn initialize_rejects_invalid_basis_points() {
 }
 
 #[tokio::test]
-async fn initialize_rejects_invalid_fee_bounds() {
-    for (minimum, maximum, expected) in [(0, 1, 6001), (1, 0, 6002), (2, 1, 6003)] {
+async fn initialize_rejects_reversed_fee_bounds() {
+    // Zero bounds are valid now; only a minimum above the maximum is rejected.
+    for (minimum, maximum) in [(2, 1), (1, 0), (u64::MAX, u64::MAX - 1)] {
         let (mut banks, payer, recent_blockhash) = start().await;
         let ix = initialize_ix(
             &payer.pubkey(),
@@ -202,9 +203,46 @@ async fn initialize_rejects_invalid_fee_bounds() {
             maximum,
             1_000,
         );
-        assert_custom_error(
-            submit(&mut banks, &payer, ix, recent_blockhash).await,
-            expected,
+        assert_custom_error(submit(&mut banks, &payer, ix, recent_blockhash).await, 6003);
+    }
+}
+
+#[tokio::test]
+async fn initialize_accepts_zero_fee_settings_and_reads_them_back() {
+    for (bps, minimum, maximum) in [(0, 0, 0), (0, 0, 5), (10_000, 0, 0), (0, 7, 7)] {
+        let (mut banks, payer, recent_blockhash) = start().await;
+        let allowed = Pubkey::new_unique();
+        let recipient = Pubkey::new_unique();
+        let ix = initialize_ix(
+            &payer.pubkey(),
+            allowed,
+            recipient,
+            bps,
+            minimum,
+            maximum,
+            1_000,
+        );
+        submit(&mut banks, &payer, ix, recent_blockhash)
+            .await
+            .unwrap();
+        let (_, bump) = config_pda();
+        assert_eq!(
+            read_config_snapshot(&mut banks).await,
+            (
+                1,
+                payer.pubkey(),
+                allowed,
+                recipient,
+                bps,
+                minimum,
+                maximum,
+                1_000,
+                6,
+                16,
+                false,
+                bump,
+            ),
+            "case {bps}/{minimum}/{maximum}"
         );
     }
 }

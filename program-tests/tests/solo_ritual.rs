@@ -1,77 +1,12 @@
 mod support;
 use support::*;
 
-fn create_solo_ix(
-    creator: Pubkey,
-    nonce: u64,
-    witness: Option<Pubkey>,
-    destination: Pubkey,
-    stake: u64,
-    opens: i64,
-) -> Instruction {
-    let ritual = ritual_pda(&creator, nonce);
-    let accounts = rituals::accounts::CreateSoloRitual {
-        protocol_config: config_pda(),
-        ritual,
-        creator,
-        stake_mint: MINT,
-        fee_recipient_token: RECIPIENT,
-        forfeit_destination: destination,
-        season: None,
-        stake_vault: vault_pda(b"stake-vault", &ritual),
-        fee_vault: vault_pda(b"fee-vault", &ritual),
-        system_program: system_program::ID,
-        token_program: spl_token::ID,
-    };
-    Instruction {
-        program_id: PROGRAM_ID,
-        accounts: accounts.to_account_metas(None),
-        data: rituals::instruction::CreateSoloRitual {
-            nonce,
-            rule_digest: [7; 32],
-            member_total_stake: stake,
-            schedule: vec![EventWindow {
-                opens,
-                deadline: opens + 1,
-                resolution: opens + 2,
-            }],
-            witness,
-        }
-        .data(),
-    }
-}
-
 fn declare_skip_ix(ritual: Pubkey, member: Pubkey, event_index: u8) -> Instruction {
     let accounts = rituals::accounts::DeclareSkip { ritual, member };
     Instruction {
         program_id: PROGRAM_ID,
         accounts: accounts.to_account_metas(None),
         data: rituals::instruction::DeclareSkip { event_index }.data(),
-    }
-}
-
-fn finalize_solo_ix(
-    ritual: Pubkey,
-    event_index: u8,
-    member_destination: Pubkey,
-    forfeit_destination: Pubkey,
-) -> Instruction {
-    let accounts = rituals::accounts::FinalizeEvent {
-        ritual,
-        event: event_pda(&ritual, event_index),
-        stake_mint: MINT,
-        stake_vault: vault_pda(b"stake-vault", &ritual),
-        token_program: spl_token::ID,
-    };
-    let mut metas = accounts.to_account_metas(None);
-    metas.extend([
-        solana_sdk::instruction::AccountMeta::new(member_destination, false),
-        solana_sdk::instruction::AccountMeta::new(forfeit_destination, false),
-    ]);
-    Instruction {
-        program_id: PROGRAM_ID,
-        accounts: metas,
-        data: rituals::instruction::FinalizeEvent { event_index }.data(),
     }
 }
 
