@@ -5,7 +5,8 @@ for where Rituals actually is. Everything here is measured, not inherited.
 
 Last verified: **2026-10-04 ~14:30 CDT** — `feat/solo-screens` @ 6872860, clean
 and pushed; tsc clean; **2,247 tests / 125 files**; `verify-devnet-config` 5/5
-PASS; phone has **d15** (35c5101), **d17** (6872860) built and being installed.
+PASS; phone has **d17** (6872860), installed 15:16 and walked to the wallet
+prompt (weeks/stake/balance/clean name/signed card OK, dark mode).
 Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT) · **submit Wed Oct 7, 8pm CDT**
 
 ## How to re-verify in one minute
@@ -39,7 +40,8 @@ themselves → receipts.**
   TEST balance (blocks the button if stake + fee won't fit), the locked cause
   (Northside Food Bank (demo)), the signed card. The one approval creates,
   stakes, activates and **pre-pays the app's settle key** (~0.001 + 0.002/week
-  SOL). *(d17: weeks/stake/balance/clean names not yet seen on the phone.)*
+  SOL). *(d17: walked on the phone up to the wallet; no ritual created with
+  the new controls yet.)*
 - **Stamp, 1 approval per week:** big centered HOLD that fills (1.4 s, ring,
   quarter ticks, buzz), optional one-line note, then confetti + SHOWED UP stamp
   with a line from the sayings basket (`solo/sayings.ts`).
@@ -79,8 +81,10 @@ Demo timing (devnet only): a "week" is 6.5 min — opens ~2 min after create,
 
 ### Next actions, in order (owner · when)
 
-1. **Walk d17 on the phone** (Hermes, then Jack's thumbs up): weeks/stake
-   controls, balance line, "to read" → "Read", signed card, day + night.
+1. **Jack's thumbs up on d17** (on the phone now): weeks/stake controls,
+   balance line, "to read" → "Read", signed card, day + night. Walked by
+   Hermes 15:17 (`artifacts/shots/d17-*`); one real create with the new
+   controls still to run.
 2. **Rewrite the submission docs for the shipped app** (Hermes, Sonnet
    writers · Mon): README, video script, pitch outline, store/privacy. The
    drafts on `docs/submission-solo` are stale (Seasons/friends-first, Phantom,
