@@ -43,6 +43,13 @@ send"); walked to the wallet prompt (`artifacts/shots/d4-*`). Build with
 `TAG=dN scripts/build-apk-local.sh`.
 
 Next actions, in order:
+0000. **2026-10-04 13:05: d9 (88df452) on the Seeker, confirmed by Jack.** Big
+      centered hold button (1.4 s fill, ring, quarter ticks, buzz), one Seed
+      Vault approval for the stamp (`4xe8aAVa…`), confetti + stamp shown once
+      (the double pop came from the screen remounting on every re-read; fixed
+      by keeping the last read while re-reading). Seed Vault devnet card shows
+      on create. Still open from the list below: Seed Vault menu path for the
+      hint, github.com identity, approval expiry, Home strip counting misses.
 000. **Phone run 2026-10-03 14:01–14:32 on d7 (b072773) with Seed Vault Wallet
      (account "test" = Da59…8VmV, wallet set to Devnet): the lean journey
      works.** Create `5pvSmzMg…` (1 approval, settle key funded inside it;
