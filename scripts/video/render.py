@@ -102,12 +102,13 @@ def main() -> int:
     ap.add_argument('--shots', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--frame', type=float, default=None, help='also write <out>.png at this second')
+    ap.add_argument('--voice', default=None, help='voiceover audio (m4a/mp3/wav) laid under the cut; video keeps its length')
     args = ap.parse_args()
     for f in (FONT_HEAD, FONT_BODY, FONT_BODY_BOLD, FFMPEG):
         if not os.path.exists(f):
             print('missing:', f, file=sys.stderr); return 2
     with open(args.shots) as fh:
-        shots = json.load(fh)
+        shots = [seg for seg in json.load(fh) if isinstance(seg, dict) and 'kind' in seg]  # entries with only '_' are comments
     with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR')) as tmp:
         paths = []
         for i, seg in enumerate(shots):
@@ -119,8 +120,13 @@ def main() -> int:
         with open(lst, 'w') as fh:
             for p in paths:
                 fh.write(f"file {shlex.quote(p)}\n")
+        silent = os.path.join(tmp, 'silent.mp4') if args.voice else args.out
         subprocess.run([FFMPEG, '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst,
-                        '-c', 'copy', args.out], check=True)
+                        '-c', 'copy', silent], check=True)
+        if args.voice:
+            # Voice under the picture; pad with silence so the video length wins.
+            subprocess.run([FFMPEG, '-y', '-loglevel', 'error', '-i', silent, '-i', args.voice,
+                            '-filter_complex', '[1:a]apad[a]', '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-shortest', args.out], check=True)
     probe = subprocess.run([FFPROBE, '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', args.out],
                            capture_output=True, text=True, check=True).stdout.strip()
     print(f'wrote {args.out} ({float(probe):.1f}s)')
