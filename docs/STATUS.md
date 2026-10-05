@@ -99,10 +99,21 @@ the create balance line when short/empty and in Settings, fails open, URL
 `5wMjQxK1…6krL` = 0.05 SOL + 50 TEST in one faucet-paid tx; second call 409).
 Hot wallet `FDjXc5KeLbWf9UaMr3y6uUe5ZQDqJYctWuMW7CdnRK8q`: 1.95 devnet SOL +
 4,950 TEST (key at `~/projects/rituals-faucet/.local/faucet-hot.json`,
-gitignored). **Blocked on Jack:** Vercel device login (CLI waiting), then I
-create the project, set `FAUCET_SECRET_KEY` + `FAUCET_CONTACT`, deploy, add
-`faucet.whoknowsman.com` (DNS record at the domain's provider), test from
-the phone, then the recording run from a fresh Seed Vault account (video
+gitignored). **Vercel:** logged in (CLI device flow), project `rituals-faucet`
+created and linked (team jacks-projects-aba8f24d), env `FAUCET_SECRET_KEY` +
+`FAUCET_CONTACT` (placeholder faucet@whoknowsman.com) set as sensitive
+production vars, first production deploy live at
+`https://rituals-faucet.vercel.app` but `/api/health` returned
+FUNCTION_INVOCATION_FAILED (ERR_REQUIRE_ESM: rpc-websockets → ESM-only uuid on
+Vercel's runtime). **Fix committed + pushed** (2546d41: npm `overrides` pin
+uuid@9 under rpc-websockets; local tests 67/0). **Redeploy blocked:** the
+`vercel deploy --prod` command sat on an approval prompt with Jack away. Next:
+Jack approves `npx vercel deploy --prod --yes` (or connects the GitHub repo to
+the Vercel project so pushes deploy), then health check, add
+`faucet.whoknowsman.com` (Settings → Domains; DNS record at the domain's
+provider), curl a claim from a fresh keypair, then the phone. The app's URL
+constant is `https://faucet.whoknowsman.com` (`src/features/rituals/faucet/devnetFaucet.ts`).
+**Blocked on Jack:** the deploy approval above; then the recording run from a fresh Seed Vault account (video
 script updated: judge's path first). Then the decisions in the package plan
 §4 (license, Pages origin, voiceover, second phone).
 
