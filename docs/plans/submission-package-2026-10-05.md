@@ -61,8 +61,8 @@ phone's voice memo (~60–90 s) and drop the file in `artifacts/video/`, or we
 go captions-only → v2 with your voice → you upload unlisted to YouTube (I
 can't sign in to your account) and paste the link. README final from the
 draft; LICENSE; `main` fast-forwarded; release `v0.1.0-clockin` with the APK
-and sha256; deck PDF rendered from `pitch-deck.md` (HTML slides printed to
-PDF with the browser, app fonts, no installs) → you read it once.
+and sha256; deck PDF (already rendered tonight: `artifacts/deck/rituals-deck.pdf`;
+re-rendered after your edits) → you read it once.
 
 ### Tuesday
 
@@ -173,4 +173,8 @@ neutral TTS track can be generated locally for timing, not for the final.
   Hermes (review notes at the top of each file if anything was changed).
 - `scripts/video/render.py` + `artifacts/video/pipeline-test.mp4` — the cut
   pipeline, proven.
+- `scripts/deck/build.py` → `artifacts/deck/rituals-deck.html` and
+  `rituals-deck.pdf` (8 slides, app fonts, printed with the browser; no
+  overflow). Re-run after any edit to `pitch-deck.md`; speaker notes stay in
+  the markdown.
 - `docs/STATUS.md` — START HERE updated.
