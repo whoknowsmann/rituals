@@ -38,6 +38,12 @@ export async function rememberRitual(ritual: KnownRitual): Promise<void> {
   await AsyncStorage.setItem(KNOWN_RITUALS_STORAGE_KEY, JSON.stringify([...current.filter((item) => item.address !== parsed.address), parsed]))
 }
 
+/** Take a ritual off this phone's list. The chain is untouched; nothing is refunded or cancelled. */
+export async function forgetRitual(address: string): Promise<void> {
+  const current = await listKnownRituals()
+  await AsyncStorage.setItem(KNOWN_RITUALS_STORAGE_KEY, JSON.stringify(current.filter((item) => item.address !== address)))
+}
+
 export async function loadKnownRitualBundles(client: RitualClient): Promise<readonly (KnownRitual & { bundle: RitualBundleRead })[]> {
   return readKnownRitualBundles(await listKnownRituals(), (address) => client.getRitualBundle(address))
 }

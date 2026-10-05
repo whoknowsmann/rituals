@@ -282,15 +282,14 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.progress} accessibilityLabel={`Make it yours, step ${stepPosition.position} of ${stepPosition.total}`}>
-        <Text style={styles.kicker}>MAKE IT YOURS · {stepPosition.position} OF {stepPosition.total}</Text>
+      <View style={styles.progress} accessibilityLabel={`New ritual, step ${stepPosition.position} of ${stepPosition.total}`}>
+        <Text style={styles.kicker}>NEW RITUAL · {stepPosition.position} OF {stepPosition.total}</Text>
         <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${(stepPosition.position / stepPosition.total) * 100}%` }]} /></View>
       </View>
 
       {step === 1 && (
         <>
           <Hero>What’s your ritual?</Hero>
-          <Text style={styles.helper}>One clear thing you will do each week.</Text>
           <TextInput
             value={draft.intention}
             onChangeText={(value) => {
@@ -308,7 +307,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           />
           {suggestions.length > 0 && (
             <View style={styles.suggestions}>
-              <Section title="A starting point" />
+              <Section title="Suggestions" />
               {suggestions.map((suggestion) => {
                 const selected = suggestionIsSelected(suggestion, selectedSuggestionKey)
                 return (
@@ -354,8 +353,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
 
       {step === 3 && (
         <>
-          <Hero>If I miss a week</Hero>
-          <Text style={styles.helper}>A quiet consequence, chosen before you start.</Text>
+          <Hero>Your stake</Hero>
           <View style={styles.stakeCard}>
             <Text style={styles.label}>HOW MANY WEEKS</Text>
             <View style={styles.stepper}>

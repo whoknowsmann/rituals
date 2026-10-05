@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Keypair, PublicKey } from '@solana/web3.js'
@@ -14,7 +14,8 @@ import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/
 import { buildRitualActionDeps } from '../../features/rituals/buildRitualActionDeps'
 import { useRitualAction } from '../../features/rituals/useRitualAction'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
-import { listKnownRituals } from '../../features/rituals/authoritativeRituals'
+import { forgetRitual, listKnownRituals, type KnownRitual } from '../../features/rituals/authoritativeRituals'
+import { ritualTintAmong } from '../../features/rituals/home/ritualColours'
 import { notesOffered, readSoloNotes, saveWeekNote, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
 import { SCOPE } from '../../features/rituals/productScope'
 import { keptSaying } from '../../features/rituals/solo/sayings'
@@ -26,7 +27,7 @@ import { shortRosterAddress } from '../../features/rituals/create/roster'
 import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { ActionButton, Confetti, ErrorLine, Footnote, HoldButton, haptic, Poster, PosterLine, Stamp, WeekStrip } from '../../components/crew'
-import { color, fonts, radius, ritualTint, space, type, themedStyles, useColors } from '../../theme'
+import { color, fonts, radius, space, type, themedStyles, useColors } from '../../theme'
 import { soloRitualModel, type SoloRitualModel } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloActionDeps'
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
@@ -46,6 +47,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const [soloNotes, setSoloNotes] = useState<SoloNotes | null>(null)
   const [noteInput, setNoteInput] = useState('')
   const [ritualTitle, setRitualTitle] = useState<string | null>(null)
+  const [knownRituals, setKnownRituals] = useState<readonly KnownRitual[]>([])
   const noteInputRef = useRef(noteInput)
   noteInputRef.current = noteInput
   // No record (e.g. a create whose readback was slow) still offers the note.
@@ -57,7 +59,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     let active = true
     void readSoloNotes(route.params.ritualId).then((notes) => { if (active) setSoloNotes(notes) })
     void listKnownRituals().then((rituals) => {
-      if (active) setRitualTitle(rituals.find((item) => item.address === route.params.ritualId)?.title ?? null)
+      if (!active) return
+      setKnownRituals(rituals)
+      setRitualTitle(rituals.find((item) => item.address === route.params.ritualId)?.title ?? null)
     })
     return () => { active = false }
   }, [reload, route.params.ritualId]))
@@ -199,7 +203,13 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const actionCopy = withWalletHandoff(action.copy, action.state.status, walletPackage)
   const actionError = action.state.status === 'error' ? action.copy.body : null
   const readyForWallet = Boolean(selectedAccount && readyBundle.ritual.account.members.some((member) => member.equals(selectedAccount.publicKey)))
-  const tint = ritualTint(route.params.ritualId)
+  const tint = ritualTintAmong(route.params.ritualId, knownRituals)
+  // Only a finished ritual, or one another wallet made, can leave this phone's list; an active ritual of yours stays visible.
+  const removable = model.state === 'completed' || Boolean(selectedAccount && !readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
+  const removeFromPhone = () => Alert.alert('Remove from this phone?', 'The ritual stays on chain. This only takes it off your list.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Remove', style: 'destructive', onPress: () => { void forgetRitual(route.params.ritualId).then(() => navigation.navigate('RitualsHome')) } },
+  ])
   const holdVisible = (model.state === 'claimable' || model.state === 'open-not-initialized') && !model.showedUp
   const weekNote = soloNotes?.notes[String(model.eventIndex)] ?? null
   const witness = readyBundle.ritual.account.witness
@@ -209,8 +219,8 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   return (
     <View style={s.root}>
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
-      <Text style={s.kicker}>{model.state === 'funding' ? 'SOLO RITUAL' : model.state === 'completed' ? 'FINISHED' : `WEEK ${model.eventIndex + 1}`}</Text>
-      <Text style={s.title} accessibilityRole="header">{model.state === 'missed' ? 'That week is closed.' : model.state === 'completed' ? 'That’s a wrap.' : 'Show up for yourself.'}</Text>
+      {/* The poster is the hero; the line above it is the week, nothing else. */}
+      <Text style={s.title} accessibilityRole="header">{model.state === 'funding' ? 'Solo ritual' : model.state === 'completed' ? 'Finished' : `Week ${model.eventIndex + 1}`}</Text>
       <Poster tint={tint} kicker="YOUR RITUAL" title={ritualTitle ?? 'Your ritual'}>
         <WeekStrip cells={model.weekCells} tint={tint} />
         <PosterLine label="Your stake" value={formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)} />
@@ -234,6 +244,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to my rituals" onPress={() => navigation.navigate('RitualsHome')} />}
+      {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
       {readyForWallet && action.state.status === 'idle' && (model.canSkip || (model.state === 'resolving/settle' && !settlingByItself)) && <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text>}
       <Footnote>Devnet · TEST tokens have no real value</Footnote>
     </ScrollView>
@@ -244,7 +255,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
 
 function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined, weekNote: string | null, settlingByItself: boolean, freshStamp: boolean, keptLine: string) { const s = useS();
   if (model.state === 'funding') return <View style={s.card}><Text style={s.cardTitle}>Waiting for funding</Text><Text style={s.muted}>This solo ritual is not active yet.</Text></View>
-  if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text><Text style={s.muted}>Your ritual is still on.</Text></View>
+  if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text></View>
   if (model.state === 'open-not-initialized') return <View style={s.card}><Text style={s.cardTitle}>This week is open</Text><Text style={s.muted}>Your first check-in will open the week.</Text></View>
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>
   if (model.state === 'closing') return <View style={s.card}><Text style={s.cardTitle}>This week is closing</Text><Text style={s.muted}>{model.showedUp ? 'You showed up. It settles in a moment.' : 'The check-in window has closed. It settles in a moment.'}</Text></View>
@@ -254,7 +265,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note={keptLine} animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
   if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Checking this week</Text><Text style={s.muted}>Looking for the updated stamp.</Text></View>
   if (action.state.status !== 'idle') return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{action.state.status === 'awaiting-wallet' ? actionCopy.body : action.state.status === 'error' ? actionCopy.body : 'Getting this week ready…'}</Text></View>
-  if (model.state === 'completed') return <View style={s.card}><Text style={s.cardTitle}>Ritual finished</Text><Text style={s.muted}>Every week is settled. Start another from Home whenever you’re ready.</Text></View>
+  if (model.state === 'completed') return <View style={s.card}><Text style={s.cardTitle}>Every week is settled.</Text></View>
   // An open week needs no card: the big HOLD button says it all.
   return null
 }
