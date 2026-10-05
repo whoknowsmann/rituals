@@ -136,7 +136,7 @@ Jack, 2026-10-04 evening: "we have time right now to crank this all out."
    `docs/plans/submission-package-2026-10-05.md`** (Mon/Tue/Wed schedule, the
    8 decisions Jack owes, definition of done per deliverable). Drafts landed
    2026-10-04 night (Sonnet 5.5, fact-reviewed by Hermes against
-   `docs/submission/FACTS.md`): `README.draft.md`, `video-script.md`
+   `docs/submission/FACTS.md`): the root `README.md` (placeholders for release URL, TEST access, license, video), `video-script.md`
    (13 shots, 106 s, one-take voiceover), `pitch-deck.md` (8 slides + Q&A),
    `dapp-store-listing.md` (listing + privacy + review disclosures),
    `organizer-email.md`. Video pipeline `scripts/video/render.py` proven

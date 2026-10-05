@@ -168,7 +168,7 @@ neutral TTS track can be generated locally for timing, not for the final.
 ## 7. Tonight's artifacts (Hermes, 2026-10-04 night)
 
 - `docs/submission/FACTS.md` — the fact sheet; every doc traces to it.
-- `docs/submission/README.draft.md`, `video-script.md`, `pitch-deck.md`,
+- root `README.md` (new, placeholders in angle brackets), `docs/submission/video-script.md`, `pitch-deck.md`,
   `dapp-store-listing.md` — Sonnet 5.5 drafts, reviewed against FACTS by
   Hermes (review notes at the top of each file if anything was changed).
 - `scripts/video/render.py` + `artifacts/video/pipeline-test.mp4` — the cut
