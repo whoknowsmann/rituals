@@ -132,11 +132,18 @@ Jack, 2026-10-04 evening: "we have time right now to crank this all out."
    no fee copy, settle line per speed. Still to do: Jack's create on d19 (Seed
    Vault sheet should show **−20 TEST**) and a look at the ritual screen's
    demo-speed line.
-4. **Rewrite the submission docs for the shipped app** (Hermes, Sonnet 5.5
-   writers): README, video script, pitch outline, store/privacy. The drafts on
-   `docs/submission-solo` are stale (Seasons/friends-first, Phantom, fee, SKR,
-   no settle key, no night mode). New facts: free, 2 approvals, Seed Vault
-   Wallet, weeks close themselves, demo vs real weeks.
+4. **Submission package — plan of record:
+   `docs/plans/submission-package-2026-10-05.md`** (Mon/Tue/Wed schedule, the
+   8 decisions Jack owes, definition of done per deliverable). Drafts landed
+   2026-10-04 night (Sonnet 5.5, fact-reviewed by Hermes against
+   `docs/submission/FACTS.md`): `README.draft.md`, `video-script.md`
+   (13 shots, 106 s, one-take voiceover), `pitch-deck.md` (8 slides + Q&A),
+   `dapp-store-listing.md` (listing + privacy + review disclosures),
+   `organizer-email.md`. Video pipeline `scripts/video/render.py` proven
+   (`artifacts/video/pipeline-test.mp4`). **Monday morning, needs Jack:** the
+   recording run on d19 (create −20 TEST + stamp, 2 approvals, ~40 min) and
+   the decisions in plan §4 (license, judge TEST access, Pages origin,
+   sketches, repo description, organizer email, voiceover, second phone).
 5. **Organizer email** (Jack): devnet + valueless token eligibility (low
    risk: Monolith's Echo won while "live on devnet") plus the other questions
    in the draft (Hub note "Clock In Organizer Questions"; repo copy
