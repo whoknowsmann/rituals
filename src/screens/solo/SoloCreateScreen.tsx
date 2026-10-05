@@ -8,7 +8,7 @@ import { DEMO_CAUSE } from '../../data/rituals/demoConfig'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { useCreateRitual } from '../../features/rituals/create/useCreateRitual'
 import { useAuthorization } from '../../utils/useAuthorization'
-import { needsDevnetSwitchHint, SEED_VAULT_DEVNET_HINT } from '../../utils/walletChoice'
+import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatchAlert'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
@@ -204,6 +204,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
 
   const create = useCreateRitual(makeDeps)
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
+  useDevnetMismatchAlert(create.state.status, create.state.status === 'error' ? create.state.category : null, walletPackage)
   const confirmedAddress = create.state.status === 'confirmed' ? create.state.ritualAddress : null
 
   useEffect(() => {
@@ -402,7 +403,6 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             {/* The name stands alone, so whatever was typed still reads right. */}
             <Text style={styles.promiseText}>“{draft.title || 'Your ritual'}”</Text>
             <Text style={styles.promiseTerms}>{`${weekCount === 1 ? 'This week only.' : `Every week, for ${weekCount} weeks.`} Miss a week and that week’s ${stakeEachLabel} goes to ${draft.destination === 'cause' ? DEMO_CAUSE.label : 'the person you picked'}.`}</Text>
-            <Text style={styles.signature}>You · signing for yourself</Text>
           </View>
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
@@ -419,12 +419,6 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             </View>
           )}
           {create.state.status === 'confirmed' && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
-          {needsDevnetSwitchHint(walletPackage) && create.state.status !== 'confirmed' && (
-            <View style={styles.devnetCard} accessibilityLabel="Seed Vault Wallet network">
-              <Text style={styles.devnetTitle}>Seed Vault Wallet: switch to Devnet</Text>
-              <Text style={styles.quiet}>{SEED_VAULT_DEVNET_HINT}</Text>
-            </View>
-          )}
           {create.state.status === 'idle' && selectedAccount && !stepThreeErrors.length && <Text style={styles.walletNote}>{walletHandoffNote(walletPackage)}</Text>}
           {create.state.status !== 'confirmed' && (
             <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />

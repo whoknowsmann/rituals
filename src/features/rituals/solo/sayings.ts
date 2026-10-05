@@ -4,18 +4,14 @@
  * never changes while you look at it, and the week's stamp and its receipt
  * say the same thing. Misses keep their one kind line; never mock a miss.
  */
+// Pruned 2026-10-05: no "winner" (PRODUCT.md copy rules), no meme lines.
 export const KEPT_SAYINGS = Object.freeze([
   'Promises made, promises kept.',
-  'Way to show up for yourself!',
-  'Winner winner, chicken dinner.',
-  'Look at you, adulting.',
   'Future you says thanks.',
   'Couch: 0. You: 1.',
-  'Hell yeah. Same time next week.',
-  'Discipline unlocked.',
+  'Same time next week.',
   'Your word is good. Who knew?',
   'Showed up. Barely complained.',
-  'Main character energy.',
   'Stake safe. Ego slightly inflated.',
 ])
 

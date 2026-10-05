@@ -7,7 +7,7 @@ import * as Clipboard from 'expo-clipboard'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigators/AppNavigator'
 import { useAuthorization } from '../../utils/useAuthorization'
-import { needsDevnetSwitchHint, SEED_VAULT_DEVNET_HINT } from '../../utils/walletChoice'
+import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatchAlert'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
@@ -113,6 +113,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   // A week nobody checked in to has no event account yet; the first tap opens it
   // (one approval), the screen re-reads, and the next tap settles it.
   const settle = useRitualAction(() => makeSharedDeps(model?.needsEventInit ? 'initialize-event' : 'finalize'))
+  // Whichever wallet step failed last: the Seed Vault network popup keys off it (hooks stay above the early returns).
+  const failed = [claim, skip, settle].find((item) => item.state.status === 'error')?.state
+  useDevnetMismatchAlert(failed ? 'error' : 'idle', failed && failed.status === 'error' ? failed.category : null, walletPackage)
   // One "already handled" digest per action. A single shared ref let a stale
   // confirmed stamp re-run after Settle and save an empty note over the real
   // one (phone run 2026-10-02).
@@ -236,14 +239,13 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       )}
       {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote, settlingByItself, celebrate > 0, keptSaying(route.params.ritualId, model.eventIndex))}
       {actionError && <ErrorLine>{actionError}</ErrorLine>}
-      {actionError && needsDevnetSwitchHint(walletPackage) && <Text style={s.muted}>{SEED_VAULT_DEVNET_HINT}</Text>}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
       {holdVisible && <View style={s.holdArea}><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} />{readyForWallet && claim.state.status === 'idle' ? <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text> : null}</View>}
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
-      {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to my rituals" onPress={() => navigation.navigate('RitualsHome')} />}
+      {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to rituals" onPress={() => navigation.navigate('RitualsHome')} />}
       {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
       {readyForWallet && action.state.status === 'idle' && (model.canSkip || (model.state === 'resolving/settle' && !settlingByItself)) && <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text>}
       <Footnote>Devnet · TEST tokens have no real value</Footnote>
@@ -256,14 +258,15 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
 function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined, weekNote: string | null, settlingByItself: boolean, freshStamp: boolean, keptLine: string) { const s = useS();
   if (model.state === 'funding') return <View style={s.card}><Text style={s.cardTitle}>Waiting for funding</Text><Text style={s.muted}>This solo ritual is not active yet.</Text></View>
   if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text></View>
-  if (model.state === 'open-not-initialized') return <View style={s.card}><Text style={s.cardTitle}>This week is open</Text><Text style={s.muted}>Your first check-in will open the week.</Text></View>
+  // An open week with no event account yet needs no card either: the HOLD opens it.
+  if (model.state === 'open-not-initialized') return null
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>
   if (model.state === 'closing') return <View style={s.card}><Text style={s.cardTitle}>This week is closing</Text><Text style={s.muted}>{model.showedUp ? 'You showed up. It settles in a moment.' : 'The check-in window has closed. It settles in a moment.'}</Text></View>
   if (model.state === 'resolving/settle') return <View style={s.card}><Text style={s.cardTitle}>{settlingByItself ? 'Closing this week…' : 'This week is ready to settle'}</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : `${model.destinationLabel} gets this week's stake.`}</Text></View>
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
   if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note={keptLine} animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
-  if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Checking this week</Text><Text style={s.muted}>Looking for the updated stamp.</Text></View>
+  if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Checking…</Text></View>
   if (action.state.status !== 'idle') return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{action.state.status === 'awaiting-wallet' ? actionCopy.body : action.state.status === 'error' ? actionCopy.body : 'Getting this week ready…'}</Text></View>
   if (model.state === 'completed') return <View style={s.card}><Text style={s.cardTitle}>Every week is settled.</Text></View>
   // An open week needs no card: the big HOLD button says it all.
@@ -271,7 +274,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
 }
 
 function Centered({ children }: { children: React.ReactNode }) { const s = useS(); return <View style={s.center}><Text style={s.muted}>{children}</Text></View> }
-function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { const s = useS(); return <View style={s.center}><Text style={s.title}>Ritual unavailable</Text><Text style={s.muted}>{message}</Text><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back to my rituals" onPress={onHome} /></View> }
+function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { const s = useS(); return <View style={s.center}><Text style={s.title}>Ritual unavailable</Text><Text style={s.muted}>{message}</Text><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back to rituals" onPress={onHome} /></View> }
 
 const useS = themedStyles((color) => StyleSheet.create({
   root: { flex: 1, backgroundColor: color.bg }, holdArea: { alignItems: 'center', paddingVertical: space.lg, gap: space.md }, screen: { backgroundColor: color.bg }, content: { padding: space.screen, paddingBottom: 48, gap: space.md }, back: { ...type.heading, color: color.muted }, kicker: { ...type.label, color: color.muted }, title: { ...type.display, color: color.fg }, card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs }, paper: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.lg, gap: space.md }, holdCard: { backgroundColor: color.fg, borderRadius: radius.poster, padding: space.xl, alignItems: 'center', gap: space.sm }, witnessCard: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.sm }, cardTitle: { ...type.heading, color: color.fg }, holdCardTitle: { ...type.heading, color: color.onDark }, muted: { ...type.body, color: color.muted }, note: { ...type.caption, color: color.faint, textAlign: 'center' }, weekNote: { ...type.body, fontFamily: fonts.hand, color: color.fg }, weekNoteInput: { ...type.body, color: color.fg, backgroundColor: color.card, borderWidth: 1, borderColor: color.line, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md }, center: { flex: 1, padding: space.screen, justifyContent: 'center', gap: space.md, backgroundColor: color.bg },

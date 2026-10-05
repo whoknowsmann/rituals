@@ -15,17 +15,15 @@ describe('B3: wallet handoff copy', () => {
 
   it('warns before the tap that the wallet opens and the user comes back', () => {
     const note = walletHandoffNote('app.phantom')
-    expect(note).toContain('opens Phantom')
-    expect(note).toMatch(/come back/i)
+    expect(note).toContain('Opens Phantom')
     expect(note).toMatch(/within a minute/i)
   })
 
   it('replaces the awaiting-wallet copy with an explicit "Opening <wallet>" handoff', () => {
     const copy = withWalletHandoff(progress, 'awaiting-wallet', 'app.phantom')
     expect(copy.title).toBe('Opening Phantom…')
-    expect(copy.body).toMatch(/come back to Rituals/i)
+    expect(copy.body).toMatch(/within a minute/i)
     expect(copy.body).toMatch(/swipe Rituals away/i)
-    expect(copy.body).toMatch(/notifications/i)
     expect(copy.tone).toBe('progress')
   })
 

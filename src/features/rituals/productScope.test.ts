@@ -33,7 +33,7 @@ describe('single-blade fold (solo only)', () => {
     // Coming soon is plain text, never a button.
     expect(home).toContain('{COMING_SOON_LINE}')
     expect(home).not.toMatch(/label=\{COMING_SOON_LINE\}/)
-    expect(COMING_SOON_LINE).toBe('With friends and Seasons: coming soon.')
+    expect(COMING_SOON_LINE).toBe('With friends: coming soon.')
   })
 
   it('Create hides witness, friends, proof chooser, person destination and the Season param', () => {

@@ -43,4 +43,4 @@ export function scopeFor(soloOnly: boolean): ProductScope {
 export const SCOPE: ProductScope = scopeFor(SOLO_ONLY)
 
 /** One plain, untappable line on Home while the rest is hidden. */
-export const COMING_SOON_LINE = 'With friends and Seasons: coming soon.'
+export const COMING_SOON_LINE = 'With friends: coming soon.'

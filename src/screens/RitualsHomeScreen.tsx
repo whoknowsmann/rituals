@@ -130,11 +130,9 @@ export function RitualsHomeScreen() {
 
 function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => void; onFriends: () => void; onJoin: () => void; styles: ReturnType<typeof makeStyles> }) {
   return <View style={styles.empty}>
-    <Text style={styles.emptyKicker}>YOUR BOARD IS CLEAR</Text>
-    <Text style={styles.emptyTitle}>Start a ritual.</Text>
-    <Text style={styles.emptyBody}>Choose the thing. Set your stake. Show up in your own time.</Text>
+    <Text style={styles.emptyTitle}>Start a ritual?</Text>
     <View style={styles.actions}>
-      <ActionButton label="Start a ritual" onPress={onPromise} />
+      <ActionButton label="Start one" onPress={onPromise} />
       {SCOPE.homeFriends && <ActionButton tone="quiet" label="With friends" onPress={onFriends} />}
       {SCOPE.homeJoin && <ActionButton tone="quiet" label="Join with a link" onPress={onJoin} />}
     </View>

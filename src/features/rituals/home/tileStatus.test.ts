@@ -5,7 +5,7 @@ import { ritualPalette, ritualTint } from '../../../theme/tokens'
 describe('Home tile', () => {
   it('says what the ritual wants from you now', () => {
     expect(tileStatus({ state: 'open-not-initialized', showedUp: false, nextOpensLabel: null })).toEqual({ text: 'Stamp this week', act: true })
-    expect(tileStatus({ state: 'claimable', showedUp: true, nextOpensLabel: null })).toEqual({ text: 'Stamped ✓', act: false })
+    expect(tileStatus({ state: 'claimable', showedUp: true, nextOpensLabel: null })).toEqual({ text: 'Stamped', act: false })
     expect(tileStatus({ state: 'waiting', showedUp: false, nextOpensLabel: 'in 2 min' }).text).toBe('Opens in 2 min')
     expect(tileStatus({ state: 'completed', showedUp: false, nextOpensLabel: null }).text).toBe('Finished')
   })

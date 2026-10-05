@@ -10,10 +10,10 @@ export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp:
   switch (model.state) {
     case 'claimable':
     case 'open-not-initialized':
-      return model.showedUp ? { text: 'Stamped ✓', act: false } : { text: 'Stamp this week', act: true }
+      return model.showedUp ? { text: 'Stamped', act: false } : { text: 'Stamp this week', act: true }
     case 'waiting': return { text: model.nextOpensLabel ? `Opens ${model.nextOpensLabel}` : 'Opens soon', act: false }
     case 'closing':
-    case 'resolving/settle': return { text: model.showedUp ? 'Stamped ✓ · closing' : 'Closing…', act: false }
+    case 'resolving/settle': return { text: model.showedUp ? 'Stamped' : 'Closing…', act: false }
     case 'missed': return { text: 'Missed last week', act: false }
     case 'skipped': return { text: 'Skipped last week', act: false }
     case 'completed': return { text: 'Finished', act: false }
