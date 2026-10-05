@@ -9,6 +9,8 @@ import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { useCreateRitual } from '../../features/rituals/create/useCreateRitual'
 import { useAuthorization } from '../../utils/useAuthorization'
 import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatchAlert'
+import { useDevnetFaucet } from '../../features/rituals/faucet/useDevnetFaucet'
+import { faucetLine } from '../../features/rituals/faucet/devnetFaucet'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
@@ -153,6 +155,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     } catch { return null }
   })()
   const [testBalance, setTestBalance] = useState<bigint | null>(null)
+  const [balanceTick, setBalanceTick] = useState(0)
+  // "Get test tokens": the faucet pays; after a send the balance line re-reads a few seconds later.
+  const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, () => { setTimeout(() => setBalanceTick((value) => value + 1), 4000) })
   useEffect(() => {
     if (client.status !== 'ready' || !selectedAccount) { setTestBalance(null); return }
     let active = true
@@ -166,7 +171,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       if (active) setTestBalance(balance)
     }).catch(() => { if (active) setTestBalance(null) }) // unknown: never block on a failed read
     return () => { active = false }
-  }, [client, connection, selectedAccount])
+  }, [client, connection, selectedAccount, balanceTick])
   const shortOfTest = testBalance !== null && neededAtomic !== null && testBalance < neededAtomic
 
   const makeDeps = useCallback(() => {
@@ -384,6 +389,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
             {testBalance !== null && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
+            {testBalance !== null && (shortOfTest || testBalance === 0n) && faucet.status !== 'done' && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
+            {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
             {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough TEST: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</ErrorLine>}
             {settlerKey && <Text style={styles.quiet}>{`+ ${formatSol(settlerBudgetLamports(weekCount))} so each week closes ${speed === 'real' ? 'itself when you next open the app' : 'on its own'}`}</Text>}
           </View>

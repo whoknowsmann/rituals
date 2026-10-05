@@ -2,6 +2,9 @@ import React from 'react'
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Constants from 'expo-constants'
 import { useCluster } from '../components/cluster/cluster-data-access'
+import { useAuthorization } from '../utils/useAuthorization'
+import { useDevnetFaucet } from '../features/rituals/faucet/useDevnetFaucet'
+import { faucetLine } from '../features/rituals/faucet/devnetFaucet'
 import { ActionButton, Footnote, Hero } from '../components/crew'
 import { RITUALS_PROGRAM_ID } from '../data/rituals/programIds'
 import { color, radius, space, type, themedStyles, useColors } from '../theme'
@@ -16,6 +19,8 @@ export function SettingsScreen() {
   const programId = RITUALS_PROGRAM_ID.toBase58()
   const explorerUrl = getExplorerUrl(`address/${programId}`)
   const version = Constants.expoConfig?.version ?? '0.1.0'
+  const { selectedAccount } = useAuthorization()
+  const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null)
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
@@ -24,6 +29,12 @@ export function SettingsScreen() {
         <Text style={s.label}>NETWORK</Text>
         <Text style={s.value}>Devnet</Text>
         <Text style={s.muted}>TEST tokens have no real value</Text>
+      </View>
+      <View style={s.card} accessibilityLabel="Test tokens">
+        <Text style={s.label}>TEST TOKENS</Text>
+        <Text style={s.muted}>{selectedAccount ? 'Sends 50 TEST and 0.05 devnet SOL to your wallet. No approval needed.' : 'Connect a wallet first.'}</Text>
+        <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={!selectedAccount || faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" style={s.explorerButton} />
+        {faucet.status === 'done' && faucet.result && <Text style={s.muted} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
       </View>
       <View style={s.card} accessibilityLabel="Program information">
         <Text style={s.label}>PROGRAM</Text>
