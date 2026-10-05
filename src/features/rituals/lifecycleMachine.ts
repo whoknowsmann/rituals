@@ -48,11 +48,11 @@ export function lifecycleReducer(state: LifecycleState, event: LifecycleEvent): 
 }
 
 export function lifecycleStatusCopy(state: LifecycleState): Readonly<{ title: string; body: string; tone: 'neutral' | 'progress' | 'success' | 'warning' }> {
-  if (state.status === 'idle') return { title: 'Ready to continue', body: 'Review the on-chain terms before wallet approval.', tone: 'neutral' }
-  if (state.status === 'preparing') return { title: 'Reading the ritual', body: 'Preparing from the latest authoritative account state.', tone: 'progress' }
-  if (state.status === 'awaiting-wallet') return { title: 'Approve in your wallet', body: 'Check the exact stake and network details before approving.', tone: 'progress' }
-  if (state.status === 'submitted' || state.status === 'confirming') return { title: 'Confirming on-chain', body: 'The transaction was sent. Do not submit again while it is being checked.', tone: 'progress' }
-  if (state.status === 'confirmed') return { title: 'Confirmed on-chain', body: 'The ritual state was read back authoritatively.', tone: 'success' }
+  if (state.status === 'idle') return { title: 'Ready', body: 'One approval in your wallet.', tone: 'neutral' }
+  if (state.status === 'preparing') return { title: 'Getting it ready', body: 'A moment.', tone: 'progress' }
+  if (state.status === 'awaiting-wallet') return { title: 'Approve in your wallet', body: 'Nothing is sent until you approve.', tone: 'progress' }
+  if (state.status === 'submitted' || state.status === 'confirming') return { title: 'Confirming', body: 'Sent. Checking it landed.', tone: 'progress' }
+  if (state.status === 'confirmed') return { title: 'Done', body: 'Confirmed on chain.', tone: 'success' }
   if (state.submitted || state.category === 'confirmation') return { title: 'Confirmation incomplete', body: 'Your transaction may already have gone through. Do not retry — check the ritual before acting again.', tone: 'warning' }
   if (state.category === 'wallet-rejected') return { title: 'Not approved', body: 'You declined the request in your wallet. Nothing was sent.', tone: 'neutral' }
   return { title: 'Could not continue', body: 'Nothing was sent to the network. You can safely try again.', tone: 'warning' }

@@ -204,45 +204,45 @@ export function createStatusCopy(state: CreateMachineState): CreateStatusCopy {
   switch (state.status) {
     case 'idle':
       return freeze({
-        title: 'Ready to create',
-        body: 'Review every term. Creating locks the rules and puts in your own stake and the activation fee in the same approval.',
+        title: 'Ready',
+        body: 'One approval locks the weeks and puts your stake in.',
         tone: 'neutral' as const,
       })
     case 'preparing':
       return freeze({
-        title: 'Preparing your ritual',
-        body: 'Reading the current protocol configuration and building the transaction.',
+        title: 'Getting it ready',
+        body: 'Building your ritual. A moment.',
         tone: 'progress' as const,
       })
     case 'awaiting-wallet':
       return freeze({
         title: 'Approve in your wallet',
-        body: 'Check the details in your wallet before approving. Nothing is sent until you do.',
+        body: 'Nothing is sent until you approve.',
         tone: 'progress' as const,
       })
     case 'submitted':
       return freeze({
-        title: 'Sent to the network',
-        body: 'Your transaction was submitted. Waiting for the network to confirm it.',
+        title: 'Sent',
+        body: 'Waiting for the network.',
         tone: 'progress' as const,
       })
     case 'confirming':
       return freeze({
-        title: 'Confirming on-chain',
-        body: 'Verifying the ritual was created exactly as you reviewed it.',
+        title: 'Confirming',
+        body: 'Checking the ritual landed exactly as shown.',
         tone: 'progress' as const,
       })
     case 'confirmed':
       return freeze({
-        title: 'Ritual created',
-        body: 'Confirmed on-chain, and your stake is in. Invite your crew so they can put in theirs.',
+        title: 'Locked in.',
+        body: 'Your stake is in.',
         tone: 'success' as const,
       })
     case 'error': {
       if (state.submitted || state.category === 'confirmation') {
         return freeze({
           title: 'Confirmation incomplete',
-          body: 'Your transaction may already have gone through. Do not retry — check your rituals first, and only create again if it is missing.',
+          body: "It may already have gone through. Don't try again until you've checked Home.",
           tone: 'warning' as const,
         })
       }
