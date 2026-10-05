@@ -92,7 +92,7 @@ Approvals expire. A wallet approval must land within about a minute.
 
 Timing. Demo speed (the default) compresses a week to 6.5 minutes. Real weeks last seven days; a finished real week settles the next time the app is opened, or through the wallet fallback button. Week timings are written on chain at creation and checked against the chain clock, so weeks cannot be clicked through.
 
-Known gaps. The wallet shows the requester as "github.com" until the app identity moves to its own https origin. Testers need TEST tokens to try the app: `<how testers get TEST tokens>`.
+Known gaps. The wallet shows the requester as "github.com" until the app identity moves to its own https origin. Testers get TEST tokens in the app: the Get test tokens button (create screen or Settings) asks our devnet faucet for 0.05 devnet SOL and 50 TEST, paid by the faucet; nothing to sign.
 
 ## 7. Age rating
 

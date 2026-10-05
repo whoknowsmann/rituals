@@ -38,7 +38,7 @@ The stake itself is TEST, a valueless devnet token with 6 decimals. This is not 
 
 1. Install the APK from the GitHub release: <release-url>
 2. In Seed Vault Wallet, switch the network to Devnet. Otherwise the app shows "Network mismatch".
-3. Get TEST tokens: <how-judges-get-TEST>
+3. Open **+ New ritual**, go to step 2 and tap **Get test tokens** (it is also in Settings). The faucet sends 0.05 devnet SOL and 50 TEST to your wallet in one transaction it pays itself; nothing to sign. If it says it is empty, email <owner-email>.
 4. Create a ritual on Demo speed. Approve once (double-tap the side button and use your fingerprint). Approvals need to land within about 60 seconds.
 5. Wait about 2 minutes for week 1 to open, then hold to stamp it.
 6. Leave a later week alone and watch the settle key close it without a prompt.
@@ -46,7 +46,7 @@ The stake itself is TEST, a valueless devnet token with 6 decimals. This is not 
 ### Known limits
 
 - Devnet only. TEST has no value.
-- You need TEST to try it; see step 3 above.
+- You need TEST to try it; the in-app faucet (step 3) hands out a small amount and refuses wallets that already hold enough.
 - The wallet shows the requester as "github.com" until the app's identity moves to its own https origin.
 - The stamp note lives on the phone, not on chain.
 - Some hidden features have rough edges. They are hidden for a reason.

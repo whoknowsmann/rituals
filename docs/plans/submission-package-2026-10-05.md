@@ -6,6 +6,11 @@ you unless it says "needs you".
 
 ## 0. Where we are
 
+*Update Mon 13:30:* UI/UX pass done (d22 on the phone), faucet built and
+proven, waiting on the Vercel login to deploy; recording moves to after the
+faucet is live and starts from a fresh wallet (judge's path). Decisions in §4
+still open; §4.2 is decided (faucet).
+
 The app is done for this submission: solo loop, one approval to start, one
 hold per week, weeks close themselves, free (fee 0/0/0 on chain since today),
 Demo speed · Real weeks, night mode. d19 is on the Seeker, walked to the wallet

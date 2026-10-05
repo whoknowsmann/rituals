@@ -3,11 +3,14 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-10-04 ~17:15 CDT** — `feat/solo-screens` @ 055f1fa + docs,
-clean and pushed; tsc clean; **2,275 tests / 126 files**; native **206 / 0**;
-`verify-devnet-config` 8/8 PASS (fee **0 / 0 / 0**); both app-path smokes
-GREEN on the free program; phone has **d19** (055f1fa: free + Demo/Real
-weeks), installed 16:47, walked to the wallet prompt.
+Last verified: **2026-10-05 ~13:30 CDT** — `feat/solo-screens` @ f0a56bc + docs,
+clean and pushed; tsc clean; **2,282 tests / 129 files**; native **206 / 0**;
+`verify-devnet-config` 8/8 PASS (fee **0 / 0 / 0**); three app-path smokes
+GREEN on the free program (10-04); phone has **d22** (f0a56bc: free, Demo/Real
+weeks, Jack's de-AI pass, Get test tokens), installed 13:16; d21 walked to the
+wallet prompt. **Faucet service built and proven on devnet** (repo
+`whoknowsmann/rituals-faucet`, private); **not deployed yet** (Vercel login
+waiting on Jack's device confirmation).
 Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT) · **submit Wed Oct 7, 8pm CDT**
 
 ## How to re-verify in one minute
@@ -80,6 +83,28 @@ Demo timing (devnet only): a "week" is 6.5 min — opens ~2 min after create,
   the new build on the phone up to the wallet prompt, with screenshots.
 
 ### Next actions, in order (owner · when)
+
+**2026-10-05 (today):** Jack's UI/UX pass landed (e7a5544, 929e727, 414c7b6):
+one colour per remembered ritual; "Remove from this phone" on finished /
+other-wallet rituals (the Phantom-Account-3 "Call mom" is gone from the demo
+phone); narration cut everywhere ("NEW RITUAL · 1 OF 2", "Your stake",
+receipt "RECEIPT · Week N", ritual title = the week, empty Home "Start a
+ritual?"); Seed Vault devnet hint is now a popup after a failed Seed Vault
+step (`src/features/rituals/devnetMismatch.ts`), not a box; wallet-flow
+status lines in plain words; sayings pruned; "Back to rituals"; "Stamped".
+**Get test tokens** (f0a56bc): `src/features/rituals/faucet/`, button on
+the create balance line when short/empty and in Settings, fails open, URL
+`https://faucet.whoknowsman.com`. **Faucet**: `~/projects/rituals-faucet`
+(Vercel functions, built by gpt-6-astra, reviewed; 67 tests; devnet claim
+`5wMjQxK1…6krL` = 0.05 SOL + 50 TEST in one faucet-paid tx; second call 409).
+Hot wallet `FDjXc5KeLbWf9UaMr3y6uUe5ZQDqJYctWuMW7CdnRK8q`: 1.95 devnet SOL +
+4,950 TEST (key at `~/projects/rituals-faucet/.local/faucet-hot.json`,
+gitignored). **Blocked on Jack:** Vercel device login (CLI waiting), then I
+create the project, set `FAUCET_SECRET_KEY` + `FAUCET_CONTACT`, deploy, add
+`faucet.whoknowsman.com` (DNS record at the domain's provider), test from
+the phone, then the recording run from a fresh Seed Vault account (video
+script updated: judge's path first). Then the decisions in the package plan
+§4 (license, Pages origin, voiceover, second phone).
 
 Jack, 2026-10-04 evening: "we have time right now to crank this all out."
 

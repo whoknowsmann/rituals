@@ -36,6 +36,11 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
 5. **One declared skip per ritual**: call it before the week opens and that
    week's stake comes back to you.
 6. **Night mode** follows the phone; sun/moon toggle in the top bar.
+7. Empty Home says "Start a ritual?" with one button. Each remembered ritual
+   gets its own tile colour. A finished ritual (or one made by another wallet)
+   can be removed from the phone; the chain is untouched.
+8. If a Seed Vault Wallet approval fails, a popup explains the Devnet switch
+   ("Network mismatch"); there is no permanent note.
 
 ## Speeds
 
@@ -103,7 +108,13 @@ value) · mainnet stablecoin after legal and security review.
 
 - Devnet only; TEST has no value. Seed Vault Wallet must be switched to Devnet
   (otherwise "Network mismatch").
-- A judge needs TEST to try it: how they get it is an open decision.
+- A judge gets TEST in the app: **Get test tokens** (on the create screen when
+  the wallet is short or empty, and in Settings) asks the project's devnet
+  faucet (faucet.whoknowsman.com, Vercel functions, repo whoknowsmann/rituals-faucet)
+  to send **0.05 devnet SOL + 50 TEST in one transaction the faucet pays**; the
+  wallet signs nothing and may hold nothing. Limits: refused once a wallet holds
+  ≥ 0.03 SOL and ≥ 10 TEST; a small float (~2 devnet SOL) is the ceiling; if it is
+  empty the app shows the contact email. Never blocks creating a ritual.
 - The wallet shows the requester as "github.com" until the app identity moves
   to its own https origin.
 - The stamp note lives on the phone, not on chain.
