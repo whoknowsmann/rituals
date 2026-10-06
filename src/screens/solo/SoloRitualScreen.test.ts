@@ -5,6 +5,11 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloRitualScreen.tsx'), 'utf8')
 
 describe('SoloRitualScreen proof and witness controls', () => {
+  it('guards remove taps, handles failure, and clears removed routes from recents', () => {
+    expect(source).toContain('if (removalOpen.current || removalSaving.current) return')
+    expect(source).toContain("navigation.reset({ index: 0, routes: [{ name: 'RitualsHome' }] })")
+    expect(source).toContain('Could not remove it from this phone. Try again.')
+  })
   it('loads and saves per-week notes around a confirmed claim', () => {
     expect(source).toContain('readSoloNotes(')
     expect(source).toContain('saveWeekNote(')

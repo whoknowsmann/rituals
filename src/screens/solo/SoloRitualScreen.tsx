@@ -56,6 +56,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const ritualAddress = useMemo(() => { try { return new PublicKey(route.params.ritualId) } catch { return null } }, [route.params.ritualId])
   const [soloNotes, setSoloNotes] = useState<SoloNotes | null>(null)
   const [noteInput, setNoteInput] = useState('')
+  const removalOpen = useRef(false)
+  const removalSaving = useRef(false)
+  const [removalError, setRemovalError] = useState<string | null>(null)
   const [ritualTitle, setRitualTitle] = useState<string | null>(null)
   const [knownRituals, setKnownRituals] = useState<readonly KnownRitual[]>([])
   const noteInputRef = useRef(noteInput)
@@ -229,10 +232,22 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const tint = ritualTintAmong(route.params.ritualId, knownRituals)
   // Only a finished ritual, or one another wallet made, can leave this phone's list; an active ritual of yours stays visible.
   const removable = model.state === 'completed' || Boolean(selectedAccount && !readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
-  const removeFromPhone = () => Alert.alert('Remove from this phone?', 'The ritual stays on chain. This only takes it off your list.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Remove', style: 'destructive', onPress: () => { void forgetRitual(route.params.ritualId).then(() => navigation.navigate('RitualsHome')) } },
-  ])
+  const removeFromPhone = () => {
+    if (removalOpen.current || removalSaving.current) return
+    removalOpen.current = true
+    const release = () => { removalOpen.current = false }
+    Alert.alert('Remove from this phone?', 'The ritual stays on chain. This only takes it off your list.', [
+      { text: 'Cancel', style: 'cancel', onPress: release },
+      { text: 'Remove', style: 'destructive', onPress: () => {
+        if (removalSaving.current) return
+        removalSaving.current = true
+        void forgetRitual(route.params.ritualId)
+          .then(() => navigation.reset({ index: 0, routes: [{ name: 'RitualsHome' }] }))
+          .catch(() => setRemovalError('Could not remove it from this phone. Try again.'))
+          .finally(() => { removalSaving.current = false; release() })
+      } },
+    ], { cancelable: true, onDismiss: release })
+  }
   const holdVisible = (model.state === 'claimable' || model.state === 'open-not-initialized') && !model.showedUp
   const weekNote = soloNotes?.notes[String(model.eventIndex)] ?? null
   const witness = readyBundle.ritual.account.witness
@@ -269,6 +284,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to rituals" onPress={() => navigation.navigate('RitualsHome')} />}
       {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
+      {removalError && <ErrorLine>{removalError}</ErrorLine>}
 
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
