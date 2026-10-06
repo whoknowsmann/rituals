@@ -5,6 +5,15 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloRitualScreen.tsx'), 'utf8')
 
 describe('SoloRitualScreen proof and witness controls', () => {
+  it('keeps finished copy to the per-week amount and missed consequence', () => {
+    expect(source).toContain('label="Stake per week"')
+    expect(source).toContain('{amountLabel} went to {model.destinationLabel}.')
+    expect(source).toContain('note="That\'s a week, not a verdict."')
+    expect(source).toContain("model.demoSpeedNotice && model.state !== 'completed'")
+    expect(source).not.toContain('Every week is settled.')
+    expect(source).not.toContain("received that week's stake")
+    expect(source).toContain('useSoloDestinationOwner(')
+  })
   it('puts the chain-derived stamp countdown beside HOLD TO STAMP', () => {
     expect(source).toContain('const chainNow = useChainTime(connection, focused)')
     expect(source).toContain('soloRitualModel(state.bundle, chainNow,')

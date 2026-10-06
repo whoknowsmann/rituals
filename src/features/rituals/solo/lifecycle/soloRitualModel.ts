@@ -51,11 +51,11 @@ const terminal = (value: RitualBundleRead): boolean => Boolean(value.event && (v
 const eventIndexOf = (value: RitualBundleRead): number => value.event?.account.eventIndex ?? -1
 const short = (value: PublicKey): string => shortRosterAddress(value.toBase58())
 
-export function labelSoloDestination(destination: PublicKey, causeTokenAccount: PublicKey | null = DEMO_CAUSE.tokenAccount): string {
+export function labelSoloDestination(destination: PublicKey, causeTokenAccount: PublicKey | null = DEMO_CAUSE.tokenAccount, owner: PublicKey | null = null): string {
   if (causeTokenAccount && destination.equals(causeTokenAccount)) return DEMO_CAUSE.label
   const cause = DEMO_CAUSES.find((entry) => entry.tokenAccount?.equals(destination))
   if (cause) return cause.label
-  return `the wallet you chose · ${short(destination)}`
+  return owner ? `the wallet you chose · ${short(owner)}` : 'the wallet you chose'
 }
 
 /** Demo-speed disclosure from the schedule alone (DESIGN.md rule 5); nothing for real weeks. */
@@ -146,7 +146,7 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
   return { state: 'claimable', showedUp: mine?.status === 'Confirmed', claimStatus, message: mine?.status === 'Confirmed' ? 'You showed up.' : 'This week is open.' }
 }
 
-export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: PublicKey | null): SoloRitualModel {
+export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: PublicKey | null, destinationOwner: PublicKey | null = null): SoloRitualModel {
   const account = bundle.ritual.account
   const schedule = account.schedule[account.currentEventIndex]
   const mapped = modelState(bundle, now, me)
@@ -161,7 +161,7 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
       ? weekOpensLabel(Number(schedule.opens), now, isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline))) : null,
     stampTimeLeftLabel: schedule && !mapped.showedUp && (mapped.state === 'claimable' || mapped.state === 'open-not-initialized')
       ? stampTimeLeftLabel(Number(schedule.deadline), now, isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline))) : null,
-    destinationLabel: labelSoloDestination(account.forfeitDestination),
+    destinationLabel: labelSoloDestination(account.forfeitDestination, undefined, destinationOwner),
     destinationAddress: account.forfeitDestination,
     witnessLabel: witness,
     amount: account.perEventAllocation,

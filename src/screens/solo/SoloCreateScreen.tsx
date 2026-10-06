@@ -250,7 +250,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
       pendingActionStore: asyncStoragePendingActionStore,
       rememberBeforeSend: async (address) => {
-        await rememberRitual({ address, title: draft.title, requirement: draft.requirement })
+        await rememberRitual({ address, title: draft.title, requirement: draft.requirement, destinationOwner: draft.destination === 'person' ? draft.personAddress : undefined })
         await saveProofMode(address, draft.proofMode)
       },
     })

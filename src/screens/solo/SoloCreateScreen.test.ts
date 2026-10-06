@@ -66,6 +66,7 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
 
   it('journals the one-approval solo create so a killed app can recover it', () => {
     expect(source).toContain('pendingActionStore: asyncStoragePendingActionStore')
+    expect(source).toContain("destinationOwner: draft.destination === 'person' ? draft.personAddress : undefined")
   })
 
   it('uses the atomic solo create, fund, and activate preparation', () => {

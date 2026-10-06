@@ -12,6 +12,7 @@ import { formatAtomic } from '../../features/rituals/displayFormat'
 import { ActionButton, ErrorLine, Footnote, Stamp } from '../../components/crew'
 import { color, fonts, radius, space, type, themedStyles, useColors } from '../../theme'
 import { soloReceiptModel } from '../../features/rituals/solo/lifecycle/soloReceiptModel'
+import { useSoloDestinationOwner } from '../../features/rituals/solo/lifecycle/useSoloDestinationOwner'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SoloReceipt'>
 
@@ -20,6 +21,7 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
   const client = useRitualClient()
   const { selectedAccount } = useAuthorization()
   const state = useRitualBundle(client, route.params.ritualId, route.params.eventIndex)
+  const destinationOwner = useSoloDestinationOwner(route.params.ritualId, state.bundle?.ritual.account.forfeitDestination, state.bundle?.ritual.account.stakeMint)
   const [soloNotes, setSoloNotes] = useState<SoloNotes | null>(null)
   useFocusEffect(useCallback(() => {
     let active = true
@@ -28,7 +30,7 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
   }, [route.params.eventIndex, route.params.ritualId]))
   if (state.status === 'loading') return <Centered>Reading the week…</Centered>
   if (state.status === 'error' || !state.bundle) return <ErrorState message={state.message ?? 'This week could not be read.'} retry={state.retry} onHome={() => navigation.goBack()} />
-  const receipt = soloReceiptModel(state.bundle, selectedAccount?.publicKey ?? null)
+  const receipt = soloReceiptModel(state.bundle, selectedAccount?.publicKey ?? null, destinationOwner)
   const decimals = state.bundle.ritual.account.stakeDecimals
   const receiptNote = soloNotes?.notes[String(route.params.eventIndex)] ?? null
   return (
@@ -36,8 +38,8 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
       <Text style={s.kicker}>RECEIPT</Text>
       <Text style={s.title} accessibilityRole="header">Week {route.params.eventIndex + 1}</Text>
       {receipt.state === 'pending' ? <View style={s.card}><Text style={s.cardTitle}>Not closed yet</Text><Text style={s.muted}>This week has not settled. Come back after the week closes.</Text></View> : null}
-      {receipt.state === 'kept' ? <View style={s.card}><Text style={s.cardTitle}>Your stake is {receipt.copy}</Text><Stamp kind="kept" note={keptSaying(route.params.ritualId, route.params.eventIndex)} />{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}<Row label="Your stake" value={`${formatAtomic(receipt.amount, decimals)} · ${receipt.copy}`} /></View> : null}
-      {receipt.state === 'missed' ? <View style={s.card}><Text style={s.cardTitle}>This week was missed</Text><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Row label="Missed stake" value={formatAtomic(receipt.amount, decimals)} /><Row label="Destination" value={receipt.destinationLabel ?? 'the locked destination'} /></View> : null}
+      {receipt.state === 'kept' ? <View style={s.card}><Stamp kind="kept" note={keptSaying(route.params.ritualId, route.params.eventIndex)} /><Text style={s.muted}>{formatAtomic(receipt.amount, decimals)} back to you</Text>{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}</View> : null}
+      {receipt.state === 'missed' ? <View style={s.card}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{formatAtomic(receipt.amount, decimals)} went to {receipt.destinationLabel}.</Text></View> : null}
       {receipt.state === 'skipped' ? <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /><Text style={s.muted}>This week was declared skipped before it opened.</Text></View> : null}
       <ActionButton tone="quiet" label="Back to ritual" onPress={() => navigation.goBack()} />
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
@@ -45,7 +47,7 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) { const s = useS(); return <View style={s.row}><Text style={s.muted}>{label}</Text><Text style={s.value}>{value}</Text></View> }
+
 function Centered({ children }: { children: React.ReactNode }) { const s = useS(); return <View style={s.center}><Text style={s.muted}>{children}</Text></View> }
 function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { const s = useS(); return <View style={s.center}><Text style={s.title}>Receipt unavailable</Text><ErrorLine>{message}</ErrorLine><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back" onPress={onHome} /></View> }
 

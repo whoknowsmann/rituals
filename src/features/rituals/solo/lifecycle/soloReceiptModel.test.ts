@@ -17,6 +17,8 @@ describe('soloReceiptModel', () => {
   })
   it('maps a forfeited settled event to missed and its destination', () => {
     expect(soloReceiptModel(bundle('Settled', { forfeitedTotal: 5_000_000n }), me)).toMatchObject({ state: 'missed', copy: expect.stringContaining('went to') })
+    expect(soloReceiptModel(bundle('Settled', { forfeitedTotal: 5_000_000n }), me).destinationLabel).toBe('the wallet you chose')
+    expect(soloReceiptModel(bundle('Settled', { forfeitedTotal: 5_000_000n }), me, me).destinationLabel).not.toBe('the wallet you chose')
   })
   it('maps a declared skip to skipped', () => {
     expect(soloReceiptModel(bundle('Voided', { voidReason: 'DeclaredSkip' }), me).state).toBe('skipped')

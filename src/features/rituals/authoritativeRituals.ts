@@ -7,7 +7,7 @@ import type { RitualClientState } from './client/useRitualClient'
 import { clearRitualReminders } from './reminders/runtime'
 
 export const KNOWN_RITUALS_STORAGE_KEY = '@rituals/known-rituals/v1'
-export type KnownRitual = Readonly<{ address: string; title: string; requirement: string }>
+export type KnownRitual = Readonly<{ address: string; title: string; requirement: string; destinationOwner?: string }>
 export type BundleState = Readonly<{ status: 'loading' | 'ready' | 'error'; bundle?: RitualBundleRead; message?: string; retry: () => void }>
 type BundleSnapshot = Readonly<{ status: 'loading' | 'ready' | 'error'; bundle?: RitualBundleRead; message?: string }>
 
@@ -19,8 +19,9 @@ const parse = (value: unknown): KnownRitual | null => {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
   const record = value as Record<string, unknown>
   const address = canonical(record.address)
+  const destinationOwner = canonical(record.destinationOwner)
   return address && typeof record.title === 'string' && typeof record.requirement === 'string'
-    ? Object.freeze({ address, title: record.title, requirement: record.requirement }) : null
+    ? Object.freeze({ address, title: record.title, requirement: record.requirement, ...(destinationOwner ? { destinationOwner } : {}) }) : null
 }
 
 export async function listKnownRituals(): Promise<readonly KnownRitual[]> {
@@ -47,7 +48,7 @@ function updateKnown(change: (current: readonly KnownRitual[]) => readonly Known
 export async function rememberRitual(ritual: KnownRitual): Promise<void> {
   const parsed = parse(ritual)
   if (!parsed) throw new Error('cannot save an invalid Ritual')
-  await updateKnown((current) => [...current.filter((item) => item.address !== parsed.address), parsed])
+  await updateKnown((current) => [...current.filter((item) => item.address !== parsed.address), { ...current.find((item) => item.address === parsed.address), ...parsed }])
 }
 
 /** Take a ritual off this phone's list. The chain is untouched; nothing is refunded or cancelled. */
