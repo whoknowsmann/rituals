@@ -33,7 +33,9 @@ export function stepWeeks(current: number, delta: number): number {
 }
 
 /** Quick picks for the weekly stake (TEST); any amount can still be typed. */
-export const STAKE_PRESETS = Object.freeze(['1', '5', '10', '25'])
+/** Total stake picks for the whole ritual (Jack, 2026-10-06: the stake is the total). */
+export const STAKE_PRESETS = Object.freeze(['5', '10', '20', '50'])
+export const DEFAULT_STAKE_TOTAL = '20'
 
 /**
  * How long a week is, chosen on create (approved 2026-10-04). Demo speed is
@@ -68,7 +70,9 @@ export function soloScheduleSummary(input: Readonly<{ weekCount: number; stakeEa
   if (!first || !last) return `${weekCount} ${noun} · ${totalStakeLabel}`
   if (isDemoSpeedWindow(first.claimOpensAt, first.claimDeadlineAt)) {
     const minutes = demoWeekMinutesLabel(schedule.map((entry) => entry.claimOpensAt))
-    return `${weekCount} demo ${noun} · ${minutes} min${weekCount === 1 ? '' : ' each'} · ${totalStakeLabel}`
+    return weekCount === 1
+      ? `1 demo week · ${minutes} min · ${totalStakeLabel}`
+      : `${weekCount} demo weeks · ${minutes} min each · ${stakeEachLabel} a week`
   }
   // weekOpensLabel gives "Sun, Nov 1 · 2:47 PM"; the day is what matters here.
   const ends = weekOpensLabel(last.resolutionDeadlineAt, nowSeconds).split(' · ')[0]

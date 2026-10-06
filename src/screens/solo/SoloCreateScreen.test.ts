@@ -43,11 +43,13 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('>Locked in.</Hero>')
   })
 
-  it('lets the user set the length (1–16 weeks) and the weekly stake (typed or quick picks)', () => {
+  it('lets the user set the length (1–16 weeks) and ONE total stake, split across the weeks (typed or quick picks)', () => {
     expect(source).toContain('stepWeeks(weekCount, -1)')
     expect(source).toContain('stepWeeks(weekCount, 1)')
     expect(source).toContain('STAKE_PRESETS.map(')
-    expect(source).toContain('accessibilityLabel="Stake each week"')
+    expect(source).toContain('accessibilityLabel="Total stake"')
+    expect(source).toContain('splitTotalStake(stakeTotal, weekCount)')
+    expect(source).not.toContain('STAKE EACH WEEK')
   })
 
   it('journals the one-approval solo create so a killed app can recover it', () => {

@@ -23,7 +23,8 @@ import { suggestRituals, type RitualSuggestion } from '../../features/rituals/cr
 import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
 import { radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
-import { DEFAULT_SOLO_SPEED, SOLO_SPEEDS, selectSoloSchedule, soloCadenceFor, soloEventCount, soloScheduleSummary, SOLO_MAX_WEEKS, SOLO_MIN_WEEKS, STAKE_PRESETS, stepWeeks, type SoloSpeed } from '../../features/rituals/solo/create/schedule'
+import { splitTotalStake, atomicDecimalText } from '../../features/rituals/solo/create/stakeSplit'
+import { DEFAULT_SOLO_SPEED, SOLO_SPEEDS, selectSoloSchedule, soloCadenceFor, soloEventCount, soloScheduleSummary, SOLO_MAX_WEEKS, SOLO_MIN_WEEKS, STAKE_PRESETS, DEFAULT_STAKE_TOTAL, stepWeeks, type SoloSpeed } from '../../features/rituals/solo/create/schedule'
 import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
 import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, soloCreateSteps, type SoloCreateStep } from '../../features/rituals/solo/create/steps'
 import { SCOPE } from '../../features/rituals/productScope'
@@ -77,6 +78,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const [pickedEventCount, setPickedEventCount] = useState<string | number | undefined>(undefined)
   // Demo speed by default; Real weeks writes 7-day windows.
   const [speed, setSpeed] = useState<SoloSpeed>(DEFAULT_SOLO_SPEED)
+  const [stakeTotal, setStakeTotal] = useState(DEFAULT_STAKE_TOTAL)
   const [remindWeekly, setRemindWeekly] = useState(true)
   const { afterCreate: scheduleReminders } = useReminders()
   const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
@@ -124,16 +126,21 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   )
 
   const witnessKey = draft.witnessMode === 'one-witness' ? publicKeyFromCanonical(draft.witnessAddress) : null
-  const stepThreeErrors = useMemo(() => {
-    return [...validateSoloCreateStep(3, draft, selectedAccount?.publicKey)]
-  }, [draft, selectedAccount])
   const causeUnavailable = draft.destination === 'cause' && DEMO_CAUSE.tokenAccount === null
   const weekCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
+  // One stake for the whole ritual, split across the weeks (Jack, 2026-10-06).
+  const stakeSplit = splitTotalStake(stakeTotal, weekCount)
+  const stakeDraft = useMemo(() => ({ ...draft, stakePerWeek: stakeSplit.ok ? atomicDecimalText(stakeSplit.split.perWeekAtomic) : '' }), [draft, stakeSplit.ok ? stakeSplit.split.perWeekAtomic : -1n])
+  const stepThreeErrors = useMemo(() => {
+    const errors = [...validateSoloCreateStep(3, stakeDraft, selectedAccount?.publicKey)]
+    if (!stakeSplit.ok && stakeSplit.reason === 'too-small') errors.unshift(`Too small to split over ${weekCount} ${weekCount === 1 ? 'week' : 'weeks'}.`)
+    return errors
+  }, [stakeDraft, selectedAccount, stakeSplit.ok, weekCount])
   const totalStakeLabel = (() => {
-    try { return formatAtomic(parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount), 6) } catch { return '—' }
+    return stakeSplit.ok ? formatAtomic(stakeSplit.split.lockedAtomic, 6) : '—'
   })()
   const stakeEachLabel = (() => {
-    try { return formatAtomic(parseTokenAmount(draft.stakePerWeek), 6) } catch { return 'stake' }
+    return stakeSplit.ok ? formatAtomic(stakeSplit.split.perWeekAtomic, 6) : 'stake'
   })()
   // The windows this create will write, summarised honestly for either speed.
   const scheduleLine = (() => {
@@ -149,13 +156,13 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const [liveFeeConfig, setLiveFeeConfig] = useState<FeeConfig>(RITUAL_FEE_CONFIG)
   const feeAtomic = (() => {
     try {
-      const total = parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount)
+      const total = stakeSplit.ok ? stakeSplit.split.lockedAtomic : 0n
       return total > 0n ? quoteActivationFee(deriveGroupPool(total, 1), liveFeeConfig) : 0n
     } catch { return 0n }
   })()
   const neededAtomic = (() => {
     try {
-      const total = parseTokenAmount(draft.stakePerWeek) * BigInt(weekCount)
+      const total = stakeSplit.ok ? stakeSplit.split.lockedAtomic : 0n
       return total > 0n ? total + feeAtomic : null
     } catch { return null }
   })()
@@ -190,7 +197,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       eventCount,
       seasonSchedule: season.account?.schedule,
     })
-    const stakePerWeekAtomic = parseTokenAmount(draft.stakePerWeek)
+    const split = splitTotalStake(stakeTotal, eventCount)
+    if (!split.ok) throw new Error('Enter a stake.')
+    const stakePerWeekAtomic = split.split.perWeekAtomic
     return buildSoloCreateDeps({
       client: client.client,
       creator: selectedAccount.publicKey,
@@ -210,7 +219,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
       pendingActionStore: asyncStoragePendingActionStore,
     })
-  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey, speed])
+  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey, speed, stakeTotal])
 
   const create = useCreateRitual(makeDeps)
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
@@ -340,7 +349,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
                   <View style={styles.suggestionBody}>
                     <Text style={styles.suggestionTitle}>{suggestion.draft.title}</Text>
                     <Text style={styles.suggestionRule}>{suggestion.draft.requirement}</Text>
-                    <Text style={styles.suggestionMeta}>{suggestion.draft.eventCount} weeks · 5 TEST each week</Text>
+                    <Text style={styles.suggestionMeta}>{suggestion.draft.eventCount} weeks</Text>
                   </View>
                   <Text style={styles.use}>{selected ? '✓ Chosen' : 'Use'}</Text>
                 </Pressable>
@@ -401,18 +410,19 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               </View>
             )}
             <View style={styles.divider} />
-            <Text style={styles.label}>STAKE EACH WEEK</Text>
+            <Text style={styles.label}>STAKE</Text>
             <View style={styles.amountBox}>
-              <TextInput value={draft.stakePerWeek} onChangeText={(value) => setDraft((current) => ({ ...current, stakePerWeek: value }))} keyboardType="decimal-pad" selectTextOnFocus style={styles.stakeInput} accessibilityLabel="Stake each week" />
+              <TextInput value={stakeTotal} onChangeText={setStakeTotal} keyboardType="decimal-pad" selectTextOnFocus style={styles.stakeInput} accessibilityLabel="Total stake" />
               <Text style={styles.money}>TEST</Text>
             </View>
             <View style={styles.presets}>
               {STAKE_PRESETS.map((amount) => {
-                const chosen = draft.stakePerWeek === amount
-                return <Pressable key={amount} onPress={() => setDraft((current) => ({ ...current, stakePerWeek: amount }))} accessibilityRole="button" accessibilityState={{ selected: chosen }} accessibilityLabel={`${amount} TEST each week`} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{amount}</Text></Pressable>
+                const chosen = stakeTotal === amount
+                return <Pressable key={amount} onPress={() => setStakeTotal(amount)} accessibilityRole="button" accessibilityState={{ selected: chosen }} accessibilityLabel={`${amount} TEST in total`} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{amount}</Text></Pressable>
               })}
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
+            {stakeSplit.ok && !stakeSplit.split.exact && <Text style={styles.quiet}>{`Splits evenly to ${formatAtomic(stakeSplit.split.lockedAtomic, 6)}.`}</Text>}
             {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
             {testBalance !== null && (shortOfTest || testBalance === 0n) && faucet.status !== 'done' && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
             {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}

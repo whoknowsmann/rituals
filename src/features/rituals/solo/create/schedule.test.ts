@@ -8,8 +8,8 @@ describe('create controls (weeks stepper, stake picks)', () => {
     expect(stepWeeks(1, -1)).toBe(1)
     expect(stepWeeks(16, 1)).toBe(16)
   })
-  it('offers small whole-TEST quick picks', () => {
-    expect(STAKE_PRESETS).toEqual(['1', '5', '10', '25'])
+  it('offers whole-TEST picks for the total stake (Jack, 2026-10-06)', () => {
+    expect(STAKE_PRESETS).toEqual(['5', '10', '20', '50'])
   })
 })
 
@@ -26,7 +26,7 @@ describe('week speed on create (Demo speed · Real weeks, approved 2026-10-04)',
 
   it('says how long demo weeks are, singular for one week', () => {
     const four = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 4 }).schedule
-    expect(soloScheduleSummary({ weekCount: 4, stakeEachLabel: '5 TEST', totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 1 min each · 20 TEST')
+    expect(soloScheduleSummary({ weekCount: 4, stakeEachLabel: '5 TEST', totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 1 min each · 5 TEST a week')
     const one = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 1 }).schedule
     expect(soloScheduleSummary({ weekCount: 1, stakeEachLabel: '5 TEST', totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('1 demo week · 1 min · 5 TEST')
   })
