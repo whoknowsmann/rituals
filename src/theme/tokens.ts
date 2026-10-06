@@ -112,7 +112,9 @@ export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28, screen: 18
 
 export const fonts = {
   display: 'Fraunces_900Black',
-  section: 'Fraunces_600SemiBold',
+  /** Card titles and section headings: Figtree, not Fraunces 600, whose old-style
+   * lowercase f reads as a glitch at this size (Jack, 2026-10-06). */
+  section: 'Figtree_800ExtraBold',
   body: 'Figtree_400Regular',
   bodyStrong: 'Figtree_600SemiBold',
   heavy: 'Figtree_800ExtraBold',

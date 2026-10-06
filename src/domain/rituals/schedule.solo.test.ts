@@ -21,10 +21,10 @@ const DAY = 24 * HOUR
  * lobby keeps DEMO_CADENCE.
  */
 describe('DEMO_SOLO_CADENCE', () => {
-  it('is a 2-minute week: 90 s to stamp, 20 s grace, 10 s before the next opens', () => {
-    expect(DEMO_SOLO_CADENCE.claimWindowSeconds).toBe(90)
-    expect(DEMO_SOLO_CADENCE.resolutionGraceSeconds).toBe(20)
-    expect(DEMO_SOLO_CADENCE.periodSeconds).toBe(120)
+  it('is a 1-minute week: 45 s to stamp, 10 s grace, 5 s before the next opens (Jack, 2026-10-06)', () => {
+    expect(DEMO_SOLO_CADENCE.claimWindowSeconds).toBe(45)
+    expect(DEMO_SOLO_CADENCE.resolutionGraceSeconds).toBe(10)
+    expect(DEMO_SOLO_CADENCE.periodSeconds).toBe(60)
     expect(DEMO_SOLO_CADENCE.accelerated).toBe(true)
     expect(DEMO_SOLO_CADENCE.periodSeconds).toBeGreaterThan(DEMO_SOLO_CADENCE.claimWindowSeconds + DEMO_SOLO_CADENCE.resolutionGraceSeconds)
   })
@@ -37,17 +37,18 @@ describe('DEMO_SOLO_CADENCE', () => {
   it('builds a schedule the program accepts (opens < deadline < resolution < next opens)', () => {
     const now = 1_790_000_000
     const first = firstEventStart({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 })
-    // Week 1 opens 90 s after create: longer than a blockhash lives (~60-90 s),
-    // so a create that lands at all lands before week 1 opens and can activate.
+    // Week 1 opens 45 s after the create is prepared: enough for a Seed Vault
+    // approval. A create approved later than that fails as a whole (activation
+    // needs now < opens), so nothing is sent and the user simply retries.
     expect(first - now).toBe(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS)
-    expect(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS).toBe(90)
+    expect(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS).toBe(45)
     const schedule = generateRitualSchedule({ firstEventAt: first, eventCount: 16, cadence: DEMO_SOLO_CADENCE })
     schedule.forEach((entry, index) => {
       expect(entry.claimOpensAt).toBeLessThan(entry.claimDeadlineAt)
       expect(entry.claimDeadlineAt).toBeLessThan(entry.resolutionDeadlineAt)
       if (index > 0) expect(entry.claimOpensAt).toBeGreaterThan(schedule[index - 1].resolutionDeadlineAt)
     })
-    expect(schedule[0].claimDeadlineAt - schedule[0].claimOpensAt).toBe(90)
+    expect(schedule[0].claimDeadlineAt - schedule[0].claimOpensAt).toBe(45)
   })
 })
 
@@ -66,8 +67,8 @@ describe('REAL_SOLO_CADENCE', () => {
     expect(REAL_SOLO_CADENCE.label).toBe('Weekly')
   })
 
-  it('opens week 1 90 s after create instead of next same weekday', () => {
-    expect(firstEventStart({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 }) - now).toBe(90)
+  it('opens week 1 45 s after create instead of next same weekday', () => {
+    expect(firstEventStart({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 }) - now).toBe(45)
   })
 
   it('builds 1- and 16-week schedules the program accepts (opens < deadline < resolution < next opens)', () => {
@@ -110,6 +111,6 @@ describe('demo speed from the on-chain schedule (no local record)', () => {
     expect(demoWeekMinutesLabel([1_000, 1_390])).toBe('6.5')
     expect(demoWeekMinutesLabel([1_000, 1_180])).toBe('3')
     expect(demoWeekMinutesLabel([1_000, 1_120])).toBe('2')
-    expect(demoWeekMinutesLabel([1_000])).toBe('2')
+    expect(demoWeekMinutesLabel([1_000])).toBe('1')
   })
 })

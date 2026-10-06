@@ -78,17 +78,17 @@ export const DEMO_CADENCE: RitualCadence = Object.freeze({
 })
 
 /**
- * Devnet-only solo demo speed: a week is 2 minutes (Jack, 2026-10-05: judges
- * will "power click through"). 90 s to stamp — hold + Seed Vault approval +
- * devnet confirmation fits with room for a first-timer — then 20 s of grace
- * and 10 s before the next week opens (the program needs opens > previous
- * resolution). A 4-week ritual runs start to finish in about 9½ minutes. The
- * group lobby keeps DEMO_CADENCE.
+ * Devnet-only solo demo speed: a week is 1 minute (Jack, 2026-10-06: "this is
+ * the new internet age, everything moves quick"; was 2 minutes). 45 s to stamp
+ * — hold + Seed Vault approval (~13 s practised) + devnet confirmation — then
+ * 10 s of grace and 5 s before the next week opens (the program needs opens >
+ * previous resolution; it sets no minimum window). A 4-week ritual runs start
+ * to finish in under 5 minutes. The group lobby keeps DEMO_CADENCE.
  */
-export const DEMO_SOLO_CLAIM_WINDOW_SECONDS = 90
-export const DEMO_SOLO_RESOLUTION_GRACE_SECONDS = 20
+export const DEMO_SOLO_CLAIM_WINDOW_SECONDS = 45
+export const DEMO_SOLO_RESOLUTION_GRACE_SECONDS = 10
 export const DEMO_SOLO_CADENCE: RitualCadence = Object.freeze({
-  periodSeconds: DEMO_SOLO_CLAIM_WINDOW_SECONDS + DEMO_SOLO_RESOLUTION_GRACE_SECONDS + 10,
+  periodSeconds: DEMO_SOLO_CLAIM_WINDOW_SECONDS + DEMO_SOLO_RESOLUTION_GRACE_SECONDS + 5,
   claimWindowSeconds: DEMO_SOLO_CLAIM_WINDOW_SECONDS,
   resolutionGraceSeconds: DEMO_SOLO_RESOLUTION_GRACE_SECONDS,
   accelerated: true,
@@ -162,12 +162,14 @@ export function nextWeekdayOccurrence(referenceSeconds: number, weekday: number)
 }
 
 /**
- * Demo-speed lead before week 1 opens. A solo ritual is active the moment it
- * is created, so two minutes is enough to watch it open. A group must still be
+ * Lead before week 1 opens. The one-approval create (create + fund + activate)
+ * must land before week 1 opens or activation fails, so the lead covers a
+ * Seed Vault approval (~13 s practised, slower for a first-timer); 45 s keeps
+ * the wait short (Jack, 2026-10-06; was 90 s). A group must still be
  * funded by everyone, and the program rejects activation once week 1 has
  * opened (`now < opens`), so friends get ten minutes to put their stake in.
  */
-export const DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS = 90
+export const DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS = 45
 export const DEMO_GROUP_FIRST_EVENT_LEAD_SECONDS = 600
 
 /**

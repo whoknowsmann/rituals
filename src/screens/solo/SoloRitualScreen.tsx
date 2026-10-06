@@ -217,7 +217,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   if (state.status === 'error' || !state.bundle || !model) return <ErrorState message={state.message ?? 'This ritual could not be read.'} retry={state.retry} onHome={() => navigation.navigate('RitualsHome')} />
   const readyBundle = state.bundle
   const action = model.state === 'resolving/settle' ? settle : model.canSkip ? skip : claim
-  const actionCopy = withWalletHandoff(action.copy, action.state.status, walletPackage)
+  // A stamp in flight is about the person, not the transaction (Jack, 2026-10-06).
+  const stamping = action === claim && (action.state.status === 'submitted' || action.state.status === 'confirming')
+  const actionCopy = stamping ? Object.freeze({ title: 'Stamping…', body: '', tone: 'progress' as const }) : withWalletHandoff(action.copy, action.state.status, walletPackage)
   const actionError = action.state.status === 'error' ? action.copy.body : null
   const readyForWallet = Boolean(selectedAccount && readyBundle.ritual.account.members.some((member) => member.equals(selectedAccount.publicKey)))
   const tint = ritualTintAmong(route.params.ritualId, knownRituals)
@@ -271,7 +273,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
 
 function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, weekNote: string | null, settlingByItself: boolean, freshStamp: boolean, keptLine: string) { const s = useS();
   // Handoff progress must also show before an event exists and while skipping.
-  if (action.isBusy) return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{actionCopy.body}</Text></View>
+  if (action.isBusy) return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text>{actionCopy.body ? <Text style={s.muted}>{actionCopy.body}</Text> : null}</View>
   if (model.state === 'funding') return <View style={s.card}><Text style={s.cardTitle}>Waiting for funding</Text><Text style={s.muted}>This solo ritual is not active yet.</Text></View>
   if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text></View>
   // An open week with no event account yet needs no card either: the HOLD opens it.
@@ -282,7 +284,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
   if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note={keptLine} animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
-  if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Checking…</Text></View>
+  if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Stamping…</Text></View>
 
   if (model.state === 'completed') return <View style={s.card}><Text style={s.cardTitle}>Every week is settled.</Text></View>
   // An open week needs no card: the big HOLD button says it all.

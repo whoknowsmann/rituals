@@ -58,7 +58,8 @@ export function labelSoloDestination(destination: PublicKey, causeTokenAccount: 
 export function demoSpeedNotice(schedule: readonly Readonly<{ opens: bigint; deadline: bigint }>[]): string | null {
   const first = schedule[0]
   if (!first || !isDemoSpeedWindow(Number(first.opens), Number(first.deadline))) return null
-  return `Demo speed: a week here is ${demoWeekMinutesLabel(schedule.map((window) => Number(window.opens)))} minutes.`
+  const minutes = demoWeekMinutesLabel(schedule.map((window) => Number(window.opens)))
+  return `Demo speed: a week here is ${minutes} ${minutes === '1' ? 'minute' : 'minutes'}.`
 }
 
 function latestTerminal(bundle: SoloRitualBundle): Terminal | null {

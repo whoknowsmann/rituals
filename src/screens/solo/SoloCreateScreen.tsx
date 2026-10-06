@@ -377,7 +377,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
 
       {step === 3 && (
         <>
-          <Hero>Lock it in</Hero>
+          <Hero>Your stake</Hero>
           <View style={styles.stakeCard}>
             <Text style={styles.label}>HOW MANY WEEKS</Text>
             <View style={styles.stepper}>
