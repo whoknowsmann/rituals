@@ -178,7 +178,7 @@ const useStyles = themedStyles((color) => StyleSheet.create({
   button: { overflow: 'hidden', backgroundColor: color.card, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.4 },
   fill: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: color.go },
-  labels: { alignItems: 'center', gap: 2 },
-  label: { ...type.title, color: color.fg, letterSpacing: 2 },
+  labels: { alignItems: 'center', gap: 2, maxWidth: '80%' },
+  label: { ...type.title, color: color.fg, letterSpacing: 2, textAlign: 'center' },
   hint: { ...type.caption, color: color.muted },
 }))

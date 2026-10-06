@@ -3,7 +3,7 @@ import { DEMO_CAUSE, DEMO_CAUSES } from '../../../../data/rituals/demoConfig'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { demoWeekMinutesLabel, isDemoSpeedWindow } from '../../../../domain/rituals/schedule'
 import { shortRosterAddress } from '../../create/roster'
-import { weekOpensLabel } from '../../displayFormat'
+import { stampTimeLeftLabel, weekOpensLabel } from '../../displayFormat'
 import { currentWeekCell } from '../../../../components/crew/weekStripLogic'
 
 export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' | 'claimable' | 'awaiting-witness' | 'closing' | 'resolving/settle' | 'skipped' | 'missed' | 'completed'
@@ -21,6 +21,7 @@ export type SoloRitualModel = Readonly<{
   weekCells: readonly SoloWeekCell[]
   canSkip: boolean
   nextOpensLabel: string | null
+  stampTimeLeftLabel: string | null
   destinationLabel: string
   destinationAddress: PublicKey
   witnessLabel: string | null
@@ -154,7 +155,10 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
     eventIndex: account.currentEventIndex,
     weekCells: weekCells(bundle, now),
     canSkip,
-    nextOpensLabel: schedule ? weekOpensLabel(Number(schedule.opens), now) : null,
+    nextOpensLabel: account.status === 'Active' && schedule && now < Number(schedule.opens)
+      ? weekOpensLabel(Number(schedule.opens), now, isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline))) : null,
+    stampTimeLeftLabel: schedule && !mapped.showedUp && (mapped.state === 'claimable' || mapped.state === 'open-not-initialized')
+      ? stampTimeLeftLabel(Number(schedule.deadline), now, isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline))) : null,
     destinationLabel: labelSoloDestination(account.forfeitDestination),
     destinationAddress: account.forfeitDestination,
     witnessLabel: witness,

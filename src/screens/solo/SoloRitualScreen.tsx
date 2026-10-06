@@ -274,11 +274,12 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         </View>
       )}
       {renderState(model, witness, action, actionCopy, weekNote, settlingByItself, celebrate > 0, keptSaying(route.params.ritualId, model.eventIndex))}
+      {(model.state === 'missed' || model.state === 'skipped') && model.nextOpensLabel && <Text style={s.muted}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text>}
       {model.lastClosedOutcome === 'missed' && model.state !== 'missed' && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>Week {model.lastClosedEventIndex! + 1}: {model.destinationLabel} received that week's stake.</Text></View>}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
-      {holdVisible && <View style={s.holdArea}><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
+      {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}

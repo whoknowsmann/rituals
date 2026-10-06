@@ -5,6 +5,12 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloRitualScreen.tsx'), 'utf8')
 
 describe('SoloRitualScreen proof and witness controls', () => {
+  it('puts the chain-derived stamp countdown beside HOLD TO STAMP', () => {
+    expect(source).toContain('const chainNow = useChainTime(connection, focused)')
+    expect(source).toContain('soloRitualModel(state.bundle, chainNow,')
+    expect(source).toMatch(/holdVisible && <View[^\n]*model.stampTimeLeftLabel[^\n]*label="HOLD TO STAMP"/)
+    expect(source).not.toContain('Date.now(')
+  })
   it('guards remove taps, handles failure, and clears removed routes from recents', () => {
     expect(source).toContain('if (removalOpen.current || removalSaving.current) return')
     expect(source).toContain("navigation.reset({ index: 0, routes: [{ name: 'RitualsHome' }] })")

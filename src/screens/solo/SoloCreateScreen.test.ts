@@ -40,9 +40,10 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('Not enough tSKR: this needs')
   })
 
-  it('says "Lock it in" / "Locked in." (Jack, 2026-10-04)', () => {
+  it('keeps "Lock it in" but drops the separate "Locked in." stop', () => {
     expect(source).toContain("'Lock it in'")
-    expect(source).toContain('>Locked in.</Hero>')
+    expect(source).not.toContain('>Locked in.</Hero>')
+    expect(source).not.toContain('See your ritual')
   })
 
   it('lets the user set the length (1–16 weeks) and ONE total stake, split across the weeks (typed or quick picks)', () => {
@@ -62,11 +63,11 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('prepareCreateSoloFundAndActivate')
   })
 
-  it('shows the promise stamp only after confirmed readback and remembers the ritual', () => {
-    expect(source).toContain('<Stamp kind="promise"')
+  it('replaces create only after confirmed readback and remembers the ritual', () => {
+    expect(source).toContain('if (!createComplete || !confirmedReadback || !confirmedAddress || openedRitual.current) return')
     expect(source).toContain('rememberRitual(')
     expect(source).toContain('saveProofMode(')
-    expect(source).toContain("navigation.navigate('SoloRitual'")
+    expect(source).toContain("navigation.replace('SoloRitual', { ritualId: confirmedAddress })")
   })
 
   it('keeps a picked suggestion visibly selected and clears it when typing changes', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { formatAtomic, weekOpensLabel, weekIsOpen } from './displayFormat'
+import { formatAtomic, stampTimeLeftLabel, weekOpensLabel, weekIsOpen } from './displayFormat'
 
 describe('formatAtomic (people read amounts, not 6-decimal fixed point)', () => {
   it('drops trailing zeros but never rounds', () => {
@@ -20,7 +20,7 @@ describe('weekOpensLabel', () => {
   const now = at(new Date(2026, 9, 3, 14, 0, 0))
   it('is relative when it opens within the hour (demo speed)', () => {
     expect(weekOpensLabel(now + 120, now)).toBe('in 2 min')
-    expect(weekOpensLabel(now + 30, now)).toBe('in under a minute')
+    expect(weekOpensLabel(now + 30, now)).toBe('in 30s')
   })
   it('is a short weekday/date/time otherwise, no seconds', () => {
     expect(weekOpensLabel(at(new Date(2026, 9, 3, 14, 45, 16)) + 3600, now)).toBe('Sat, Oct 3 · 3:45 PM')
@@ -30,6 +30,21 @@ describe('weekOpensLabel', () => {
     expect(weekOpensLabel(now - 5, now)).toBe('now')
     expect(weekIsOpen(now - 5, now)).toBe(true)
     expect(weekIsOpen(now + 5, now)).toBe(false)
+  })
+  it('ticks demo openings in seconds, including older longer schedules', () => {
+    expect(weekOpensLabel(now + 120, now, true)).toBe('in 120s')
+    expect(weekOpensLabel(now + 120, now + 88, true)).toBe('in 32s')
+    expect(weekOpensLabel(now + 120, now + 89, true)).toBe('in 31s')
+  })
+})
+
+describe('stampTimeLeftLabel', () => {
+  it.each([
+    [32, true, '32s left'], [0, true, '0s left'], [-1, true, '0s left'],
+    [172800, false, '2 days left'], [86400, false, '1 day left'],
+    [18000, false, '5 h left'], [120, false, '2 min left'], [32, false, '32s left'],
+  ])('formats %s seconds remaining (demo %s)', (remaining, demo, expected) => {
+    expect(stampTimeLeftLabel(1000 + remaining, 1000, demo)).toBe(expected)
   })
 })
 

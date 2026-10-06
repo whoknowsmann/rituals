@@ -22,7 +22,7 @@ import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
-import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
+import { ActionButton, ErrorLine, Footnote, Hero, Section } from '../../components/crew'
 import { radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
 import { splitTotalStake, atomicDecimalText } from '../../features/rituals/solo/create/stakeSplit'
@@ -33,7 +33,7 @@ import { SCOPE } from '../../features/rituals/productScope'
 import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
 import { settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
 import { DEMO_CLOCK_WARNING } from '../../features/rituals/solo/settler/settlementVisibility'
-import { startedSaying } from '../../features/rituals/solo/sayings'
+
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee, type FeeConfig } from '../../domain/rituals/money'
 import { RITUAL_FEE_CONFIG } from '../../features/rituals/create/draftForm'
@@ -90,7 +90,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
   const [suggestionRound, setSuggestionRound] = useState(0)
   const [confirmedReadback, setConfirmedReadback] = useState(false)
-  // This screen stays mounted under the ritual; client/auth identities change.
+  // Client/auth identities can change during readback; keep local writes one-shot.
   const handledCreateAddresses = useRef(new Set<string>())
   const [readbackError, setReadbackError] = useState<string | null>(null)
   const [readbackAttempt, setReadbackAttempt] = useState(0)
@@ -303,6 +303,14 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     return () => { active = false }
   }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title, draft.destination, speed, remindWeekly, scheduleReminders, readbackAttempt])
 
+  // The chain clock keeps running: never require another tap after confirmation.
+  const openedRitual = useRef(false)
+  useEffect(() => {
+    if (!createComplete || !confirmedReadback || !confirmedAddress || openedRitual.current) return
+    openedRitual.current = true
+    navigation.replace('SoloRitual', { ritualId: confirmedAddress })
+  }, [createComplete, confirmedReadback, confirmedAddress, navigation])
+
   const advance = () => {
     const creator = selectedAccount?.publicKey
     const current = step === 1 ? applyTypedIntention(draft) : draft
@@ -328,19 +336,6 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   }
 
   // buildSoloCreateDeps invokes client.prepareCreateSoloFundAndActivate for this single approval.
-  if (createComplete && confirmedReadback) {
-    return (
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <Hero kicker="Ritual started">Locked in.</Hero>
-        <View style={styles.confirmedCard}>
-          <Stamp kind="promise" note={startedSaying(confirmedAddress ?? '')} />
-        </View>
-        <ActionButton label="See your ritual" onPress={() => navigation.navigate('SoloRitual', { ritualId: confirmedAddress! })} accessibilityLabel="See your ritual" />
-        <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
-      </ScrollView>
-    )
-  }
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.progress} accessibilityLabel={`New ritual, step ${stepPosition.position} of ${stepPosition.total}`}>
@@ -563,7 +558,7 @@ const useStyles = themedStyles((color) => StyleSheet.create({
   quiet: { ...type.caption, color: color.muted },
   status: { backgroundColor: color.card, borderRadius: radius.lg, borderColor: color.line, borderWidth: 1, padding: space.lg, gap: space.xs },
   statusTitle: { ...type.heading, color: color.fg },
-  confirmedCard: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.xl },
+
   devnetCard: { backgroundColor: color.card, borderColor: color.goDeep, borderWidth: 1.5, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
   devnetTitle: { ...type.bodyStrong, color: color.fg },
 }))
