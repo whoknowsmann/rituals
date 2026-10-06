@@ -4,7 +4,9 @@ Design
 
 The app's own double-ruled ink stamp is the character, not a new animal mascot.
 Nine shape-only expressions share one slightly rotated rubber-stamp ring. The
-face carries status; a Fraunces 900 numeral carries the consecutive-week streak.
+face carries status; a Fraunces 900 hero carries the consecutive-week streak
+while active, or the kept/total tally (such as 1/6) when finished. Its small
+label sits directly beneath it: “week streak” or “weeks kept”.
 One short Figtree line nags or celebrates. No punch dots, stake header, pill or
 extra narration. The tagline remains unchanged elsewhere: Show up, or pay up.
 
@@ -13,13 +15,17 @@ open        calm         Week 1 is open.                  dark / #C8F560
 concerned   side-eye     Your 5 TEST has opinions.        dark / #C8F560
 alarmed     alarmed      Nearly closed. Stamp it.         dark / #C8F560
 stamped     joyful       You showed up.                   #2F6B2A / #FFFDF8
-missed      sad/flat     5 TEST went to your cause.       #8C8377 / #EAE3D6
+missed      sad          5 TEST went to your cause.       #8C8377 / #EAE3D6
 resting     closed eyes  Week 2 opens in 3h               dark / #FFFDF8
-finished    content*     4 of 6 kept                      #2F6B2A / #FFFDF8
+finished    content*     Ritual finished.                 #2F6B2A / #FFFDF8
 empty       expectant    Start a ritual?                  dark / #C8F560
-closing     neutral      Week closed. Open Rituals.       #8C8377 / #EAE3D6
+closing     neutral      Week closed. Open Rituals.       dark / #FFFDF8
 
-* Finished uses neutral/quiet ink unless more than half of all weeks were kept.
+* Finished uses a neutral face with dark ink unless more than half of all weeks
+were kept. Grey ink is reserved for confirmed misses, not completion or closing.
+The concerned glance has two right-shifted pupils, one lowered flat brow and a
+small flat mouth, with no overlapping eye strokes. Sad brows rise toward the
+middle over a shallow downturned mouth: disappointed, never mocking.
 Dark ink is #1D1A16. Ritual tint remains the background, with paper-white text;
 empty uses warm app paper. The stamped streak numeral celebrates in #C8F560.
 Misses never turn red. The open, concerned and stamped lines use deterministic
@@ -38,12 +44,16 @@ Layout
 The provider is unchanged: 110dp minima, 2x2 target, horizontal|vertical resize,
 30-minute updatePeriodMillis. Root is match_parent with radius.lg (20dp) and
 14dp padding. At a square placement the SVG box takes about 55% of inner height,
-the numeral row 23%, and the message the remainder. The empty face gets 72%.
+the hero/label stack 30%, and the message the remainder. The empty face gets 72%.
+The label has a 9dp or 12dp budget directly under the number with no added gap.
+Both texts are centred and fitted to the full available text width, including
+two-digit tallies such as 16/16; their combined height stays within the budget.
 The display uses available width AND height, not an empty weighted header.
 
 A width of at least 240dp and aspect ratio of at least 1.5 switches to a large
 face on the left and numeral, message and small single-line ritual name on the
-right. Both foreground refresh and headless resize pass the host dimensions.
+right, centred within that text column. Both foreground refresh and headless
+resize pass the host dimensions.
 Text has bounded lines and native font fitting; only the wide ritual name is
 ellipsized. All UI is FlexWidget/TextWidget/SvgWidget from the installed 0.16.1.
 SVG is self-contained shapes: no fonts, images or URLs. Text uses the existing
@@ -109,12 +119,13 @@ demo windows may pass between redraws. The app is required for fresh results.
 
 Verification and device handoff
 
-Executed for this redesign: npm run typecheck passed; npm test -- src/widget
-passed 41 tests in 7 files; one final full npm test passed 2,382 tests in 141
-files. The lower case count versus the 2,445/140 baseline comes from replacing
-the old tile/pill/dot matrices with focused stamp behavior tests, not removing
-non-widget tests. The full run emitted bigint native-binding fallback warnings
-and expected negative-path logs, with no failures. No rebuild was attempted.
+Executed for this polish: npm run typecheck passed; npm test -- src/widget
+passed 55 tests in 7 files; the full npm test ran once and passed 2,396 tests
+in 141 files (baseline 2,382 / 141). Added regression coverage for finished
+kept/total heroes, active streaks, dark finished ink, separated side-eye strokes,
+sad geometry, and stacked label budgets at minimum, 2x2 and 4x2 sizes. The full
+run emitted bigint native-binding fallback warnings and expected negative-path
+logs, with no failures. No rebuild or device verification was attempted.
 
 Widget tests exercise the actual installed JS primitive converters/serializer,
 with the native asset resolver stubbed only for SvgWidget's unused numeric

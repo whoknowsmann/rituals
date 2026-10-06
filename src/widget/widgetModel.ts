@@ -15,6 +15,7 @@ export type WidgetState = 'open' | 'concerned' | 'alarmed' | 'stamped' | 'missed
 export type StampFace = 'calm' | 'side-eye' | 'alarmed' | 'joyful' | 'sad' | 'resting' | 'content' | 'expectant' | 'neutral'
 export type WidgetModel = Readonly<{
   title: string; state: WidgetState; face: StampFace; streak: number
+  hero: Readonly<{ value: string; label: 'week streak' | 'weeks kept' }>
   line: string; tint: string; ink: string; seal: string
 }>
 
@@ -95,11 +96,12 @@ export function widgetModel(known: readonly WidgetKnown[], outcomes: readonly Wi
 
 export function widgetModelFromSnapshot(snapshot: WidgetSnapshot | null, now: number): WidgetModel {
   const ritual = selectWidgetSnapshot(snapshot, now)
-  if (!ritual) return { title: '', state: 'empty', face: 'expectant', streak: 0, line: 'Start a ritual?', tint: color.bg, ink: color.fg, seal: WIDGET_LIME }
+  if (!ritual) return { title: '', state: 'empty', face: 'expectant', streak: 0, hero: { value: '0', label: 'week streak' }, line: 'Start a ritual?', tint: color.bg, ink: color.fg, seal: WIDGET_LIME }
   const { weeks, address, stakeLabel, causeLabel } = ritual
-  const base = { title: ritual.title, streak: widgetStreak(weeks, now), tint: ritual.tint, ink: color.fg, seal: WIDGET_LIME }
+  const streak = widgetStreak(weeks, now)
+  const base = { title: ritual.title, streak, hero: { value: String(streak), label: 'week streak' as const }, tint: ritual.tint, ink: color.fg, seal: WIDGET_LIME }
   const kept = weeks.filter((week) => week.outcome === 'kept').length
-  if (!ritual.active) return { ...base, state: 'finished', face: kept > weeks.length / 2 ? 'content' : 'neutral', line: `${kept} of ${weeks.length} kept`, ink: kept > weeks.length / 2 ? color.stampInk : color.stampQuiet, seal: color.card }
+  if (!ritual.active) return { ...base, state: 'finished', face: kept > weeks.length / 2 ? 'content' : 'neutral', hero: { value: `${kept}/${weeks.length}`, label: 'weeks kept' }, line: 'Ritual finished.', ink: kept > weeks.length / 2 ? color.stampInk : color.fg, seal: color.card }
   const current = weeks.findIndex((week, index) => now >= week.opens && (index === weeks.length - 1 || now < weeks[index + 1].opens))
   const week = weeks[current]
   if (week?.outcome === 'kept' && (now <= week.deadline || current === weeks.length - 1)) return { ...base, state: 'stamped', face: 'joyful', line: pick(['You showed up.', 'Future you says thanks.'], address, current + 1, 'stamped'), ink: color.stampInk, seal: color.card }
@@ -119,7 +121,7 @@ export function widgetModelFromSnapshot(snapshot: WidgetSnapshot | null, now: nu
     const amountOnly = `${stakeLabel} went to your cause.`
     return { ...base, state: 'missed', face: 'sad', line: fits(receipt) ? receipt : fits(amountOnly) ? amountOnly : 'Stake went to your cause.', ink: color.stampQuiet, seal: color.paperMuted }
   }
-  if (week && (week.outcome === 'pending' || week.outcome === 'unknown')) return { ...base, state: 'closing', face: 'neutral', line: 'Week closed. Open Rituals.', ink: color.stampQuiet, seal: color.paperMuted }
+  if (week && (week.outcome === 'pending' || week.outcome === 'unknown')) return { ...base, state: 'closing', face: 'neutral', line: 'Week closed. Open Rituals.', ink: color.fg, seal: color.card }
   const next = weeks.findIndex((entry) => entry.opens > now)
   return { ...base, state: 'resting', face: 'resting', line: next >= 0 ? openingLine(next + 1, weeks[next].opens, now) : 'Take a breath. Open Rituals.', ink: color.fg, seal: color.card }
 }

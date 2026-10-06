@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ritualTintAmong } from '../features/rituals/home/ritualColours'
+import { color } from '../theme/tokens'
 import { buildWidgetSnapshot, openWidgetState, selectWidgetSnapshot, widgetModel, widgetModelFromSnapshot, widgetStreak, WIDGET_THRESHOLDS, type WeekOutcome, type WidgetOutcome, type WidgetWeek } from './widgetModel'
 
 const known = [{ address: 'older', title: 'Read' }, { address: 'newer', title: 'Train' }]
@@ -44,9 +45,26 @@ describe('stamp widget state and clock', () => {
     expect(model(weeks, 400).state).toBe('open')
     expect(model([week(100, 200)], 300).line).not.toContain('went')
   })
-  it('gives a finished tally and content face only when most weeks were kept', () => {
-    expect(model([week(100, 200, 'kept')], 300, { active: false })).toMatchObject({ state: 'finished', face: 'content', line: '1 of 1 kept' })
-    expect(model([week(100, 200, 'missed')], 300, { active: false })).toMatchObject({ state: 'finished', face: 'neutral', line: '0 of 1 kept' })
+  it.each([0, 1, 3, 4, 6])('gives %i/6 finished tally, not the trailing streak; content only for a majority', (kept) => {
+    const weeks = Array.from({ length: 6 }, (_, index) => week(index * 200, index * 200 + 100, index < kept ? 'kept' : 'missed'))
+    const value = model(weeks, 1300, { active: false })
+    expect(value).toMatchObject({ state: 'finished', face: kept > 3 ? 'content' : 'neutral', hero: { value: `${kept}/6`, label: 'weeks kept' }, line: 'Ritual finished.', ink: kept > 3 ? color.stampInk : color.fg, seal: color.card, tint: ritualTintAmong('newer', known) })
+    expect(value.streak).toBe(kept === 6 ? 6 : 0)
+    expect(model(weeks, 5000, { active: false }).hero).toEqual(value.hero)
+  })
+  it('counts only kept outcomes in the finished hero, not skips or unread history', () => {
+    const weeks = (['kept', 'skipped', 'unknown', 'missed', 'pending', 'missed'] as const).map((result, index) => week(index * 200, index * 200 + 100, result))
+    expect(model(weeks, 1300, { active: false }).hero).toEqual({ value: '1/6', label: 'weeks kept' })
+  })
+  it('keeps active heroes as streaks across every active state; reserves grey ink for misses', () => {
+    const history = [week(0, 100, 'kept'), week(200, 300, 'kept')]
+    for (const result of ['pending', 'kept', 'missed', 'skipped', 'unknown'] as const) {
+      for (const now of [350, 400, 600, 655, 701]) {
+        const value = model([...history, week(400, 700, result)], now)
+        expect(value.hero).toEqual({ value: String(value.streak), label: 'week streak' })
+        expect(value.ink === color.stampQuiet).toBe(value.state === 'missed')
+      }
+    }
   })
   it('advances through saved windows on the clock without inventing results', () => {
     const weeks = [week(100, 200), week(400, 500)]
@@ -103,7 +121,7 @@ describe('short, deterministic authored copy', () => {
     for (let index = 0; index < 24; index++) {
       const candidates = [outcome({ address: `ritual-${index}` })]
       const keys = [{ address: candidates[0].address, title: 'Read' }]
-      for (const [result, now, active] of [['pending', 900, true], ['pending', 1000, true], ['pending', 1200, true], ['pending', 1255, true], ['pending', 1301, true], ['kept', 1100, true], ['missed', 1301, true], ['kept', 1400, false]] as const) {
+      for (const [result, now, active] of [['pending', 900, true], ['pending', 1000, true], ['pending', 1200, true], ['pending', 1255, true], ['pending', 1301, true], ['kept', 1100, true], ['missed', 1301, true], ['kept', 1400, false], ['missed', 1400, false]] as const) {
         candidates[0] = { ...candidates[0], weeks: [week(1000, 1300, result)], active }
         const value = widgetModel(keys, candidates, now)
         expect(widgetModel(keys, candidates, now)).toEqual(value)
