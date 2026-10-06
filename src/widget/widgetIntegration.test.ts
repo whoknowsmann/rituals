@@ -63,6 +63,7 @@ describe('widget integration source pins', () => {
     expect(source('src/widget/RitualWidget.tsx')).toContain('clickAction="OPEN_APP"')
     expect(source('src/widget/RitualWidget.tsx')).toContain('fontFamily: fonts.display')
     expect(source('src/widget/widgetTaskHandler.ts')).toContain('width: widgetInfo.width')
-    expect(source('src/widget/refreshWidget.ts')).toContain('renderWidget: ({ width })')
+    expect(source('src/widget/refreshWidget.ts')).toContain('renderWidget: ({ width, height })')
+    expect(source('src/widget/widgetTaskHandler.ts')).toContain('height: widgetInfo.height')
   })
 })

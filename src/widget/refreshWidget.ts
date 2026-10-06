@@ -29,7 +29,7 @@ function enqueueRefresh(updates?: readonly WidgetOutcome[], known?: readonly Wid
     // Lazy imports keep other platforms and an older binary's ordinary screens usable.
     const { requestWidgetUpdate } = require('react-native-android-widget') as typeof import('react-native-android-widget')
     const { RitualWidget } = require('./RitualWidget') as typeof import('./RitualWidget')
-    await requestWidgetUpdate({ widgetName: 'RitualWidget', renderWidget: ({ width }) => React.createElement(RitualWidget, { width, model: widgetModelFromSnapshot(snapshot, Math.floor(Date.now() / 1000)) }) })
+    await requestWidgetUpdate({ widgetName: 'RitualWidget', renderWidget: ({ width, height }) => React.createElement(RitualWidget, { width, height, model: widgetModelFromSnapshot(snapshot, Math.floor(Date.now() / 1000)) }) })
   }).catch(() => undefined)
   queue = next
   return next

@@ -1,38 +1,38 @@
 // Foreground adapter only. The task handler must never import this module.
 import { formatAtomic } from '../features/rituals/displayFormat'
-import { eventOutcome, soloHomeCells } from '../features/rituals/home/soloHistory'
-import { soloRitualModel, type SoloRitualBundle } from '../features/rituals/solo/lifecycle/soloRitualModel'
-import type { WidgetOutcome } from './widgetModel'
+import { labelSoloDestination, type SoloRitualBundle } from '../features/rituals/solo/lifecycle/soloRitualModel'
+import type { WeekOutcome, WidgetOutcome } from './widgetModel'
 
 export type WidgetBundle = Readonly<{ address: string; bundle: SoloRitualBundle }>
 export type WidgetWeekOutcomes = ReadonlyMap<string, ReadonlyMap<number, 'done' | 'missed'>>
 
-/** Use exactly Home's cells and lifecycle status, including neutral unread weeks. */
-export function widgetOutcomeFromBundle({ address, bundle }: WidgetBundle, now: number, homeOutcomes?: ReadonlyMap<number, 'done' | 'missed'>): WidgetOutcome | null {
+/** Chain schedule + observed results only. No expiry-derived transfers or extra RPC. */
+export function widgetOutcomeFromBundle({ address, bundle }: WidgetBundle, _now: number, homeOutcomes?: ReadonlyMap<number, 'done' | 'missed'>): WidgetOutcome | null {
   const account = bundle.ritual.account
   if (account.kind !== 'Solo' || (account.status !== 'Active' && account.status !== 'Completed') || !account.schedule.length) return null
-  const index = Math.min(account.currentEventIndex, account.schedule.length - 1)
-  // Home provides readSoloWeekOutcomes. The detail screen already has event
-  // history: apply the very same eventOutcome convention without extra RPC.
-  const outcomes = new Map(homeOutcomes)
-  if (homeOutcomes === undefined) {
-    for (const read of [...(bundle.history ?? []), bundle]) {
-      if (!read.event) continue
-      const result = eventOutcome(read.event.account)
-      if (result) outcomes.set(read.event.account.eventIndex, result)
-    }
+  const closed = account.status === 'Completed' ? account.schedule.length : account.currentEventIndex
+  const outcomes = new Map<number, WeekOutcome>()
+  for (const [index, result] of homeOutcomes ?? []) outcomes.set(index, result === 'done' ? 'kept' : 'missed')
+  // Detail already carries historical reads. Home's explicit batch remains the
+  // history authority; the current bundle can always add a confirmed stamp.
+  for (const read of [...(homeOutcomes === undefined ? bundle.history ?? [] : []), bundle]) {
+    const event = read.event?.account
+    if (!event) continue
+    const confirmed = read.claims.some((claim) => claim.member.equals(account.members[0]) && claim.account?.status === 'Confirmed')
+    if (event.status === 'Voided') outcomes.set(event.eventIndex, 'skipped')
+    else if (event.status === 'Settled') outcomes.set(event.eventIndex, event.forfeitedTotal > 0n ? 'missed' : 'kept')
+    else if (confirmed) outcomes.set(event.eventIndex, 'kept')
   }
-  const model = soloRitualModel(bundle, now, account.members[0] ?? null)
-  const window = account.schedule[index]
-  const current = bundle.event?.account
+  // Home's refunded 'done' cells must not turn a declared skip into a stamp.
+  if (account.skipDeclared) outcomes.set(account.skipEventIndex, 'skipped')
   return {
     address,
-    stakeLabel: `${formatAtomic(account.perEventAllocation, account.stakeDecimals)} / WK`,
-    cells: soloHomeCells(account, outcomes),
+    stakeLabel: formatAtomic(account.perEventAllocation, account.stakeDecimals),
+    causeLabel: labelSoloDestination(account.forfeitDestination),
     active: account.status === 'Active',
-    state: model.state,
-    showedUp: model.showedUp,
-    terminalCurrent: current?.eventIndex === account.currentEventIndex && (current.status === 'Settled' || current.status === 'Voided'),
-    opens: Number(window.opens), deadline: Number(window.deadline),
+    weeks: account.schedule.map((window, index) => ({
+      opens: Number(window.opens), deadline: Number(window.deadline),
+      outcome: outcomes.get(index) ?? (index < closed ? 'unknown' : 'pending'),
+    })),
   }
 }

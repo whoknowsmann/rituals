@@ -1,75 +1,134 @@
-Rituals Android widget
+Rituals Android widget — the stamp has opinions
 
-Home tile repair
+Design
 
-One resizable 2x2 Home tile, not a receipt. app.json uses minWidth/minHeight 110dp, targetCellWidth/Height 2, resizeMode horizontal|vertical. The previous 146dp minimum requested three rows on the owner's launcher. Provider minima select launcher cells; they do not guarantee the actual rendered dimensions. Existing placements may retain their previous footprint: remove/re-add or resize after updating the native binary.
+The app's own double-ruled ink stamp is the character, not a new animal mascot.
+Nine shape-only expressions share one slightly rotated rubber-stamp ring. The
+face carries status; a Fraunces 900 numeral carries the consecutive-week streak.
+One short Figtree line nags or celebrates. No punch dots, stake header, pill or
+extra narration. The tagline remains unchanged elsewhere: Show up, or pay up.
 
-The root uses the launcher's full width/height, ritualTintAmong's Home tint, radius.lg (20dp), and 14dp padding. The top group has a small uppercase stake label (e.g. 5 TEST / WK, Figtree 600, letter spacing 1, paper at about 75% opacity) and a 22sp Fraunces 900 name, limited to two lines with end truncation. The bottom group has one dot per week, the Home short count, and a single-line rounded status pill. Figtree 400 is used for counts and 600 for the pill. Text is paper white (#FFFDF8); a passive pill has translucent white fill, while an action pill uses the requested #C8F560 and dark goInk text. The optional orb is omitted. No receipt sayings or redundant Week N of M line.
+State       Face         Example line                    Stamp ink / paper
+open        calm         Week 1 is open.                  dark / #C8F560
+concerned   side-eye     Your 5 TEST has opinions.        dark / #C8F560
+alarmed     alarmed      Nearly closed. Stamp it.         dark / #C8F560
+stamped     joyful       You showed up.                   #2F6B2A / #FFFDF8
+missed      sad/flat     5 TEST went to your cause.       #8C8377 / #EAE3D6
+resting     closed eyes  Week 2 opens in 3h               dark / #FFFDF8
+finished    content*     4 of 6 kept                      #2F6B2A / #FFFDF8
+empty       expectant    Start a ritual?                  dark / #C8F560
+closing     neutral      Week closed. Open Rituals.       #8C8377 / #EAE3D6
 
-The weighted header occupies the space left after measuring the footer. Its title is explicitly left/top aligned rather than centered in that space; the footer stays at the bottom. At a 2x2 placement the two groups fill the square; on a 2x3 stretch only the space below the name grows. A bounded title area prevents a long name from displacing the footer. There is no fixed root height. Dot sizes/gaps adapt to the reported width, including a rounding allowance for native physical pixels, so up to sixteen weeks remain one row. Very small placements and large accessibility scales still need native measurement checks; JS tree tests are not screenshots.
+* Finished uses neutral/quiet ink unless more than half of all weeks were kept.
+Dark ink is #1D1A16. Ritual tint remains the background, with paper-white text;
+empty uses warm app paper. The stamped streak numeral celebrates in #C8F560.
+Misses never turn red. The open, concerned and stamped lines use deterministic
+FNV-1a address/week/state selection, matching reminders' hashing/voice without
+changing that feature. Literal “Last hour. Stamp it.” is used only in the final
+hour of a real window; accelerated demos and earlier proportional urgency say
+“Nearly closed. Stamp it.” All authored messages fit a 30-character budget.
 
-Empty: hide stake label, dots, and count; show Start a ritual? and the lime Open Rituals pill. The root tap is still OPEN_APP, never a transaction. A cold launch uses normal app navigation; a warm launch may resume the existing screen rather than Home.
+The complete cause label is stored. Receipt copy names it when the full amount
+and cause fit; otherwise it says “5 TEST went to your cause.” A very long amount
+uses “Stake went to your cause.” Neither amount nor destination is truncated
+into a different one. The actual app receipt names Northside Food Bank (demo).
 
-Content and data boundary
+Layout
 
-Selection uses reverse remembered order (listKnownRituals appends new rituals): newest available active solo ritual, otherwise newest available completed solo ritual. Activity comes from the ritual account, not a terminal current event. Funding, cancelled, group and unreadable rituals are not candidates. Reading an older detail screen does not displace a newer active candidate in the foreground cache. On process restart the saved selection seeds that cache; Home repopulates other candidates. This is not a second database of all rituals.
+The provider is unchanged: 110dp minima, 2x2 target, horizontal|vertical resize,
+30-minute updatePeriodMillis. Root is match_parent with radius.lg (20dp) and
+14dp padding. At a square placement the SVG box takes about 55% of inner height,
+the numeral row 23%, and the message the remainder. The empty face gets 72%.
+The display uses available width AND height, not an empty weighted header.
 
-Home's existing readSoloWeekOutcomes batch feeds soloHomeCells unchanged. Closed results are kept/done when settled without forfeiture or voided/refunded, missed when settled with forfeiture, and neutral closed when unread. The active index is now; later weeks are future. A confirmed stamp changes the pill but does not turn the current ring into a closed-week kept dot or increment the kept count. The count is weekSummaryShort(cells), e.g. 1 of 4 kept; only done cells count. Detail reads use their enriched history with the same eventOutcome convention, without extra RPC. For Home batches an absent history entry remains neutral rather than falling back to inferred outcomes from the current bundle.
+A width of at least 240dp and aspect ratio of at least 1.5 switches to a large
+face on the left and numeral, message and small single-line ritual name on the
+right. Both foreground refresh and headless resize pass the host dimensions.
+Text has bounded lines and native font fitting; only the wide ritual name is
+ellipsized. All UI is FlexWidget/TextWidget/SvgWidget from the installed 0.16.1.
+SVG is self-contained shapes: no fonts, images or URLs. Text uses the existing
+bundled Fraunces_900Black and Figtree 400/600 assets. OPEN_APP is the only action.
 
-Dot rendering: done = filled paper white; missed = filled dark ink; unread closed = the same neutral dark mark Home uses for closed/missed; future = transparent with a 35%-opacity paper outline; now = transparent with a stronger paper ring. Unread closed cells do not count as kept or assert a confirmed miss.
+Clock, selection and streak
 
-Pill text and act come directly from tileStatus(), never widget-specific replacement copy. In this branch that means:
-  claimable/open-not-initialized: Stamp this week (act=true), or Stamped if showedUp.
-  waiting: Opens <weekOpensLabel>, or Opens soon if the shared model supplies no label.
-  closing/resolving: Stamped if showedUp, otherwise Closing….
-  missed: Missed last week; skipped: Skipped last week.
-  completed: Finished; awaiting-witness: Waiting on witness; funding: Not active yet.
-Only the empty state intentionally supplies Open Rituals with act=true. Waiting dates use the shared formatter, not a custom widget countdown. Headless clock updates may open/close the saved window, but never invent settlement, advance a week, or reopen a terminal current event. Deadline remains inclusive.
+WIDGET_THRESHOLDS in widgetModel.ts is the single urgency constants block:
+  concerned: remaining <= one third of the stamp window;
+  alarmed: remaining <= 15% of the stamp window (takes priority);
+  windows >= 86400 seconds additionally use <= one day / <= one hour floors.
+Opens and deadline are inclusive. No countdown runs between Android updates.
+A stamped week celebrates through its window, then rests until the next opens;
+a final stamped week keeps its joy until a completed account is observed.
+A confirmed miss stays quiet until the next week opens. An expired unconfirmed
+week displays closing, never claims settlement or a transfer. The clock can
+advance to a later saved window, but cannot advance the on-chain account or
+settle it; opening the app handles any required catch-up.
 
-The persisted record is @rituals/widget/v2:
-  address, title, stakeLabel, cells (ordered per-week array), active, state,
-  showedUp, terminalCurrent, opens, deadline, tint
+Selection re-runs at render time across ALL saved candidates: open unstamped
+week with nearest deadline; else newest active; else newest finished. Ties use
+newest remembered order. Funding, cancelled, group and unreadable rituals are
+not candidates. Known order determines tint, as on Home.
 
-The decoder validates fields, cells, lifecycle state, windows and colour, and drops extra fields. A null record means no supported remembered ritual. No notes, keys, balances, wallet or RPC objects are stored. Title, stake and outcomes are visible on the phone's home screen. v1 only stored aggregate counts and cannot reconstruct dot positions: it is deliberately not migrated. An upgraded widget displays the empty state until a foreground read publishes v2; open Home after installing the update.
+Streak = consecutive kept weeks counting backwards from the most recent
+decided week. A confirmed current stamp is kept before settlement. Future and
+open unstamped weeks do not break it. A miss resets it; subsequent kept weeks
+start a new run. Skips/voided refunds are not stamps and break the run. Unread
+closed history or an expired unconfirmed week also stops the count rather than
+claiming an unverified streak. These conservative unknowns are not shown as
+confirmed misses. Finished tally counts stored kept outcomes, not future weeks.
 
-Incomplete history no longer blocks the newest ritual or freezes the whole widget. It produces Home's neutral closed cells until the history read succeeds. Empty successful Home loads clear the snapshot. Storage operations are serialized; widget failures remain best-effort and cannot block confirmed app actions.
+Data boundary and freshness
 
-Freshness and confirmation hooks
+@rituals/widget/v3 holds { rituals: [...] } in oldest-first remembered order.
+Each candidate contains address, title, tint, active, stakeLabel, causeLabel and
+weeks: [{ opens, deadline, outcome }]. Times are integer Unix seconds; outcomes
+are pending, kept, missed, skipped or unknown. The decoder validates all
+candidates, ordered nonoverlapping windows, outcome values and colour, and
+drops extra fields. It stores no notes, keys, wallet objects or balances.
 
-Home publishes on successful load and again after its batched outcome read. SoloRitual publishes fresh enriched reads through a hook that compares serialized projections, avoiding writes on every screen clock tick. Create publishes after rememberRitual and confirmed readback. Stamp, manual settlement (including event init), and successful automatic settlement request a redraw; that immediate redraw may precede the authoritative read that publishes the new snapshot. Skip is picked up by the same read hook.
+v2 cannot reconstruct week windows; it is not migrated. Open Home once after
+updating to publish v3. Until then the widget shows the empty invitation.
+The serialized foreground publisher caches all candidates across restarts,
+removes forgotten rituals, and clears on empty successful Home loads. Home
+batch results supply closed outcomes; current confirmed claims can immediately
+add a kept week. Detail uses its existing enriched history. Declared skip
+metadata overrides Home's refunded done cells; observed voided events are
+skipped, never kept. No extra chain reads were added.
 
-The headless handler reads AsyncStorage only, renders on add/update/resize, and ignores deletion/other widget names. Both foreground and headless rendering pass the host width to the dot layout. Runtime import-graph tests exclude RPC/web3/network/foreground adapters. Registration remains at module scope through App.tsx. Non-Android refreshes are no-ops; missing native support in an old APK is contained, not reported as success.
+Existing write points remain wired: Home load/batch outcomes, create readback,
+SoloRitual's content-change hook, and redraw after confirmed stamp/manual or
+automatic settlement. Immediate confirmation redraw can precede the fresh
+bundle that writes its outcome. Foreground failures remain best-effort and do
+not block app actions. Reminders, screens, shared product models and native
+configuration were not modified.
 
-Periodic updates use Android's 30-minute minimum and may be delayed. Opening labels are values at render time, not ticking timers. A demo-speed week may pass entirely between updates. Open the app for fresh chain results. No background RPC, exact alarms, timer service, or scheduled transactions. Force-stop may prevent headless updates until the app is reopened.
+Headless add/update/resize reads AsyncStorage and Date.now() only, then selects
+and projects. It ignores deletion and other widget names. No RPC, network,
+alarms, scheduled transactions or background polling. Android's 30-minute
+minimum is inexact and can be delayed by battery policy or force-stop. Entire
+demo windows may pass between redraws. The app is required for fresh results.
 
-Native plugin and parent handoff
+Verification and device handoff
 
-Use the installed react-native-android-widget 0.16.1; no installs or dependency changes for this repair. The plugin copies three already-installed font assets: Fraunces_900Black.ttf, Figtree_400Regular.ttf, Figtree_600SemiBold.ttf. It generates:
-  android/app/src/main/java/com/whoknowsmann/rituals/widget/RitualWidget.java
-  android/app/src/main/res/xml/widgetprovider_ritualwidget.xml
-  android/app/src/main/assets/fonts/<the three fonts above>
-  widget_ritualwidget_description in strings.xml
-  .widget.RitualWidget receiver and RNWidgetCollectionService in AndroidManifest.xml
+Executed for this redesign: npm run typecheck passed; npm test -- src/widget
+passed 41 tests in 7 files; one final full npm test passed 2,382 tests in 141
+files. The lower case count versus the 2,445/140 baseline comes from replacing
+the old tile/pill/dot matrices with focused stamp behavior tests, not removing
+non-widget tests. The full run emitted bigint native-binding fallback warnings
+and expected negative-path logs, with no failures. No rebuild was attempted.
 
-The receiver is exported=false with APPWIDGET_UPDATE and the app's WIDGET_CLICK action. The service requires BIND_REMOTEVIEWS. There is no configuration activity or preview PNG. Layout/provider/worker/native-module support arrives through autolinking. A JS update alone cannot update provider sizing or native font assets.
+Widget tests exercise the actual installed JS primitive converters/serializer,
+with the native asset resolver stubbed only for SvgWidget's unused numeric
+image path. They check square/wide composition, dp budgets, custom fonts,
+inline SVGs and OPEN_APP. State/streak/selection tests cover threshold edges,
+short/banned-word-screened copy, persistence and process restart. Runtime
+handler tests advance Date.now() against the same saved snapshot; the existing
+import-graph check excludes headless network/RPC/foreground adapters. The
+plugin test still checks provider sizing, periodic interval and bundled fonts
+through an in-memory filesystem, not prebuild.
 
-0.16.1 quirk: Expo 52 runs dangerous mods before the manifest mod, but this plugin sets projectPaths in the manifest mod. Run prebuild from the project root, not an unrelated cwd. The plugin-output test executes the actual installed plugin and Expo mod wrappers against an in-memory filesystem sink in that order, asserting provider paths, 110dp/2x2/resizable XML, all three fonts, strings, and idempotent manifest registration. It does not run prebuild or Gradle.
-
-Repair verification
-
-The full npm test run passed: 2,445 tests in 140 files (the supplied branch baseline was 2,411 in 139). npm test -- src/widget passed 104 tests in six files; npm test -- src/widget/widgetPlugin.test.ts passed again separately. The render tests use 0.16.1's actual JS converters/serializer, assert the native tree's grouping, fonts, colours, truncation, tap target and weighted layout, and check 1–16 dots at multiple widths and pixel densities. These tests do not render Android pixels.
-
-npx tsc --noEmit (also with --no-install) was blocked by the CLI security wrapper's package-intelligence network timeout, not a compiler error. The installed compiler was run through npm run typecheck (tsc --noEmit) instead and passed after fixing the unfinished test's incompatible dynamic import/import.meta usage. No dependencies were installed. No native build, prebuild or device operation was performed.
-
-Parent/device checklist (not executed in this repair)
-
-1. Back up native edits; regenerate native plugin output from the project root under the parent's build authorization, then use the parent's Android build/install workflow. No package install is needed.
-2. Open Home once to publish v2, remove/re-add the old widget, and verify its initial footprint is truly 2x2. Resize to 2x3 and back; label/name stay top, dots/count/pill stay bottom.
-3. Compare the selected ritual, tint, exact pill words and every dot against Home. Check a current confirmed stamp: Stamped pill but current ring unchanged; after settlement the closed dot/count update. Check misses, refunded skips, unread history, waiting and Finished.
-4. Check long names truncate after two lines, long date pills truncate without wrapping, Fraunces/Figtree assets load, no content is clipped at normal size, and accessibility font/display scaling remains usable. Check all tint contrasts and sixteen-week rows.
-5. Exercise empty state without clearing the owner's app storage or settler key. Confirm Start a ritual?, no stake/dots/count, and lime Open Rituals. Tap both cold and warm app instances.
-6. Check newest-active selection, all-finished fallback, removing forgotten rituals, multiple widget instances, offline headless add/resize, reboot and delayed periodic refresh. No wallet prompt should occur from a widget redraw.
-
-Removal/scope
-
-To remove the feature: drop src/widget/, App.tsx registration, the app.json widget plugin entry, and widget calls/imports in Home, SoloCreate and SoloRitual. This repair does not change those screens, reminders, chain programs, account decoders, cadence, navigation, or shared product models. Keep the widget out of the submission if the parent cannot verify the new native binary on Seeker.
+Device-only checks remain: Fraunces/Figtree rendering and font fitting, SVG
+scaling/line weight at actual launcher density, text clipping under large font
+settings, 2x2 versus 4x2 physical layout, cold/warm tap behavior, and periodic
+refresh timing under Android battery policies. JS tree tests are not pixel
+screenshots. No installs, builds, prebuild, Gradle, adb or device actions are
+part of this redesign. Existing native plugin/font setup is unchanged.
