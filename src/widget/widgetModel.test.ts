@@ -34,6 +34,8 @@ describe('widgetModel (no native dependencies)', () => {
     ['missed', 1000, 'Stamp this week'],
     ['missed', 1101, 'Closing…'],
     ['finished-missed', 999999, "That's a week, not a verdict."],
+    ['missed-current', 1000, "That's a week, not a verdict."],
+    ['skipped-current', 1000, 'Skipped last week'],
     ['skipped', 910, 'Skipped last week'],
     ['skipped', 1000, 'Stamp this week'],
     ['finished-skipped', 999999, 'Skipped last week'],

@@ -46,5 +46,13 @@ describe('foreground bundle adapter', () => {
     const skipped = { account: { ...event().account, status: 'Voided', voidReason: 'DeclaredSkip' } }
     expect(map(bundle({ currentEventIndex: 1, skipDeclared: true, skipEventIndex: 0 }, null, [], [bundle({}, skipped)]), 300)).toMatchObject({ status: 'skipped', kept: 1, missed: 0 })
   })
+  it('never offers another stamp for a terminal current event while its index catches up', () => {
+    expect(map(bundle({}, event(0, 'Settled', 1n)))).toMatchObject({ status: 'missed-current', missed: 1 })
+    expect(map(bundle({}, event()))).toMatchObject({ status: 'stamped', kept: 1 })
+    expect(map(bundle({}, event(0, 'Voided')))).toMatchObject({ status: 'skipped-current', kept: 1 })
+  })
+  it('shows the final skip as a skip, not a stamp', () => {
+    expect(map(bundle({ status: 'Completed', currentEventIndex: 2 }, event(1, 'Voided')), 600, new Map([[0, 'done']]))?.status).toBe('finished-skipped')
+  })
   it.each([{ kind: 'Group' }, { status: 'Funding' }, { status: 'Cancelled' }, { schedule: [] }])('ignores unsupported/nonactive account %o', (overrides) => expect(map(bundle(overrides))).toBeNull())
 })

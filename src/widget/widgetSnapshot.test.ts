@@ -24,7 +24,7 @@ describe('widget snapshot', () => {
   it.each([null, '', '{', 'null', '[]', '{}', '42'])('handles empty or corrupt storage: %s', (raw) => expect(decodeWidgetSnapshot(raw)).toBeNull())
   it.each([
     { status: 'unknown' }, { kept: -1 }, { missed: 5 }, { weekIndex: 4 }, { weekCount: 17 },
-    { opens: 201 }, { deadline: '200' }, { tint: 'red' }, { address: '' }, { title: null }, { opens: 1.5 },
+    { opens: 201 }, { deadline: '200' }, { tint: 'red' }, { tint: ['#ffffff'] }, { address: '' }, { title: null }, { opens: 1.5 },
   ])('rejects an invalid snapshot: %o', (override) => expect(decodeWidgetSnapshot(JSON.stringify({ ...snapshot, ...override }))).toBeNull())
   it('drops extraneous fields and tolerates storage errors', async () => {
     expect(decodeWidgetSnapshot(JSON.stringify({ ...snapshot, secret: 'not copied' }))).toEqual(snapshot)

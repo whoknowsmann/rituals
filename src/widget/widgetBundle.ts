@@ -29,6 +29,13 @@ export function widgetOutcomeFromBundle({ address, bundle }: WidgetBundle, now: 
     : now < Number(window.opens) ? 'waiting' : 'open'
   const previous = outcomes.get(account.currentEventIndex - 1)
   if (status === 'waiting' && previous === 'missed') status = 'missed'
+  // A terminal current event can arrive before the ritual's index advances.
+  // Do not offer another stamp or treat this as a finished multi-week ritual.
+  const currentEvent = bundle.event?.account
+  if (currentEvent?.eventIndex === account.currentEventIndex) {
+    if (currentEvent.status === 'Settled') status = currentEvent.forfeitedTotal > 0n ? 'missed-current' : 'stamped'
+    if (currentEvent.status === 'Voided') status = 'skipped-current'
+  }
   if (account.status === 'Completed') {
     status = outcomes.get(index) === 'missed' ? 'finished-missed' : 'finished-stamped'
     const last = [bundle, ...(bundle.history ?? [])].find((read) => read.event?.account.eventIndex === index)?.event?.account

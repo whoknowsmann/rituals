@@ -2,7 +2,7 @@ import { ritualTintAmong } from '../features/rituals/home/ritualColours'
 import { tileStatus } from '../features/rituals/home/tileStatus'
 
 export type WidgetKnown = Readonly<{ address: string; title: string }>
-export const widgetStatuses = ['waiting', 'open', 'stamped', 'missed', 'skipped', 'closing', 'awaiting-witness', 'finished-stamped', 'finished-missed', 'finished-skipped'] as const
+export const widgetStatuses = ['waiting', 'open', 'stamped', 'missed', 'skipped', 'missed-current', 'skipped-current', 'closing', 'awaiting-witness', 'finished-stamped', 'finished-missed', 'finished-skipped'] as const
 export type WidgetStatus = typeof widgetStatuses[number]
 /** Plain JSON only. No wallet, key, note, balance, or RPC client crosses this boundary. */
 export type WidgetSnapshot = Readonly<{
@@ -46,8 +46,8 @@ export function widgetModelFromSnapshot(snapshot: WidgetSnapshot | null, nowSeco
 
 function statusLine(snapshot: WidgetSnapshot, now: number): string {
   const { status, opens, deadline } = snapshot
-  if (status === 'finished-missed') return "That's a week, not a verdict."
-  if (status === 'finished-skipped') return 'Skipped last week'
+  if (status === 'finished-missed' || status === 'missed-current') return "That's a week, not a verdict."
+  if (status === 'finished-skipped' || status === 'skipped-current') return 'Skipped last week'
   if (status === 'stamped' || status === 'finished-stamped') return 'Stamped'
   if (status === 'awaiting-witness') return 'Waiting on witness'
   // A miss/skip belongs to the previous week; this week's opening takes precedence.

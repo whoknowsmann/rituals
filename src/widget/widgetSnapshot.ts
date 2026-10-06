@@ -11,7 +11,7 @@ export function decodeWidgetSnapshot(raw: string | null): WidgetSnapshot | null 
     const value = raw === null ? null : JSON.parse(raw)
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null
     if (typeof value.address !== 'string' || !value.address || typeof value.title !== 'string') return null
-    if (!widgetStatuses.includes(value.status) || !/^#[\da-f]{6}$/i.test(value.tint)) return null
+    if (!widgetStatuses.includes(value.status) || typeof value.tint !== 'string' || !/^#[\da-f]{6}$/i.test(value.tint)) return null
     for (const key of ['weekIndex', 'weekCount', 'kept', 'missed', 'opens', 'deadline']) {
       if (!Number.isSafeInteger(value[key]) || value[key] < 0) return null
     }
