@@ -14,7 +14,7 @@ import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
 import { buildRitualActionDeps } from '../../features/rituals/buildRitualActionDeps'
 import { useRitualAction } from '../../features/rituals/useRitualAction'
-import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
+import { withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { forgetRitual, listKnownRituals, type KnownRitual } from '../../features/rituals/authoritativeRituals'
 import { ritualTintAmong } from '../../features/rituals/home/ritualColours'
 import { notesOffered, readSoloNotes, saveWeekNote, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
@@ -251,17 +251,17 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
           <ActionButton tone="quiet" label="Copy address" onPress={() => { void Clipboard.setStringAsync(shareAddress) }} accessibilityLabel="Copy ritual address" />
         </View>
       )}
-      {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote, settlingByItself, celebrate > 0, keptSaying(route.params.ritualId, model.eventIndex))}
+      {renderState(model, witness, action, actionCopy, weekNote, settlingByItself, celebrate > 0, keptSaying(route.params.ritualId, model.eventIndex))}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
-      {holdVisible && <View style={s.holdArea}><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} />{readyForWallet && claim.state.status === 'idle' ? <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text> : null}</View>}
+      {holdVisible && <View style={s.holdArea}><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to rituals" onPress={() => navigation.navigate('RitualsHome')} />}
       {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
-      {readyForWallet && action.state.status === 'idle' && (model.canSkip || (model.state === 'resolving/settle' && !settlingByItself)) && <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text>}
+
       <Footnote>Devnet · TEST tokens have no real value</Footnote>
     </ScrollView>
     <Confetti fire={celebrate} originY={300} />
@@ -269,7 +269,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   )
 }
 
-function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, ready: boolean, walletPackage: string | null | undefined, weekNote: string | null, settlingByItself: boolean, freshStamp: boolean, keptLine: string) { const s = useS();
+function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, weekNote: string | null, settlingByItself: boolean, freshStamp: boolean, keptLine: string) { const s = useS();
+  // Handoff progress must also show before an event exists and while skipping.
+  if (action.isBusy) return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{actionCopy.body}</Text></View>
   if (model.state === 'funding') return <View style={s.card}><Text style={s.cardTitle}>Waiting for funding</Text><Text style={s.muted}>This solo ritual is not active yet.</Text></View>
   if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text></View>
   // An open week with no event account yet needs no card either: the HOLD opens it.
@@ -281,7 +283,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
   if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note={keptLine} animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
   if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Checking…</Text></View>
-  if (action.state.status !== 'idle' && action.state.status !== 'error') return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{action.state.status === 'awaiting-wallet' ? actionCopy.body : 'Getting this week ready…'}</Text></View>
+
   if (model.state === 'completed') return <View style={s.card}><Text style={s.cardTitle}>Every week is settled.</Text></View>
   // An open week needs no card: the big HOLD button says it all.
   return null

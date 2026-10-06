@@ -3,6 +3,7 @@ import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { soloRitualModel, labelSoloDestination, demoSpeedNotice, type SoloRitualBundle } from './soloRitualModel'
 import { soloActionLanded } from './actionReadback'
+import { weekCellLabel } from '../../../../components/crew/weekStripLogic'
 import { lifecycleReducer, lifecycleCanSubmit, lifecycleStatusCopy, type LifecycleState } from '../../lifecycleMachine'
 
 const me = new PublicKey(new Uint8Array(32).fill(7))
@@ -74,6 +75,16 @@ describe('soloRitualModel', () => {
   it('offers a declared skip only before claim opens and when unused', () => {
     expect(soloRitualModel(bundle({}, null), 99, me).canSkip).toBe(true)
     expect(soloRitualModel(bundle({ skipDeclared: true }, null), 99, me).canSkip).toBe(false)
+    expect(soloRitualModel(bundle({ schedule: [window] }, null), 99, me).canSkip).toBe(false)
+  })
+
+  it('numbers a not-yet-open current week; NOW lasts only for the open stamp window', () => {
+    expect(soloRitualModel(bundle(), 99, me).state).toBe('waiting')
+    for (const [now, label] of [[99, '1'], [100, 'NOW'], [200, 'NOW'], [201, '1']] as const) {
+      const model = soloRitualModel(bundle(), now, me)
+      expect(weekCellLabel(model.weekCells[0], 0)).toBe(label)
+      expect(model.weekCells[1]).toBe('future')
+    }
   })
 
   it('labels the demo cause only for the exact configured destination', () => {

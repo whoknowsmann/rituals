@@ -1,5 +1,10 @@
 /** 'closed' = a finished week whose result is not known (yet): neutral, never a guessed tick. */
-export type WeekCell = 'done' | 'now' | 'future' | 'missed' | 'closed'
+export type WeekCell = 'done' | 'now' | 'current' | 'future' | 'missed' | 'closed'
+
+/** Keep the current-week ring, but reserve NOW for the inclusive stamp window. */
+export function currentWeekCell(opens: number, deadline: number, chainNow: number): 'now' | 'current' {
+  return opens <= chainNow && chainNow <= deadline ? 'now' : 'current'
+}
 
 /** What each punch-card cell says: kept ✓, missed ✕, this week NOW, later weeks their number. */
 export function weekCellLabel(cell: WeekCell, index: number): string {
@@ -14,8 +19,8 @@ export function weekCellLabel(cell: WeekCell, index: number): string {
 export function weekSummary(cells: readonly WeekCell[]): string {
   const kept = cells.filter((cell) => cell === 'done').length
   const missed = cells.filter((cell) => cell === 'missed').length
-  const now = cells.indexOf('now')
-  const finished = !cells.some((cell) => cell === 'now' || cell === 'future')
+  const now = cells.findIndex((cell) => cell === 'now' || cell === 'current')
+  const finished = !cells.some((cell) => cell === 'now' || cell === 'current' || cell === 'future')
   const lead = now >= 0 ? `Week ${now + 1} of ${cells.length}` : finished ? `All ${cells.length} weeks done` : `${cells.length} weeks`
   return [lead, kept ? `${kept} kept` : null, missed ? `${missed} missed` : null].filter(Boolean).join(' · ')
 }

@@ -78,10 +78,10 @@ export function WeekStrip({ cells, tint, compact = false, summary = true }: { ce
     <View accessibilityLabel={line}>
       <View style={[s.strip, compact && s.stripCompact]}>
         {cells.map((cell, i) => compact
-          ? <View key={i} style={[s.dot, cell === 'done' && s.dotDone, cell === 'now' && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
+          ? <View key={i} style={[s.dot, cell === 'done' && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
           : (
-            <View key={i} style={[s.cell, cell === 'done' && s.cellDone, cell === 'now' && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]}>
-              <Text style={[s.cellText, cell === 'done' && { color: tint }, cell === 'now' && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
+            <View key={i} style={[s.cell, cell === 'done' && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]}>
+              <Text style={[s.cellText, cell === 'done' && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
             </View>
           ))}
       </View>

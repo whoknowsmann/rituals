@@ -4,9 +4,10 @@ import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { demoWeekMinutesLabel, isDemoSpeedWindow } from '../../../../domain/rituals/schedule'
 import { shortRosterAddress } from '../../create/roster'
 import { weekOpensLabel } from '../../displayFormat'
+import { currentWeekCell } from '../../../../components/crew/weekStripLogic'
 
 export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' | 'claimable' | 'awaiting-witness' | 'closing' | 'resolving/settle' | 'skipped' | 'missed' | 'completed'
-export type SoloWeekCell = 'done' | 'missed' | 'now' | 'future'
+export type SoloWeekCell = 'done' | 'missed' | 'now' | 'current' | 'future'
 
 /**
  * A current bundle plus bounded historical bundles. Historical reads are kept
@@ -79,11 +80,11 @@ function outcomeOf(terminalEvent: Terminal | null, me: PublicKey | null): 'skipp
 }
 
 /** Week strip from the current bundle plus history: kept ✓, missed –, now, future. Home uses it too. */
-export function soloWeekCells(bundle: SoloRitualBundle): readonly SoloWeekCell[] {
-  return weekCells(bundle)
+export function soloWeekCells(bundle: SoloRitualBundle, now: number): readonly SoloWeekCell[] {
+  return weekCells(bundle, now)
 }
 
-function weekCells(bundle: SoloRitualBundle): readonly SoloWeekCell[] {
+function weekCells(bundle: SoloRitualBundle, now: number): readonly SoloWeekCell[] {
   const account = bundle.ritual.account
   const byIndex = new Map<number, SoloWeekCell>()
   for (const historical of [bundle, ...(bundle.history ?? [])]) {
@@ -91,7 +92,7 @@ function weekCells(bundle: SoloRitualBundle): readonly SoloWeekCell[] {
     const outcome = outcomeOf({ event: historical.event, claims: historical.claims }, account.members[0] ?? null)
     if (outcome) byIndex.set(historical.event.account.eventIndex, outcome === 'missed' ? 'missed' : 'done')
   }
-  return Object.freeze(account.schedule.map((_window, index) => byIndex.get(index) ?? (index === account.currentEventIndex && account.status === 'Active' ? 'now' : 'future')))
+  return Object.freeze(account.schedule.map((window, index) => byIndex.get(index) ?? (index === account.currentEventIndex && account.status === 'Active' ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'future')))
 }
 
 function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null): { state: SoloRitualUiState; showedUp: boolean; claimStatus: SoloRitualModel['claimStatus']; message: string } {
@@ -142,12 +143,12 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
   const account = bundle.ritual.account
   const schedule = account.schedule[account.currentEventIndex]
   const mapped = modelState(bundle, now, me)
-  const canSkip = account.status === 'Active' && !account.skipDeclared && Boolean(schedule) && now < Number(schedule.opens)
+  const canSkip = account.schedule.length > 1 && account.status === 'Active' && !account.skipDeclared && Boolean(schedule) && now < Number(schedule.opens)
   const witness = account.witness ? (account.witness.equals(me ?? PublicKey.default) ? 'you' : `your friend · ${short(account.witness)}`) : null
   return Object.freeze({
     state: mapped.state,
     eventIndex: account.currentEventIndex,
-    weekCells: weekCells(bundle),
+    weekCells: weekCells(bundle, now),
     canSkip,
     nextOpensLabel: schedule ? weekOpensLabel(Number(schedule.opens), now) : null,
     destinationLabel: labelSoloDestination(account.forfeitDestination),
