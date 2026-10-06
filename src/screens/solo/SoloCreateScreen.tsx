@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import { PublicKey } from '@solana/web3.js'
 import { decodeSeason, type SeasonAccountView } from '../../data/rituals/accounts'
@@ -12,6 +12,8 @@ import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatch
 import { useDevnetFaucet } from '../../features/rituals/faucet/useDevnetFaucet'
 import { faucetLine } from '../../features/rituals/faucet/devnetFaucet'
 import { useConnection } from '../../utils/ConnectionProvider'
+import { readChainTime } from '../../features/rituals/chainTime'
+import { useChainTime } from '../../features/rituals/useChainTime'
 import { withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
 import { useReminders } from '../../features/rituals/reminders/useReminders'
@@ -68,6 +70,8 @@ const initialDraft: SoloCreateDraft = {
 export function SoloCreateScreen({ route }: Props) { const styles = useStyles(); const color = useColors();
   const navigation = useNavigation<Navigation>()
   const { connection } = useConnection()
+  const focused = useIsFocused()
+  const chainNow = useChainTime(connection, focused)
   const client = useRitualClient()
   const { selectedAccount, walletPackage } = useAuthorization()
   const accountRef = useRef(selectedAccount)
@@ -162,7 +166,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   })()
   // The windows this create will write, summarised honestly for either speed.
   const scheduleLine = (() => {
-    const nowSeconds = Math.floor(Date.now() / 1000)
+    if (chainNow === null) return 'Checking the week clock…'
+    const nowSeconds = chainNow
     try {
       const selection = selectSoloSchedule({ cadence: soloCadenceFor(speed), referenceSeconds: nowSeconds, eventCount: weekCount, seasonSchedule: season.account?.schedule })
       return soloScheduleSummary({ weekCount, stakeEachLabel, totalStakeLabel, schedule: selection.schedule, nowSeconds })
@@ -209,9 +214,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     if (!selectedAccount) throw new Error('Connect your wallet before starting this ritual.')
     if (seasonAddressText && season.status !== 'ready') throw new Error(season.message ?? 'This Season could not be read.')
     const eventCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount, speed })
-    const schedule = selectSoloSchedule({
+    const schedule = async () => selectSoloSchedule({
       cadence: soloCadenceFor(speed),
-      referenceSeconds: Math.floor(Date.now() / 1000),
+      referenceSeconds: await readChainTime(connection),
       eventCount,
       seasonSchedule: season.account?.schedule,
     })

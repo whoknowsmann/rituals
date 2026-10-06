@@ -22,7 +22,7 @@ export type SoloCreateDepsParams = Readonly<{
   requirement: string
   eventCount: number
   stakePerWeekAtomic: bigint
-  schedule: SoloScheduleSelection
+  schedule: SoloScheduleSelection | (() => Promise<SoloScheduleSelection>)
   witnessMode: SoloWitnessMode
   witnessAddress?: string
   destination: SoloDestination
@@ -61,7 +61,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
     requirement,
     eventCount,
     stakePerWeekAtomic,
-    schedule,
+    schedule: scheduleInput,
     witnessMode,
     witnessAddress,
     destination,
@@ -75,7 +75,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
     now = () => Date.now(),
   } = params
   if (!(creator instanceof PublicKey)) fail('creator is not available')
-  if (schedule.schedule.length !== eventCount) fail('Season schedule does not match this ritual.')
+  if (typeof scheduleInput !== 'function' && scheduleInput.schedule.length !== eventCount) fail('Season schedule does not match this ritual.')
 
   const witness = witnessMode === 'one-witness'
     ? assertPublicKey(publicKeyFromCanonical(witnessAddress ?? ''), 'witness')
@@ -98,6 +98,8 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
       assertAuthorized()
       const config = await client.getProtocolConfig()
       if (config.account.paused) fail('Rituals are paused')
+      const schedule = typeof scheduleInput === 'function' ? await scheduleInput() : scheduleInput
+      if (schedule.schedule.length !== eventCount) fail('Season schedule does not match this ritual.')
 
       const person = destination === 'person' ? publicKeyFromCanonical(personAddress ?? '') : null
       if (destination === 'person') {

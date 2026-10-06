@@ -24,6 +24,16 @@ const prepared = {
 } as never
 
 describe('solo create transaction dependencies', () => {
+  it('samples the chain schedule during preparation and sends nothing when the clock is unreadable', async () => {
+    const clockSchedule = vi.fn(async () => { throw new Error('clock offline') })
+    const prepareCreateSoloFundAndActivate = vi.fn()
+    const client = { getProtocolConfig: async () => ({ account: { paused: false } }), prepareCreateSoloFundAndActivate } as unknown as RitualClient
+    const deps = buildSoloCreateDeps({ client, creator: CREATOR, title: 'Run', requirement: 'Run', eventCount: 2, stakePerWeekAtomic: 10_000n,
+      schedule: clockSchedule, witnessMode: 'just-me', destination: 'cause', causeTokenAccount: key(7) })
+    expect(clockSchedule).not.toHaveBeenCalled()
+    await expect(deps.prepare()).rejects.toThrow('clock offline')
+    expect(prepareCreateSoloFundAndActivate).not.toHaveBeenCalled()
+  })
   it('derives a person destination ATA from the configured stake mint', async () => {
     const creator = CREATOR
     const person = PERSON

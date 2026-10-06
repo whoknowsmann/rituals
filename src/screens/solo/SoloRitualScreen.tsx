@@ -10,6 +10,7 @@ import { useAuthorization } from '../../utils/useAuthorization'
 import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatchAlert'
 import { useReminders } from '../../features/rituals/reminders/useReminders'
 import { useConnection } from '../../utils/ConnectionProvider'
+import { useChainTime } from '../../features/rituals/useChainTime'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
 import { buildRitualActionDeps } from '../../features/rituals/buildRitualActionDeps'
@@ -48,7 +49,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const client = useRitualClient()
   const { connection } = useConnection()
   const { selectedAccount, walletPackage } = useAuthorization()
-  const [chainNow, setChainNow] = useState<number>(Math.floor(Date.now() / 1000))
+  const chainNow = useChainTime(connection, focused)
   const state = useSoloRitualBundle(client, route.params.ritualId)
   const accountRef = useRef(selectedAccount); accountRef.current = selectedAccount
   const [reload, setReload] = useState(0)
@@ -75,21 +76,11 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     })
     return () => { active = false }
   }, [reload, route.params.ritualId]))
-  // Chain time is synced on load, then ticks locally so the week opens and
-  // closes on screen without the user leaving and coming back.
-  const chainOffset = useRef(0)
-  useEffect(() => {
-    let mounted = true
-    void connection.getSlot('confirmed').then((slot) => connection.getBlockTime(slot)).then((timestamp) => {
-      if (mounted && timestamp !== null) { chainOffset.current = timestamp - Math.floor(Date.now() / 1000); setChainNow(timestamp) }
-    }).catch(() => {})
-    const tick = setInterval(() => { if (mounted) setChainNow(Math.floor(Date.now() / 1000) + chainOffset.current) }, 1000)
-    return () => { mounted = false; clearInterval(tick) }
-  }, [connection, reload])
-
-  const model: SoloRitualModel | null = state.status === 'ready' && state.bundle && selectedAccount
-    ? soloRitualModel(state.bundle, chainNow, selectedAccount.publicKey)
-    : state.status === 'ready' && state.bundle ? soloRitualModel(state.bundle, chainNow, null) : null
+  // Resume re-reads a wallet result or a settlement completed while away.
+  const retryRef = useRef(state.retry); retryRef.current = state.retry
+  useEffect(() => { if (focused && appState === 'active') retryRef.current() }, [focused, appState])
+  const model: SoloRitualModel | null = state.status === 'ready' && state.bundle && chainNow !== null
+    ? soloRitualModel(state.bundle, chainNow, state.bundle.ritual.account.creator) : null
   const read = state.status === 'ready' ? state.bundle : null
   const { afterStamp: cancelWeekReminders } = useReminders({ ritualAddress: route.params.ritualId,
     eventIndex: model?.eventIndex, stamped: Boolean(model?.showedUp),
@@ -226,6 +217,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   }, [model?.showedUp])
 
   if (state.status === 'loading') return <Centered>Reading your ritual…</Centered>
+  if (state.status === 'ready' && chainNow === null) return <Centered>Checking the week clock… Check your connection if this takes a while.</Centered>
   if (state.status === 'error' || !state.bundle || !model) return <ErrorState message={state.message ?? 'This ritual could not be read.'} retry={state.retry} onHome={() => navigation.navigate('RitualsHome')} />
   const readyBundle = state.bundle
   const action = model.state === 'resolving/settle' ? settle : model.canSkip ? skip : claim
@@ -257,6 +249,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         <PosterLine label="Your stake" value={formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)} />
       </Poster>
       {model.demoSpeedNotice && <Text style={s.muted}>{model.demoSpeedNotice} {DEMO_CLOCK_WARNING}</Text>}
+      {!readyForWallet && <Text style={s.muted}>Connect the wallet that created this ritual to stamp it.</Text>}
       {canShareWitness && witness && (
         <View style={s.witnessCard}>
           <Text style={s.cardTitle}>Your witness</Text>

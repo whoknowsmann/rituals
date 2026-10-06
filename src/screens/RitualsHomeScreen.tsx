@@ -11,6 +11,7 @@ import { ritualTintAmong } from '../features/rituals/home/ritualColours'
 import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
 import { homeRitualTarget } from '../features/rituals/home/homeViewModel'
 import { useConnection } from '../utils/ConnectionProvider'
+import { useChainTime } from '../features/rituals/useChainTime'
 import { DEMO_SEASON } from '../data/rituals/demoConfig'
 import type { SeasonAccountView } from '../data/rituals/accounts'
 import { readSeason } from '../features/rituals/solo/season/readSeason'
@@ -93,6 +94,7 @@ export function RitualsHomeScreen() {
   // Reload on every focus: returning from a new promise, a check-in or a
   // settle must show the fresh chain state, not the list from app launch.
   const focused = useIsFocused()
+  const chainNow = useChainTime(connection, focused)
   useEffect(() => {
     mounted.current = true
     if (focused) load()
@@ -119,7 +121,7 @@ export function RitualsHomeScreen() {
     <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>
     {homeState.rituals.length === 0
       ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
-      : <ActiveRituals rituals={homeState.rituals} known={homeState.known} outcomes={outcomes} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}
+      : <ActiveRituals rituals={homeState.rituals} known={homeState.known} outcomes={outcomes} now={chainNow} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}
     {SCOPE.seasons && <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={load} onOpen={() => {
       if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
     }} styles={styles} />}
@@ -139,14 +141,14 @@ function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => 
   </View>
 }
 
-function ActiveRituals({ rituals, known, outcomes, onOpen, onPromise, styles }: { rituals: readonly HomeRitual[]; known: readonly KnownRitual[]; outcomes: WeekOutcomes; onOpen: (ritual: HomeRitual) => void; onPromise: () => void; styles: ReturnType<typeof makeStyles> }) {
+function ActiveRituals({ rituals, known, outcomes, now, onOpen, onPromise, styles }: { rituals: readonly HomeRitual[]; known: readonly KnownRitual[]; outcomes: WeekOutcomes; now: number | null; onOpen: (ritual: HomeRitual) => void; onPromise: () => void; styles: ReturnType<typeof makeStyles> }) {
   // Two columns, about four tiles a screen; each ritual in its own colour.
   const { width } = useWindowDimensions()
   const tileWidth = Math.floor((width - space.screen * 2 - space.md) / 2)
   return <View accessibilityLabel="Your rituals">
     <Section title="Your rituals" />
     <View style={styles.grid}>
-      {rituals.map((ritual) => <RitualTile key={ritual.id} ritual={ritual} known={known} outcomes={outcomes.get(ritual.address)} width={tileWidth} onPress={() => onOpen(ritual)} styles={styles} />)}
+      {rituals.map((ritual) => <RitualTile key={ritual.id} ritual={ritual} known={known} outcomes={outcomes.get(ritual.address)} now={now} width={tileWidth} onPress={() => onOpen(ritual)} styles={styles} />)}
       <Pressable onPress={onPromise} accessibilityRole="button" accessibilityLabel="Start another ritual" style={({ pressed }) => [styles.newTile, { width: tileWidth }, pressed && styles.tilePressed]}>
         <Text style={styles.newPlus}>+</Text>
         <Text style={styles.newText}>New ritual</Text>
@@ -174,15 +176,15 @@ function seasonCountLine(season: SeasonAccountView): string {
   return `${seasonParticipantLine(season.participantCount)} · ${current.count} checked in this week`
 }
 
-function RitualTile({ ritual, known, outcomes, width, onPress, styles }: { ritual: HomeRitual; known: readonly KnownRitual[]; outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined; width: number; onPress: () => void; styles: ReturnType<typeof makeStyles> }) {
+function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { ritual: HomeRitual; known: readonly KnownRitual[]; outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined; now: number | null; width: number; onPress: () => void; styles: ReturnType<typeof makeStyles> }) {
   const account = ritual.bundle.ritual.account
   const tint = ritualTintAmong(ritual.address, known)
   const cells: WeekCell[] = account.kind === 'Solo'
-    ? soloHomeCells(account, outcomes)
+    ? soloHomeCells(account, outcomes, now)
     : weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
   // The solo creator is the only member, so the model can tell "stamped".
   const status = account.kind === 'Solo'
-    ? tileStatus(soloRitualModel(ritual.bundle, Math.floor(Date.now() / 1000), account.members[0] ?? null))
+    ? now === null ? { text: 'Checking time…', act: false } : tileStatus(soloRitualModel(ritual.bundle, now, account.members[0] ?? null))
     : { text: statusLabel(account.status), act: false }
   return <Pressable
     onPress={onPress}
