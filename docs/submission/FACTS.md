@@ -1,4 +1,37 @@
-# Rituals — submission fact sheet (verified 2026-10-04 evening)
+# Rituals — submission fact sheet (verified 2026-10-04 evening; updated 2026-10-06 for d27)
+
+## 2026-10-06 updates (Hermes; proven on the Seeker unless marked)
+
+- d27 (commit 6719f57) is the recording/release candidate. Countdowns on the
+  ritual screen ("Week 1 opens in 32s", "32s left"), button **HOLD TO STAMP**,
+  after Lock it in the app goes straight to the ritual screen (no separate
+  "Locked in." screen).
+- Demo speed: week 1 opens 60 s after Lock it in is tapped, 45 s to stamp,
+  10 s grace, next week 5 s later: 1-minute weeks. Demo rituals default to
+  2 weeks (Real weeks default 4). One line before Lock it in: "Demo weeks keep
+  running while you're away. Unstamped weeks are missed."
+- A missed demo week settles while you watch the ritual screen (proven 15:05:
+  week 2 turned MISSED on screen; 10 tSKR landed in the chosen wallet,
+  9.125 → 19.125 on chain).
+- Destination choice works end to end for a cause (devnet smoke) and for a
+  wallet you choose (smoke + phone). The app names the wallet owner
+  ("the wallet you chose · fT9Xe…LJgo1"), never its token account.
+- Receipts: every closed week on the punch card opens its receipt; KEPT says
+  "{amount} back to you" with the note, MISSED says "{amount} went to
+  {destination}."
+- Reminders (Real weeks only; expo-notifications, scheduled on the phone from
+  the on-chain schedule, no server): week opens · one day left · last hour;
+  cleared when you stamp. Proven 09:12: three alarms scheduled, "Week 1 is
+  open. Stamp it." delivered on time.
+- Wallet identity: Seed Vault shows the requester as **Rituals** at
+  https://rituals.whoknowsman.com (the product page), not github.com.
+- Product page: https://rituals.whoknowsman.com (live). The repo
+  github.com/whoknowsmann/rituals is private until Jack makes it public.
+- Seed Vault reports no network to the app, so the app cannot detect a
+  Mainnet setting; the README's "switch Seed Vault to Devnet" step is the guard.
+- Tests: 2,420 TypeScript tests, 206 native program tests (state the numbers
+  only if a doc already uses them).
+
 
 Every sentence in the README, video script, deck and store listing must trace
 to a line here. If a claim is not here, it is not made. Measured, not inherited.
