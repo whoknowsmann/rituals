@@ -29,6 +29,7 @@
   github.com/whoknowsmann/rituals is private until Jack makes it public.
 - Seed Vault reports no network to the app, so the app cannot detect a
   Mainnet setting; the README's "switch Seed Vault to Devnet" step is the guard.
+- The faucet (Get test tokens) receives the wallet address it pays; nothing else leaves the phone except Solana RPC traffic.
 - Tests: 2,420 TypeScript tests, 206 native program tests (state the numbers
   only if a doc already uses them).
 
@@ -88,7 +89,7 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
 ## Speeds
 
 - **Demo speed** (default; the app says "Demo speed: a week here is 1
-  minute." on the ritual screen): week 1 opens 45 s after create, 45-second
+  minute." on the ritual screen): week 1 opens 60 s after Lock it in, 45-second
   stamp window, 10 s grace, next week 5 s later: 1-minute weeks; a 4-week
   ritual runs start to finish in under 5 minutes (fe56eb5, 2026-10-06).
   Typed rituals now default to two demo weeks (four real weeks); explicit choices
@@ -96,7 +97,7 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
   copy warns that the clock never pauses and missed stakes go to the destination.
   Delaying settlement does not extend a stamp window or refund a miss. Reminders
   remain Real-weeks only. These hardening changes need device verification.
-- **Real weeks**: week 1 opens 45 s after create, stamp any day in a 6-day
+- **Real weeks**: week 1 opens 60 s after Lock it in, stamp any day in a 6-day
   window, 23 h grace, 7-day weeks. A finished week settles the next time you
   open the app (or via the wallet fallback). Say this plainly.
 - Every week's opens / deadline / resolution is written on chain at create; the
@@ -121,15 +122,14 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
 
 Use: your stake, show up, keep your word, get it back, stamp, ritual, week,
 cause. Never: win, beat, versus, rival, pot, jackpot, payout, odds, luck,
-"profit from", AI, SKR, mainnet (we are devnet only), "live" for anything
+"profit from", AI, mainnet as if it were live (we are devnet only; "on mainnet the plan is USDC, SOL and SKR, after review" is allowed in what's next), SKR except as tSKR (the devnet stand-in) or that plan, "live" for anything
 hidden.
 
 ## What is hidden (code kept; "coming soon" in the deck / README only)
 
 With friends (2–6 stake and confirm each other; program live on devnet, flow
 built, needs a UI pass) · a witness who confirms without staking · Seasons
-(shared public rituals with honest counts) · pick a person as the destination ·
-real donation rails (The Giving Block, post-hackathon) · photo proof, reminders
+(shared public rituals with honest counts) · real donation rails (The Giving Block, post-hackathon) · photo proof
 · SKR as the stake asset on mainnet (the program is mint-agnostic: one config
 value) · mainnet stablecoin after legal and security review.
 
@@ -150,7 +150,7 @@ value) · mainnet stablecoin after legal and security review.
 - Tests: 2,275 TypeScript tests / 126 files; 206 native program tests; three
   app-path devnet smokes (demo weeks, demo with wallet fee rewrite, real weeks)
   green on 2026-10-04.
-- Repo: github.com/whoknowsmann/rituals (private until Wed Oct 7 ~02:00 CDT,
+- Repo: github.com/whoknowsmann/rituals (private until Jack makes it public before submitting;
   then public). License: Jack decides (MIT suggested).
 
 ## Honest gaps (say them, don't hide them)
@@ -172,7 +172,7 @@ value) · mainnet stablecoin after legal and security review.
 ## Hackathon
 
 CLOCK IN — the Solana Mobile Hackathon with RadiantsDAO. Submissions close
-Oct 8, 2026 (we submit **Wed Oct 7, 8 pm CDT**). Required: a functional Android
+Oct 9, 2026 06:59 UTC (Thu night CDT; we submit **Thu Oct 8 ~6 pm CDT**). Required: a functional Android
 APK, the GitHub repository, a demo video, a pitch deck. Judged on: stickiness
 and product-market fit · user experience · innovation · presentation and demo.
 Winners publish on the Solana dApp Store. (SKR integration is optional and a
