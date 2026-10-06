@@ -89,7 +89,7 @@ describe('soloRitualModel', () => {
 
   it('labels the demo cause only for the exact configured destination', () => {
     expect(labelSoloDestination(destination, destination)).toContain('Northside Food Bank')
-    expect(labelSoloDestination(destination, new PublicKey(new Uint8Array(32).fill(10)))).toContain('person you picked')
+    expect(labelSoloDestination(destination, new PublicKey(new Uint8Array(32).fill(10)))).toContain('wallet you chose')
   })
 
   // DESIGN.md rule 5: demo timing is disclosed as "Demo speed" in muted text,

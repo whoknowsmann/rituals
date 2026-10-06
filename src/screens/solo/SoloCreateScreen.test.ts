@@ -26,9 +26,11 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).not.toContain('suggestions[0]?.draft.eventCount')
   })
 
-  it('keeps one schedule summary and one cause line, with validation and low-balance help intact', () => {
+  it('keeps one schedule summary and a visible choice of where missed weeks go, with validation and low-balance help intact', () => {
     expect(source.match(/\{scheduleLine\}/g)).toHaveLength(1)
-    expect(source).toContain('Missed weeks go to {DEMO_CAUSE.label}')
+    expect(source).toContain('IF YOU MISS A WEEK, IT GOES TO')
+    expect(source).toContain('causeTokenAccount: selectedCause.tokenAccount')
+    expect(source).not.toContain('Missed weeks go to')
     for (const removed of ['YOUR RITUAL', 'LOCKED BEFORE YOU START', 'If I miss, it goes to', 'One declared skip', 'formatSol(', 'styles.promiseCard']) expect(source).not.toContain(removed)
     expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\) && <Text[^\n]*You have/)
     expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\)[^\n]*Get test tokens/)

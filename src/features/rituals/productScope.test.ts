@@ -36,11 +36,12 @@ describe('single-blade fold (solo only)', () => {
     expect(COMING_SOON_LINE).toBe('With friends: coming soon.')
   })
 
-  it('Create hides witness, friends, proof chooser, person destination and the Season param', () => {
+  it('Create hides witness, friends, proof chooser and the Season param (the destination choice is shown: Jack, 2026-10-06)', () => {
     gatedLine(create, 'title="+ One witness"', 'SCOPE.witness')
     gatedLine(create, "navigation.navigate('TemplatePicker')", 'SCOPE.groupFromCreate')
     gatedLine(create, '<Section title="Proof, if you want it"', 'SCOPE.proofChooser')
-    gatedLine(create, 'destinationChoices(DEMO_CAUSE)', 'SCOPE.personDestination')
+    expect(create).toContain('DEMO_CAUSES.map(')
+    expect(create).toContain('title="A wallet you choose"')
     gatedLine(create, 'route.params?.seasonAddress', 'SCOPE.seasons')
     expect(create).toContain('soloCreateSteps(SCOPE)')
     expect(create).toContain('nextSoloCreateStep(')

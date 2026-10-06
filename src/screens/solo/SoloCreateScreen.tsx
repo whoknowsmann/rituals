@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import { PublicKey } from '@solana/web3.js'
 import { decodeSeason, type SeasonAccountView } from '../../data/rituals/accounts'
-import { DEMO_CAUSE } from '../../data/rituals/demoConfig'
+import { DEMO_CAUSES } from '../../data/rituals/demoConfig'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { useCreateRitual } from '../../features/rituals/create/useCreateRitual'
 import { useAuthorization } from '../../utils/useAuthorization'
@@ -38,7 +38,6 @@ import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo
 import {
   SOLO_CREATE_MESSAGES,
   applyTypedIntention,
-  destinationChoices,
   publicKeyFromCanonical,
   validateSoloCreateStep,
   validateWitnessAddress,
@@ -79,6 +78,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   // Demo speed by default; Real weeks writes 7-day windows.
   const [speed, setSpeed] = useState<SoloSpeed>(DEFAULT_SOLO_SPEED)
   const [stakeTotal, setStakeTotal] = useState(DEFAULT_STAKE_TOTAL)
+  const [causeIndex, setCauseIndex] = useState(0)
   const [remindWeekly, setRemindWeekly] = useState(true)
   const { afterCreate: scheduleReminders } = useReminders()
   const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
@@ -126,16 +126,33 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   )
 
   const witnessKey = draft.witnessMode === 'one-witness' ? publicKeyFromCanonical(draft.witnessAddress) : null
-  const causeUnavailable = draft.destination === 'cause' && DEMO_CAUSE.tokenAccount === null
+  const selectedCause = DEMO_CAUSES[causeIndex] ?? DEMO_CAUSES[0]
+  const causeUnavailable = draft.destination === 'cause' && selectedCause.tokenAccount === null
   const weekCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
   // One stake for the whole ritual, split across the weeks (Jack, 2026-10-06).
   const stakeSplit = splitTotalStake(stakeTotal, weekCount)
   const stakeDraft = useMemo(() => ({ ...draft, stakePerWeek: stakeSplit.ok ? atomicDecimalText(stakeSplit.split.perWeekAtomic) : '' }), [draft, stakeSplit.ok ? stakeSplit.split.perWeekAtomic : -1n])
+  // A wallet destination must already hold a token account for the stake mint:
+  // the program locks that account at create, and the one-approval create does
+  // not open accounts for other people.
+  const [personAccount, setPersonAccount] = useState<'unknown' | 'present' | 'missing'>('unknown')
+  useEffect(() => {
+    const owner = draft.destination === 'person' ? publicKeyFromCanonical(draft.personAddress) : null
+    if (!owner || client.status !== 'ready') { setPersonAccount('unknown'); return }
+    let active = true
+    void client.client.getProtocolConfig().then(async (config) => {
+      const ata = getAssociatedTokenAddressSync(config.account.allowedStakeMint, owner)
+      const info = await connection.getAccountInfo(ata, 'confirmed')
+      if (active) setPersonAccount(info ? 'present' : 'missing')
+    }).catch(() => { if (active) setPersonAccount('unknown') })
+    return () => { active = false }
+  }, [client, connection, draft.destination, draft.personAddress])
   const stepThreeErrors = useMemo(() => {
     const errors = [...validateSoloCreateStep(3, stakeDraft, selectedAccount?.publicKey)]
     if (!stakeSplit.ok && stakeSplit.reason === 'too-small') errors.unshift(`Too small to split over ${weekCount} ${weekCount === 1 ? 'week' : 'weeks'}.`)
+    if (stakeDraft.destination === 'person' && personAccount === 'missing') errors.push("That wallet has no tSKR account yet, so it can't receive a missed week. Pick a cause, or have them tap Get test tokens once.")
     return errors
-  }, [stakeDraft, selectedAccount, stakeSplit.ok, weekCount])
+  }, [stakeDraft, selectedAccount, stakeSplit.ok, weekCount, personAccount])
   const totalStakeLabel = (() => {
     return stakeSplit.ok ? formatAtomic(stakeSplit.split.lockedAtomic, 6) : '—'
   })()
@@ -211,7 +228,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       witnessMode: draft.witnessMode,
       witnessAddress: draft.witnessAddress,
       destination: draft.destination,
-      causeTokenAccount: DEMO_CAUSE.tokenAccount,
+      causeTokenAccount: selectedCause.tokenAccount,
       personAddress: draft.personAddress,
       seasonAddress,
       settlerFunding: settlerKey ? { to: settlerKey, lamports: settlerBudgetLamports(eventCount) } : null,
@@ -267,7 +284,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).catch(() => undefined)
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
       void scheduleReminders({ ritualAddress: confirmedAddress, schedule: read.account.schedule, ritualTitle: draft.title,
-        stakeLabel: formatAtomic(read.account.perEventAllocation, read.account.stakeDecimals), causeLabel: draft.destination === 'cause' ? DEMO_CAUSE.label : 'the person you picked',
+        stakeLabel: formatAtomic(read.account.perEventAllocation, read.account.stakeDecimals), causeLabel: draft.destination === 'cause' ? selectedCause.label : 'the person you picked',
         enabled: speed === 'real' && remindWeekly })
     }).catch(() => {
       if (active) setReadbackError('Your ritual was sent, but it is not ready to show yet. Keep this screen open and try again.')
@@ -428,14 +445,16 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
             {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough TEST: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</ErrorLine>}
           </View>
-          {!SCOPE.personDestination && <Text style={styles.quiet}>Missed weeks go to {DEMO_CAUSE.label}</Text>}
-          {SCOPE.personDestination && destinationChoices(DEMO_CAUSE).map((choice) => (
-            <OptionRow key={choice.kind} selected={draft.destination === choice.kind} disabled={choice.disabled} title={choice.kind === 'cause' ? DEMO_CAUSE.label : choice.label} detail={choice.disabled ? choice.detail : choice.kind === 'cause' ? 'The selected cause' : choice.detail} onPress={() => { if (!choice.disabled) setDraft((current) => ({ ...current, destination: choice.kind })) }} />
+          {/* Where missed weeks go: the user picks (Jack, 2026-10-06). Three labelled demo causes or a wallet. */}
+          <Text style={styles.label}>IF YOU MISS A WEEK, IT GOES TO</Text>
+          {DEMO_CAUSES.map((cause, index) => (
+            <OptionRow key={cause.label} selected={draft.destination === 'cause' && causeIndex === index} disabled={cause.tokenAccount === null || create.isBusy} title={cause.label} onPress={() => { setCauseIndex(index); setDraft((current) => ({ ...current, destination: 'cause' })) }} />
           ))}
-          {SCOPE.personDestination && draft.destination === 'person' && (
+          <OptionRow selected={draft.destination === 'person'} disabled={create.isBusy} title="A wallet you choose" onPress={() => setDraft((current) => ({ ...current, destination: 'person' }))} />
+          {draft.destination === 'person' && (
             <View style={styles.indentedField}>
-              <TextInput value={draft.personAddress} onChangeText={(value) => setDraft((current) => ({ ...current, personAddress: value }))} placeholder="Paste their wallet address" placeholderTextColor={color.faint} autoCapitalize="none" style={styles.input} accessibilityLabel="Person destination wallet address" />
-              {selectedAccount && <ErrorLine>{validatePersonError(draft.personAddress, selectedAccount.publicKey, witnessKey)}</ErrorLine>}
+              <TextInput value={draft.personAddress} onChangeText={(value) => setDraft((current) => ({ ...current, personAddress: value.trim() }))} placeholder="Paste a wallet address" placeholderTextColor={color.faint} autoCapitalize="none" autoCorrect={false} style={styles.input} accessibilityLabel="Wallet address for missed weeks" />
+              {selectedAccount && draft.personAddress.length > 0 && <ErrorLine>{validatePersonError(draft.personAddress, selectedAccount.publicKey, witnessKey)}</ErrorLine>}
             </View>
           )}
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
@@ -474,8 +493,8 @@ function validatePersonError(address: string, creator: PublicKey, witness: Publi
   return errors.find((error) => error !== SOLO_CREATE_MESSAGES.stakeRequired) ?? ''
 }
 
-function OptionRow({ selected, disabled, title, detail, onPress }: { selected: boolean; disabled?: boolean; title: string; detail: string; onPress: () => void }) { const styles = useStyles();
-  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ selected, disabled }} style={[styles.option, selected && styles.optionSelected, disabled && styles.optionDisabled]}><View style={[styles.radio, selected && styles.radioSelected]} /><View style={styles.optionCopy}><Text style={styles.optionTitle}>{title}</Text><Text style={styles.optionDetail}>{detail}</Text></View></Pressable>
+function OptionRow({ selected, disabled, title, detail, onPress }: { selected: boolean; disabled?: boolean; title: string; detail?: string; onPress: () => void }) { const styles = useStyles();
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ selected, disabled }} style={[styles.option, selected && styles.optionSelected, disabled && styles.optionDisabled]}><View style={[styles.radio, selected && styles.radioSelected]} /><View style={styles.optionCopy}><Text style={styles.optionTitle}>{title}</Text>{detail ? <Text style={styles.optionDetail}>{detail}</Text> : null}</View></Pressable>
 }
 
 function ProofOption({ selected, title, detail, onPress }: { selected: boolean; title: string; detail: string; onPress: () => void }) { const styles = useStyles();

@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js'
-import { DEMO_CAUSE } from '../../../../data/rituals/demoConfig'
+import { DEMO_CAUSE, DEMO_CAUSES } from '../../../../data/rituals/demoConfig'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { demoWeekMinutesLabel, isDemoSpeedWindow } from '../../../../domain/rituals/schedule'
 import { shortRosterAddress } from '../../create/roster'
@@ -51,7 +51,9 @@ const short = (value: PublicKey): string => shortRosterAddress(value.toBase58())
 
 export function labelSoloDestination(destination: PublicKey, causeTokenAccount: PublicKey | null = DEMO_CAUSE.tokenAccount): string {
   if (causeTokenAccount && destination.equals(causeTokenAccount)) return DEMO_CAUSE.label
-  return `the person you picked · ${short(destination)}`
+  const cause = DEMO_CAUSES.find((entry) => entry.tokenAccount?.equals(destination))
+  if (cause) return cause.label
+  return `the wallet you chose · ${short(destination)}`
 }
 
 /** Demo-speed disclosure from the schedule alone (DESIGN.md rule 5); nothing for real weeks. */
