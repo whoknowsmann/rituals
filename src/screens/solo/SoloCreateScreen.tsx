@@ -16,6 +16,7 @@ import { readChainTime } from '../../features/rituals/chainTime'
 import { useChainTime } from '../../features/rituals/useChainTime'
 import { withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
+import { refreshWidget } from '../../widget/refreshWidget'
 import { useReminders } from '../../features/rituals/reminders/useReminders'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
 import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
@@ -307,11 +308,11 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       // Mark synchronously, before starting any asynchronous one-shot writes.
       if (handledCreateAddresses.current.has(confirmedAddress)) return
       handledCreateAddresses.current.add(confirmedAddress)
-      void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).catch(() => undefined)
+      void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).then(() => refreshWidget([{ address: confirmedAddress, bundle: { ritual: read, slot: read.slot, event: null, claims: [] } }])).catch(() => undefined)
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
       void scheduleReminders({ ritualAddress: confirmedAddress, schedule: read.account.schedule, ritualTitle: draft.title,
         stakeLabel: formatAtomic(read.account.perEventAllocation, read.account.stakeDecimals), causeLabel: draft.destination === 'cause' ? selectedCause.label : 'the person you picked',
-        enabled: speed === 'real' && remindWeekly })
+        enabled: remindWeekly })
     }).catch(() => {
       if (active) setReadbackError('Your ritual was sent, but it is not ready to show yet. Keep this screen open and try again.')
     })
@@ -440,7 +441,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
                 return <Pressable key={option.speed} onPress={() => setSpeed(option.speed)} disabled={locked} accessibilityRole="button" accessibilityState={{ selected: chosen, disabled: locked }} accessibilityLabel={option.accessibilityLabel} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, locked && styles.stepButtonOff, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{option.label}</Text></Pressable>
               })}
             </View>
-            {speed === 'real' && (
+            {(
               <View style={styles.presets}>
                 <Pressable onPress={() => setRemindWeekly((value) => !value)} disabled={create.isBusy} accessibilityRole="switch" accessibilityState={{ checked: remindWeekly, disabled: create.isBusy }} accessibilityLabel="Remind me each week" style={({ pressed }) => [styles.preset, remindWeekly && styles.presetChosen, pressed && styles.pressed]}>
                   <Text style={[styles.presetText, remindWeekly && styles.presetTextChosen]}>{remindWeekly ? '✓ ' : ''}Remind me each week</Text>

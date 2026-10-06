@@ -1,5 +1,5 @@
 import { logFailure, logNote } from '../../../utils/diagnostics'
-import { isRealReminderWindow, planReminders, reminderPrefix, weekReminderPrefix, type ReminderOptions, type ReminderWindow } from './planner'
+import { isDemoReminderWindow, isRealReminderWindow, planReminders, reminderPrefix, weekReminderPrefix, type ReminderOptions, type ReminderWindow } from './planner'
 import { clearReminderPrefix, REMINDERS_CHANNEL, scheduleReminderPlan, type ReminderNotifications } from './scheduler'
 import { readReminderPreferences, writeReminderPreferences, type ReminderStorage } from './storage'
 
@@ -25,7 +25,7 @@ export function createReminderService(deps: {
     prepare: (): Promise<void> => run(async () => { await deps.loadNotifications() }),
     afterCreate: (input: CreateReminderInput): Promise<void> => run(async () => {
       const preferences = await readReminderPreferences(deps.storage)
-      const real = input.schedule.slice(0, 16).some(isRealReminderWindow)
+      const real = input.schedule.slice(0, 16).some((window) => isRealReminderWindow(window) || isDemoReminderWindow(window))
       const previous = preferences.rituals[input.ritualAddress]
       const preference = { enabled: real && input.enabled, stampedWeeks: previous?.stampedWeeks ?? [] }
       preferences.rituals[input.ritualAddress] = preference

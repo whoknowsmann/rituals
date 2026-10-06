@@ -1,5 +1,6 @@
 // Polyfills
 import "./src/polyfills";
+import "./src/widget/registerWidget";
 
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";

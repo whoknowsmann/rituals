@@ -36,6 +36,8 @@ import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloAct
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
 import { useSoloDestinationOwner } from '../../features/rituals/solo/lifecycle/useSoloDestinationOwner'
 import { confirmedStampAdvanced, soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
+import { refreshWidget } from '../../widget/refreshWidget'
+import { useWidgetSnapshot } from '../../widget/useWidgetSnapshot'
 
 type Props = { route: { params: { ritualId: string } } }
 
@@ -87,6 +89,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const destinationOwner = useSoloDestinationOwner(route.params.ritualId, read?.ritual.account.forfeitDestination, read?.ritual.account.stakeMint)
   const model: SoloRitualModel | null = state.status === 'ready' && state.bundle && chainNow !== null
     ? soloRitualModel(state.bundle, chainNow, state.bundle.ritual.account.creator, destinationOwner) : null
+  useWidgetSnapshot(route.params.ritualId, read)
   const { afterStamp: cancelWeekReminders } = useReminders({ ritualAddress: route.params.ritualId,
     eventIndex: model?.eventIndex, stamped: Boolean(model?.showedUp),
     skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined })
@@ -134,6 +137,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   useEffect(() => {
     if (claim.state.status === 'confirmed' && handled.current.claim !== claim.state.result.messageDigest) {
       handled.current.claim = claim.state.result.messageDigest
+      void refreshWidget()
       const eventIndex = claimEventIndex.current
       if (eventIndex !== null && ritualAddress) void cancelWeekReminders(ritualAddress.toBase58(), eventIndex)
       const refresh = () => { setNoteInput(''); state.retry(); setReload((value) => value + 1) }
@@ -146,6 +150,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     if (skip.state.status === 'confirmed' && handled.current.skip !== skip.state.result.messageDigest) { handled.current.skip = skip.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
     if (settle.state.status === 'confirmed' && handled.current.settle !== settle.state.result.messageDigest) {
       handled.current.settle = settle.state.result.messageDigest
+      void refreshWidget()
       state.retry(); setReload((value) => value + 1)
       // Opening a missed week is step one of two; clear it so the same button can settle.
       settle.reset()
@@ -201,6 +206,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       .then((result) => result.ok, () => false)
       .then((ok) => {
         if (!mountedRef.current) return
+        if (ok) void refreshWidget()
         if (!ok && maySettle.current()) autoFailures.current += 1
         setAutoSettling(false)
         state.retry(); setReload((value) => value + 1)
