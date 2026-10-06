@@ -92,8 +92,10 @@ async function persistAuthorization(
 
 export const APP_IDENTITY = {
   name: "Rituals",
-  // Keep the private source-of-truth repository until a public product URL exists.
-  uri: "https://github.com/whoknowsmann/rituals",
+  // The product's own https origin (Vercel project rituals-site, 2026-10-06):
+  // the wallet shows this name and icon at approval time, not "github.com".
+  uri: "https://rituals.whoknowsman.com",
+  icon: "icon.png",
 };
 
 export function useAuthorization() {

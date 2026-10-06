@@ -47,7 +47,7 @@ The stake itself is tSKR, a valueless devnet stand-in with 6 decimals; on mainne
 
 - Devnet only. tSKR has no value.
 - You need tSKR to try it; the in-app faucet (step 3) hands out a small amount and refuses wallets that already hold enough.
-- The wallet shows the requester as "github.com" until the app's identity moves to its own https origin.
+- The wallet names the requester as Rituals at rituals.whoknowsman.com (the product page).
 - The stamp note lives on the phone, not on chain.
 - Some hidden features have rough edges. They are hidden for a reason.
 

@@ -33,7 +33,8 @@ describe('active Rituals product hygiene', () => {
 
     expect(route).toContain('RitualsHome')
     expect(auth).toContain('name: "Rituals"')
-    expect(auth).toContain('uri: "https://github.com/whoknowsmann/rituals"')
+    expect(auth).toContain('uri: "https://rituals.whoknowsman.com"')
+    expect(auth).toContain('icon: "icon.png"')
     expect(auth).not.toContain('"pre" + "flight"')
     // The requested chain lives in walletNetwork.ts (shared by authorize and the pre-send mismatch check).
     expect(readFileSync('src/utils/walletNetwork.ts', 'utf8')).toContain("export const CHAIN_IDENTIFIER = 'solana:devnet'")
