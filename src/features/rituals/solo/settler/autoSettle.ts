@@ -14,6 +14,7 @@ export type AutoSettleInput = Readonly<{
   /** Member token accounts; finalize appends the locked solo destination itself. */
   destinationTokenAccounts: readonly PublicKey[]
   getBlockHeight?: () => Promise<number>
+  mayContinue?: () => boolean
 }>
 
 export type AutoSettleResult =
@@ -43,11 +44,13 @@ export async function autoSettleWeek(input: AutoSettleInput, run: Run = runLifec
   })
   const signatures: string[] = []
   if (input.needsEventInit) {
+    if (input.mayContinue && !input.mayContinue()) return { ok: false, step: 'initialize-event', category: 'not-visible' }
     const opened = await run(deps('initialize-event'), noop)
     if (!opened.ok) return { ok: false, step: 'initialize-event', category: opened.category }
     signatures.push(opened.result.signature)
   }
   for (let attempt = 0; ; attempt += 1) {
+    if (input.mayContinue && !input.mayContinue()) return { ok: false, step: 'finalize', category: 'not-visible' }
     const settled = await run(deps('finalize'), noop)
     if (settled.ok) { signatures.push(settled.result.signature); return { ok: true, signatures } }
     if (settled.category !== 'preparation' || attempt >= 3) return { ok: false, step: 'finalize', category: settled.category }

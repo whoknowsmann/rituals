@@ -154,6 +154,8 @@ describe('soloRitualModel', () => {
     it('shows the missed result until the next week opens, then offers the stamp', () => {
       expect(soloRitualModel(missedWeek0(), 350, me).state).toBe('missed')
       expect(soloRitualModel(missedWeek0(), 450, me).state).toBe('open-not-initialized')
+      expect(soloRitualModel(missedWeek0(), 450, me).lastClosedOutcome).toBe('missed')
+      expect(soloRitualModel(missedWeek0({ status: 'Completed' }), 10_000, me).lastClosedOutcome).toBe('missed')
     })
 
     it('does the same after a declared skip', () => {

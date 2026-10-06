@@ -30,6 +30,7 @@ import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, sol
 import { SCOPE } from '../../features/rituals/productScope'
 import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
 import { settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
+import { DEMO_CLOCK_WARNING } from '../../features/rituals/solo/settler/settlementVisibility'
 import { startedSaying } from '../../features/rituals/solo/sayings'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee, type FeeConfig } from '../../domain/rituals/money'
@@ -128,7 +129,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const witnessKey = draft.witnessMode === 'one-witness' ? publicKeyFromCanonical(draft.witnessAddress) : null
   const selectedCause = DEMO_CAUSES[causeIndex] ?? DEMO_CAUSES[0]
   const causeUnavailable = draft.destination === 'cause' && selectedCause.tokenAccount === null
-  const weekCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
+  const weekCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount, speed })
   // One stake for the whole ritual, split across the weeks (Jack, 2026-10-06).
   const stakeSplit = splitTotalStake(stakeTotal, weekCount)
   const stakeDraft = useMemo(() => ({ ...draft, stakePerWeek: stakeSplit.ok ? atomicDecimalText(stakeSplit.split.perWeekAtomic) : '' }), [draft, stakeSplit.ok ? stakeSplit.split.perWeekAtomic : -1n])
@@ -207,7 +208,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     if (client.status !== 'ready') throw new Error('Rituals are not ready.')
     if (!selectedAccount) throw new Error('Connect your wallet before starting this ritual.')
     if (seasonAddressText && season.status !== 'ready') throw new Error(season.message ?? 'This Season could not be read.')
-    const eventCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount })
+    const eventCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount, speed })
     const schedule = selectSoloSchedule({
       cadence: soloCadenceFor(speed),
       referenceSeconds: Math.floor(Date.now() / 1000),
@@ -476,6 +477,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             </View>
           )}
           {confirmedAddress && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
+          {!createComplete && (
+            <Text style={styles.quiet}>{speed === 'demo' ? DEMO_CLOCK_WARNING : 'Weeks keep their schedule while you’re away. Miss a week and its stake goes to your chosen destination when you reopen the ritual.'}</Text>
+          )}
           {!createComplete && (
             <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}

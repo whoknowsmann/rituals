@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, AppState, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { useFocusEffect, useNavigation } from '@react-navigation/native'
+import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native'
 import { Keypair, PublicKey } from '@solana/web3.js'
 import * as Clipboard from 'expo-clipboard'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -24,6 +24,7 @@ import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settler
 import { createSettlerClient } from '../../features/rituals/solo/settler/settlerClient'
 import { settlerCanPay } from '../../features/rituals/solo/settler/settlerBudget'
 import { autoSettleWeek } from '../../features/rituals/solo/settler/autoSettle'
+import { DEMO_CLOCK_WARNING, settlementVisibleEnough } from '../../features/rituals/solo/settler/settlementVisibility'
 import { shortRosterAddress } from '../../features/rituals/create/roster'
 import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
@@ -38,6 +39,12 @@ type Props = { route: { params: { ritualId: string } } }
 
 export function SoloRitualScreen({ route }: Props) { const s = useS(); const color = useColors();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
+  const focused = useIsFocused()
+  const [appState, setAppState] = useState(AppState.currentState)
+  useEffect(() => {
+    const listener = AppState.addEventListener('change', setAppState)
+    return () => listener.remove()
+  }, [])
   const client = useRitualClient()
   const { connection } = useConnection()
   const { selectedAccount, walletPackage } = useAuthorization()
@@ -178,22 +185,24 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     }).catch(() => { if (active) setSettlerBalance(null) })
     return () => { active = false }
   }, [connection, reload])
-  const settlerClient = useMemo(() => (settler ? createSettlerClient(connection, settler) : null), [connection, settler])
+  const maySettle = useRef<() => boolean>(() => false)
+  maySettle.current = () => Boolean(model && settlementVisibleEnough(model, navigation.isFocused(), AppState.currentState))
+  const settlerClient = useMemo(() => (settler ? createSettlerClient(connection, settler, () => maySettle.current()) : null), [connection, settler])
   const [autoSettling, setAutoSettling] = useState(false)
   const [autoRun, setAutoRun] = useState(0)
   const autoFailures = useRef(0)
   const mountedRef = useRef(true)
-  useEffect(() => () => { mountedRef.current = false }, [])
-  const canAutoSettle = Boolean(model && model.state === 'resolving/settle' && settler && settlerClient && read && ritualAddress && settlerBalance !== null && settlerCanPay(settlerBalance, model.needsEventInit) && autoFailures.current < 3)
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; maySettle.current = () => false } }, [])
+  const canAutoSettle = Boolean(model && model.state === 'resolving/settle' && settlementVisibleEnough(model, focused, appState) && settler && settlerClient && read && ritualAddress && settlerBalance !== null && settlerCanPay(settlerBalance, model.needsEventInit) && autoFailures.current < 3)
   useEffect(() => {
     if (!canAutoSettle || autoSettling || !model || !settler || !settlerClient || !read || !ritualAddress) return
     setAutoSettling(true)
     const destinations = read.ritual.account.members.map((member) => getAssociatedTokenAddressSync(read.ritual.account.stakeMint, member))
-    void autoSettleWeek({ client: settlerClient, ritualAddress, settler: settler.publicKey, eventIndex: model.eventIndex, needsEventInit: model.needsEventInit, destinationTokenAccounts: destinations, getBlockHeight: () => connection.getBlockHeight('confirmed') })
+    void autoSettleWeek({ client: settlerClient, ritualAddress, settler: settler.publicKey, eventIndex: model.eventIndex, needsEventInit: model.needsEventInit, destinationTokenAccounts: destinations, getBlockHeight: () => connection.getBlockHeight('confirmed'), mayContinue: () => maySettle.current() })
       .then((result) => result.ok, () => false)
       .then((ok) => {
         if (!mountedRef.current) return
-        if (!ok) autoFailures.current += 1
+        if (!ok && maySettle.current()) autoFailures.current += 1
         setAutoSettling(false)
         state.retry(); setReload((value) => value + 1)
         // Up to three tries (e.g. the chain clock is a second behind), then the manual button.
@@ -244,7 +253,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         <WeekStrip cells={model.weekCells} tint={tint} />
         <PosterLine label="Your stake" value={formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)} />
       </Poster>
-      {model.demoSpeedNotice && <Text style={s.muted}>{model.demoSpeedNotice}</Text>}
+      {model.demoSpeedNotice && <Text style={s.muted}>{model.demoSpeedNotice} {DEMO_CLOCK_WARNING}</Text>}
       {canShareWitness && witness && (
         <View style={s.witnessCard}>
           <Text style={s.cardTitle}>Your witness</Text>
@@ -254,6 +263,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         </View>
       )}
       {renderState(model, witness, action, actionCopy, weekNote, settlingByItself, celebrate > 0, keptSaying(route.params.ritualId, model.eventIndex))}
+      {model.lastClosedOutcome === 'missed' && model.state !== 'missed' && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>Week {model.lastClosedEventIndex! + 1}: {model.destinationLabel} received that week's stake.</Text></View>}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
@@ -280,7 +290,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'open-not-initialized') return null
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>
   if (model.state === 'closing') return <View style={s.card}><Text style={s.cardTitle}>This week is closing</Text><Text style={s.muted}>{model.showedUp ? 'You showed up. It settles in a moment.' : 'The check-in window has closed. It settles in a moment.'}</Text></View>
-  if (model.state === 'resolving/settle') return <View style={s.card}><Text style={s.cardTitle}>{settlingByItself ? 'Closing this week…' : 'This week is ready to settle'}</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : `${model.destinationLabel} gets this week's stake.`}</Text></View>
+  if (model.state === 'resolving/settle') return <View style={s.card}>{!model.showedUp && <Stamp kind="missed" note="That's a week, not a verdict." animate={false} />}<Text style={s.cardTitle}>{settlingByItself ? 'Closing this week…' : 'This week is ready to settle'}</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : `${model.destinationLabel} gets this week's stake.`}</Text></View>
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
   if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note={keptLine} animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
