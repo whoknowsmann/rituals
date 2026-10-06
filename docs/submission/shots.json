@@ -6,7 +6,7 @@
   {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 14, "end": 28, "head": "Test tokens, one tap.", "body": "Our devnet faucet pays the fee.\nNothing to sign.", "note": "Devnet faucet · nothing to sign"},
   {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 28, "end": 38, "head": "Four weeks. Five a week.", "body": "Miss one and that week's stake\ngoes to a cause you picked up front.", "note": "Rituals takes nothing"},
   {"kind": "card", "dur": 3, "head": "One approval.", "body": "In Seed Vault Wallet.", "note": "Wallet screens can't be recorded"},
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 60, "end": 68, "head": "Locked in.", "body": "Every week's stake is set.\nDemo speed: a week here is 6.5 minutes."},
+  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 60, "end": 68, "head": "Locked in.", "body": "Every week's stake is set.\nDemo speed: a week here is 2 minutes."},
   {"kind": "card", "dur": 3, "head": "Two minutes later.", "body": "We'll skip the wait."},
   {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 190, "end": 200, "head": "Hold to stamp.", "body": "A second and a half.\nAdd a note, just for you."},
   {"kind": "card", "dur": 3, "head": "One more approval.", "body": "In Seed Vault Wallet."},

@@ -44,10 +44,11 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
 
 ## Speeds
 
-- **Demo speed** (default; the app says "Demo speed: a week here is 6.5
-  minutes." on the ritual screen): week 1 opens ~2 min after create, 5-minute
-  stamp window, 1-minute grace, 6.5-minute weeks.
-- **Real weeks**: week 1 opens ~2 min after create, stamp any day in a 6-day
+- **Demo speed** (default; the app says "Demo speed: a week here is 2
+  minutes." on the ritual screen): week 1 opens 90 s after create, 90-second
+  stamp window, 20 s grace, next week 10 s later: 2-minute weeks; a 4-week
+  ritual runs start to finish in about 9½ minutes (ffeb8f9).
+- **Real weeks**: week 1 opens 90 s after create, stamp any day in a 6-day
   window, 23 h grace, 7-day weeks. A finished week settles the next time you
   open the app (or via the wallet fallback). Say this plainly.
 - Every week's opens / deadline / resolution is written on chain at create; the

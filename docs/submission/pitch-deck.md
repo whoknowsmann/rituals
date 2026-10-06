@@ -78,7 +78,7 @@ The whole loop has been run on a Seeker with Seed Vault Wallet. The program is a
 
 A reason to open the app every week.
 The receipt is what you come back for.
-Demo speed: a week is 6.5 minutes.
+Demo speed: a week is 2 minutes.
 Real weeks: seven days.
 
 **Say:**

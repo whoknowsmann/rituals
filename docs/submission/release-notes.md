@@ -10,7 +10,7 @@ Devnet only. TEST tokens have no value.
   week, activates, pre-pays the app's settle key).
 - Hold to stamp a week; one approval per week; optional note kept on the phone.
 - Weeks close by themselves (settle key); KEPT and MISSED receipts.
-- Demo speed (6.5-minute weeks, default) or Real weeks (7 days, stamp any day
+- Demo speed (2-minute weeks, default) or Real weeks (7 days, stamp any day
   in the first 6).
 - Get test tokens in the app: the faucet sends 0.05 devnet SOL + 50 TEST, no
   signing.

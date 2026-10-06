@@ -20,9 +20,9 @@ Home is a grid of tiles, one colour per ritual, each with a punch card ("1 of 4 
 
 There are two speeds.
 
-**Demo speed** is the default. The ritual screen says "Demo speed: a week here is 6.5 minutes." Week 1 opens about 2 minutes after you create, you get a 5-minute stamp window and a 1-minute grace period.
+**Demo speed** is the default. The ritual screen says "Demo speed: a week here is 2 minutes." Week 1 opens about 90 seconds after you create, you get a 90-second stamp window and 20 seconds of grace, and the next week opens 10 seconds later.
 
-**Real weeks** also open week 1 about 2 minutes after create, then give you any day in a 6-day window to stamp, 23 hours of grace, and 7-day weeks. A finished week settles the next time you open the app, or when you use the wallet button.
+**Real weeks** also open week 1 about 90 seconds after create, then give you any day in a 6-day window to stamp, 23 hours of grace, and 7-day weeks. A finished week settles the next time you open the app, or when you use the wallet button.
 
 Every week's open time, deadline and resolution time is written on chain when you create the ritual. The program checks stamps and settlements against the chain clock, so nobody can click through weeks.
 
@@ -40,7 +40,7 @@ The stake itself is TEST, a valueless devnet token with 6 decimals. This is not 
 2. In Seed Vault Wallet, switch the network to Devnet. Otherwise the app shows "Network mismatch".
 3. Open **+ New ritual**, go to step 2 and tap **Get test tokens** (it is also in Settings). The faucet sends 0.05 devnet SOL and 50 TEST to your wallet in one transaction it pays itself; nothing to sign. If it says it is empty, email <owner-email>.
 4. Create a ritual on Demo speed. Approve once (double-tap the side button and use your fingerprint). Approvals need to land within about 60 seconds.
-5. Wait about 2 minutes for week 1 to open, then hold to stamp it.
+5. Wait about 90 seconds for week 1 to open, then hold to stamp it.
 6. Leave a later week alone and watch the settle key close it without a prompt.
 
 ### Known limits
@@ -88,4 +88,4 @@ Several things are built but hidden, and none of them is in the app today. Ritua
 
 ## Built for CLOCK IN, the Solana Mobile hackathon
 
-License: <license>
+License: MIT (see `LICENSE`).

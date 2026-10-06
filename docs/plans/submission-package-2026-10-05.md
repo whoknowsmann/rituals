@@ -1,4 +1,11 @@
-# Submission package plan — CLOCK IN (submit Wed Oct 7, 8 pm CDT)
+# Submission package plan — CLOCK IN (submit Thu Oct 8 ~6 pm CDT; hard close Fri Oct 9 01:59 CDT)
+
+> **Updated 2026-10-05 night (Jack):** the deadline is Friday Oct 9 06:59 UTC
+> (Thu night CDT), so the target is Thursday ~6 pm CDT and the Wednesday
+> steps below slide a day. License: **MIT** (LICENSE committed). The repo
+> stays private: the `rituals-make-repo-public` cron is **paused** and Jack
+> flips visibility himself; fast-forward `main` (README + LICENSE) right
+> before he does. Demo weeks are now 2 minutes (ffeb8f9).
 
 Written 2026-10-04 night (Hermes) for Jack's Monday morning. Plan of record for
 the last three days. Owners are explicit; everything marked Hermes runs without
@@ -50,8 +57,8 @@ block where your hands are required. Hermes drives over adb and records.
 2. Recording run (Demo speed, "Read", 4 weeks, 5 TEST): Home → + New ritual →
    step 1 → step 2 (pills, summary) → **Lock it in** (approval 1: sheet shows
    **−20 TEST**, no fee) → Locked in → ritual screen with the countdown and the
-   "Demo speed: a week here is 6.5 minutes." line → ~2 min wait → **HOLD**
-   (approval 2) → SHOWED UP + saying → ~6 min → KEPT receipt. Optional:
+   "Demo speed: a week here is 2 minutes." line → ~90 s wait → **HOLD**
+   (approval 2) → SHOWED UP + saying → ~2 min → KEPT receipt. Optional:
    film the Seed Vault sheet with a second phone for 5 s; otherwise the video
    uses a caption card there (wallet screens record black, by Android design).
 3. While week 1 settles: your decisions (Block B). Then logcat saved,
@@ -78,8 +85,9 @@ You: organizer email (send or skip), deck edits, video approval.
 
 ### Wednesday
 
-~02:00 CDT the cron `rituals-make-repo-public` scans history and flips the repo
-public, reports to Telegram. Hermes re-checks every link logged-out in the
+~~~02:00 CDT the cron `rituals-make-repo-public` scans history and flips the repo
+public, reports to Telegram.~~ Cron paused 10-05 night; Jack makes the repo
+public himself after `main` is fast-forwarded and the history scan passes. Hermes re-checks every link logged-out in the
 morning and writes the exact text for each form field. You submit before
 8 pm CDT and save the confirmation.
 
@@ -100,7 +108,7 @@ not a rewrite: the footage and shot list are the same.
 
 Rules the cut follows: only real footage, no staged states; waits are
 compressed and labelled ("8× — the wait, not the app"); wallet approvals are
-caption cards, never black frames; "Demo speed: a week here is 6.5 minutes."
+caption cards, never black frames; "Demo speed: a week here is 2 minutes."
 appears on screen and in the voice once; one "Devnet · test tokens" line;
 nothing about AI, SKR, mainnet.
 

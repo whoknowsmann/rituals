@@ -12,9 +12,10 @@ reminders + widget build from `exp/reminders-widget` @ f3ca007, installed
 Reinstall d23 before recording: `artifacts/rituals-d23.apk`.
 Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT, i.e. Thursday night) ·
 **target: submit Thu Oct 8 ~6 pm CDT** (Jack, 10-05: Friday is the deadline,
-use the extra day). Repo-public cron `cd4e3bd1e174` still fires **Wed Oct 7
-01:59 CDT**: `main` must be fast-forwarded with README + LICENSE before then,
-or the cron moved.
+use the extra day). **Repo stays private for now** (Jack, 10-05 night): the
+repo-public cron `cd4e3bd1e174` is **paused**; Jack flips visibility himself.
+Fast-forward `main` (README + LICENSE) and run the history scan right before
+he does. **License: MIT** (`LICENSE`, holder "whoknowsmann").
 
 ### 2026-10-05 evening (not yet folded into the sections below)
 
@@ -28,9 +29,9 @@ or the cron moved.
   grace, 10 s gap; 4 weeks ≈ 9½ min. App label derives from chain windows ("4
   demo weeks · 2 min each"). Smoke GREEN on the 2-min cadence (ritual
   `8k73dTAB…`, `artifacts/logs/smoke-app-solo-2min.log`). d23 built 19:28,
-  walked to step 2. **Submission docs still say 6.5 minutes** (FACTS, README,
-  deck, video script, store listing, release notes, package plan) — fix before
-  any recording/cut.
+  walked to step 2. Submission docs (FACTS, README, deck, video script, store
+  listing, release notes, shots template, package plan) now say 2 minutes
+  (were 6.5); deck PDF needs a re-render.
 - **Reminders** (`feat/reminders` @ a7b1f6f, gpt-6-astra): expo-notifications,
   Real weeks only (week open · 1 day left · last hour), "Remind me each week"
   pill on create, permission after create, cancel on stamp. Unit-tested;
@@ -38,12 +39,16 @@ or the cron moved.
   `dumpsys alarm`).
 - **Widget** (`feat/widget` @ 1dd0199, then fix f3ca007 on
   `exp/reminders-widget`, now pushed): builds and places from the launcher.
-  x2 render is still a tall tile with a large empty middle
-  (`artifacts/shots/x2-widget-old-slot.png`); needs the true 2x2 sizing
-  (`minHeight` ~110dp) and a re-place. Not on the shipping branch.
+  f3ca007 already has true 2x2 sizing (110dp); the tall render was the
+  slot placed under x1. Resized to 2x2 on the phone it reads as a plain copy
+  of the Home tile (`artifacts/shots/x2-widget-2x2.png`). Redesign dispatched
+  10-05 22:45 to gpt-6-astra (high), Duolingo-style: the ink stamp as a
+  character whose face escalates through the week, big streak number, one
+  line (brief: `~/.hermes/cache/scratch/writers/widget-duo.md`). Not on the
+  shipping branch.
 - **Recording not done.** Needs Jack ~12 min: Seed Vault on Devnet, fresh
   empty account "test 2", two approvals ~90 s apart.
-- Open decisions (package plan §4): license, repo description, FAUCET_CONTACT
+- Open decisions (package plan §4): repo description, FAUCET_CONTACT
   (placeholder faucet@whoknowsman.com), voiceover, MWA identity origin,
   organizer email; plus ship reminders/widget or not.
 - Subagent routing from 10-05 night: `delegation` = openai-codex /
