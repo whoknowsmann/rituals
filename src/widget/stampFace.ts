@@ -20,6 +20,7 @@ export function stampFaceSvg(face: StampFace, ink: string, paper: string): strin
 <g transform="rotate(-7 80 80)" stroke="${ink}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
 <circle cx="80" cy="80" r="69" fill="${paper}"/>
 <circle cx="80" cy="80" r="59" stroke-width="2.5"/>
+<circle cx="80" cy="80" r="64" stroke-width="2" stroke-dasharray="2 6"/>
 <path d="M76 20h8 M76 140h8 M20 77v6 M140 77v6" stroke-width="3"/>
 ${expressions[face]}
 </g></svg>`

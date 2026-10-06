@@ -1,145 +1,149 @@
-Rituals Android widget — the stamp has opinions
+Rituals Android widget — cute, clever, clear
 
-Design
+Clarity contract
 
-The app's own double-ruled ink stamp is the character, not a new animal mascot.
-Nine shape-only expressions share one slightly rotated rubber-stamp ring. The
-face carries status; a Fraunces 900 hero carries the consecutive-week streak
-while active, or the kept/total tally (such as 1/6) when finished. Its small
-label sits directly beneath it: “week streak” or “weeks kept”.
-One short Figtree line nags or celebrates. No punch dots, stake header, pill or
-extra narration. The tagline remains unchanged elsewhere: Show up, or pay up.
+A stranger glancing at the 2x2 widget for two seconds should know which ritual,
+what to do now, by when, what's at stake, and that it's Rituals. This contract
+is also the opening comment in RitualWidget.tsx. It is a design target, not a
+claim of completed device/user testing.
 
-State       Face         Example line                    Stamp ink / paper
-open        calm         Week 1 is open.                  dark / #C8F560
-concerned   side-eye     Your 5 TEST has opinions.        dark / #C8F560
-alarmed     alarmed      Nearly closed. Stamp it.         dark / #C8F560
-stamped     joyful       You showed up.                   #2F6B2A / #FFFDF8
-missed      sad          5 TEST went to your cause.       #8C8377 / #EAE3D6
-resting     closed eyes  Week 2 opens in 3h               dark / #FFFDF8
-finished    content*     Ritual finished.                 #2F6B2A / #FFFDF8
-empty       expectant    Start a ritual?                  dark / #C8F560
-closing     neutral      Week closed. Open Rituals.       dark / #FFFDF8
+2x2, top to bottom: RITUALS in spaced Figtree caps; the ritual name in Fraunces
+900, one line with end truncation; the expressive ink stamp; one Figtree action
+block containing timing and stake; the app's punch-card dots. Exactly three
+native text elements, with at most three rendered lines in the action block.
+No generic streak headline. Empty has only the brand, waving stamp and invitation.
+A legacy blank title displays “Your ritual”; the saved title is not rewritten.
 
-* Finished uses a neutral face with dark ink unless more than half of all weeks
-were kept. Grey ink is reserved for confirmed misses, not completion or closing.
-The concerned glance has two right-shifted pupils, one lowered flat brow and a
-small flat mouth, with no overlapping eye strokes. Sad brows rise toward the
-middle over a shallow downturned mouth: disappointed, never mocking.
-Dark ink is #1D1A16. Ritual tint remains the background, with paper-white text;
-empty uses warm app paper. The stamped streak numeral celebrates in #C8F560.
-Misses never turn red. The open, concerned and stamped lines use deterministic
-FNV-1a address/week/state selection, matching reminders' hashing/voice without
-changing that feature. Literal “Last hour. Stamp it.” is used only in the final
-hour of a real window; accelerated demos and earlier proportional urgency say
-“Nearly closed. Stamp it.” All authored messages fit a 30-character budget.
+4x2: stamp left; right column contains brand, name, action block, dots. Names
+remain Fraunces and single-line truncated in both orientations. The action block
+uses native font fitting rather than truncating an amount. The root's only
+click action remains OPEN_APP; there is no transaction or signing action.
 
-The complete cause label is stored. Receipt copy names it when the full amount
-and cause fit; otherwise it says “5 TEST went to your cause.” A very long amount
-uses “Stake went to your cause.” Neither amount nor destination is truncated
-into a different one. The actual app receipt names Northside Food Bank (demo).
+Copy examples (slashes below denote separate lines, except “TEST / week”)
 
-Layout
+open       Stamp week 2 · 5 days left   / 5 TEST on the line
+concerned  Stamp week 2 · 1 day left    / 5 TEST on the line
+alarmed    Stamp week 2 · last hour     / 5 TEST on the line
+stamped    Week 2 stamped               / Week 3 opens Tue / 5 TEST / week
+missed     Missed week 2                / 5 TEST to your cause
+resting    Week 3 opens Tue 9:00         / 5 TEST / week
+finished   Done · 4 of 6 kept            / 5 TEST / week
+empty      Start a ritual
+closing    Week 2 closed · open app      / 5 TEST / week
 
-The provider is unchanged: 110dp minima, 2x2 target, horizontal|vertical resize,
-30-minute updatePeriodMillis. Root is match_parent with radius.lg (20dp) and
-14dp padding. At a square placement the SVG box takes about 55% of inner height,
-the hero/label stack 30%, and the message the remainder. The empty face gets 72%.
-The label has a 9dp or 12dp budget directly under the number with no added gap.
-Both texts are centred and fitted to the full available text width, including
-two-digit tallies such as 16/16; their combined height stays within the budget.
-The display uses available width AND height, not an empty weighted header.
+These are examples, never fixed week numbers, amounts or dates. The snapshot's
+chain windows and render-time clock provide all timing. Real remaining time is
+floored to whole days/hours (“5 days left”, “1 day left”, “3h left”). “last hour”
+is literal, including the inclusive deadline; earlier proportional alarm uses
+its actual coarse hours. All open demo-speed states say “Stamp week N · now”,
+never a seconds/minutes countdown. Opens use the chain timestamp in device-local
+time: weekday alone after a stamp, weekday plus 24-hour HH:MM while resting.
+The shared displayFormat.weekOpensLabel was inspected but not reused: its
+minute countdown/full date/AM-PM copy is too long for this surface.
 
-A width of at least 240dp and aspect ratio of at least 1.5 switches to a large
-face on the left and numeral, message and small single-line ritual name on the
-right, centred within that text column. Both foreground refresh and headless
-resize pass the host dimensions.
-Text has bounded lines and native font fitting; only the wide ritual name is
-ellipsized. All UI is FlexWidget/TextWidget/SvgWidget from the installed 0.16.1.
-SVG is self-contained shapes: no fonts, images or URLs. Text uses the existing
-bundled Fraunces_900Black and Figtree 400/600 assets. OPEN_APP is the only action.
+Every nonempty state carries stake context. A stamped or finished state says
+“5 TEST / week”, not “on the line”: stamping is confirmed, but settlement may
+not yet be. The final stamped week has no invented next opening. Resting without
+a future window asks to open the app. A confirmed miss names the stored cause
+if the entire amount and destination fit 30 characters, otherwise “your cause”.
+No guessed short name or fabricated transfer. Pathological amounts use “Your
+stake on the line”, “Stake to your cause”, or “Stake per week · open app”, never
+rounded/clipped digits. Copy has no mockery, banned product words or random
+quips. The pinned tagline is unchanged: Show up, or pay up.
 
-Clock, selection and streak
+Stamp and progress
 
-WIDGET_THRESHOLDS in widgetModel.ts is the single urgency constants block:
+All nine original expressions and state colours remain. The double ink rules
+now enclose a dashed/ticked rim, keeping it a stamped seal rather than a bare
+smiley. Active faces use lime paper (#C8F560), confirmed stamps use green ink
+on white, misses use quiet ink on muted paper, resting/closing use dark ink on
+white. Completion is content/green only when more than half of all weeks were
+kept; otherwise neutral/dark. Grey ink remains exclusive to confirmed misses.
+The stamped action block gets the lime accent. Ritual tint stays the background.
+
+Renderer investigation: installed react-native-android-widget 0.16.1's
+android/.../builder/widget/SvgWidget.java calls SVG.getFromString, then
+renderToPicture and PictureDrawable. Its android/build.gradle pins
+com.caverock:androidsvg-aar:1.4 (not react-native-svg). The cached 1.4 runtime
+contains Text/TextPath and PlainTextDrawer/PathTextDrawer implementations.
+Text-path support exists; it is not claimed to be unsupported. Nevertheless,
+tiny curved default-font lettering at the reduced 2x2 stamp size is not verified
+on Android here. The conservative fallback is shape-only rim ticks plus a
+readable native RITUALS label; no SVG legend or external font/asset dependency.
+
+punchCard.ts draws one mark per week, at most eight per row (up to 16 weeks).
+Home's language: kept = white filled, missed = dark filled, upcoming = hollow,
+current = heavier open ring. A skip is a dash, unread/expired unconfirmed history
+is hollow with a small centre mark. Neither is a fabricated kept/missed result.
+Finished dots retain the complete outcome history. Streak calculation is still
+available in the model with its existing semantics, but no longer occupies UI.
+
+Sizing
+
+The root has match_parent dimensions, radius.lg and 8dp padding. Copy gets an
+explicit dp budget before the square stamp uses the remainder. At heights of
+140dp or more: brand 14dp, name 24dp, action 44dp, dots 12dp (24dp for >8 weeks).
+Shorter placements use 10/16/32dp copy budgets. Empty omits name/dots and uses a
+26dp action budget. Horizontal mode starts at width >=240dp and aspect >=1.5;
+its face uses up to 43% of inner width with a 12dp gap before the text column.
+Both foreground and headless refresh retain the host's actual width and height.
+The 110dp minimum has bounded geometry, not proven two-second legibility; small
+placements and accessibility font sizes need device inspection. JS tree budget
+assertions are not proof that Android's rasterized text is readable.
+
+Unchanged clock, selection and data boundary
+
+WIDGET_THRESHOLDS remains the single urgency constants block:
   concerned: remaining <= one third of the stamp window;
   alarmed: remaining <= 15% of the stamp window (takes priority);
-  windows >= 86400 seconds additionally use <= one day / <= one hour floors.
-Opens and deadline are inclusive. No countdown runs between Android updates.
+  windows >=86400 seconds additionally use <=one day / <=one hour floors.
+Opens/deadline are inclusive. No clock runs between Android widget updates.
 A stamped week celebrates through its window, then rests until the next opens;
 a final stamped week keeps its joy until a completed account is observed.
 A confirmed miss stays quiet until the next week opens. An expired unconfirmed
-week displays closing, never claims settlement or a transfer. The clock can
-advance to a later saved window, but cannot advance the on-chain account or
-settle it; opening the app handles any required catch-up.
+week displays closing, never claims settlement or a transfer. Clock projection
+can advance to a later saved window, but never advances the chain account.
 
-Selection re-runs at render time across ALL saved candidates: open unstamped
-week with nearest deadline; else newest active; else newest finished. Ties use
-newest remembered order. Funding, cancelled, group and unreadable rituals are
-not candidates. Known order determines tint, as on Home.
+Selection re-runs across ALL saved candidates: nearest open unstamped deadline;
+else newest active; else newest finished. Ties use newest remembered order.
+Funding, cancelled, group and unreadable rituals are not candidates. Known
+order determines tint, as on Home. Streak still counts consecutive kept weeks
+backwards from the latest decided week; skip/miss/unread closed history breaks
+it. Open unstamped/future weeks are ignored; a confirmed current stamp counts.
 
-Streak = consecutive kept weeks counting backwards from the most recent
-decided week. A confirmed current stamp is kept before settlement. Future and
-open unstamped weeks do not break it. A miss resets it; subsequent kept weeks
-start a new run. Skips/voided refunds are not stamps and break the run. Unread
-closed history or an expired unconfirmed week also stops the count rather than
-claiming an unverified streak. These conservative unknowns are not shown as
-confirmed misses. Finished tally counts stored kept outcomes, not future weeks.
+@rituals/widget/v3 stores { rituals: [...] } in oldest-first remembered order.
+Each candidate contains address, title, tint, active, stakeLabel, causeLabel,
+and weeks: [{ opens, deadline, outcome }]. Unix seconds, ordered nonoverlapping
+windows; outcomes pending/kept/missed/skipped/unknown. Decoder and persistence
+are unchanged. No keys, notes, balances or wallet objects are stored. v2 cannot
+reconstruct these windows; open Home once to publish v3 rather than migrate.
 
-Data boundary and freshness
-
-@rituals/widget/v3 holds { rituals: [...] } in oldest-first remembered order.
-Each candidate contains address, title, tint, active, stakeLabel, causeLabel and
-weeks: [{ opens, deadline, outcome }]. Times are integer Unix seconds; outcomes
-are pending, kept, missed, skipped or unknown. The decoder validates all
-candidates, ordered nonoverlapping windows, outcome values and colour, and
-drops extra fields. It stores no notes, keys, wallet objects or balances.
-
-v2 cannot reconstruct week windows; it is not migrated. Open Home once after
-updating to publish v3. Until then the widget shows the empty invitation.
 The serialized foreground publisher caches all candidates across restarts,
-removes forgotten rituals, and clears on empty successful Home loads. Home
-batch results supply closed outcomes; current confirmed claims can immediately
-add a kept week. Detail uses its existing enriched history. Declared skip
-metadata overrides Home's refunded done cells; observed voided events are
-skipped, never kept. No extra chain reads were added.
-
-Existing write points remain wired: Home load/batch outcomes, create readback,
-SoloRitual's content-change hook, and redraw after confirmed stamp/manual or
-automatic settlement. Immediate confirmation redraw can precede the fresh
-bundle that writes its outcome. Foreground failures remain best-effort and do
-not block app actions. Reminders, screens, shared product models and native
-configuration were not modified.
-
-Headless add/update/resize reads AsyncStorage and Date.now() only, then selects
-and projects. It ignores deletion and other widget names. No RPC, network,
-alarms, scheduled transactions or background polling. Android's 30-minute
-minimum is inexact and can be delayed by battery policy or force-stop. Entire
-demo windows may pass between redraws. The app is required for fresh results.
+removes forgotten rituals, clears on empty successful Home loads, and uses the
+existing Home/detail/confirmation data. Declared skips override refunded done
+cells. Existing create/stamp/manual/automatic-settlement refresh points remain.
+No extra chain reads, screen changes, reminders changes or native config changes.
+Headless add/update/resize reads AsyncStorage and Date.now() only; no RPC, network,
+alarms, transactions or polling. It ignores deletion and other widget names.
+Android's unchanged 30-minute update period is inexact and can be delayed by
+battery policy/force-stop. Entire demo windows may pass between redraws. Open
+the app for fresh chain results; local copy does not imply a continuously fresh
+balance, settlement or countdown.
 
 Verification and device handoff
 
-Executed for this polish: npm run typecheck passed; npm test -- src/widget
-passed 55 tests in 7 files; the full npm test ran once and passed 2,396 tests
-in 141 files (baseline 2,382 / 141). Added regression coverage for finished
-kept/total heroes, active streaks, dark finished ink, separated side-eye strokes,
-sad geometry, and stacked label budgets at minimum, 2x2 and 4x2 sizes. The full
-run emitted bigint native-binding fallback warnings and expected negative-path
-logs, with no failures. No rebuild or device verification was attempted.
+npm run typecheck passed. npm test -- src/widget passed 96 tests in 7 files.
+The full npm test ran once and passed 2,437 tests in 141 files (baseline
+2,396 / 141). It emitted bigint native-binding fallback warnings and expected
+negative-path logs; there were no failures.
+Tests use the installed JS converters/serializer (only the unused numeric
+SvgWidget asset resolver is stubbed), covering both layouts, three-text limit,
+Fraunces truncation, explicit budgets at 110/160/180dp and wide/tall placements,
+all faces/colours, 1–16 punch dots, finished Read regressions, all state copy,
+chain-time edges, local weekday/time, exact stakes and conservative unknowns.
+Existing persistence, restart, selection, headless no-network graph and in-memory
+plugin checks remain. No install, build, prebuild, Gradle or adb was run.
 
-Widget tests exercise the actual installed JS primitive converters/serializer,
-with the native asset resolver stubbed only for SvgWidget's unused numeric
-image path. They check square/wide composition, dp budgets, custom fonts,
-inline SVGs and OPEN_APP. State/streak/selection tests cover threshold edges,
-short/banned-word-screened copy, persistence and process restart. Runtime
-handler tests advance Date.now() against the same saved snapshot; the existing
-import-graph check excludes headless network/RPC/foreground adapters. The
-plugin test still checks provider sizing, periodic interval and bundled fonts
-through an in-memory filesystem, not prebuild.
-
-Device-only checks remain: Fraunces/Figtree rendering and font fitting, SVG
-scaling/line weight at actual launcher density, text clipping under large font
-settings, 2x2 versus 4x2 physical layout, cold/warm tap behavior, and periodic
-refresh timing under Android battery policies. JS tree tests are not pixel
-screenshots. No installs, builds, prebuild, Gradle, adb or device actions are
-part of this redesign. Existing native plugin/font setup is unchanged.
+Device-only: actual Fraunces/Figtree sizing, title ellipsis, action wrapping/font
+fitting, rim-tick weight and expression legibility, 2x2/4x2 balance, large system
+fonts, cold/warm tap opening, and periodic refresh under battery restrictions.

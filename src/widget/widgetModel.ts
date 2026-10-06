@@ -13,9 +13,11 @@ export type WidgetOutcome = Omit<WidgetRitual, 'title' | 'tint'>
 export type WidgetSnapshot = Readonly<{ rituals: readonly WidgetRitual[] }>
 export type WidgetState = 'open' | 'concerned' | 'alarmed' | 'stamped' | 'missed' | 'resting' | 'finished' | 'empty' | 'closing'
 export type StampFace = 'calm' | 'side-eye' | 'alarmed' | 'joyful' | 'sad' | 'resting' | 'content' | 'expectant' | 'neutral'
+export type WidgetDot = 'kept' | 'missed' | 'upcoming' | 'current' | 'skipped' | 'unknown'
 export type WidgetModel = Readonly<{
   title: string; state: WidgetState; face: StampFace; streak: number
-  hero: Readonly<{ value: string; label: 'week streak' | 'weeks kept' }>
+  dots: readonly WidgetDot[]
+  /** One action block, including timing and stake; at most three authored lines. */
   line: string; tint: string; ink: string; seal: string
 }>
 
@@ -76,18 +78,36 @@ export function openWidgetState(week: WidgetWeek, now: number): 'open' | 'concer
   return 'open'
 }
 
-// Same FNV-1a address/week/state convention as reminders/lines.ts. No random render draws.
-function pick(lines: readonly string[], address: string, week: number, state: WidgetState): string {
-  let hash = 2166136261
-  const key = `${address}:${week}:${state}`
-  for (let index = 0; index < key.length; index++) hash = Math.imul(hash ^ key.charCodeAt(index), 16777619)
-  return lines[(hash >>> 0) % lines.length]
-}
 const fits = (line: string) => Array.from(line).length <= 30
-function openingLine(week: number, opens: number, now: number): string {
-  const seconds = opens - now
-  const time = seconds < 60 ? '<1m' : seconds < 3600 ? `${Math.ceil(seconds / 60)}m` : seconds < 86400 ? `${Math.ceil(seconds / 3600)}h` : `${Math.ceil(seconds / 86400)}d`
-  return `Week ${week} opens in ${time}`
+const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** Device-local chain opening, not a countdown that would go stale between updates.
+ * displayFormat.weekOpensLabel includes minute countdowns/date/AM-PM: too long here.
+ */
+export function widgetOpening(week: number, opens: number, withTime = false): string {
+  const date = new Date(opens * 1000)
+  const time = withTime ? ` ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}` : ''
+  return `Week ${week} opens ${weekdays[date.getDay()]}${time}`
+}
+
+/** Floor coarse units: never promise more whole days/hours than remain. */
+export function widgetTimeLeft(week: WidgetWeek, now: number): string {
+  const { realWindowSeconds, daySeconds, hourSeconds } = WIDGET_THRESHOLDS
+  if (week.deadline - week.opens < realWindowSeconds) return 'now'
+  const seconds = Math.max(0, week.deadline - now)
+  if (seconds <= hourSeconds) return 'last hour'
+  if (seconds < daySeconds) return `${Math.floor(seconds / hourSeconds)}h left`
+  const days = Math.floor(seconds / daySeconds)
+  return `${days} ${days === 1 ? 'day' : 'days'} left`
+}
+
+/** Home's punch-card language, without treating expired/unread weeks as misses. */
+export function widgetDots(ritual: WidgetRitual, now: number): WidgetDot[] {
+  return ritual.weeks.map((week) => {
+    if (week.outcome !== 'pending') return week.outcome
+    if (week.opens > now) return 'upcoming'
+    return ritual.active && now <= week.deadline ? 'current' : 'unknown'
+  })
 }
 
 export function widgetModel(known: readonly WidgetKnown[], outcomes: readonly WidgetOutcome[], now: number): WidgetModel {
@@ -96,32 +116,30 @@ export function widgetModel(known: readonly WidgetKnown[], outcomes: readonly Wi
 
 export function widgetModelFromSnapshot(snapshot: WidgetSnapshot | null, now: number): WidgetModel {
   const ritual = selectWidgetSnapshot(snapshot, now)
-  if (!ritual) return { title: '', state: 'empty', face: 'expectant', streak: 0, hero: { value: '0', label: 'week streak' }, line: 'Start a ritual?', tint: color.bg, ink: color.fg, seal: WIDGET_LIME }
-  const { weeks, address, stakeLabel, causeLabel } = ritual
+  if (!ritual) return { title: '', state: 'empty', face: 'expectant', streak: 0, dots: [], line: 'Start a ritual', tint: color.bg, ink: color.fg, seal: WIDGET_LIME }
+  const { weeks, stakeLabel, causeLabel } = ritual
   const streak = widgetStreak(weeks, now)
-  const base = { title: ritual.title, streak, hero: { value: String(streak), label: 'week streak' as const }, tint: ritual.tint, ink: color.fg, seal: WIDGET_LIME }
+  const base = { title: ritual.title, streak, dots: widgetDots(ritual, now), tint: ritual.tint, ink: color.fg, seal: WIDGET_LIME }
+  // A pathological amount is replaced in full, never rounded or clipped into another amount.
+  const stake = fits(`${stakeLabel} on the line`) ? stakeLabel : 'Your stake'
+  const terms = fits(`${stakeLabel} / week`) ? `${stakeLabel} / week` : 'Stake per week · open app'
   const kept = weeks.filter((week) => week.outcome === 'kept').length
-  if (!ritual.active) return { ...base, state: 'finished', face: kept > weeks.length / 2 ? 'content' : 'neutral', hero: { value: `${kept}/${weeks.length}`, label: 'weeks kept' }, line: 'Ritual finished.', ink: kept > weeks.length / 2 ? color.stampInk : color.fg, seal: color.card }
+  if (!ritual.active) return { ...base, state: 'finished', face: kept > weeks.length / 2 ? 'content' : 'neutral', line: `Done · ${kept} of ${weeks.length} kept\n${terms}`, ink: kept > weeks.length / 2 ? color.stampInk : color.fg, seal: color.card }
   const current = weeks.findIndex((week, index) => now >= week.opens && (index === weeks.length - 1 || now < weeks[index + 1].opens))
   const week = weeks[current]
-  if (week?.outcome === 'kept' && (now <= week.deadline || current === weeks.length - 1)) return { ...base, state: 'stamped', face: 'joyful', line: pick(['You showed up.', 'Future you says thanks.'], address, current + 1, 'stamped'), ink: color.stampInk, seal: color.card }
+  const next = weeks.findIndex((entry) => entry.opens > now)
+  if (week?.outcome === 'kept' && (now <= week.deadline || current === weeks.length - 1)) return { ...base, state: 'stamped', face: 'joyful', line: [`Week ${current + 1} stamped`, ...(next >= 0 ? [widgetOpening(next + 1, weeks[next].opens)] : []), terms].join('\n'), ink: color.stampInk, seal: color.card }
   if (week?.outcome === 'pending' && now <= week.deadline) {
     const state = openWidgetState(week, now)
-    const stakeLine = `Your ${stakeLabel} has opinions.`
-    // Proportional urgency on real weeks can begin before the literal last hour.
-    const literalHour = week.deadline - now <= WIDGET_THRESHOLDS.hourSeconds && week.deadline - week.opens >= WIDGET_THRESHOLDS.realWindowSeconds
-    const line = state === 'open' ? pick([`Week ${current + 1} is open.`, 'Future you is checking.'], address, current + 1, state)
-      : state === 'concerned' ? pick([fits(stakeLine) ? stakeLine : 'Your stake is on the clock.', 'Make room for a stamp.'], address, current + 1, state)
-        : literalHour ? 'Last hour. Stamp it.' : 'Nearly closed. Stamp it.'
+    const line = `Stamp week ${current + 1} · ${widgetTimeLeft(week, now)}\n${stake} on the line`
     return { ...base, state, face: state === 'open' ? 'calm' : state === 'concerned' ? 'side-eye' : 'alarmed', line }
   }
   if (week?.outcome === 'missed') {
-    const receipt = `${stakeLabel} went to ${causeLabel}.`
-    // Never clip an amount or rename a destination to squeeze it into the widget.
-    const amountOnly = `${stakeLabel} went to your cause.`
-    return { ...base, state: 'missed', face: 'sad', line: fits(receipt) ? receipt : fits(amountOnly) ? amountOnly : 'Stake went to your cause.', ink: color.stampQuiet, seal: color.paperMuted }
+    // No guessed cause short names. Keep a short stored name, otherwise use the generic destination.
+    const receipt = `${stakeLabel} to ${causeLabel}`
+    const amountOnly = `${stakeLabel} to your cause`
+    return { ...base, state: 'missed', face: 'sad', line: `Missed week ${current + 1}\n${fits(receipt) ? receipt : fits(amountOnly) ? amountOnly : 'Stake to your cause'}`, ink: color.stampQuiet, seal: color.paperMuted }
   }
-  if (week && (week.outcome === 'pending' || week.outcome === 'unknown')) return { ...base, state: 'closing', face: 'neutral', line: 'Week closed. Open Rituals.', ink: color.fg, seal: color.card }
-  const next = weeks.findIndex((entry) => entry.opens > now)
-  return { ...base, state: 'resting', face: 'resting', line: next >= 0 ? openingLine(next + 1, weeks[next].opens, now) : 'Take a breath. Open Rituals.', ink: color.fg, seal: color.card }
+  if (week && (week.outcome === 'pending' || week.outcome === 'unknown')) return { ...base, state: 'closing', face: 'neutral', line: `Week ${current + 1} closed · open app\n${terms}`, ink: color.fg, seal: color.card }
+  return { ...base, state: 'resting', face: 'resting', line: `${next >= 0 ? widgetOpening(next + 1, weeks[next].opens, true) : 'Open app for your ritual'}\n${terms}`, ink: color.fg, seal: color.card }
 }
