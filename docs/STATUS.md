@@ -9,7 +9,8 @@ was rate-limited) — `feat/solo-screens` @ 2216c85, clean, pushed; tsc clean;
 (1.897 SOL / 4,900 TEST, 34 claims). **Phone has x2** (experimental
 reminders + widget build from `exp/reminders-widget` @ f3ca007, installed
 20:29), **not** the recording build d23 (2216c85's code: 2-minute demo weeks).
-Reinstall d23 before recording: `artifacts/rituals-d23.apk`.
+Reinstall d23 before recording: `artifacts/rituals-d23.apk`. (Phone now has
+**x4**, installed 23:13, from `exp/reminders-widget` @ 4ee2a96.)
 Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT, i.e. Thursday night) ·
 **target: submit Thu Oct 8 ~6 pm CDT** (Jack, 10-05: Friday is the deadline,
 use the extra day). **Repo stays private for now** (Jack, 10-05 night): the
@@ -69,6 +70,14 @@ he does. **License: MIT** (`LICENSE`, holder "whoknowsmann").
   `artifacts/shots/x3-widget-states.png`. Polish round dispatched 23:05
   (tally instead of "0 week streak" on finished rituals, cleaner side-eye
   and sad faces, number/label alignment; brief `widget-polish.md`).
+  **Polish landed 4ee2a96** (pushed; typecheck clean, full suite green).
+  **x4** (from 4ee2a96, installed 23:13) on the phone: clean 2x2, ink
+  stamp, "1/6 weeks kept", "Ritual finished."
+  (`artifacts/shots/x4-widget-2x2.png`; all states:
+  `artifacts/shots/x4-widget-states.png`). Live states (calm → side-eye →
+  alarmed → joyful) get their first device view from the morning
+  reminders ritual. The integration branch below predates 4ee2a96:
+  re-merge before testing it.
   Integration branch `integrate/reminders-widget` (worktree
   `~/projects/preflight-integrate`, node_modules symlinked to
   preflight-widget): merge of feat/solo-screens into the exp branch is
