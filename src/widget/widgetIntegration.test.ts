@@ -46,6 +46,7 @@ describe('widget integration source pins', () => {
   })
   it('publishes Home outcomes and ritual reads, with confirmation refreshes for create/stamp/both settles', () => {
     expect(source('src/screens/RitualsHomeScreen.tsx')).toContain('refreshWidget(rituals, known, read, true)')
+    expect(source('src/widget/refreshWidget.ts')).toContain('outcomes?.get(entry.address) ?? (replaceAll ? new Map() : undefined)')
     expect(source('src/screens/solo/SoloCreateScreen.tsx')).toMatch(/rememberRitual\([^\n]+\.then\(\(\) => refreshWidget/)
     const screen = source('src/screens/solo/SoloRitualScreen.tsx')
     expect(screen).toContain('useWidgetSnapshot(route.params.ritualId, read)')
@@ -53,13 +54,15 @@ describe('widget integration source pins', () => {
     expect(screen).toMatch(/handled.current.settle = settle.state.result.messageDigest\s+void refreshWidget\(\)/)
     expect(screen).toContain('if (ok) void refreshWidget()')
   })
-  it('has one fixed 2x2 widget, a bundled custom font, and an app-only tap target', () => {
+  it('has one resizable 2x2 widget, bundled custom fonts, and an app-only tap target', () => {
     const config = JSON.parse(source('app.json')).expo
     const plugin = config.plugins.find((entry: unknown) => Array.isArray(entry) && entry[0] === 'react-native-android-widget')
     expect(plugin[1].widgets).toHaveLength(1)
-    expect(plugin[1].widgets[0]).toMatchObject({ name: 'RitualWidget', targetCellWidth: 2, targetCellHeight: 2, resizeMode: 'none', updatePeriodMillis: 1800000 })
-    expect(existsSync(resolve(root, plugin[1].fonts[0]))).toBe(true)
+    expect(plugin[1].widgets[0]).toMatchObject({ name: 'RitualWidget', minWidth: '110dp', minHeight: '110dp', targetCellWidth: 2, targetCellHeight: 2, resizeMode: 'horizontal|vertical', updatePeriodMillis: 1800000 })
+    for (const font of plugin[1].fonts) expect(existsSync(resolve(root, font))).toBe(true)
     expect(source('src/widget/RitualWidget.tsx')).toContain('clickAction="OPEN_APP"')
-    expect(source('src/widget/RitualWidget.tsx')).toContain("fontFamily: 'Fraunces_900Black'")
+    expect(source('src/widget/RitualWidget.tsx')).toContain('fontFamily: fonts.display')
+    expect(source('src/widget/widgetTaskHandler.ts')).toContain('width: widgetInfo.width')
+    expect(source('src/widget/refreshWidget.ts')).toContain('renderWidget: ({ width })')
   })
 })

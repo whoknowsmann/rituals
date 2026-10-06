@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '../..')
 const require = createRequire(path.join(root, 'package.json'))
 
 describe('installed 0.16.1 config plugin (in-memory file sink; not prebuild)', () => {
-  it('generates the provider, XML, manifest entries, description, and bundled Fraunces', async () => {
+  it('generates the provider, 2x2/resizable XML, manifest, and bundled Fraunces/Figtree', async () => {
     const files = new Map<string, string>()
     const copied = new Map<string, string>()
     const exports: { default?: (config: any, params: any) => any } = {}
@@ -36,10 +36,16 @@ describe('installed 0.16.1 config plugin (in-memory file sink; not prebuild)', (
     expect(files.get(xml)).toContain('android:initialLayout="@layout/rn_widget"')
     expect(files.get(xml)).toContain('android:targetCellWidth="2"')
     expect(files.get(xml)).toContain('android:targetCellHeight="2"')
+    expect(files.get(xml)).toContain('android:minWidth="110dp"')
+    expect(files.get(xml)).toContain('android:minHeight="110dp"')
+    expect(files.get(xml)).toContain('android:resizeMode="horizontal|vertical"')
     expect(files.get(xml)).toContain('android:updatePeriodMillis="1800000"')
     expect(files.get(xml)).not.toContain('android:previewImage')
     expect(files.get(xml)).not.toContain('android:configure')
     expect(copied.get('android/app/src/main/assets/fonts/Fraunces_900Black.ttf')).toBe(path.join(root, params.fonts[0]))
+    expect(copied.get('android/app/src/main/assets/fonts/Figtree_400Regular.ttf')).toBe(path.join(root, params.fonts[1]))
+    expect(copied.get('android/app/src/main/assets/fonts/Figtree_600SemiBold.ttf')).toBe(path.join(root, params.fonts[2]))
+    expect(copied.size).toBe(3)
 
     const manifest = { manifest: { application: [{ $: { 'android:name': '.MainApplication' } }] } }
     const input = { ...config, modResults: manifest, modRequest: { ...request, modName: 'manifest' } }

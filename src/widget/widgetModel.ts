@@ -1,32 +1,36 @@
+import { weekSummaryShort, type WeekCell } from '../components/crew/weekStripLogic'
+import { weekOpensLabel } from '../features/rituals/displayFormat'
 import { ritualTintAmong } from '../features/rituals/home/ritualColours'
-import { tileStatus } from '../features/rituals/home/tileStatus'
+import { tileStatus, type TileStatus } from '../features/rituals/home/tileStatus'
+import type { SoloRitualUiState } from '../features/rituals/solo/lifecycle/soloRitualModel'
 
 export type WidgetKnown = Readonly<{ address: string; title: string }>
-export const widgetStatuses = ['waiting', 'open', 'stamped', 'missed', 'skipped', 'missed-current', 'skipped-current', 'closing', 'awaiting-witness', 'finished-stamped', 'finished-missed', 'finished-skipped'] as const
-export type WidgetStatus = typeof widgetStatuses[number]
-/** Plain JSON only. No wallet, key, note, balance, or RPC client crosses this boundary. */
+export const widgetStates = ['funding', 'waiting', 'open-not-initialized', 'claimable', 'awaiting-witness', 'closing', 'resolving/settle', 'skipped', 'missed', 'completed'] as const satisfies readonly SoloRitualUiState[]
+/** Plain JSON only. The cells are Home's cells, not inferred aggregate counts. */
 export type WidgetSnapshot = Readonly<{
   address: string
   title: string
-  weekIndex: number
-  weekCount: number
-  kept: number
-  missed: number
-  status: WidgetStatus
+  stakeLabel: string
+  cells: readonly WeekCell[]
+  active: boolean
+  state: SoloRitualUiState
+  showedUp: boolean
+  /** A terminal current event must not reopen just because the clock advances. */
+  terminalCurrent: boolean
   opens: number
   deadline: number
   tint: string
 }>
 export type WidgetOutcome = Omit<WidgetSnapshot, 'title' | 'tint'>
-export type WidgetModel = Readonly<{ title: string; weekLine: string; countLine: string; statusLine: string; tint: string }>
+export type WidgetModel = Readonly<{ title: string; stakeLabel: string; cells: readonly WeekCell[]; countLine: string; pill: TileStatus; tint: string }>
 
 export function selectWidgetSnapshot(known: readonly WidgetKnown[], outcomes: readonly WidgetOutcome[]): WidgetSnapshot | null {
   const candidates = [...known].reverse().flatMap((item) => {
     const outcome = outcomes.find((entry) => entry.address === item.address)
     return outcome ? [{ ...outcome, title: item.title, tint: ritualTintAmong(item.address, known) }] : []
   })
-  // Keep the latest finished ritual visible only if no active solo ritual remains.
-  return candidates.find((item) => !item.status.startsWith('finished-')) ?? candidates[0] ?? null
+  // Account activity, not a last-event result, determines selection.
+  return candidates.find((item) => item.active) ?? candidates[0] ?? null
 }
 
 export function widgetModel(known: readonly WidgetKnown[], outcomes: readonly WidgetOutcome[], nowSeconds: number): WidgetModel {
@@ -34,32 +38,20 @@ export function widgetModel(known: readonly WidgetKnown[], outcomes: readonly Wi
 }
 
 export function widgetModelFromSnapshot(snapshot: WidgetSnapshot | null, nowSeconds: number): WidgetModel {
-  if (!snapshot) return { title: 'Start a ritual?', weekLine: '', countLine: '', statusLine: '', tint: ritualTintAmong('', [{ address: '' }]) }
+  if (!snapshot) return { title: 'Start a ritual?', stakeLabel: '', cells: [], countLine: '', pill: { text: 'Open Rituals', act: true }, tint: ritualTintAmong('', [{ address: '' }]) }
+  let state = snapshot.state
+  // Clock-only updates can open/close the saved window, never invent outcomes,
+  // advance a week, or undo a terminal event. Foreground reads remain authoritative.
+  if (snapshot.active && !snapshot.terminalCurrent) {
+    if (['waiting', 'missed', 'skipped'].includes(state) && nowSeconds >= snapshot.opens) state = 'claimable'
+    if (['claimable', 'open-not-initialized', 'awaiting-witness'].includes(state) && nowSeconds > snapshot.deadline) state = 'closing'
+  }
   return {
     title: snapshot.title,
-    weekLine: `Week ${Math.min(snapshot.weekIndex + 1, snapshot.weekCount)} of ${snapshot.weekCount}`,
-    countLine: `${snapshot.kept} kept · ${snapshot.missed} missed`,
-    statusLine: statusLine(snapshot, nowSeconds),
+    stakeLabel: snapshot.stakeLabel,
+    cells: snapshot.cells,
+    countLine: weekSummaryShort(snapshot.cells),
+    pill: tileStatus({ state, showedUp: snapshot.showedUp, nextOpensLabel: weekOpensLabel(snapshot.opens, nowSeconds) }),
     tint: snapshot.tint,
   }
-}
-
-function statusLine(snapshot: WidgetSnapshot, now: number): string {
-  const { status, opens, deadline } = snapshot
-  if (status === 'finished-missed' || status === 'missed-current') return "That's a week, not a verdict."
-  if (status === 'finished-skipped' || status === 'skipped-current') return 'Skipped last week'
-  if (status === 'stamped' || status === 'finished-stamped') return 'Stamped'
-  if (status === 'awaiting-witness') return 'Waiting on witness'
-  // A miss/skip belongs to the previous week; this week's opening takes precedence.
-  if (now < opens) {
-    if (status === 'missed') return "That's a week, not a verdict."
-    if (status === 'skipped') return 'Skipped last week'
-    const seconds = Math.max(0, Math.ceil(opens - now))
-    const label = seconds < 3600
-      ? `in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-      : new Date(opens * 1000).toLocaleDateString('en-US', { weekday: 'short' })
-    return tileStatus({ state: 'waiting', showedUp: false, nextOpensLabel: label }).text
-  }
-  // Never infer a miss, a settlement, or a new week from the phone's clock.
-  return tileStatus({ state: now <= deadline && status !== 'closing' ? 'claimable' : 'closing', showedUp: false, nextOpensLabel: null }).text
 }

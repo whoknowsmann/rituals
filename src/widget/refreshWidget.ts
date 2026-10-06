@@ -11,9 +11,9 @@ let queue: Promise<unknown> = Promise.resolve()
 
 /** Best effort, foreground only. Never adds chain reads or blocks a confirmed action. */
 export function refreshWidget(bundles?: readonly WidgetBundle[], known?: readonly WidgetKnown[], outcomes?: WidgetWeekOutcomes, replaceAll = false): Promise<void> {
-  const updates = bundles?.map((entry) => widgetOutcomeFromBundle(entry, Math.floor(Date.now() / 1000), outcomes?.get(entry.address)))
-  // Do not replace honest counts with a partial history while Home's batch loads.
-  if (replaceAll && bundles?.some((entry, index) => entry.bundle.ritual.account.kind === 'Solo' && ['Active', 'Completed'].includes(entry.bundle.ritual.account.status) && !updates?.[index])) return Promise.resolve()
+  // A Home batch's absent entry means unread history, not permission to infer
+  // dots from the current bundle. Detail reads may use their enriched history.
+  const updates = bundles?.map((entry) => widgetOutcomeFromBundle(entry, Math.floor(Date.now() / 1000), outcomes?.get(entry.address) ?? (replaceAll ? new Map() : undefined)))
   return enqueueRefresh(updates?.filter((value): value is WidgetOutcome => value !== null), known, replaceAll)
 }
 
@@ -29,7 +29,7 @@ function enqueueRefresh(updates?: readonly WidgetOutcome[], known?: readonly Wid
     // Lazy imports keep other platforms and an older binary's ordinary screens usable.
     const { requestWidgetUpdate } = require('react-native-android-widget') as typeof import('react-native-android-widget')
     const { RitualWidget } = require('./RitualWidget') as typeof import('./RitualWidget')
-    await requestWidgetUpdate({ widgetName: 'RitualWidget', renderWidget: () => React.createElement(RitualWidget, { model: widgetModelFromSnapshot(snapshot, Math.floor(Date.now() / 1000)) }) })
+    await requestWidgetUpdate({ widgetName: 'RitualWidget', renderWidget: ({ width }) => React.createElement(RitualWidget, { width, model: widgetModelFromSnapshot(snapshot, Math.floor(Date.now() / 1000)) }) })
   }).catch(() => undefined)
   queue = next
   return next

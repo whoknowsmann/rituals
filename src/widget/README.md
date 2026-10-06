@@ -1,68 +1,75 @@
 Rituals Android widget
 
-Scope and removal
+Home tile repair
 
-One fixed 2x2 home-screen poster (146dp minimum, launcher target 2x2). The square leaves room for the ritual name as the hero and for week, counts, and a quiet status below. Long names truncate after two lines; the miss sentence may wrap onto two lines. All text uses paper white (color.card) over exactly ritualTintAmong's Home tile colour. The native widget font is Fraunces_900Black, copied from the already-installed Expo font package; Android's library falls back to system type if the asset is unavailable, with weight 900 still requested. No preview PNG is required by 0.16.1, so none is included.
+One resizable 2x2 Home tile, not a receipt. app.json uses minWidth/minHeight 110dp, targetCellWidth/Height 2, resizeMode horizontal|vertical. The previous 146dp minimum requested three rows on the owner's launcher. Provider minima select launcher cells; they do not guarantee the actual rendered dimensions. Existing placements may retain their previous footprint: remove/re-add or resize after updating the native binary.
 
-The root tap is OPEN_APP, not a transaction or background action. On cold launch the app's normal navigation opens; a warm launch can resume the existing screen. This does not add URL routing or guarantee Home on warm launch.
+The root uses the launcher's full width/height, ritualTintAmong's Home tint, radius.lg (20dp), and 14dp padding. The top group has a small uppercase stake label (e.g. 5 TEST / WK, Figtree 600, letter spacing 1, paper at about 75% opacity) and a 22sp Fraunces 900 name, limited to two lines with end truncation. The bottom group has one dot per week, the Home short count, and a single-line rounded status pill. Figtree 400 is used for counts and 600 for the pill. Text is paper white (#FFFDF8); a passive pill has translucent white fill, while an action pill uses the requested #C8F560 and dark goInk text. The optional orb is omitted. No receipt sayings or redundant Week N of M line.
 
-Remove src/widget/, the App.tsx registration import, the app.json widget plugin entry, and the widget imports/calls in Home, SoloCreate and SoloRitual to drop this feature. The dependency was already present before this branch's implementation. No chain program, script, key, account decoder, cadence, navigation, or existing product model was changed.
+The weighted header occupies the space left after measuring the footer. Its title is explicitly left/top aligned rather than centered in that space; the footer stays at the bottom. At a 2x2 placement the two groups fill the square; on a 2x3 stretch only the space below the name grows. A bounded title area prevents a long name from displacing the footer. There is no fixed root height. Dot sizes/gaps adapt to the reported width, including a rounding allowance for native physical pixels, so up to sixteen weeks remain one row. Very small placements and large accessibility scales still need native measurement checks; JS tree tests are not screenshots.
 
-Data boundary
+Empty: hide stake label, dots, and count; show Start a ritual? and the lime Open Rituals pill. The root tap is still OPEN_APP, never a transaction. A cold launch uses normal app navigation; a warm launch may resume the existing screen rather than Home.
 
-widgetModel(known, outcomes, nowSeconds) is pure apart from the device's local weekday formatting. Inputs are plain projected outcomes, not native modules or React state. The foreground widgetBundle adapter reuses soloRitualModel and takes actual windows from account.schedule; there are no cadence constants in widget code. Waiting labels use M:SS under an hour and a local weekday otherwise. Deadline is inclusive, as in the solo lifecycle. After the deadline an unstamped snapshot says Closing…; time alone never invents settlement, a missed count, or another week's index.
+Content and data boundary
 
-Selection follows reverse remembered order (listKnownRituals appends new rituals), with active solo rituals preferred over completed ones. If none remain active, the latest available finished ritual retains its result. Funding, cancelled, group and unreadable rituals are not candidates. The module caches foreground projections so reading an older screen does not replace the newer active ritual. On process restart the saved selected snapshot seeds that cache; Home's complete load repopulates the other candidates. Until Home loads, only the saved selection and subsequently read rituals are available; this is not a second database of every ritual.
+Selection uses reverse remembered order (listKnownRituals appends new rituals): newest available active solo ritual, otherwise newest available completed solo ritual. Activity comes from the ritual account, not a terminal current event. Funding, cancelled, group and unreadable rituals are not candidates. Reading an older detail screen does not displace a newer active candidate in the foreground cache. On process restart the saved selection seeds that cache; Home repopulates other candidates. This is not a second database of all rituals.
 
-The only persisted widget record is @rituals/widget/v1:
-  address, title, weekIndex (zero-based), weekCount, kept, missed, status, opens, deadline, tint
-A null record represents no supported remembered ritual. The decoder rejects malformed JSON, unknown statuses, invalid counts/windows/colour and discards extra fields. There are no notes, keys, balances or wallet data in the snapshot. The title and counts are visible on the phone's home screen.
+Home's existing readSoloWeekOutcomes batch feeds soloHomeCells unchanged. Closed results are kept/done when settled without forfeiture or voided/refunded, missed when settled with forfeiture, and neutral closed when unread. The active index is now; later weeks are future. A confirmed stamp changes the pill but does not turn the current ring into a closed-week kept dot or increment the kept count. The count is weekSummaryShort(cells), e.g. 1 of 4 kept; only done cells count. Detail reads use their enriched history with the same eventOutcome convention, without extra RPC. For Home batches an absent history entry remains neutral rather than falling back to inferred outcomes from the current bundle.
 
-Kept/missed come from closed event outcomes plus a confirmed current stamp, counted once. Home's existing convention treats a voided/refunded week as done; the widget counts that as kept too, but names a known skip as Skipped last week. This is not a claim that a skipped week was stamped. Completed snapshots preserve the last result rather than choosing a miss just because any earlier week was missed.
+Dot rendering: done = filled paper white; missed = filled dark ink; unread closed = the same neutral dark mark Home uses for closed/missed; future = transparent with a 35%-opacity paper outline; now = transparent with a stronger paper ring. Unread closed cells do not count as kept or assert a confirmed miss.
 
-Incomplete history does not become zero counts. The adapter refuses it and leaves the previous snapshot alone. Home only replaces its candidate cache when all supported candidates have complete outcomes; its existing batched history read supplies those. This can leave the entire widget stale when one historical read fails. Empty successful Home loads clear the snapshot. Widget failures are best-effort and do not block app actions.
+Pill text and act come directly from tileStatus(), never widget-specific replacement copy. In this branch that means:
+  claimable/open-not-initialized: Stamp this week (act=true), or Stamped if showedUp.
+  waiting: Opens <weekOpensLabel>, or Opens soon if the shared model supplies no label.
+  closing/resolving: Stamped if showedUp, otherwise Closing….
+  missed: Missed last week; skipped: Skipped last week.
+  completed: Finished; awaiting-witness: Waiting on witness; funding: Not active yet.
+Only the empty state intentionally supplies Open Rituals with act=true. Waiting dates use the shared formatter, not a custom widget countdown. Headless clock updates may open/close the saved window, but never invent settlement, advance a week, or reopen a terminal current event. Deadline remains inclusive.
+
+The persisted record is @rituals/widget/v2:
+  address, title, stakeLabel, cells (ordered per-week array), active, state,
+  showedUp, terminalCurrent, opens, deadline, tint
+
+The decoder validates fields, cells, lifecycle state, windows and colour, and drops extra fields. A null record means no supported remembered ritual. No notes, keys, balances, wallet or RPC objects are stored. Title, stake and outcomes are visible on the phone's home screen. v1 only stored aggregate counts and cannot reconstruct dot positions: it is deliberately not migrated. An upgraded widget displays the empty state until a foreground read publishes v2; open Home after installing the update.
+
+Incomplete history no longer blocks the newest ritual or freezes the whole widget. It produces Home's neutral closed cells until the history read succeeds. Empty successful Home loads clear the snapshot. Storage operations are serialized; widget failures remain best-effort and cannot block confirmed app actions.
 
 Freshness and confirmation hooks
 
-Home publishes on its successful load and again with closed-week outcomes. SoloRitual publishes from fresh enriched reads through a hook that compares the serialized projection, so the screen's one-second clock does not cause one storage write per second. Create waits for rememberRitual, then projects the confirmed readback's real schedule. Stamp, manual settlement (including its event-init step), and successful automatic settlement each request a redraw. Those immediate redraws can show the previous snapshot; the ensuing authoritative read publishes the confirmed state. Skip is picked up by that same ritual-read hook.
+Home publishes on successful load and again after its batched outcome read. SoloRitual publishes fresh enriched reads through a hook that compares serialized projections, avoiding writes on every screen clock tick. Create publishes after rememberRitual and confirmed readback. Stamp, manual settlement (including event init), and successful automatic settlement request a redraw; that immediate redraw may precede the authoritative read that publishes the new snapshot. Skip is picked up by the same read hook.
 
-The headless handler only reads AsyncStorage and renders the snapshot. Its transitive runtime import graph is source-pinned against RPC, web3, network calls and foreground adapters. It handles add/update/resize, ignores deletion and other widget names, and registers at module scope from App.tsx so cold headless startup does not need a React screen mount. Native imports are separate from every module imported by model/storage unit tests. Non-Android refreshes are no-ops; missing native-module errors in an older APK are contained, not treated as widget success.
+The headless handler reads AsyncStorage only, renders on add/update/resize, and ignores deletion/other widget names. Both foreground and headless rendering pass the host width to the dot layout. Runtime import-graph tests exclude RPC/web3/network/foreground adapters. Registration remains at module scope through App.tsx. Non-Android refreshes are no-ops; missing native support in an old APK is contained, not reported as success.
 
-Android's periodic update is configured at its 30-minute minimum, and the OS may delay it. Opens in 1:30 is a value at render time, NOT a ticking countdown. A two-minute Demo-speed week may pass entirely between launcher updates. Open the app to get fresh chain results; no background RPC, exact alarms, timer service, or scheduled transactions have been added. A stale snapshot is accepted by design, including when the app has not run for days. Force-stopping the app can prevent headless work until it is reopened.
+Periodic updates use Android's 30-minute minimum and may be delayed. Opening labels are values at render time, not ticking timers. A demo-speed week may pass entirely between updates. Open the app for fresh chain results. No background RPC, exact alarms, timer service, or scheduled transactions. Force-stop may prevent headless updates until the app is reopened.
 
-Config plugin / expo prebuild
+Native plugin and parent handoff
 
-Use the installed and lockfile-pinned react-native-android-widget 0.16.1. Do not upgrade its line just for this feature. app.json defines one RitualWidget, a description, 146dp x 146dp minimum, 2x2 target cells, resizeMode none, updatePeriodMillis 1800000, and the existing Fraunces TTF path. No configurable activity or preview image is requested.
-
-On expo prebuild the widget plugin adds/generates:
+Use the installed react-native-android-widget 0.16.1; no installs or dependency changes for this repair. The plugin copies three already-installed font assets: Fraunces_900Black.ttf, Figtree_400Regular.ttf, Figtree_600SemiBold.ttf. It generates:
   android/app/src/main/java/com/whoknowsmann/rituals/widget/RitualWidget.java
-    A class extending com.reactnativeandroidwidget.RNWidgetProvider.
   android/app/src/main/res/xml/widgetprovider_ritualwidget.xml
-    Size/update attributes above, home_screen category, @layout/rn_widget initial layout,
-    and @string/widget_ritualwidget_description. No preview/configuration attributes.
-  android/app/src/main/assets/fonts/Fraunces_900Black.ttf
-    A copy of node_modules/@expo-google-fonts/fraunces/900Black/Fraunces_900Black.ttf.
-  android/app/src/main/res/values/strings.xml
-    Non-translatable widget_ritualwidget_description = Your weekly promise.
-  android/app/src/main/AndroidManifest.xml
-    Receiver .widget.RitualWidget, exported=false, label Rituals;
-    actions android.appwidget.action.APPWIDGET_UPDATE and com.whoknowsmann.rituals.WIDGET_CLICK;
-    metadata android.appwidget.provider -> @xml/widgetprovider_ritualwidget;
-    service com.reactnativeandroidwidget.RNWidgetCollectionService with BIND_REMOTEVIEWS permission.
+  android/app/src/main/assets/fonts/<the three fonts above>
+  widget_ritualwidget_description in strings.xml
+  .widget.RitualWidget receiver and RNWidgetCollectionService in AndroidManifest.xml
 
-The library's layouts/provider/worker and native module arrive through normal React Native autolinking, not copied by this plugin. Its Android Gradle dependencies include concurrent-futures 1.1.0, WorkManager 2.8.1 and androidsvg-aar 1.4. Those can affect dependency resolution, manifest merging, native architecture/codegen and the final Android build even though TypeScript is green. An existing APK or Expo Go cannot acquire widget support from a JS update alone.
+The receiver is exported=false with APPWIDGET_UPDATE and the app's WIDGET_CLICK action. The service requires BIND_REMOTEVIEWS. There is no configuration activity or preview PNG. Layout/provider/worker/native-module support arrives through autolinking. A JS update alone cannot update provider sizing or native font assets.
 
-Important 0.16.1 quirk: dangerous mods run before the manifest mod in Expo 52. This plugin initializes projectPaths inside its later manifest mod, so its generated Java/XML/font paths are initially relative to cwd. Run prebuild from the project root, not by passing an unrelated project path from elsewhere. The plugin harness executes the installed plugin with real Expo mod wrappers and an in-memory filesystem sink in that order, verifying the exact paths/content and idempotent manifest registration. It does NOT prove a complete prebuild or a Gradle build; no native files were generated in this task.
+0.16.1 quirk: Expo 52 runs dangerous mods before the manifest mod, but this plugin sets projectPaths in the manifest mod. Run prebuild from the project root, not an unrelated cwd. The plugin-output test executes the actual installed plugin and Expo mod wrappers against an in-memory filesystem sink in that order, asserting provider paths, 110dp/2x2/resizable XML, all three fonts, strings, and idempotent manifest registration. It does not run prebuild or Gradle.
 
-Parent verification (not executed here)
+Repair verification
 
-1. On the integration branch, commit/back up existing native edits. From that project's root run npx expo prebuild --platform android --no-install under the parent's build authorization, then inspect the generated paths, font and manifest above. Use the parent's established Android build/install workflow for a new binary; no dependency install is needed for this change.
-2. On Seeker, long-press an empty launcher area, choose Widgets, find Rituals, and place its 2x2 widget. For empty-state proof use a fresh test installation or a phone with no remembered rituals; do not clear an existing user's app storage or settler key. Expect Start a ritual? and a tap that opens Rituals.
-3. Create a three-week Demo-speed ritual with a distinctive title. After Locked in., return to the launcher. Match its name/tint against Home, Week 1 of 3 and 0 kept · 0 missed, with Opens in M:SS before the chain's opening. The text need not tick while on the launcher.
-4. At the on-screen opening, visit the ritual then return to the launcher: expect Stamp this week. Hold to stamp and approve; wait for the authoritative stamped screen, then return. Expect Stamped and 1 kept · 0 missed. Let the app close the week; check Week 2 of 3 and no doubled count.
-5. Leave the next week unstamped. After its resolution, reopen the ritual and let automatic settlement finish. Before the following opening, the widget must say That's a week, not a verdict. and 1 kept · 1 missed. Revisit at the following opening; Stamp this week must replace that sentence. Separately exercise the manual close/settle fallback if an approved test ritual lacks a working settler.
-6. Create a newer active ritual and check selection and tint. Open the older ritual: selection must stay newer. Complete the newer ritual, reload Home and expect the older active one; complete all and verify the latest finished result, with Week M of M rather than M+1. Remove finished rituals using the app UI and reload Home; with none remembered, expect the empty widget.
-7. Add a second widget instance, background/swipe the app away (not force-stop), toggle airplane mode and remove/re-add a widget. A headless add should render the last snapshot offline, without a wallet prompt. Observe periodic refresh after at least 30 minutes; OS scheduling may delay it. Tap both widgets, including with the app already open.
-8. Check a long ritual title, default and large font/display scales, paper-white legibility against every used tile tint, miss-message wrapping, Fraunces rendering, cold launch, reboot, and launcher sizing. These are device-only checks; unit/source/plugin tests cannot certify them.
+The full npm test run passed: 2,445 tests in 140 files (the supplied branch baseline was 2,411 in 139). npm test -- src/widget passed 104 tests in six files; npm test -- src/widget/widgetPlugin.test.ts passed again separately. The render tests use 0.16.1's actual JS converters/serializer, assert the native tree's grouping, fonts, colours, truncation, tap target and weighted layout, and check 1–16 dots at multiple widths and pixel densities. These tests do not render Android pixels.
 
-If shipping in an hour, cut the entire widget unless its new native binary has passed the Seeker smoke. It is optional; do not risk the core create/stamp/settle submission to keep it. If only font loading fails, remove the plugin fonts option and the fontFamily property to retain a bold system title. Do not promise minute-level reminders from this implementation.
+npx tsc --noEmit (also with --no-install) was blocked by the CLI security wrapper's package-intelligence network timeout, not a compiler error. The installed compiler was run through npm run typecheck (tsc --noEmit) instead and passed after fixing the unfinished test's incompatible dynamic import/import.meta usage. No dependencies were installed. No native build, prebuild or device operation was performed.
+
+Parent/device checklist (not executed in this repair)
+
+1. Back up native edits; regenerate native plugin output from the project root under the parent's build authorization, then use the parent's Android build/install workflow. No package install is needed.
+2. Open Home once to publish v2, remove/re-add the old widget, and verify its initial footprint is truly 2x2. Resize to 2x3 and back; label/name stay top, dots/count/pill stay bottom.
+3. Compare the selected ritual, tint, exact pill words and every dot against Home. Check a current confirmed stamp: Stamped pill but current ring unchanged; after settlement the closed dot/count update. Check misses, refunded skips, unread history, waiting and Finished.
+4. Check long names truncate after two lines, long date pills truncate without wrapping, Fraunces/Figtree assets load, no content is clipped at normal size, and accessibility font/display scaling remains usable. Check all tint contrasts and sixteen-week rows.
+5. Exercise empty state without clearing the owner's app storage or settler key. Confirm Start a ritual?, no stake/dots/count, and lime Open Rituals. Tap both cold and warm app instances.
+6. Check newest-active selection, all-finished fallback, removing forgotten rituals, multiple widget instances, offline headless add/resize, reboot and delayed periodic refresh. No wallet prompt should occur from a widget redraw.
+
+Removal/scope
+
+To remove the feature: drop src/widget/, App.tsx registration, the app.json widget plugin entry, and widget calls/imports in Home, SoloCreate and SoloRitual. This repair does not change those screens, reminders, chain programs, account decoders, cadence, navigation, or shared product models. Keep the widget out of the submission if the parent cannot verify the new native binary on Seeker.
