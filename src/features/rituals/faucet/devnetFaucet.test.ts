@@ -7,7 +7,7 @@ describe('devnet faucet client', () => {
   it('reads a successful claim', async () => {
     const result = await requestTestTokens(fakeFetch(200, { signature: 'sig123', confirmed: true, explorer: 'https://explorer.solana.com/tx/sig123?cluster=devnet' }), 'Da59UWdaoBej5xdX9atiaZahMYLxJNsdXHVY6GMh8VmV')
     expect(result).toEqual({ kind: 'sent', signature: 'sig123', confirmed: true, explorer: 'https://explorer.solana.com/tx/sig123?cluster=devnet' })
-    expect(faucetLine(result)).toBe('Sent: 50 TEST and 0.05 SOL.')
+    expect(faucetLine(result)).toBe('Sent: 50 tSKR and 0.05 SOL.')
   })
   it('maps every documented failure to a line and never throws', async () => {
     expect(interpretFaucetResponse(409, { error: 'ALREADY_FUNDED', sol: '0.2', test: '93.8' }).kind).toBe('already-funded')

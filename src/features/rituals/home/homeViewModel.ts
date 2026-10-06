@@ -36,7 +36,7 @@ function format(amount: bigint, decimals: number, symbol: string): string {
     || decimals < 0
     || decimals > 255
     || typeof symbol !== 'string'
-    || !/^[A-Z0-9]{1,12}$/.test(symbol)
+    || !/^[A-Za-z0-9]{1,12}$/.test(symbol)
   ) return 'Invalid amount'
 
   const base = 10n ** BigInt(decimals)
@@ -49,7 +49,7 @@ function format(amount: bigint, decimals: number, symbol: string): string {
 
 export const safeErrorMessage = (_error: unknown): string => 'Unable to load rituals right now.'
 
-const disclosure = 'DEVNET · TEST TOKENS · FIXTURE DATA'
+const disclosure = 'DEVNET · tSKR · FIXTURE DATA'
 const identity = { title: 'Rituals', valueProposition: 'Show up, or pay up. You set the stake. You do the work. You get it back.' }
 const labels: Record<ConfirmationMode, string> = {
   HONOR: 'Honor system',

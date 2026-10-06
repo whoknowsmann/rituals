@@ -264,7 +264,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to rituals" onPress={() => navigation.navigate('RitualsHome')} />}
       {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
 
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
     <Confetti fire={celebrate} originY={300} />
     </View>

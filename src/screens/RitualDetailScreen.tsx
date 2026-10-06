@@ -79,7 +79,7 @@ export function RitualDetailScreen() {
       {account.status === 'Completed' && <RNText style={s.muted}>This ritual is finished. Every week has settled.</RNText>}
       {account.status === 'Cancelled' && <RNText style={s.muted}>This ritual was called off before it started. Stakes went back to everyone who put in.</RNText>}
 
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }

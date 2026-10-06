@@ -17,7 +17,7 @@ describe('reminder voice', () => {
       const choices = new Set<string>()
       for (let index = 0; index < 100; index += 1) {
         for (let week = 1; week <= 16; week += 1) {
-          const args = [kind, `address-${index}`, week, '5 TEST', 'the food bank'] as const
+          const args = [kind, `address-${index}`, week, '5 tSKR', 'the food bank'] as const
           const line = reminderLine(...args)
           expect(line).toBe(reminderLine(...args))
           expect(line).not.toMatch(banned)

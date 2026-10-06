@@ -43,7 +43,7 @@ describe('Ritual creation journey', () => {
     expect(second.title).toBe(RITUAL_TEMPLATES[0].title)
   })
 
-  it('parses decimal TEST amounts without floating point', () => {
+  it('parses decimal tSKR amounts without floating point', () => {
     expect(parseTokenAmount('20')).toBe(20_000_000n)
     expect(parseTokenAmount('0.000001')).toBe(1n)
     expect(parseTokenAmount('18446744073709.551615')).toBe(18_446_744_073_709_551_615n)
@@ -56,9 +56,9 @@ describe('Ritual creation journey', () => {
   })
 
   it('quotes no activation fee at any pool size (the protocol is free)', () => {
-    expect(buildReviewViewModel({ ...validDraft, memberTotalStake: '10' }).activationFee).toBe('0 TEST')
-    expect(buildReviewViewModel({ ...validDraft, memberTotalStake: '200' }).activationFee).toBe('0 TEST')
-    expect(buildReviewViewModel({ ...validDraft, eventCount: '2', memberTotalStake: '20.000002' }).activationFee).toBe('0 TEST')
+    expect(buildReviewViewModel({ ...validDraft, memberTotalStake: '10' }).activationFee).toBe('0 tSKR')
+    expect(buildReviewViewModel({ ...validDraft, memberTotalStake: '200' }).activationFee).toBe('0 tSKR')
+    expect(buildReviewViewModel({ ...validDraft, eventCount: '2', memberTotalStake: '20.000002' }).activationFee).toBe('0 tSKR')
   })
 
   it('validates Unicode and numeric boundaries without throwing', () => {
@@ -104,10 +104,10 @@ describe('Ritual creation journey', () => {
 
   it('builds exact interior review economics and honest disclosures', () => {
     const review = buildReviewViewModel(validDraft)
-    expect(review.perMemberTotal).toBe('20 TEST')
-    expect(review.perEventAllocation).toBe('5 TEST')
-    expect(review.groupPool).toBe('40 TEST')
-    expect(review.activationFee).toBe('0 TEST')
+    expect(review.perMemberTotal).toBe('20 tSKR')
+    expect(review.perEventAllocation).toBe('5 tSKR')
+    expect(review.groupPool).toBe('40 tSKR')
+    expect(review.activationFee).toBe('0 tSKR')
     expect(review.confirmationMode).toBe('One friend')
     expect(review.confirmationThreshold).toBe('1 friend confirmation beyond the claimant')
     expect(review.feePayer).toBe('Host pays activation fee')
@@ -115,7 +115,7 @@ describe('Ritual creation journey', () => {
       'Stake remains refundable before activation; after activation each event allocation follows completion/settlement rules.',
       'Activation fee is nonrefundable.',
       'Creating the ritual costs about 0.01 devnet SOL in network fees and rent.',
-      'TEST is a devnet token with no real value.',
+      'tSKR is a devnet test token with no real value.',
       'Nothing is signed or locked until you create the ritual from the funding lobby.',
     ]))
     expect(review.disclosures.join(' ')).not.toMatch(/platform share|forfeit/i)

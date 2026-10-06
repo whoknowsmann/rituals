@@ -4,7 +4,7 @@ import { scheduleWindows, selectSoloSchedule } from '../solo/create/schedule'
 import { observedReminderWeeks, planReminders, reminderPrefix, weekReminderPrefix, type ReminderWindow } from './planner'
 
 const nowSeconds = 1_800_000_000
-const options = { ritualAddress: 'ritual-A', ritualTitle: 'Read', stakeLabel: '5 TEST', causeLabel: 'the food bank', nowSeconds }
+const options = { ritualAddress: 'ritual-A', ritualTitle: 'Read', stakeLabel: '5 tSKR', causeLabel: 'the food bank', nowSeconds }
 const schedule = (weeks = 2, cadence = REAL_SOLO_CADENCE) => scheduleWindows(selectSoloSchedule({ cadence, referenceSeconds: nowSeconds, eventCount: weeks }))
 
 describe('chain schedule reminder planner', () => {

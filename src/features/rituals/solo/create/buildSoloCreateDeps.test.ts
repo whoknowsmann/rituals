@@ -42,7 +42,7 @@ describe('solo create transaction dependencies', () => {
     await deps.prepare()
     expect(args.forfeitDestination).toEqual(getAssociatedTokenAddressSync(mint, person))
     expect(args.ritual.witness).toBeNull()
-    // 20 TEST pool × 200 bps = 0.4 TEST, clamped up to the chain's 0.5 TEST minimum.
+    // 20 tSKR pool × 200 bps = 0.4 tSKR, clamped up to the chain's 0.5 tSKR minimum.
     expect(args.lockedActivationFee).toBe(500_000n)
   })
 

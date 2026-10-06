@@ -32,7 +32,7 @@ export const RITUALS_CURRENT_CONFIG = {
   deployment: 'deployed',
 } as const
 
-/** Valueless devnet TEST stake mint. See deployment/devnet-mint.json. */
+/** Valueless devnet tSKR stake mint. See deployment/devnet-mint.json. */
 export const RITUALS_DEVNET_STAKE_MINT_BASE58 = 'AaHgFh7ussUDor8QfaBCaRz2RHiPNCs7i2yuzdLbt9tc' as const
 export const RITUALS_DEVNET_STAKE_MINT = new PublicKey(RITUALS_DEVNET_STAKE_MINT_BASE58)
 export const RITUALS_DEVNET_STAKE_DECIMALS = 6 as const

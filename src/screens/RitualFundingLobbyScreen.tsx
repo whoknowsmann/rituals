@@ -97,8 +97,8 @@ export function RitualFundingLobbyScreen({ route }: Props) {
 
   const model = buildFundingLobbyModel({
     members: parsed.value.members,
-    memberTotalStake: review.perMemberTotal.replace(' TEST', ''),
-    activationFee: review.activationFee.replace(' TEST', ''),
+    memberTotalStake: review.perMemberTotal.replace(' tSKR', ''),
+    activationFee: review.activationFee.replace(' tSKR', ''),
     feePayerMode: draft.value.feePayerMode,
   })
 
@@ -220,7 +220,7 @@ export function RitualFundingLobbyScreen({ route }: Props) {
 
       {!confirmed && <Button mode="text" textColor={color.muted} onPress={() => navigation.goBack()}>Edit member wallets</Button>}
 
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }

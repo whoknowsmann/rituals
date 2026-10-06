@@ -8,7 +8,7 @@ describe('SettingsScreen', () => {
   it('shows devnet, the token disclosure, a shortened program id, and an explorer action', () => {
     expect(source).toContain('Network')
     expect(source).toContain('Devnet')
-    expect(source).toContain('TEST tokens have no real value')
+    expect(source).toContain('tSKR is a test token with no real value')
     expect(source).toContain('shortProgramId')
     expect(source).toContain('View on Explorer')
     expect(source).toContain('Linking.openURL')

@@ -11,7 +11,7 @@ const activeRitual = {
   members: { funded: 4, total: 4 },
   stakeAtomicUnits: 1_250_000_000n as TokenAtomicUnits,
   tokenDecimals: 6,
-  tokenSymbol: 'TEST',
+  tokenSymbol: 'tSKR',
   nextEvent: 'Tomorrow',
   confirmationMode: 'ONE_FRIEND',
   status: 'ACTIVE',
@@ -42,7 +42,7 @@ describe('buildHomeViewModel', () => {
     const view = buildHomeViewModel({ state: 'loading' })
 
     expect(view.kind).toBe('loading')
-    expect(view.disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
+    expect(view.disclosure).toBe('DEVNET · tSKR · FIXTURE DATA')
     expect(view.activeRituals).toEqual([])
     expect(view.cards).toEqual({ activeRitual: false, funding: false, confirmations: false, completedReceipt: false })
     expect(view.ctas).toEqual({ fundRitual: false, reviewConfirmations: false, createRitual: false })
@@ -55,13 +55,13 @@ describe('buildHomeViewModel', () => {
     expect(view.activeRituals[0]).toMatchObject({
       title: 'Saturday morning miles',
       memberProgress: '4 of 4 members ready',
-      stakeAtRisk: '1,250.000000 TEST',
+      stakeAtRisk: '1,250.000000 tSKR',
     })
     expect(view.ctas.fundRitual).toBe(false)
     expect(view.ctas.reviewConfirmations).toBe(false)
     expect(view.cards.funding).toBe(false)
     expect(view.cards.confirmations).toBe(false)
-    expect(view.disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
+    expect(view.disclosure).toBe('DEVNET · tSKR · FIXTURE DATA')
   })
 
   it('presents funding progress and only the fund CTA', async () => {
@@ -87,7 +87,7 @@ describe('buildHomeViewModel', () => {
     const view = buildHomeViewModel(await new FixtureRitualsRepository('completed').getHomeSnapshot())
 
     expect(view.kind).toBe('completed')
-    expect(view.completedReceipt).toEqual({ ritualId: 'ritual-book-club', eventIndex: 0, title: 'February book club', amount: '1,500.000000 TEST' })
+    expect(view.completedReceipt).toEqual({ ritualId: 'ritual-book-club', eventIndex: 0, title: 'February book club', amount: '1,500.000000 tSKR' })
     expect(view.activeRituals).toEqual([])
     expect(view.cards).toEqual({ activeRitual: false, funding: false, confirmations: false, completedReceipt: true })
     expect(view.ctas).toEqual({ fundRitual: false, reviewConfirmations: false, createRitual: false })
@@ -108,7 +108,7 @@ describe('buildHomeViewModel', () => {
     expect(view.kind).toBe('error')
     expect(view.errorMessage).toBe('Unable to load rituals right now.')
     expect(view.ctas).toEqual({ fundRitual: false, reviewConfirmations: false, createRitual: false })
-    expect(view.disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
+    expect(view.disclosure).toBe('DEVNET · tSKR · FIXTURE DATA')
   })
 
   it.each([
@@ -125,13 +125,13 @@ describe('buildHomeViewModel', () => {
   it('formats very large atomic values exactly without floating point', () => {
     const snapshot = snapshotWith({ activeRitual: { ...activeRitual, stakeAtomicUnits: 900719925474099312345n as TokenAtomicUnits } })
 
-    expect(buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk).toBe('900,719,925,474,099.312345 TEST')
+    expect(buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk).toBe('900,719,925,474,099.312345 tSKR')
   })
 
   it('formats zero-decimal tokens without a decimal point', () => {
     const snapshot = snapshotWith({ activeRitual: { ...activeRitual, stakeAtomicUnits: 123456789n as TokenAtomicUnits, tokenDecimals: 0 } })
 
-    expect(buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk).toBe('123,456,789 TEST')
+    expect(buildHomeViewModel(snapshot).activeRituals[0].stakeAtRisk).toBe('123,456,789 tSKR')
   })
 
   it.each([-1, 1.5, 256])('uses a safe invalid amount for decimals %s', (tokenDecimals) => {
@@ -181,8 +181,8 @@ describe('buildHomeViewModel', () => {
       snapshotWith({ state: 'error', activeRitual: undefined, errorMessage: 'Offline' }),
     ]
 
-    for (const snapshot of snapshots) expect(buildHomeViewModel(snapshot).disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
-    expect(buildHomeViewModel({ state: 'loading' }).disclosure).toBe('DEVNET · TEST TOKENS · FIXTURE DATA')
+    for (const snapshot of snapshots) expect(buildHomeViewModel(snapshot).disclosure).toBe('DEVNET · tSKR · FIXTURE DATA')
+    expect(buildHomeViewModel({ state: 'loading' }).disclosure).toBe('DEVNET · tSKR · FIXTURE DATA')
   })
 })
 

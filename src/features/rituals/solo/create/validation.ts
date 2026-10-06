@@ -23,7 +23,7 @@ export const SOLO_CREATE_MESSAGES = Object.freeze({
   witnessRequired: 'Enter a witness wallet address.',
   witnessInvalid: 'That witness address is not valid.',
   witnessCreator: 'You cannot witness your own ritual.',
-  stakeRequired: 'Enter a stake greater than 0 TEST.',
+  stakeRequired: 'Enter a stake greater than 0 tSKR.',
   causeUnavailable: 'This cause is not available yet. Choose a person instead.',
   personRequired: 'Enter the person’s wallet address.',
   personInvalid: 'That destination address is not valid.',

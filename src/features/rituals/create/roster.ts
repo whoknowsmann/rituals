@@ -97,7 +97,7 @@ export function buildFundingLobbyModel(input: FundingLobbyInput): FundingLobbyMo
     rows: Object.freeze(rows),
     progress: `0 of ${count} in`,
     activation: 'Starts once everyone has put in their stake',
-    stake: `${input.memberTotalStake} TEST per member`,
-    fee: input.feePayerMode === 'HOST' ? `Host pays activation fee · ${input.activationFee} TEST` : `Split activation fee across members · ${input.activationFee} TEST`,
+    stake: `${input.memberTotalStake} tSKR per member`,
+    fee: input.feePayerMode === 'HOST' ? `Host pays activation fee · ${input.activationFee} tSKR` : `Split activation fee across members · ${input.activationFee} tSKR`,
   })
 }

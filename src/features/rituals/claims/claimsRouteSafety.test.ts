@@ -92,7 +92,7 @@ describe('canonical claims fixtures and route safety', () => {
     const view = buildSettlementReceiptViewModel(fixture.receipt)
     expect(view.status).toBe('voided')
     expect(view.lines).toEqual(expect.arrayContaining([
-      ['Principal returned', '3.000000 TEST'], ['Bonus', '0 TEST'], ['Forfeiture', '0 TEST'], ['Platform share', '0 TEST'],
+      ['Principal returned', '3.000000 tSKR'], ['Bonus', '0 tSKR'], ['Forfeiture', '0 tSKR'], ['Platform share', '0 tSKR'],
     ]))
   })
 
@@ -116,6 +116,6 @@ describe('canonical claims fixtures and route safety', () => {
   it('formats zero-decimal receipt totals without a decimal point', () => {
     const fixture = getClaimFixture('ritual-book-club', 0) as ClaimFixture
     const view = buildSettlementReceiptViewModel({ ...fixture.receipt, tokenDecimals: 0, eventAllocation: 3n as never, principal: 3n, bonus: 1n })
-    expect(view.lines.find(([label]) => label === 'Total received')?.[1]).toBe('4 TEST')
+    expect(view.lines.find(([label]) => label === 'Total received')?.[1]).toBe('4 tSKR')
   })
 })

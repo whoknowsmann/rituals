@@ -37,7 +37,7 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('testBalance < neededAtomic')
     expect(source).toContain('stepThreeErrors.filter((error) => !stepErrors.includes(error))')
     expect(source).toContain('causeUnavailable && <ErrorLine>')
-    expect(source).toContain('Not enough TEST: this needs')
+    expect(source).toContain('Not enough tSKR: this needs')
   })
 
   it('says "Lock it in" / "Locked in." (Jack, 2026-10-04)', () => {

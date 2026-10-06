@@ -167,7 +167,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       return soloScheduleSummary({ weekCount, stakeEachLabel, totalStakeLabel, schedule: selection.schedule, nowSeconds })
     } catch { return `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${totalStakeLabel}` }
   })()
-  // What the approval will take in TEST: stake for every week, plus whatever
+  // What the approval will take in tSKR: stake for every week, plus whatever
   // activation fee the live ProtocolConfig says (0 once the protocol is free).
   // Checked against the wallet so a short balance never reaches the wallet.
   const [liveFeeConfig, setLiveFeeConfig] = useState<FeeConfig>(RITUAL_FEE_CONFIG)
@@ -325,7 +325,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           <Stamp kind="promise" note={startedSaying(confirmedAddress ?? '')} />
         </View>
         <ActionButton label="See your ritual" onPress={() => navigation.navigate('SoloRitual', { ritualId: confirmedAddress! })} accessibilityLabel="See your ritual" />
-        <Footnote>Devnet · TEST tokens have no real value</Footnote>
+        <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
       </ScrollView>
     )
   }
@@ -430,12 +430,12 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             <Text style={styles.label}>STAKE</Text>
             <View style={styles.amountBox}>
               <TextInput value={stakeTotal} onChangeText={setStakeTotal} keyboardType="decimal-pad" selectTextOnFocus style={styles.stakeInput} accessibilityLabel="Total stake" />
-              <Text style={styles.money}>TEST</Text>
+              <Text style={styles.money}>tSKR</Text>
             </View>
             <View style={styles.presets}>
               {STAKE_PRESETS.map((amount) => {
                 const chosen = stakeTotal === amount
-                return <Pressable key={amount} onPress={() => setStakeTotal(amount)} accessibilityRole="button" accessibilityState={{ selected: chosen }} accessibilityLabel={`${amount} TEST in total`} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{amount}</Text></Pressable>
+                return <Pressable key={amount} onPress={() => setStakeTotal(amount)} accessibilityRole="button" accessibilityState={{ selected: chosen }} accessibilityLabel={`${amount} tSKR in total`} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{amount}</Text></Pressable>
               })}
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
@@ -443,7 +443,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
             {testBalance !== null && (shortOfTest || testBalance === 0n) && faucet.status !== 'done' && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
             {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
-            {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough TEST: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</ErrorLine>}
+            {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</ErrorLine>}
           </View>
           {/* Where missed weeks go: the user picks (Jack, 2026-10-06). Three labelled demo causes or a wallet. */}
           <Text style={styles.label}>IF YOU MISS A WEEK, IT GOES TO</Text>
@@ -483,7 +483,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
         </>
       )}
       {!selectedAccount && <Text style={styles.quiet}>Connect your wallet to start this ritual.</Text>}
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }

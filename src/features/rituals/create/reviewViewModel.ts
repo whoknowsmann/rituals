@@ -42,10 +42,10 @@ export function buildReviewViewModel(input: unknown): ReviewViewModel | null {
     requirement: value.requirement,
     members: `${value.memberCount} members`,
     events: `${value.eventCount} events`,
-    perMemberTotal: `${economics.format(value.memberTotalStakeAtomic)} TEST`,
-    perEventAllocation: `${economics.format(economics.perEvent)} TEST`,
-    groupPool: `${economics.format(economics.groupPool)} TEST`,
-    activationFee: `${economics.format(economics.fee)} TEST`,
+    perMemberTotal: `${economics.format(value.memberTotalStakeAtomic)} tSKR`,
+    perEventAllocation: `${economics.format(economics.perEvent)} tSKR`,
+    groupPool: `${economics.format(economics.groupPool)} tSKR`,
+    activationFee: `${economics.format(economics.fee)} tSKR`,
     confirmationMode: CONFIRMATION_LABELS[value.confirmationMode],
     confirmationThreshold,
     feePayer: value.feePayerMode === 'HOST'
@@ -55,7 +55,7 @@ export function buildReviewViewModel(input: unknown): ReviewViewModel | null {
       'Stake remains refundable before activation; after activation each event allocation follows completion/settlement rules.',
       'Activation fee is nonrefundable.',
       'Creating the ritual costs about 0.01 devnet SOL in network fees and rent.',
-      'TEST is a devnet token with no real value.',
+      'tSKR is a devnet test token with no real value.',
       'Nothing is signed or locked until you create the ritual from the funding lobby.',
     ],
   }

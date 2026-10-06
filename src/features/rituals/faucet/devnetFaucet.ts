@@ -1,6 +1,6 @@
 /**
  * "Get test tokens": asks the project's devnet faucet to send 0.05 devnet SOL
- * and 50 TEST to the connected wallet in one faucet-paid transaction. The
+ * and 50 tSKR to the connected wallet in one faucet-paid transaction. The
  * wallet signs nothing. A judge installs, taps once, and can create a ritual.
  *
  * Fails open: whatever the faucet does, creating a ritual is never blocked by
@@ -57,9 +57,9 @@ export function interpretFaucetResponse(status: number, body: Record<string, unk
 /** One short line for the screen. No jargon; the signature is behind "View". */
 export function faucetLine(result: FaucetResult): string {
   switch (result.kind) {
-    case 'sent': return result.confirmed ? 'Sent: 50 TEST and 0.05 SOL.' : 'Sent. Your balance updates in a moment.'
+    case 'sent': return result.confirmed ? 'Sent: 50 tSKR and 0.05 SOL.' : 'Sent. Your balance updates in a moment.'
     case 'already-funded': return 'You already have enough to start.'
-    case 'empty': return result.contact ? `The faucet is empty. Email ${result.contact} for TEST.` : 'The faucet is empty right now.'
+    case 'empty': return result.contact ? `The faucet is empty. Email ${result.contact} for tSKR.` : 'The faucet is empty right now.'
     case 'disabled': return 'The faucet is off right now.'
     case 'limited': return 'Too many requests from here. Try again in a few minutes.'
     case 'unreachable': return 'Could not reach the faucet. Try again in a minute.'

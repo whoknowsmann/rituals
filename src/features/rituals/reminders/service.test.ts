@@ -16,7 +16,7 @@ import { reminderPrefix, weekReminderPrefix } from './planner'
 const api = vi.mocked(Notifications as unknown as ReminderNotifications)
 const start = 1_800_000_000
 const input: CreateReminderInput = {
-  ritualAddress: 'A', ritualTitle: 'Read', stakeLabel: '5 TEST', causeLabel: 'the food bank', enabled: true,
+  ritualAddress: 'A', ritualTitle: 'Read', stakeLabel: '5 tSKR', causeLabel: 'the food bank', enabled: true,
   schedule: Array.from({ length: 2 }, (_, index) => ({ opens: start + 90 + index * 604800, deadline: start + 90 + index * 604800 + 518400, resolution: start + 90 + index * 604800 + 601200 })),
 }
 const pending = new Map<string, ReminderRequest>()

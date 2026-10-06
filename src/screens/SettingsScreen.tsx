@@ -28,11 +28,11 @@ export function SettingsScreen() {
       <View style={s.card} accessibilityLabel="Network information">
         <Text style={s.label}>NETWORK</Text>
         <Text style={s.value}>Devnet</Text>
-        <Text style={s.muted}>TEST tokens have no real value</Text>
+        <Text style={s.muted}>tSKR is a test token with no real value</Text>
       </View>
       <View style={s.card} accessibilityLabel="Test tokens">
-        <Text style={s.label}>TEST TOKENS</Text>
-        <Text style={s.muted}>{selectedAccount ? 'Sends 50 TEST and 0.05 devnet SOL to your wallet. No approval needed.' : 'Connect a wallet first.'}</Text>
+        <Text style={s.label}>tSKR</Text>
+        <Text style={s.muted}>{selectedAccount ? 'Sends 50 tSKR and 0.05 devnet SOL to your wallet. No approval needed.' : 'Connect a wallet first.'}</Text>
         <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={!selectedAccount || faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" style={s.explorerButton} />
         {faucet.status === 'done' && faucet.result && <Text style={s.muted} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
       </View>
@@ -42,7 +42,7 @@ export function SettingsScreen() {
         <ActionButton tone="quiet" label="View on Explorer" onPress={() => { void Linking.openURL(explorerUrl).catch(() => {}) }} accessibilityLabel="View program on Solana Explorer" style={s.explorerButton} />
       </View>
       <Text style={s.version}>App version {version}</Text>
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }

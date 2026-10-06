@@ -29,7 +29,7 @@ export interface ClaimFixture {
   readonly receipt: SettlementReceiptInput
 }
 
-const money = { tokenDecimals: 6, tokenSymbol: 'TEST' } as const
+const money = { tokenDecimals: 6, tokenSymbol: 'tSKR' } as const
 const activeDetail: RitualDetailInput = {
   ritualId: ritualId('ritual-weekly-run'), title: 'Saturday morning miles', status: 'ACTIVE' as RitualStatus,
   requirement: 'Run or walk 5 km together before Sunday evening.', nextClaimWindow: 'Saturday · 9:00 AM',

@@ -40,7 +40,7 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
       {receipt.state === 'missed' ? <View style={s.card}><Text style={s.cardTitle}>This week was missed</Text><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Row label="Missed stake" value={formatAtomic(receipt.amount, decimals)} /><Row label="Destination" value={receipt.destinationLabel ?? 'the locked destination'} /></View> : null}
       {receipt.state === 'skipped' ? <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /><Text style={s.muted}>This week was declared skipped before it opened.</Text></View> : null}
       <ActionButton tone="quiet" label="Back to rituals" onPress={() => navigation.goBack()} />
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }

@@ -83,7 +83,7 @@ export function CreateRitualScreen({ route }: Props) {
         {field('memberCount', 'Members (2–6)')}
         {field('eventCount', 'Events (1–16)')}
       </View>
-      {field('memberTotalStake', 'Per-member total stake (TEST)')}
+      {field('memberTotalStake', 'Per-member total stake (tSKR)')}
       <View>
         <Text variant="labelLarge">Confirmation mode</Text>
         <SegmentedButtons
@@ -124,7 +124,7 @@ export function CreateRitualScreen({ route }: Props) {
       <Button mode="contained" onPress={submit} accessibilityLabel="Review ritual terms">
         Review terms
       </Button>
-      <Text style={styles.disclosure}>Devnet · TEST has no real value · nothing is signed until you create</Text>
+      <Text style={styles.disclosure}>Devnet · tSKR has no real value · nothing is signed until you create</Text>
     </ScrollView>
   )
 }

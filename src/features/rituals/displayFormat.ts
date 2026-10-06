@@ -2,8 +2,8 @@
  * Display formatting for chain values. Pure, no clock reads: callers pass `now`.
  */
 
-/** Exact token amount with trailing zeros dropped ("8 TEST", "2.5 TEST"). Never rounds. */
-export function formatAtomic(value: bigint, decimals: number, symbol = 'TEST'): string {
+/** Exact token amount with trailing zeros dropped ("8 tSKR", "2.5 tSKR"). Never rounds. */
+export function formatAtomic(value: bigint, decimals: number, symbol = 'tSKR'): string {
   const base = 10n ** BigInt(decimals)
   const sign = value < 0n ? '-' : ''
   const abs = value < 0n ? -value : value

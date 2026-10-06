@@ -102,7 +102,7 @@ export function RitualsHomeScreen() {
     }
   }, [focused, load])
 
-  const disclosure = 'Devnet · TEST tokens have no real value'
+  const disclosure = 'Devnet · tSKR is a test token with no real value'
   const view = { disclosure }
   const goPromise = () => navigation.navigate('SoloCreate')
   const goFriends = () => navigation.navigate(homeCreateTarget().name)

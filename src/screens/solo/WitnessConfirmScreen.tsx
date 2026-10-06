@@ -62,7 +62,7 @@ export function WitnessConfirmScreen({ route }: Props) {
       </View>
       <Text style={s.note}>Witnesses never stake and never receive money.</Text>
       <ActionButton tone="quiet" label="Back" onPress={() => navigation.goBack()} />
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }

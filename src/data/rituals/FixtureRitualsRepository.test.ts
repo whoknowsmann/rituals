@@ -17,7 +17,7 @@ describe('FixtureRitualsRepository', () => {
         status: 'ACTIVE',
         members: { funded: 4, total: 4 },
         tokenDecimals: 6,
-        tokenSymbol: 'TEST',
+        tokenSymbol: 'tSKR',
         confirmationMode: 'ONE_FRIEND',
       },
       confirmations: { count: 0 },
@@ -56,7 +56,7 @@ describe('FixtureRitualsRepository', () => {
       title: 'February book club',
       amountAtomicUnits: 1_500_000_000n,
       tokenDecimals: 6,
-      tokenSymbol: 'TEST',
+      tokenSymbol: 'tSKR',
     })
   })
 

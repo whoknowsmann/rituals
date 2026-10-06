@@ -5,12 +5,12 @@ import { formatAtomic, weekOpensLabel, weekIsOpen } from './displayFormat'
 
 describe('formatAtomic (people read amounts, not 6-decimal fixed point)', () => {
   it('drops trailing zeros but never rounds', () => {
-    expect(formatAtomic(8_000_000n, 6)).toBe('8 TEST')
-    expect(formatAtomic(2_500_000n, 6)).toBe('2.5 TEST')
-    expect(formatAtomic(1n, 6)).toBe('0.000001 TEST')
-    expect(formatAtomic(0n, 6)).toBe('0 TEST')
+    expect(formatAtomic(8_000_000n, 6)).toBe('8 tSKR')
+    expect(formatAtomic(2_500_000n, 6)).toBe('2.5 tSKR')
+    expect(formatAtomic(1n, 6)).toBe('0.000001 tSKR')
+    expect(formatAtomic(0n, 6)).toBe('0 tSKR')
     expect(formatAtomic(12_340_000n, 6, 'SKR')).toBe('12.34 SKR')
-    expect(formatAtomic(7n, 0)).toBe('7 TEST')
+    expect(formatAtomic(7n, 0)).toBe('7 tSKR')
   })
 })
 

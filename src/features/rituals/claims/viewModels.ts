@@ -48,7 +48,7 @@ const labels: Record<ConfirmationMode, string> = {
 const invalidReceipt = (explanation = 'This receipt preview is unavailable because its financial data is invalid.'): SettlementReceiptViewModel => ({ status: 'invalid', explanation, lines: [] })
 
 function format(amount: bigint, decimals: number, symbol: string): string {
-  if (typeof amount !== 'bigint' || amount < 0n || amount > MAX_U64 || !Number.isInteger(decimals) || decimals < 0 || decimals > 255 || !/^[A-Z0-9]{1,12}$/.test(symbol)) return 'Invalid amount'
+  if (typeof amount !== 'bigint' || amount < 0n || amount > MAX_U64 || !Number.isInteger(decimals) || decimals < 0 || decimals > 255 || !/^[A-Za-z0-9]{1,12}$/.test(symbol)) return 'Invalid amount'
   const base = 10n ** BigInt(decimals)
   const whole = amount / base
   const fraction = amount % base
@@ -56,7 +56,7 @@ function format(amount: bigint, decimals: number, symbol: string): string {
 }
 function validMoney(input: SettlementReceiptInput): boolean {
   return Number.isInteger(input.tokenDecimals) && input.tokenDecimals >= 0 && input.tokenDecimals <= 255
-    && typeof input.tokenSymbol === 'string' && /^[A-Z0-9]{1,12}$/.test(input.tokenSymbol)
+    && typeof input.tokenSymbol === 'string' && /^[A-Za-z0-9]{1,12}$/.test(input.tokenSymbol)
     && [input.eventAllocation, input.principal, input.bonus, input.forfeiture, input.futureStake, input.activationFee]
       .every((value) => typeof value === 'bigint' && value >= 0n && value <= MAX_U64)
 }

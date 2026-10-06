@@ -110,7 +110,7 @@ export function TemplatePickerScreen() {
                   <Text style={styles.cardShape}>{suggestion.shape}</Text>
                   <Text style={styles.cardRule}>{suggestion.draft.requirement}</Text>
                   <View style={styles.cardFoot}>
-                    <Text style={styles.cardStake}>{suggestion.draft.memberTotalStake} TEST each</Text>
+                    <Text style={styles.cardStake}>{suggestion.draft.memberTotalStake} tSKR each</Text>
                     <ActionButton
                       label="Use this"
                       tone={i === 0 ? 'go' : 'quiet'}

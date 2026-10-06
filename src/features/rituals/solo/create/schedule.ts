@@ -32,7 +32,7 @@ export function stepWeeks(current: number, delta: number): number {
   return Math.min(SOLO_MAX_WEEKS, Math.max(SOLO_MIN_WEEKS, current + delta))
 }
 
-/** Quick picks for the weekly stake (TEST); any amount can still be typed. */
+/** Quick picks for the weekly stake (tSKR); any amount can still be typed. */
 /** Total stake picks for the whole ritual (Jack, 2026-10-06: the stake is the total). */
 export const STAKE_PRESETS = Object.freeze(['5', '10', '20', '50'])
 export const DEFAULT_STAKE_TOTAL = '20'
@@ -58,8 +58,8 @@ export function soloCadenceFor(speed: SoloSpeed): RitualCadence {
 
 /**
  * The one quiet line under the stake card, true to the windows that will be
- * written on chain: "4 demo weeks · 2 min each · 20 TEST" or
- * "5 TEST a week · ends Sun, Nov 1" (last week's resolution, phone
+ * written on chain: "4 demo weeks · 2 min each · 20 tSKR" or
+ * "5 tSKR a week · ends Sun, Nov 1" (last week's resolution, phone
  * local time, in the app's usual date style).
  */
 export function soloScheduleSummary(input: Readonly<{ weekCount: number; stakeEachLabel: string; totalStakeLabel: string; schedule: SoloScheduleSelection['schedule']; nowSeconds: number }>): string {

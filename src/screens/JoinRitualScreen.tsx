@@ -117,7 +117,7 @@ export function JoinRitualScreen({ route }: Props) {
         </View>
       )}
 
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }

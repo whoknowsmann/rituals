@@ -129,7 +129,7 @@ const RATIONALES: Readonly<Record<SuggestionIntent, string>> = {
  */
 const stakeForEvents = (eventCount: string, honor: boolean): string => {
   const events = Number(eventCount)
-  // 1 TEST per event normally, and the minimum that still divides for honour
+  // 1 tSKR per event normally, and the minimum that still divides for honour
   // mode, keeping the amount symbolic rather than meaningful.
   const perEvent = honor ? 1 : 2
   return String(events * perEvent)

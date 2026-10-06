@@ -90,7 +90,7 @@ export function RitualActionScreen({ route }: Props) {
       {!done && action.state.status === 'idle' && ready && <RNText style={s.note}>{walletHandoffNote(walletPackage)}</RNText>}
       {!done && <ActionButton label={action.isBusy ? 'Working…' : label} onPress={action.start} disabled={!ready || !action.canSubmit || action.isBusy} loading={action.isBusy} accessibilityLabel={label} />}
       {done && <ActionButton tone="dark" label="Done" onPress={() => navigation.navigate('RitualsHome')} />}
-      <Footnote>Devnet · TEST tokens have no real value</Footnote>
+      <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }

@@ -100,7 +100,7 @@ export function SeasonScreen({ route }: Props) {
     <Section title="How it feels" aside="SOLO, NOT ALONE">
       <Text style={styles.muted}>A small count of people showing up. No leaderboard. No shared stake.</Text>
     </Section>
-    <Footnote>Devnet · TEST tokens have no real value</Footnote>
+    <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
   </ScrollView>
 }
 
