@@ -3,15 +3,51 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-10-05 ~13:30 CDT** — `feat/solo-screens` @ f0a56bc + docs,
-clean and pushed; tsc clean; **2,282 tests / 129 files**; native **206 / 0**;
-`verify-devnet-config` 8/8 PASS (fee **0 / 0 / 0**); three app-path smokes
-GREEN on the free program (10-04); phone has **d22** (f0a56bc: free, Demo/Real
-weeks, Jack's de-AI pass, Get test tokens), installed 13:16; d21 walked to the
-wallet prompt. **Faucet service built and proven on devnet** (repo
-`whoknowsmann/rituals-faucet`, private); **not deployed yet** (Vercel login
-waiting on Jack's device confirmation).
-Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT) · **submit Wed Oct 7, 8pm CDT**
+Last verified: **2026-10-05 22:35 CDT** (Opus re-verify after the Fable session
+was rate-limited) — `feat/solo-screens` @ 2216c85, clean, pushed; tsc clean;
+2,282 tests green; faucet `https://faucet.whoknowsman.com/api/health` ok
+(1.897 SOL / 4,900 TEST, 34 claims). **Phone has x2** (experimental
+reminders + widget build from `exp/reminders-widget` @ f3ca007, installed
+20:29), **not** the recording build d23 (2216c85's code: 2-minute demo weeks).
+Reinstall d23 before recording: `artifacts/rituals-d23.apk`.
+Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT, i.e. Thursday night) ·
+**target: submit Thu Oct 8 ~6 pm CDT** (Jack, 10-05: Friday is the deadline,
+use the extra day). Repo-public cron `cd4e3bd1e174` still fires **Wed Oct 7
+01:59 CDT**: `main` must be fast-forwarded with README + LICENSE before then,
+or the cron moved.
+
+### 2026-10-05 evening (not yet folded into the sections below)
+
+- **Faucet live** at `https://faucet.whoknowsman.com` (Vercel, Cloudflare A
+  record `faucet` → 76.76.21.21, DNS only). Fresh-keypair claim proven
+  (`GfZNUTSf…nW5`: 0.05 SOL + 50 TEST); phone reached it through the baked-in
+  URL (409 "You already have enough to start." on the funded wallet). The
+  21:22 `vercel deploy` "Not authorized" was a stale queued command from 13:32;
+  the live deploy is unaffected.
+- **Demo weeks are 2 minutes** (ffeb8f9): 90 s lead, 90 s stamp window, 20 s
+  grace, 10 s gap; 4 weeks ≈ 9½ min. App label derives from chain windows ("4
+  demo weeks · 2 min each"). Smoke GREEN on the 2-min cadence (ritual
+  `8k73dTAB…`, `artifacts/logs/smoke-app-solo-2min.log`). d23 built 19:28,
+  walked to step 2. **Submission docs still say 6.5 minutes** (FACTS, README,
+  deck, video script, store listing, release notes, package plan) — fix before
+  any recording/cut.
+- **Reminders** (`feat/reminders` @ a7b1f6f, gpt-6-astra): expo-notifications,
+  Real weeks only (week open · 1 day left · last hour), "Remind me each week"
+  pill on create, permission after create, cancel on stamp. Unit-tested;
+  **not proven on device** (needs one Real-weeks create + Allow, then
+  `dumpsys alarm`).
+- **Widget** (`feat/widget` @ 1dd0199, then fix f3ca007 on
+  `exp/reminders-widget`, now pushed): builds and places from the launcher.
+  x2 render is still a tall tile with a large empty middle
+  (`artifacts/shots/x2-widget-old-slot.png`); needs the true 2x2 sizing
+  (`minHeight` ~110dp) and a re-place. Not on the shipping branch.
+- **Recording not done.** Needs Jack ~12 min: Seed Vault on Devnet, fresh
+  empty account "test 2", two approvals ~90 s apart.
+- Open decisions (package plan §4): license, repo description, FAUCET_CONTACT
+  (placeholder faucet@whoknowsman.com), voiceover, MWA identity origin,
+  organizer email; plus ship reminders/widget or not.
+- Subagent routing from 10-05 night: `delegation` = openai-codex /
+  gpt-6-astra / reasoning high (Jack); main session model claude-opus-5-5.
 
 ## How to re-verify in one minute
 
