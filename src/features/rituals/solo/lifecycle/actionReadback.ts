@@ -1,5 +1,13 @@
 import type { PublicKey } from '@solana/web3.js'
 import type { SoloRitualBundle } from './soloRitualModel'
+import type { LifecycleState } from '../../lifecycleMachine'
+
+/** A confirmed stamp belongs to one week, not every later HOLD on this screen. */
+export function confirmedStampAdvanced(state: LifecycleState, target: SoloActionTarget | null, bundle: SoloRitualBundle | null | undefined): boolean {
+  return state.status === 'confirmed' && target?.kind === 'claim' && Boolean(bundle
+    && bundle.ritual.address.toBase58() === target.ritualAddress
+    && bundle.ritual.account.currentEventIndex > target.eventIndex)
+}
 
 export type SoloActionTarget = Readonly<{
   kind: 'claim' | 'skip' | 'initialize-event' | 'finalize'

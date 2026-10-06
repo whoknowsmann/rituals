@@ -33,6 +33,7 @@ export type SoloRitualModel = Readonly<{
   needsEventInit: boolean
   /** Latest settled or voided week, for the receipt link; null before any. */
   lastClosedEventIndex: number | null
+  lastClosedOutcome: 'skipped' | 'missed' | 'done' | null
   /** Chain second when the current week can be settled (resolution + 1). */
   settleOpensAt: number | null
   /**
@@ -164,6 +165,7 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
     message: mapped.message,
     needsEventInit: mapped.state === 'resolving/settle' && !bundle.event,
     lastClosedEventIndex: latestTerminal(bundle)?.event.account.eventIndex ?? null,
+    lastClosedOutcome: outcomeOf(latestTerminal(bundle), account.members[0] ?? null),
     settleOpensAt: schedule ? Number(schedule.resolution) + 1 : null,
     demoSpeedNotice: demoSpeedNotice(account.schedule),
   })

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { soloRitualModel, labelSoloDestination, demoSpeedNotice, type SoloRitualBundle } from './soloRitualModel'
-import { soloActionLanded } from './actionReadback'
+import { confirmedStampAdvanced, soloActionLanded } from './actionReadback'
 import { weekCellLabel } from '../../../../components/crew/weekStripLogic'
 import { lifecycleReducer, lifecycleCanSubmit, lifecycleStatusCopy, type LifecycleState } from '../../lifecycleMachine'
 
@@ -28,6 +28,17 @@ const event = (overrides: Record<string, unknown> = {}) => ({ account: {
 const claim = (status: 'Pending' | 'Confirmed' | 'Questioned') => ({ member: me, account: { status } })
 
 describe('soloRitualModel', () => {
+  it('re-arms HOLD after each confirmed week advances, never for an uncertain send or stale read', () => {
+    const confirmed: LifecycleState = { status: 'confirmed', ritualAddress: address.toBase58(), result: { signature: 's', messageDigest: 'd' } }
+    for (let index = 0; index < 4; index++) {
+      const target = { kind: 'claim' as const, ritualAddress: address.toBase58(), eventIndex: index, actor: me }
+      expect(confirmedStampAdvanced(confirmed, target, bundle({ currentEventIndex: index }))).toBe(false)
+      expect(confirmedStampAdvanced(confirmed, target, bundle({ currentEventIndex: index + 1 }))).toBe(true)
+      expect(lifecycleCanSubmit(lifecycleReducer(confirmed, { type: 'RESET' }))).toBe(true)
+      const unknown: LifecycleState = { status: 'error', category: 'confirmation', submitted: true, retryable: false, message: 'unknown', ritualAddress: address.toBase58() }
+      expect(confirmedStampAdvanced(unknown, target, bundle({ currentEventIndex: index + 1 }))).toBe(false)
+    }
+  })
   it('clears the non-retryable stamp warning only for the claimed week, even if the read arrived before the error', () => {
     const read = bundle({}, event({ status: 'Claiming' }), [claim('Confirmed')])
     const target = { kind: 'claim' as const, ritualAddress: address.toBase58(), eventIndex: 0, actor: me }
@@ -154,6 +165,8 @@ describe('soloRitualModel', () => {
     it('shows the missed result until the next week opens, then offers the stamp', () => {
       expect(soloRitualModel(missedWeek0(), 350, me).state).toBe('missed')
       expect(soloRitualModel(missedWeek0(), 450, me).state).toBe('open-not-initialized')
+      expect(soloRitualModel(missedWeek0(), 450, me).lastClosedOutcome).toBe('missed')
+      expect(soloRitualModel(missedWeek0({ status: 'Completed' }), 10_000, me).lastClosedOutcome).toBe('missed')
     })
 
     it('does the same after a declared skip', () => {

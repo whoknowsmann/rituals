@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { Keypair, PublicKey } from '@solana/web3.js'
 import { autoSettleWeek } from './autoSettle'
 import { formatSol, settlerBudgetLamports, settlerCanPay } from './settlerBudget'
+import { DEMO_CLOCK_WARNING, settlementVisibleEnough } from './settlementVisibility'
+
+describe('demo misses need a visible ritual, not just a mounted screen', () => {
+  const missed = { demoSpeedNotice: 'Demo speed', showedUp: false }
+  it('blocks a missed demo in background, inactive, unknown, or behind another route', () => {
+    for (const state of ['background', 'inactive', null]) expect(settlementVisibleEnough(missed, true, state)).toBe(false)
+    expect(settlementVisibleEnough(missed, false, 'active')).toBe(false)
+    expect(settlementVisibleEnough(missed, true, 'active')).toBe(true)
+  })
+  it('keeps refunds and real-week settlement independent of demo visibility', () => {
+    expect(settlementVisibleEnough({ ...missed, showedUp: true }, false, 'background')).toBe(true)
+    expect(settlementVisibleEnough({ ...missed, demoSpeedNotice: null }, false, 'background')).toBe(true)
+    expect(DEMO_CLOCK_WARNING).toContain('keep running while you’re away')
+    expect(DEMO_CLOCK_WARNING).toContain('Unstamped weeks are missed')
+  })
+})
 
 describe('settle key budget', () => {
   it('covers opening + settling every week, above the account floor, under the preparer cap', () => {
@@ -17,6 +33,18 @@ describe('settle key budget', () => {
 describe('autoSettleWeek', () => {
   const base = { client: {} as never, ritualAddress: new PublicKey(new Uint8Array(32).fill(3)), settler: Keypair.generate().publicKey, eventIndex: 1, destinationTokenAccounts: [] }
   const ok = (signature: string) => ({ ok: true as const, result: { signature, messageDigest: 'd' } })
+
+  it('does not start off screen, and rechecks visibility between opening and settling', async () => {
+    let visible = false
+    let calls = 0
+    const run = async () => { calls++; visible = false; return ok('opened') }
+    const input = { ...base, needsEventInit: true, mayContinue: () => visible }
+    expect(await autoSettleWeek(input, run as never)).toMatchObject({ ok: false, category: 'not-visible' })
+    expect(calls).toBe(0)
+    visible = true
+    expect(await autoSettleWeek(input, run as never)).toMatchObject({ ok: false, step: 'finalize', category: 'not-visible' })
+    expect(calls).toBe(1)
+  })
 
   it('opens a week nobody checked in to, then settles it, with no wallet involved', async () => {
     const calls: string[] = []

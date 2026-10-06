@@ -24,6 +24,16 @@ const prepared = {
 } as never
 
 describe('solo create transaction dependencies', () => {
+  it('samples the chain schedule during preparation and sends nothing when the clock is unreadable', async () => {
+    const clockSchedule = vi.fn(async () => { throw new Error('clock offline') })
+    const prepareCreateSoloFundAndActivate = vi.fn()
+    const client = { getProtocolConfig: async () => ({ account: { paused: false } }), prepareCreateSoloFundAndActivate } as unknown as RitualClient
+    const deps = buildSoloCreateDeps({ client, creator: CREATOR, title: 'Run', requirement: 'Run', eventCount: 2, stakePerWeekAtomic: 10_000n,
+      schedule: clockSchedule, witnessMode: 'just-me', destination: 'cause', causeTokenAccount: key(7) })
+    expect(clockSchedule).not.toHaveBeenCalled()
+    await expect(deps.prepare()).rejects.toThrow('clock offline')
+    expect(prepareCreateSoloFundAndActivate).not.toHaveBeenCalled()
+  })
   it('derives a person destination ATA from the configured stake mint', async () => {
     const creator = CREATOR
     const person = PERSON
@@ -99,19 +109,22 @@ describe('solo create transaction dependencies', () => {
       submitPrepared: vi.fn(async () => { calls.push('submitPrepared'); return submit() }),
       confirmSubmitted: vi.fn(async () => { calls.push('confirmSubmitted'); return { signature: SIGNATURE, messageDigest: 'a'.repeat(64) } }),
     }) as unknown as RitualClient
-    const depsFor = (client: RitualClient, store: PendingActionStore) => buildSoloCreateDeps({
+    const depsFor = (client: RitualClient, store: PendingActionStore, rememberBeforeSend?: (address: string) => Promise<void>) => buildSoloCreateDeps({
       client, creator: CREATOR, title: 'Weekly run', requirement: 'Run and check in.', eventCount: 4,
       stakePerWeekAtomic: 5_000_000n, schedule: selectSoloSchedule({ cadence: DEMO_CADENCE, referenceSeconds: 1_000, eventCount: 4 }),
       witnessMode: 'just-me', destination: 'cause', causeTokenAccount: key(20), pendingActionStore: store, now: () => 1_700_000_000,
+      rememberBeforeSend,
     })
 
     it('journals before the wallet handoff, adds the signature after, and clears it on confirmation', async () => {
       const { store, records, calls } = makeStore()
       const client = makeClient(calls, async () => ({ signature: SIGNATURE }))
-      const deps = depsFor(client, store)
+      const remember = vi.fn(async () => { calls.push('remember') })
+      const deps = depsFor(client, store, remember)
       const ref = await deps.prepare()
       await deps.submit(ref as never)
-      expect(calls).toEqual(['upsert:unsigned', 'submitPrepared', 'upsert:signed'])
+      expect(calls).toEqual(['upsert:unsigned', 'remember', 'submitPrepared', 'upsert:signed'])
+      expect(remember).toHaveBeenCalledWith(key(10).toBase58())
       const journaled = [...records.values()][0]
       expect(journaled.actionKind).toBe('create-solo-fund-and-activate')
       expect(journaled.ritualAddress).toBe(key(10).toBase58())

@@ -104,10 +104,10 @@ export function useAuthorization() {
     queryKey: ["wallet-authorization"],
     queryFn: () => fetchAuthorization(),
   });
-  const { mutate: setAuthorization } = useMutation({
+  const { mutateAsync: setAuthorization } = useMutation({
     mutationFn: persistAuthorization,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["wallet-authorization"] });
+    onSuccess: (_result, auth) => {
+      queryClient.setQueryData(["wallet-authorization"], auth);
     },
   });
 
@@ -164,11 +164,13 @@ export function useAuthorization() {
     },
     [authorization]
   );
-  const clearAuthorization = useCallback(async () => { await persistAuthorization(null); queryClient.invalidateQueries({ queryKey: ["wallet-authorization"] }); }, [queryClient]);
+  const clearAuthorization = useCallback(async () => { await persistAuthorization(null); queryClient.setQueryData(["wallet-authorization"], null); }, [queryClient]);
+  const getCurrentAccount = useCallback(() => queryClient.getQueryData<WalletAuthorization | null>(["wallet-authorization"])?.selectedAccount ?? null, [queryClient]);
   return useMemo(
     () => ({
       accounts: authorization?.accounts ?? null,
       clearAuthorization,
+      getCurrentAccount,
       authorizeSession,
       authorizeSessionWithSignIn,
       deauthorizeSession,
@@ -176,6 +178,6 @@ export function useAuthorization() {
       walletPackage: authorization?.walletPackage ?? null,
       isLoading,
     }),
-    [authorization, authorizeSession, clearAuthorization, deauthorizeSession]
+    [authorization, authorizeSession, authorizeSessionWithSignIn, clearAuthorization, deauthorizeSession, getCurrentAccount, isLoading]
   );
 }

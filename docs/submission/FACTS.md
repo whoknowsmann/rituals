@@ -32,8 +32,11 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
    Optional one-line note, kept on the phone only. Then confetti, a YOU SHOWED UP!
    stamp and a line from the sayings basket ("Couch: 0. You: 1.", "Future you
    says thanks.", …).
-3. **Weeks close by themselves.** The settle key opens a missed week and settles
-   every finished week. Kept → stake back, KEPT receipt (with the note).
+3. **Weeks close by themselves on the ritual screen.** The settle key opens a missed
+   week and settles finished weeks. Missed demo weeks only send while that ritual
+   is foreground and focused; a send already handed to the chain can still land.
+   Home does not run a settler, and there is no background settlement task.
+   Kept → stake back, KEPT receipt (with the note).
    Missed → that week's stake to the cause, MISSED stamp ("That's a week, not a
    verdict."). A wallet button stays as a fallback.
 4. **Home**: two-column tiles, a colour per ritual, punch card ("1 of 4 kept"),
@@ -55,6 +58,11 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
   minute." on the ritual screen): week 1 opens 45 s after create, 45-second
   stamp window, 10 s grace, next week 5 s later: 1-minute weeks; a 4-week
   ritual runs start to finish in under 5 minutes (fe56eb5, 2026-10-06).
+  Typed rituals now default to two demo weeks (four real weeks); explicit choices
+  and suggestions still allow 1–16. Before Lock it in and on the ritual screen,
+  copy warns that the clock never pauses and missed stakes go to the destination.
+  Delaying settlement does not extend a stamp window or refund a miss. Reminders
+  remain Real-weeks only. These hardening changes need device verification.
 - **Real weeks**: week 1 opens 45 s after create, stamp any day in a 6-day
   window, 23 h grace, 7-day weeks. A finished week settles the next time you
   open the app (or via the wallet fallback). Say this plainly.

@@ -15,12 +15,12 @@ function seasonSeconds(value: bigint, name: string): number {
 
 /**
  * How many weeks the promise runs: a joined Season's window count always wins;
- * otherwise the suggestion the user actually picked; otherwise 4 weeks.
+ * otherwise the explicit choice; otherwise two demo weeks or four real weeks.
  */
-export function soloEventCount(input: Readonly<{ seasonWindows?: number; picked?: string | number }>): number {
+export function soloEventCount(input: Readonly<{ seasonWindows?: number; picked?: string | number; speed?: SoloSpeed }>): number {
   if (input.seasonWindows !== undefined) return input.seasonWindows
   const picked = typeof input.picked === 'number' ? input.picked : input.picked !== undefined && /^\d+$/.test(input.picked) ? Number(input.picked) : NaN
-  return Number.isInteger(picked) && picked >= 1 && picked <= 16 ? picked : 4
+  return Number.isInteger(picked) && picked >= 1 && picked <= 16 ? picked : input.speed === 'real' ? 4 : 2
 }
 
 /** The program allows 1..16 weekly events per ritual. */

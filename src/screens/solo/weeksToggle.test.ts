@@ -23,7 +23,8 @@ describe('weeks toggle wiring', () => {
   })
 
   it('the ritual screen shows the demo-speed line from the view model in muted text, above every state card', () => {
-    expect(ritual).toContain('{model.demoSpeedNotice && <Text style={s.muted}>{model.demoSpeedNotice}</Text>}')
+    expect(ritual).toContain("{model.demoSpeedNotice && model.state !== 'completed' && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}")
+    expect(create.indexOf("speed === 'demo' && <Text style={styles.quiet}>{DEMO_CLOCK_WARNING}")).toBeLessThan(create.indexOf("label={create.isBusy ? 'Locking in…'"))
     expect(ritual.indexOf('model.demoSpeedNotice')).toBeLessThan(ritual.indexOf('{renderState(model'))
   })
 })

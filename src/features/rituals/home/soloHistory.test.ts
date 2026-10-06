@@ -18,6 +18,11 @@ describe('Home solo week strip (missed weeks used to show as ticks)', () => {
 
   it('shows kept / missed when known, a neutral closed mark when not, never a guessed tick', () => {
     expect(soloHomeCells(solo('Completed', 3), new Map([[0, 'missed'], [2, 'done']]))).toEqual(['missed', 'closed', 'done', 'closed'])
-    expect(soloHomeCells(solo('Active', 1), undefined)).toEqual(['closed', 'now', 'future', 'future'])
+    expect(soloHomeCells(solo('Active', 1), undefined)).toEqual(['closed', 'current', 'future', 'future'])
+  })
+  it('never marks a waiting or expired week NOW', () => {
+    const account = { ...solo('Active', 0), schedule: [{ opens: 100n, deadline: 145n }] }
+    for (const now of [null, 99, 146]) expect(soloHomeCells(account, undefined, now)).toEqual(['current'])
+    expect(soloHomeCells(account, undefined, 100)).toEqual(['now'])
   })
 })

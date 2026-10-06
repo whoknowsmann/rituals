@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { HOLD_DURATION_MS, holdProgress, quartersCrossed, shouldUseTapFallback } from './holdButtonLogic'
 
 describe('HoldButton pure logic', () => {
+  it('cancels a hold removed at the deadline and never calls a stale completion', () => {
+    const source = readFileSync(`${__dirname}/HoldButton.tsx`, 'utf8')
+    expect(source).toContain('live.current.mounted = false; animation.current?.stop()')
+    expect(source).toContain('if (!live.current.mounted || live.current.disabled || live.current.done) return')
+    expect(source).toContain('live.current.onComplete()')
+  })
   it('holds long enough to watch it fill', () => {
     expect(HOLD_DURATION_MS).toBe(1400)
   })

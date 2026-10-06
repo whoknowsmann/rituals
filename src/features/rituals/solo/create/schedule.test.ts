@@ -82,8 +82,12 @@ describe('solo create schedule selection', () => {
       expect(soloEventCount({ picked: '6' })).toBe(6)
       expect(soloEventCount({ picked: 8 })).toBe(8)
     })
-    it('defaults to 4 weeks for a typed promise or an invalid value', () => {
-      for (const picked of [undefined, '', 'x', '0', '17', '2.5']) expect(soloEventCount({ picked })).toBe(4)
+    it('defaults to two demo weeks, four real weeks, and keeps explicit 1–16 choices', () => {
+      for (const picked of [undefined, '', 'x', '0', '17', '2.5']) {
+        expect(soloEventCount({ picked })).toBe(2)
+        expect(soloEventCount({ picked, speed: 'real' })).toBe(4)
+      }
+      for (let picked = 1; picked <= 16; picked++) expect(soloEventCount({ picked, speed: 'demo' })).toBe(picked)
     })
   })
 })

@@ -22,7 +22,7 @@ export type SoloCreateDepsParams = Readonly<{
   requirement: string
   eventCount: number
   stakePerWeekAtomic: bigint
-  schedule: SoloScheduleSelection
+  schedule: SoloScheduleSelection | (() => Promise<SoloScheduleSelection>)
   witnessMode: SoloWitnessMode
   witnessAddress?: string
   destination: SoloDestination
@@ -36,6 +36,8 @@ export type SoloCreateDepsParams = Readonly<{
   getBlockHeight?: () => Promise<number>
   /** Durable recovery journal written around the wallet handoff. */
   pendingActionStore?: PendingActionStore
+  /** Save the candidate on this phone before the wallet can broadcast it. */
+  rememberBeforeSend?: (address: string) => Promise<void>
   now?: () => number
 }>
 
@@ -61,7 +63,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
     requirement,
     eventCount,
     stakePerWeekAtomic,
-    schedule,
+    schedule: scheduleInput,
     witnessMode,
     witnessAddress,
     destination,
@@ -72,10 +74,11 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
     authorizedActor,
     getBlockHeight,
     pendingActionStore,
+    rememberBeforeSend,
     now = () => Date.now(),
   } = params
   if (!(creator instanceof PublicKey)) fail('creator is not available')
-  if (schedule.schedule.length !== eventCount) fail('Season schedule does not match this ritual.')
+  if (typeof scheduleInput !== 'function' && scheduleInput.schedule.length !== eventCount) fail('Season schedule does not match this ritual.')
 
   const witness = witnessMode === 'one-witness'
     ? assertPublicKey(publicKeyFromCanonical(witnessAddress ?? ''), 'witness')
@@ -98,6 +101,8 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
       assertAuthorized()
       const config = await client.getProtocolConfig()
       if (config.account.paused) fail('Rituals are paused')
+      const schedule = typeof scheduleInput === 'function' ? await scheduleInput() : scheduleInput
+      if (schedule.schedule.length !== eventCount) fail('Season schedule does not match this ritual.')
 
       const person = destination === 'person' ? publicKeyFromCanonical(personAddress ?? '') : null
       if (destination === 'person') {
@@ -171,6 +176,8 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
         await pendingActionStore.upsert(pendingRecord)
       }
       try {
+        if (rememberBeforeSend) await rememberBeforeSend(prepared.ritualAddress)
+        assertAuthorized()
         handle = await client.submitPrepared(prepared)
       } catch (error) {
         // The wallet answered but verification failed: it may have broadcast.

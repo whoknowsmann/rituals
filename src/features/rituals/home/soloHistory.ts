@@ -1,8 +1,9 @@
 import type { AccountInfo, PublicKey } from '@solana/web3.js'
 import { decodeRitualEvent, type RitualEventAccountView } from '../../../data/rituals/accounts'
 import { eventPda } from '../../../data/rituals/pdas'
+import { currentWeekCell } from '../../../components/crew/weekStripLogic'
 
-export type HomeWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'future'
+export type HomeWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'current' | 'future'
 type SoloAccount = Readonly<{ kind: 'Group' | 'Solo'; status: string; currentEventIndex: number; schedule: readonly unknown[] }>
 
 /** Closed weeks of a solo ritual: every week before the current one, or all of them once it completes. */
@@ -24,11 +25,15 @@ export function eventOutcome(event: Pick<RitualEventAccountView, 'status' | 'for
  * read, and a neutral "closed" mark until then (or if the read failed),
  * never a guessed tick.
  */
-export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined): HomeWeekCell[] {
+export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined, now: number | null = null): HomeWeekCell[] {
   const closed = closedWeekCount(account)
   return account.schedule.map((_window, index) => {
     if (index < closed) return outcomes?.get(index) ?? 'closed'
-    if (account.status === 'Active' && index === account.currentEventIndex) return 'now'
+    if (account.status === 'Active' && index === account.currentEventIndex) {
+      const window = _window as { opens?: bigint; deadline?: bigint } | null
+      return now !== null && window?.opens !== undefined && window?.deadline !== undefined
+        ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'current'
+    }
     return 'future'
   })
 }

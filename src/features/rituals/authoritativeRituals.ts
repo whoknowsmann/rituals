@@ -32,17 +32,27 @@ export async function listKnownRituals(): Promise<readonly KnownRitual[]> {
   } catch { return Object.freeze([]) }
 }
 
+// Serialize read/modify/write operations: concurrent creates/removals must not
+// replace each other's list, including when recovery is running on Home.
+let knownWrites: Promise<void> = Promise.resolve()
+function updateKnown(change: (current: readonly KnownRitual[]) => readonly KnownRitual[]): Promise<void> {
+  const write = knownWrites.then(async () => {
+    const current = await listKnownRituals()
+    await AsyncStorage.setItem(KNOWN_RITUALS_STORAGE_KEY, JSON.stringify(change(current)))
+  })
+  knownWrites = write.catch(() => undefined)
+  return write
+}
+
 export async function rememberRitual(ritual: KnownRitual): Promise<void> {
   const parsed = parse(ritual)
   if (!parsed) throw new Error('cannot save an invalid Ritual')
-  const current = await listKnownRituals()
-  await AsyncStorage.setItem(KNOWN_RITUALS_STORAGE_KEY, JSON.stringify([...current.filter((item) => item.address !== parsed.address), parsed]))
+  await updateKnown((current) => [...current.filter((item) => item.address !== parsed.address), parsed])
 }
 
 /** Take a ritual off this phone's list. The chain is untouched; nothing is refunded or cancelled. */
 export async function forgetRitual(address: string): Promise<void> {
-  const current = await listKnownRituals()
-  await AsyncStorage.setItem(KNOWN_RITUALS_STORAGE_KEY, JSON.stringify(current.filter((item) => item.address !== address)))
+  await updateKnown((current) => current.filter((item) => item.address !== address))
   await clearRitualReminders(address)
 }
 
@@ -61,11 +71,14 @@ export async function readKnownRitualBundles(
   known: readonly KnownRitual[],
   read: (address: PublicKey) => Promise<RitualBundleRead>,
 ): Promise<readonly (KnownRitual & { bundle: RitualBundleRead })[]> {
-  const settled = await Promise.allSettled(known.map(async (item) => ({ ...item, bundle: await read(new PublicKey(item.address)) })))
   const loaded: (KnownRitual & { bundle: RitualBundleRead })[] = []
-  for (const result of settled) {
-    if (result.status === 'fulfilled') loaded.push(result.value)
-    else if (!isPermanentlyUnreadable(result.reason)) throw result.reason
+  // A large Home must not fan out every ritual's multi-read bundle at once.
+  for (let start = 0; start < known.length; start += 3) {
+    const settled = await Promise.allSettled(known.slice(start, start + 3).map(async (item) => ({ ...item, bundle: await read(new PublicKey(item.address)) })))
+    for (const result of settled) {
+      if (result.status === 'fulfilled') loaded.push(result.value)
+      else if (!isPermanentlyUnreadable(result.reason)) throw result.reason
+    }
   }
   return Object.freeze(loaded)
 }

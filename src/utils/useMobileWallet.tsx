@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import { associationConfigFor, walletOptionByPackage } from "./walletChoice";
 import { logFailure } from "./diagnostics";
 import { assertWalletNetwork } from "./walletNetwork";
+import { withWalletSession } from './walletSession';
 import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode, type WalletAssociationConfig } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
 export type MobileWalletErrorCategory = "authorization" | "input" | "wallet";
@@ -55,7 +56,7 @@ export async function authorizeAndSendTransaction(
   catch (error) { if (error instanceof MobileWalletError) throw error; inputFailure("transaction fee payer is missing"); }
   let authorized: Account;
   try { authorized = await authorizeSession(wallet as Web3MobileWallet); }
-  catch (error) { logFailure("mwa.authorize", error); const rejected = isUserRejection(error); throw new MobileWalletError("authorization", rejected ? "wallet authorization was rejected" : "wallet authorization failed", rejected); }
+  catch (error) { logFailure("mwa.authorize", error); const rejected = isUserRejection(error); throw new MobileWalletError("authorization", rejected ? "wallet authorization was rejected" : "wallet authorization failed", rejected, isStaleAuthorization(error)); }
   let authorizedKey: PublicKey;
   try {
     const candidate = authorized?.publicKey;
@@ -74,16 +75,20 @@ export async function authorizeAndSendTransaction(
 }
 
 export function useMobileWallet() {
-  const { authorizeSessionWithSignIn, authorizeSession, deauthorizeSession, clearAuthorization, walletPackage } = useAuthorization();
+  const { authorizeSessionWithSignIn, authorizeSession, deauthorizeSession, clearAuthorization, getCurrentAccount, walletPackage } = useAuthorization();
   // Every session after connect goes back to the wallet the user chose; a
   // Phantom-authorized account must never be sent to Seed Vault Wallet.
   // `walletPackage` is a native extension added by scripts/patch-mwa-wallet-package.mjs; the upstream type only knows baseUri.
-  const session = useCallback(async <T,>(pkg: string | null | undefined, run: (wallet: Web3MobileWallet) => Promise<T>): Promise<T> => await transact(run, associationConfigFor(pkg) as WalletAssociationConfig), []);
+  const session = useCallback(async <T,>(pkg: string | null | undefined, run: (wallet: Web3MobileWallet) => Promise<T>): Promise<T> => withWalletSession(() => transact(run, associationConfigFor(pkg) as WalletAssociationConfig)), []);
   /** Connect via a specific wallet app (see WALLET_OPTIONS); omit to let Android choose. */
   const connect = useCallback(async (targetPackage?: string): Promise<Account> => { const pkg = walletOptionByPackage(targetPackage)?.androidPackage ?? null; return session(pkg, async (wallet) => authorizeSession(wallet, pkg)); }, [authorizeSession, session]);
   const signIn = useCallback(async (signInPayload: SignInPayload): Promise<Account> => session(walletPackage, async (wallet) => authorizeSessionWithSignIn(wallet, signInPayload)), [authorizeSessionWithSignIn, session, walletPackage]);
   const disconnect = useCallback(async (): Promise<void> => { await session(walletPackage, async (wallet) => { await deauthorizeSession(wallet); }); }, [deauthorizeSession, session, walletPackage]);
   const signAndSendTransaction = useCallback(async (transaction: Transaction | VersionedTransaction, minContextSlot: number): Promise<TransactionSignature> => {
+    // A disconnected/switched account must not be re-authorized by an older
+    // create/stamp closure still finishing its asynchronous preparation.
+    const current = getCurrentAccount();
+    if (!current || !feePayerOf(transaction)?.equals(current.publicKey)) throw new MobileWalletError('authorization', 'Connect the wallet that started this request.');
     try { return await session(walletPackage, (wallet) => authorizeAndSendTransaction(wallet, (w) => authorizeSession(w), transaction, minContextSlot)); }
     catch (error) {
       // Drop the stale token so the next attempt re-authorizes against the wallet's current account.
@@ -91,7 +96,7 @@ export function useMobileWallet() {
       if (!(error instanceof MobileWalletError) && isUserRejection(error)) throw new MobileWalletError('wallet', 'wallet request was rejected', true);
       throw error;
     }
-  }, [authorizeSession, clearAuthorization, session, walletPackage]);
+  }, [authorizeSession, clearAuthorization, getCurrentAccount, session, walletPackage]);
   const signMessage = useCallback(async (message: Uint8Array): Promise<Uint8Array> => session(walletPackage, async (wallet) => { const authResult = await authorizeSession(wallet); const signedMessages = await wallet.signMessages({ addresses: [authResult.address], payloads: [message] }); return signedMessages[0]; }), [authorizeSession, session, walletPackage]);
   return useMemo(() => ({ connect, signIn, disconnect, signAndSendTransaction, signMessage, walletPackage }), [connect, signIn, disconnect, signAndSendTransaction, signMessage, walletPackage]);
 }

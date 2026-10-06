@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { useMobileWallet } from '../../utils/useMobileWallet'
@@ -18,9 +18,12 @@ export function WalletChoiceButtons({
 }) {
   const { connect } = useMobileWallet()
   const [busy, setBusy] = useState<string | null>(null)
+  const inFlight = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
   const choose = async (option: WalletOption) => {
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(option.id)
     setError(null)
     try {
@@ -29,6 +32,7 @@ export function WalletChoiceButtons({
     } catch (e) {
       setError(walletNotFound(e) ? `${option.label} is not installed on this phone.` : failureCopy)
     } finally {
+      inFlight.current = false
       setBusy(null)
     }
   }
