@@ -15,6 +15,7 @@ import { useConnection } from '../../utils/ConnectionProvider'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
 import { refreshWidget } from '../../widget/refreshWidget'
+import { useReminders } from '../../features/rituals/reminders/useReminders'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
 import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
@@ -77,6 +78,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const [pickedEventCount, setPickedEventCount] = useState<string | number | undefined>(undefined)
   // Demo speed (6.5-minute weeks) by default; Real weeks writes 7-day windows.
   const [speed, setSpeed] = useState<SoloSpeed>(DEFAULT_SOLO_SPEED)
+  const [remindWeekly, setRemindWeekly] = useState(true)
+  const { afterCreate: scheduleReminders } = useReminders()
   const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
   const [suggestionRound, setSuggestionRound] = useState(0)
@@ -243,11 +246,14 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       setConfirmedReadback(true)
       void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).then(() => refreshWidget([{ address: confirmedAddress, bundle: { ritual: read, slot: read.slot, event: null, claims: [] } }])).catch(() => undefined)
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
+      void scheduleReminders({ ritualAddress: confirmedAddress, schedule: read.account.schedule, ritualTitle: draft.title,
+        stakeLabel: formatAtomic(read.account.perEventAllocation, read.account.stakeDecimals), causeLabel: draft.destination === 'cause' ? DEMO_CAUSE.label : 'the person you picked',
+        enabled: speed === 'real' && remindWeekly })
     }).catch(() => {
       if (active) setReadbackError('Your ritual was sent, but it is not ready to show yet. Keep this screen open and try again.')
     })
     return () => { active = false }
-  }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title])
+  }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title, draft.destination, speed, remindWeekly, scheduleReminders])
 
   const advance = () => {
     const creator = selectedAccount?.publicKey
@@ -376,6 +382,13 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
                 return <Pressable key={option.speed} onPress={() => setSpeed(option.speed)} disabled={locked} accessibilityRole="button" accessibilityState={{ selected: chosen, disabled: locked }} accessibilityLabel={option.accessibilityLabel} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, locked && styles.stepButtonOff, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{option.label}</Text></Pressable>
               })}
             </View>
+            {speed === 'real' && (
+              <View style={styles.presets}>
+                <Pressable onPress={() => setRemindWeekly((value) => !value)} disabled={create.isBusy} accessibilityRole="switch" accessibilityState={{ checked: remindWeekly, disabled: create.isBusy }} accessibilityLabel="Remind me each week" style={({ pressed }) => [styles.preset, remindWeekly && styles.presetChosen, pressed && styles.pressed]}>
+                  <Text style={[styles.presetText, remindWeekly && styles.presetTextChosen]}>{remindWeekly ? '✓ ' : ''}Remind me each week</Text>
+                </Pressable>
+              </View>
+            )}
             <View style={styles.divider} />
             <Text style={styles.label}>STAKE EACH WEEK</Text>
             <View style={styles.amountBox}>
