@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { COMING_SOON_LINE, SCOPE, SOLO_ONLY, scopeFor } from './productScope'
+import { SCOPE, SOLO_ONLY, scopeFor } from './productScope'
 import { DEMO_SOLO_CADENCE, REAL_SOLO_CADENCE } from '../../domain/rituals/schedule'
 import { DEFAULT_SOLO_SPEED, SOLO_SPEEDS, soloCadenceFor } from './solo/create/schedule'
 
@@ -30,10 +30,8 @@ describe('single-blade fold (solo only)', () => {
     gatedLine(home, '<SeasonsSection', 'SCOPE.seasons')
     // No Season read at all when Seasons are hidden.
     expect(home).toMatch(/!SCOPE\.seasons \|\| DEMO_SEASON\.address === null/)
-    // Coming soon is plain text, never a button.
-    expect(home).toContain('{COMING_SOON_LINE}')
-    expect(home).not.toMatch(/label=\{COMING_SOON_LINE\}/)
-    expect(COMING_SOON_LINE).toBe('With friends: coming soon.')
+    expect(home).not.toContain('COMING_SOON_LINE')
+    expect(home).not.toContain('With friends: coming soon.')
   })
 
   it('Create hides witness, friends, proof chooser and the Season param (the destination choice is shown: Jack, 2026-10-06)', () => {

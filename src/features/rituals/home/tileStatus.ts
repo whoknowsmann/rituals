@@ -1,6 +1,14 @@
-import type { SoloRitualUiState } from '../solo/lifecycle/soloRitualModel'
+import type { SoloRitualModel, SoloRitualUiState } from '../solo/lifecycle/soloRitualModel'
+import { weekOpensLabel } from '../displayFormat'
 
 export type TileStatus = Readonly<{ text: string; act: boolean }>
+
+/** A stamped week is not kept until it settles. Replace the pending count with its close time. */
+export function stampedWeekClosingLabel(model: Pick<SoloRitualModel, 'showedUp' | 'settleOpensAt' | 'demoSpeedNotice'>, chainNow: number): string | null {
+  if (!model.showedUp || model.settleOpensAt === null) return null
+  return chainNow >= model.settleOpensAt ? 'Closing…'
+    : `Week closes ${weekOpensLabel(model.settleOpensAt, chainNow, model.demoSpeedNotice !== null)}`
+}
 
 /**
  * The one line at the bottom of a Home tile: what this ritual wants from you

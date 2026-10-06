@@ -5,6 +5,12 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'RitualsHomeScreen.tsx'), 'utf8')
 
 describe('RitualsHomeScreen safety and accessibility structure', () => {
+  it('drops coming soon and gives stamped tiles a closing-time summary', () => {
+    expect(source).not.toContain('COMING_SOON_LINE')
+    expect(source).toContain('stampedWeekClosingLabel(model, now)')
+    expect(source).toContain('summaryLabel={closingLine ?? undefined}')
+    expect(source).toContain('closingLine ?? weekSummary(cells)')
+  })
   it('renders fixture disclosure while loading and after errors', () => {
     expect(source).toContain('view.disclosure')
     expect(source).toContain('accessibilityLiveRegion="polite"')

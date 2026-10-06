@@ -71,9 +71,9 @@ export { type WeekCell, weekCellLabel, weekSummary, weekSummaryShort } from './w
  * The punch card. Full: one cell per week (✓ kept, ✕ missed, NOW, numbers to
  * come) with a summary line under it. Compact (Home tiles): small dots + line.
  */
-export function WeekStrip({ cells, tint, compact = false, summary = true, onClosedWeekPress }: { cells: readonly WeekCell[]; tint: string; compact?: boolean; summary?: boolean; onClosedWeekPress?: (eventIndex: number) => void }) {
+export function WeekStrip({ cells, tint, compact = false, summary = true, summaryLabel, onClosedWeekPress }: { cells: readonly WeekCell[]; tint: string; compact?: boolean; summary?: boolean; summaryLabel?: string; onClosedWeekPress?: (eventIndex: number) => void }) {
   const s = useS()
-  const line = compact ? weekSummaryShort(cells) : weekSummary(cells)
+  const line = summaryLabel ?? (compact ? weekSummaryShort(cells) : weekSummary(cells))
   return (
     <View accessibilityLabel={line}>
       <View style={[s.strip, compact && s.stripCompact]}>
@@ -86,7 +86,7 @@ export function WeekStrip({ cells, tint, compact = false, summary = true, onClos
             : <View key={i} style={cellStyle}>{label}</View>
         })}
       </View>
-      {summary && <Text style={[s.stripSummary, compact && s.stripSummaryCompact]} numberOfLines={1}>{line}</Text>}
+      {summary && <Text style={[s.stripSummary, compact && s.stripSummaryCompact]} numberOfLines={summaryLabel ? undefined : 1}>{line}</Text>}
     </View>
   )
 }
