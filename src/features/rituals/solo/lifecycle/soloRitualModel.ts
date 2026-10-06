@@ -3,11 +3,11 @@ import { DEMO_CAUSE, DEMO_CAUSES } from '../../../../data/rituals/demoConfig'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { demoWeekMinutesLabel, isDemoSpeedWindow } from '../../../../domain/rituals/schedule'
 import { shortRosterAddress } from '../../create/roster'
-import { weekOpensLabel } from '../../displayFormat'
+import { stampTimeLeftLabel, weekOpensLabel } from '../../displayFormat'
 import { currentWeekCell } from '../../../../components/crew/weekStripLogic'
 
 export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' | 'claimable' | 'awaiting-witness' | 'closing' | 'resolving/settle' | 'skipped' | 'missed' | 'completed'
-export type SoloWeekCell = 'done' | 'missed' | 'now' | 'current' | 'future'
+export type SoloWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'current' | 'future'
 
 /**
  * A current bundle plus bounded historical bundles. Historical reads are kept
@@ -21,6 +21,7 @@ export type SoloRitualModel = Readonly<{
   weekCells: readonly SoloWeekCell[]
   canSkip: boolean
   nextOpensLabel: string | null
+  stampTimeLeftLabel: string | null
   destinationLabel: string
   destinationAddress: PublicKey
   witnessLabel: string | null
@@ -50,11 +51,11 @@ const terminal = (value: RitualBundleRead): boolean => Boolean(value.event && (v
 const eventIndexOf = (value: RitualBundleRead): number => value.event?.account.eventIndex ?? -1
 const short = (value: PublicKey): string => shortRosterAddress(value.toBase58())
 
-export function labelSoloDestination(destination: PublicKey, causeTokenAccount: PublicKey | null = DEMO_CAUSE.tokenAccount): string {
+export function labelSoloDestination(destination: PublicKey, causeTokenAccount: PublicKey | null = DEMO_CAUSE.tokenAccount, owner: PublicKey | null = null): string {
   if (causeTokenAccount && destination.equals(causeTokenAccount)) return DEMO_CAUSE.label
   const cause = DEMO_CAUSES.find((entry) => entry.tokenAccount?.equals(destination))
   if (cause) return cause.label
-  return `the wallet you chose · ${short(destination)}`
+  return owner ? `the wallet you chose · ${short(owner)}` : 'the wallet you chose'
 }
 
 /** Demo-speed disclosure from the schedule alone (DESIGN.md rule 5); nothing for real weeks. */
@@ -96,7 +97,9 @@ function weekCells(bundle: SoloRitualBundle, now: number): readonly SoloWeekCell
     const outcome = outcomeOf({ event: historical.event, claims: historical.claims }, account.members[0] ?? null)
     if (outcome) byIndex.set(historical.event.account.eventIndex, outcome === 'missed' ? 'missed' : 'done')
   }
-  return Object.freeze(account.schedule.map((window, index) => byIndex.get(index) ?? (index === account.currentEventIndex && account.status === 'Active' ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'future')))
+  return Object.freeze(account.schedule.map((window, index) => byIndex.get(index)
+    ?? (index < account.currentEventIndex || account.status === 'Completed' ? 'closed'
+      : index === account.currentEventIndex && account.status === 'Active' ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'future')))
 }
 
 function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null): { state: SoloRitualUiState; showedUp: boolean; claimStatus: SoloRitualModel['claimStatus']; message: string } {
@@ -143,7 +146,7 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
   return { state: 'claimable', showedUp: mine?.status === 'Confirmed', claimStatus, message: mine?.status === 'Confirmed' ? 'You showed up.' : 'This week is open.' }
 }
 
-export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: PublicKey | null): SoloRitualModel {
+export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: PublicKey | null, destinationOwner: PublicKey | null = null): SoloRitualModel {
   const account = bundle.ritual.account
   const schedule = account.schedule[account.currentEventIndex]
   const mapped = modelState(bundle, now, me)
@@ -154,8 +157,11 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
     eventIndex: account.currentEventIndex,
     weekCells: weekCells(bundle, now),
     canSkip,
-    nextOpensLabel: schedule ? weekOpensLabel(Number(schedule.opens), now) : null,
-    destinationLabel: labelSoloDestination(account.forfeitDestination),
+    nextOpensLabel: account.status === 'Active' && schedule && now < Number(schedule.opens)
+      ? weekOpensLabel(Number(schedule.opens), now, isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline))) : null,
+    stampTimeLeftLabel: schedule && !mapped.showedUp && (mapped.state === 'claimable' || mapped.state === 'open-not-initialized')
+      ? stampTimeLeftLabel(Number(schedule.deadline), now, isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline))) : null,
+    destinationLabel: labelSoloDestination(account.forfeitDestination, undefined, destinationOwner),
     destinationAddress: account.forfeitDestination,
     witnessLabel: witness,
     amount: account.perEventAllocation,

@@ -5,6 +5,30 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloCreateScreen.tsx'), 'utf8')
 
 describe('SoloCreateScreen transaction and commitment wiring', () => {
+  it('keeps wallet validation quiet until typing or attempting to lock, without an empty error row', () => {
+    expect(source).toContain('const visiblePersonError = personTouched || triedCreate ? personError : null')
+    expect(source).toContain('setPersonTouched(true)')
+    expect(source).toContain('{visiblePersonError && <ErrorLine>{visiblePersonError}</ErrorLine>}')
+    expect(source).toContain('setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start()')
+    expect(source).not.toContain('|| stepThreeErrors.length > 0 ||')
+    expect(source).not.toContain('validatePersonError(')
+    expect(source).toMatch(/draft.destination === 'person' && \([\s\S]*?Needs a tSKR account; Get test tokens creates one\./)
+  })
+  it('labels the total stake, rounding and one weekly action concretely', () => {
+    expect(source).toContain('>TOTAL STAKE</Text>')
+    expect(source).toContain('placeholder="Go for a run"')
+    expect(source).toContain('Locks ${formatAtomic(stakeSplit.split.lockedAtomic, 6)} after rounding.')
+    expect(source).not.toContain('Splits evenly to')
+  })
+  it('offers the existing wallet chooser inline and refreshes balance on focus and after a faucet send', () => {
+    expect(source).toContain('step === 3 && !selectedAccount && <View>')
+    expect(source).toContain('<WalletChoiceButtons')
+    expect(source).not.toContain('Connect your wallet to start this ritual.')
+    expect(source).toContain('useFocusEffect(useCallback(() => {')
+    expect(source).toContain('[client, connection, selectedAccount, balanceTick]))')
+    expect(source).toContain('setTimeout(() => setBalanceTick((value) => value + 1), 4000)')
+    expect(source).not.toContain("faucet.status !== 'done'")
+  })
   it('only explains the wallet handoff while the wallet is opening', () => {
     expect(source).not.toContain('walletHandoffNote(')
     expect(source).toContain('withWalletHandoff(')
@@ -13,7 +37,8 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
   it('advances from a typed promise and shows step errors on every step, not only step 3', () => {
     expect(source).toContain('applyTypedIntention(')
     const errorLines = source.match(/stepErrors\.map\(/g) ?? []
-    expect(errorLines.length).toBeGreaterThanOrEqual(3)
+    expect(errorLines.length).toBeGreaterThanOrEqual(2)
+    expect(source).toContain('stepThreeErrors.filter((error) => error !== personError)')
   })
 
   it('does not describe solo suggestions as friend-confirmed (the group shape label says "a friend confirms")', () => {
@@ -33,16 +58,17 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).not.toContain('Missed weeks go to')
     for (const removed of ['YOUR RITUAL', 'LOCKED BEFORE YOU START', 'If I miss, it goes to', 'One declared skip', 'formatSol(', 'styles.promiseCard']) expect(source).not.toContain(removed)
     expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\) && <Text[^\n]*You have/)
-    expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\)[^\n]*Get test tokens/)
+    expect(source).toMatch(/selectedAccount && \(testBalance === null \|\| shortOfTest \|\| testBalance === 0n\)[^\n]*Get test tokens/)
     expect(source).toContain('testBalance < neededAtomic')
-    expect(source).toContain('stepThreeErrors.filter((error) => !stepErrors.includes(error))')
+    expect(source).toContain('stepThreeErrors.filter((error) => error !== personError)')
     expect(source).toContain('causeUnavailable && <ErrorLine>')
     expect(source).toContain('Not enough tSKR: this needs')
   })
 
-  it('says "Lock it in" / "Locked in." (Jack, 2026-10-04)', () => {
+  it('keeps "Lock it in" but drops the separate "Locked in." stop', () => {
     expect(source).toContain("'Lock it in'")
-    expect(source).toContain('>Locked in.</Hero>')
+    expect(source).not.toContain('>Locked in.</Hero>')
+    expect(source).not.toContain('See your ritual')
   })
 
   it('lets the user set the length (1–16 weeks) and ONE total stake, split across the weeks (typed or quick picks)', () => {
@@ -56,17 +82,18 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
 
   it('journals the one-approval solo create so a killed app can recover it', () => {
     expect(source).toContain('pendingActionStore: asyncStoragePendingActionStore')
+    expect(source).toContain("destinationOwner: draft.destination === 'person' ? draft.personAddress : undefined")
   })
 
   it('uses the atomic solo create, fund, and activate preparation', () => {
     expect(source).toContain('prepareCreateSoloFundAndActivate')
   })
 
-  it('shows the promise stamp only after confirmed readback and remembers the ritual', () => {
-    expect(source).toContain('<Stamp kind="promise"')
+  it('replaces create only after confirmed readback and remembers the ritual', () => {
+    expect(source).toContain('if (!createComplete || !confirmedReadback || !confirmedAddress || openedRitual.current) return')
     expect(source).toContain('rememberRitual(')
     expect(source).toContain('saveProofMode(')
-    expect(source).toContain("navigation.navigate('SoloRitual'")
+    expect(source).toContain("navigation.replace('SoloRitual', { ritualId: confirmedAddress })")
   })
 
   it('keeps a picked suggestion visibly selected and clears it when typing changes', () => {

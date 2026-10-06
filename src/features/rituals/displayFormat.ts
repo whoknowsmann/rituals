@@ -19,15 +19,25 @@ export function weekIsOpen(opensSeconds: number, nowSeconds: number): boolean {
   return nowSeconds >= opensSeconds
 }
 
-/** "in 2 min" within the hour (demo speed), otherwise "Sat, Oct 3 · 3:45 PM" in device-local time. */
-export function weekOpensLabel(opensSeconds: number, nowSeconds: number): string {
+/** Demo countdowns tick in seconds; real weeks retain their day/time labels. */
+export function weekOpensLabel(opensSeconds: number, nowSeconds: number, demoSpeed = false): string {
   const delta = opensSeconds - nowSeconds
   if (delta <= 0) return 'now'
-  if (delta < 60) return 'in under a minute'
+  if (demoSpeed || delta < 60) return `in ${Math.ceil(delta)}s`
   if (delta < 3600) return `in ${Math.round(delta / 60)} min`
   const d = new Date(opensSeconds * 1000)
   const h24 = d.getHours()
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12
   const mm = String(d.getMinutes()).padStart(2, '0')
   return `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()} · ${h12}:${mm} ${h24 < 12 ? 'AM' : 'PM'}`
+}
+
+/** The caller supplies the same chain time used to decide whether HOLD is open. */
+export function stampTimeLeftLabel(deadlineSeconds: number, nowSeconds: number, demoSpeed: boolean): string {
+  const seconds = Math.max(0, Math.ceil(deadlineSeconds - nowSeconds))
+  if (demoSpeed || seconds < 60) return `${seconds}s left`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min left`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h left`
+  const days = Math.floor(seconds / 86400)
+  return `${days} ${days === 1 ? 'day' : 'days'} left`
 }

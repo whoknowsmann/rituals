@@ -19,9 +19,9 @@ import { readSeason } from '../features/rituals/solo/season/readSeason'
 import { seasonStatusForError } from '../features/rituals/solo/season/seasonState'
 import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/solo/season/seasonViewModel'
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
-import { COMING_SOON_LINE, SCOPE } from '../features/rituals/productScope'
+import { SCOPE } from '../features/rituals/productScope'
 import { readSoloWeekOutcomes, soloHomeCells } from '../features/rituals/home/soloHistory'
-import { tileStatus } from '../features/rituals/home/tileStatus'
+import { stampedWeekClosingLabel, tileStatus } from '../features/rituals/home/tileStatus'
 import { soloRitualModel } from '../features/rituals/solo/lifecycle/soloRitualModel'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
 import { PublicKey } from '@solana/web3.js'
@@ -134,7 +134,7 @@ export function RitualsHomeScreen() {
     {SCOPE.seasons && <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={load} onOpen={() => {
       if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
     }} styles={styles} />}
-    {!SCOPE.homeFriends && !SCOPE.seasons && <Text style={styles.comingSoon}>{COMING_SOON_LINE}</Text>}
+
     <Footnote>{disclosure}</Footnote>
   </ScrollView>
 }
@@ -192,13 +192,15 @@ function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { 
     ? soloHomeCells(account, outcomes, now)
     : weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
   // The solo creator is the only member, so the model can tell "stamped".
+  const model = account.kind === 'Solo' && now !== null ? soloRitualModel(ritual.bundle, now, account.members[0] ?? null) : null
   const status = account.kind === 'Solo'
-    ? now === null ? { text: 'Checking time…', act: false } : tileStatus(soloRitualModel(ritual.bundle, now, account.members[0] ?? null))
+    ? model ? tileStatus(model) : { text: 'Checking time…', act: false }
     : { text: statusLabel(account.status), act: false }
+  const closingLine = model && now !== null ? stampedWeekClosingLabel(model, now) : null
   return <Pressable
     onPress={onPress}
     accessibilityRole="button"
-    accessibilityLabel={`${ritual.title}. ${status.text}. ${weekSummary(cells)}. ${formatAtomic(account.perEventAllocation, account.stakeDecimals)} a week.`}
+    accessibilityLabel={`${ritual.title}. ${status.text}. ${closingLine ?? weekSummary(cells)}. ${formatAtomic(account.perEventAllocation, account.stakeDecimals)} a week.`}
     style={({ pressed }) => [styles.tile, { width, backgroundColor: tint }, pressed && styles.tilePressed]}
   >
     <View style={styles.tileOrb} />
@@ -207,7 +209,7 @@ function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { 
       <Text style={styles.tileTitle} numberOfLines={3}>{ritual.title}</Text>
     </View>
     <View style={styles.tileFoot}>
-      <WeekStrip cells={cells} tint={tint} compact />
+      <WeekStrip cells={cells} tint={tint} compact summaryLabel={closingLine ?? undefined} />
       <View style={[styles.tilePill, status.act && styles.tilePillAct]}><Text style={[styles.tilePillText, status.act && styles.tilePillActText]} numberOfLines={1}>{status.text}</Text></View>
     </View>
   </Pressable>
@@ -257,7 +259,7 @@ const makeStyles = (theme: MD3Theme, color: Palette) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.md, backgroundColor: theme.colors.background },
   seasonError: { gap: space.sm, alignItems: 'center' },
   muted: { ...type.body, color: color.muted, textAlign: 'center' },
-  comingSoon: { ...type.caption, color: color.muted, textAlign: 'center', marginTop: space.xl },
+
   errorTitle: { ...type.section, color: color.fg, textAlign: 'center' },
   disclosure: { ...type.caption, color: color.faint, textAlign: 'center', marginVertical: space.md },
 })

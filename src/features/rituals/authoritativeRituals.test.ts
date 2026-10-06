@@ -13,6 +13,18 @@ const ritual = (byte: number): KnownRitual => ({ address: key(byte), title: `r${
 const bundle = { ritual: { account: {} } } as unknown as RitualBundleRead
 
 describe('readKnownRitualBundles (home screen list)', () => {
+  it('persists the typed destination owner per ritual and keeps it through recovery remembers', async () => {
+    let stored: string | null = null
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async () => stored)
+    vi.mocked(AsyncStorage.setItem).mockImplementation(async (_key, value) => { stored = value })
+    await rememberRitual({ ...ritual(1), destinationOwner: key(9) })
+    await rememberRitual(ritual(2))
+    await rememberRitual(ritual(1))
+    expect((await listKnownRituals()).find((item) => item.address === key(1))?.destinationOwner).toBe(key(9))
+    expect((await listKnownRituals()).find((item) => item.address === key(2))?.destinationOwner).toBeUndefined()
+    stored = JSON.stringify([{ ...ritual(3), destinationOwner: 'invalid' }])
+    expect(await listKnownRituals()).toEqual([ritual(3)])
+  })
   it('bounds reads on a large Home while preserving order', async () => {
     let active = 0; let peak = 0
     const known = Array.from({ length: 20 }, (_, i) => ritual(i + 1))

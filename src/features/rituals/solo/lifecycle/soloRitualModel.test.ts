@@ -28,6 +28,17 @@ const event = (overrides: Record<string, unknown> = {}) => ({ account: {
 const claim = (status: 'Pending' | 'Confirmed' | 'Questioned') => ({ member: me, account: { status } })
 
 describe('soloRitualModel', () => {
+  it('counts from chain windows and stops displaying stamp time outside an unstamped open week', () => {
+    expect(soloRitualModel(bundle(), 68, me).nextOpensLabel).toBe('in 32s')
+    expect(soloRitualModel(bundle(), 69, me).nextOpensLabel).toBe('in 31s')
+    expect(soloRitualModel(bundle(), 99, me).stampTimeLeftLabel).toBeNull()
+    expect(soloRitualModel(bundle(), 168, me).stampTimeLeftLabel).toBe('32s left')
+    expect(soloRitualModel(bundle({}, event()), 169, me).stampTimeLeftLabel).toBe('31s left')
+    expect(soloRitualModel(bundle(), 200, me).stampTimeLeftLabel).toBe('0s left')
+    expect(soloRitualModel(bundle(), 201, me).stampTimeLeftLabel).toBeNull()
+    expect(soloRitualModel(bundle({}, event(), [claim('Confirmed')]), 168, me).stampTimeLeftLabel).toBeNull()
+    expect(soloRitualModel(bundle({ status: 'Completed' }), 168, me).stampTimeLeftLabel).toBeNull()
+  })
   it('re-arms HOLD after each confirmed week advances, never for an uncertain send or stale read', () => {
     const confirmed: LifecycleState = { status: 'confirmed', ritualAddress: address.toBase58(), result: { signature: 's', messageDigest: 'd' } }
     for (let index = 0; index < 4; index++) {
@@ -96,6 +107,11 @@ describe('soloRitualModel', () => {
       expect(weekCellLabel(model.weekCells[0], 0)).toBe(label)
       expect(model.weekCells[1]).toBe('future')
     }
+  })
+
+  it('keeps receipts reachable when historical outcome reads are unavailable', () => {
+    expect(soloRitualModel(bundle({ currentEventIndex: 1 }), 450, me).weekCells).toEqual(['closed', 'now'])
+    expect(soloRitualModel(bundle({ status: 'Completed', currentEventIndex: 2 }), 700, me).weekCells).toEqual(['closed', 'closed'])
   })
 
   it('labels the demo cause only for the exact configured destination', () => {

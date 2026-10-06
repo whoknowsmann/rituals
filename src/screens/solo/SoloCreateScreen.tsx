@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useIsFocused, useNavigation } from '@react-navigation/native'
+import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import { PublicKey } from '@solana/web3.js'
 import { decodeSeason, type SeasonAccountView } from '../../data/rituals/accounts'
@@ -22,7 +22,8 @@ import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
-import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
+import { ActionButton, ErrorLine, Footnote, Hero, Section } from '../../components/crew'
+import { WalletChoiceButtons } from '../../components/wallet/WalletChoiceButtons'
 import { radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
 import { splitTotalStake, atomicDecimalText } from '../../features/rituals/solo/create/stakeSplit'
@@ -33,15 +34,15 @@ import { SCOPE } from '../../features/rituals/productScope'
 import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
 import { settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
 import { DEMO_CLOCK_WARNING } from '../../features/rituals/solo/settler/settlementVisibility'
-import { startedSaying } from '../../features/rituals/solo/sayings'
+
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee, type FeeConfig } from '../../domain/rituals/money'
 import { RITUAL_FEE_CONFIG } from '../../features/rituals/create/draftForm'
 import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
-  SOLO_CREATE_MESSAGES,
   applyTypedIntention,
   publicKeyFromCanonical,
+  validatePersonDestination,
   validateSoloCreateStep,
   validateWitnessAddress,
   type SoloCreateDraft,
@@ -88,9 +89,11 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const { afterCreate: scheduleReminders } = useReminders()
   const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
+  const [personTouched, setPersonTouched] = useState(false)
+  const [triedCreate, setTriedCreate] = useState(false)
   const [suggestionRound, setSuggestionRound] = useState(0)
   const [confirmedReadback, setConfirmedReadback] = useState(false)
-  // This screen stays mounted under the ritual; client/auth identities change.
+  // Client/auth identities can change during readback; keep local writes one-shot.
   const handledCreateAddresses = useRef(new Set<string>())
   const [readbackError, setReadbackError] = useState<string | null>(null)
   const [readbackAttempt, setReadbackAttempt] = useState(0)
@@ -145,6 +148,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   useEffect(() => {
     const owner = draft.destination === 'person' ? publicKeyFromCanonical(draft.personAddress) : null
     if (!owner || client.status !== 'ready') { setPersonAccount('unknown'); return }
+    setPersonAccount('unknown')
     let active = true
     void client.client.getProtocolConfig().then(async (config) => {
       const ata = getAssociatedTokenAddressSync(config.account.allowedStakeMint, owner)
@@ -153,12 +157,17 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     }).catch(() => { if (active) setPersonAccount('unknown') })
     return () => { active = false }
   }, [client, connection, draft.destination, draft.personAddress])
+  const personError = draft.destination === 'person'
+    ? validatePersonDestination(draft.personAddress, selectedAccount?.publicKey ?? PublicKey.default, witnessKey)
+      ?? (personAccount === 'missing' ? 'That wallet has no tSKR account yet.' : null)
+    : null
+  const visiblePersonError = personTouched || triedCreate ? personError : null
   const stepThreeErrors = useMemo(() => {
     const errors = [...validateSoloCreateStep(3, stakeDraft, selectedAccount?.publicKey)]
     if (!stakeSplit.ok && stakeSplit.reason === 'too-small') errors.unshift(`Too small to split over ${weekCount} ${weekCount === 1 ? 'week' : 'weeks'}.`)
-    if (stakeDraft.destination === 'person' && personAccount === 'missing') errors.push("That wallet has no tSKR account yet, so it can't receive a missed week. Pick a cause, or have them tap Get test tokens once.")
+    if (personError && !errors.includes(personError)) errors.push(personError)
     return errors
-  }, [stakeDraft, selectedAccount, stakeSplit.ok, weekCount, personAccount])
+  }, [stakeDraft, selectedAccount, stakeSplit.ok, weekCount, personError])
   const totalStakeLabel = (() => {
     return stakeSplit.ok ? formatAtomic(stakeSplit.split.lockedAtomic, 6) : '—'
   })()
@@ -193,8 +202,14 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const [testBalance, setTestBalance] = useState<bigint | null>(null)
   const [balanceTick, setBalanceTick] = useState(0)
   // "Get test tokens": the faucet pays; after a send the balance line re-reads a few seconds later.
-  const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, () => { setTimeout(() => setBalanceTick((value) => value + 1), 4000) })
-  useEffect(() => {
+  const balanceRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (balanceRefreshTimer.current) clearTimeout(balanceRefreshTimer.current) }, [])
+  const onFaucetSent = useCallback(() => {
+    if (balanceRefreshTimer.current) clearTimeout(balanceRefreshTimer.current)
+    balanceRefreshTimer.current = setTimeout(() => setBalanceTick((value) => value + 1), 4000)
+  }, [])
+  const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, onFaucetSent)
+  useFocusEffect(useCallback(() => {
     if (client.status !== 'ready' || !selectedAccount) { setTestBalance(null); return }
     let active = true
     void client.client.getProtocolConfig().then(async (config) => {
@@ -207,7 +222,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       if (active) setTestBalance(balance)
     }).catch(() => { if (active) setTestBalance(null) }) // unknown: never block on a failed read
     return () => { active = false }
-  }, [client, connection, selectedAccount, balanceTick])
+  }, [client, connection, selectedAccount, balanceTick]))
   const shortOfTest = testBalance !== null && neededAtomic !== null && testBalance < neededAtomic
 
   const makeDeps = useCallback(() => {
@@ -243,7 +258,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
       pendingActionStore: asyncStoragePendingActionStore,
       rememberBeforeSend: async (address) => {
-        await rememberRitual({ address, title: draft.title, requirement: draft.requirement })
+        await rememberRitual({ address, title: draft.title, requirement: draft.requirement, destinationOwner: draft.destination === 'person' ? draft.personAddress : undefined })
         await saveProofMode(address, draft.proofMode)
       },
     })
@@ -303,6 +318,14 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     return () => { active = false }
   }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title, draft.destination, speed, remindWeekly, scheduleReminders, readbackAttempt])
 
+  // The chain clock keeps running: never require another tap after confirmation.
+  const openedRitual = useRef(false)
+  useEffect(() => {
+    if (!createComplete || !confirmedReadback || !confirmedAddress || openedRitual.current) return
+    openedRitual.current = true
+    navigation.replace('SoloRitual', { ritualId: confirmedAddress })
+  }, [createComplete, confirmedReadback, confirmedAddress, navigation])
+
   const advance = () => {
     const creator = selectedAccount?.publicKey
     const current = step === 1 ? applyTypedIntention(draft) : draft
@@ -328,19 +351,6 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   }
 
   // buildSoloCreateDeps invokes client.prepareCreateSoloFundAndActivate for this single approval.
-  if (createComplete && confirmedReadback) {
-    return (
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <Hero kicker="Ritual started">Locked in.</Hero>
-        <View style={styles.confirmedCard}>
-          <Stamp kind="promise" note={startedSaying(confirmedAddress ?? '')} />
-        </View>
-        <ActionButton label="See your ritual" onPress={() => navigation.navigate('SoloRitual', { ritualId: confirmedAddress! })} accessibilityLabel="See your ritual" />
-        <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
-      </ScrollView>
-    )
-  }
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.progress} accessibilityLabel={`New ritual, step ${stepPosition.position} of ${stepPosition.total}`}>
@@ -359,7 +369,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               setSelectedSuggestionKey(null)
               setStepErrors([])
             }}
-            placeholder="Run three times a week"
+            placeholder="Go for a run"
             placeholderTextColor={color.faint}
             autoCapitalize="sentences"
             maxLength={120}
@@ -438,7 +448,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               </View>
             )}
             <View style={styles.divider} />
-            <Text style={styles.label}>STAKE</Text>
+            <Text style={styles.label}>TOTAL STAKE</Text>
             <View style={styles.amountBox}>
               <TextInput value={stakeTotal} onChangeText={setStakeTotal} keyboardType="decimal-pad" selectTextOnFocus style={styles.stakeInput} accessibilityLabel="Total stake" />
               <Text style={styles.money}>tSKR</Text>
@@ -450,9 +460,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               })}
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
-            {stakeSplit.ok && !stakeSplit.split.exact && <Text style={styles.quiet}>{`Splits evenly to ${formatAtomic(stakeSplit.split.lockedAtomic, 6)}.`}</Text>}
+            {stakeSplit.ok && !stakeSplit.split.exact && <Text style={styles.quiet}>{`Locks ${formatAtomic(stakeSplit.split.lockedAtomic, 6)} after rounding.`}</Text>}
             {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
-            {testBalance !== null && (shortOfTest || testBalance === 0n) && faucet.status !== 'done' && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
+            {selectedAccount && (testBalance === null || shortOfTest || testBalance === 0n) && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
             {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
             {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</ErrorLine>}
           </View>
@@ -464,15 +474,15 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           <OptionRow selected={draft.destination === 'person'} disabled={create.isBusy} title="A wallet you choose" onPress={() => setDraft((current) => ({ ...current, destination: 'person' }))} />
           {draft.destination === 'person' && (
             <View style={styles.indentedField}>
-              <TextInput value={draft.personAddress} onChangeText={(value) => setDraft((current) => ({ ...current, personAddress: value.trim() }))} placeholder="Paste a wallet address" placeholderTextColor={color.faint} autoCapitalize="none" autoCorrect={false} style={styles.input} accessibilityLabel="Wallet address for missed weeks" />
-              {selectedAccount && draft.personAddress.length > 0 && <ErrorLine>{validatePersonError(draft.personAddress, selectedAccount.publicKey, witnessKey)}</ErrorLine>}
+              <Text style={styles.quiet}>Needs a tSKR account; Get test tokens creates one.</Text>
+              <TextInput value={draft.personAddress} onChangeText={(value) => { setPersonTouched(true); setPersonAccount('unknown'); setDraft((current) => ({ ...current, personAddress: value.trim() })) }} editable={!create.isBusy} placeholder="Paste a wallet address" placeholderTextColor={color.faint} autoCapitalize="none" autoCorrect={false} style={styles.input} accessibilityLabel="Wallet address for missed weeks" />
+              {visiblePersonError && <ErrorLine>{visiblePersonError}</ErrorLine>}
             </View>
           )}
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
           {client.status !== 'ready' && <ErrorLine>{client.reason}</ErrorLine>}
           {causeUnavailable && <ErrorLine>This cause is unavailable. Try again later.</ErrorLine>}
-          {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
-          {stepThreeErrors.filter((error) => !stepErrors.includes(error)).map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
+          {stepThreeErrors.filter((error) => error !== personError).map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
           {create.state.status === 'error' && createCopy.tone === 'neutral' && <Text style={styles.quiet} accessibilityLiveRegion="polite">{createCopy.body}</Text>}
           {create.state.status !== 'idle' && !createComplete && createCopy.tone !== 'neutral' && (
             <View style={styles.status} accessibilityLabel="Create status">
@@ -490,21 +500,17 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           {confirmedAddress && readbackError && <ActionButton tone="quiet" label="Check your ritual again" onPress={() => setReadbackAttempt((value) => value + 1)} />}
           {!createComplete && speed === 'demo' && <Text style={styles.quiet}>{DEMO_CLOCK_WARNING}</Text>}
           {!createComplete && (
-            <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
+            <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}
 
         </>
       )}
-      {!selectedAccount && <Text style={styles.quiet}>Connect your wallet to start this ritual.</Text>}
+      {step === 3 && !selectedAccount && <View><Text style={styles.quiet}>Set your wallet to Devnet.</Text><WalletChoiceButtons failureCopy="Connection not completed. Try again." /></View>}
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }
 
-function validatePersonError(address: string, creator: PublicKey, witness: PublicKey | null): string {
-  const errors = validateSoloCreateStep(3, { ...initialDraft, destination: 'person', personAddress: address, witnessMode: witness ? 'one-witness' : 'just-me', witnessAddress: witness?.toBase58() ?? '' }, creator)
-  return errors.find((error) => error !== SOLO_CREATE_MESSAGES.stakeRequired) ?? ''
-}
 
 function OptionRow({ selected, disabled, title, detail, onPress }: { selected: boolean; disabled?: boolean; title: string; detail?: string; onPress: () => void }) { const styles = useStyles();
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ selected, disabled }} style={[styles.option, selected && styles.optionSelected, disabled && styles.optionDisabled]}><View style={[styles.radio, selected && styles.radioSelected]} /><View style={styles.optionCopy}><Text style={styles.optionTitle}>{title}</Text>{detail ? <Text style={styles.optionDetail}>{detail}</Text> : null}</View></Pressable>
@@ -563,7 +569,7 @@ const useStyles = themedStyles((color) => StyleSheet.create({
   quiet: { ...type.caption, color: color.muted },
   status: { backgroundColor: color.card, borderRadius: radius.lg, borderColor: color.line, borderWidth: 1, padding: space.lg, gap: space.xs },
   statusTitle: { ...type.heading, color: color.fg },
-  confirmedCard: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.xl },
+
   devnetCard: { backgroundColor: color.card, borderColor: color.goDeep, borderWidth: 1.5, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
   devnetTitle: { ...type.bodyStrong, color: color.fg },
 }))
