@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigators/AppNavigator'
 import { useAuthorization } from '../../utils/useAuthorization'
 import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatchAlert'
+import { useReminders } from '../../features/rituals/reminders/useReminders'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
@@ -81,6 +82,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     ? soloRitualModel(state.bundle, chainNow, selectedAccount.publicKey)
     : state.status === 'ready' && state.bundle ? soloRitualModel(state.bundle, chainNow, null) : null
   const read = state.status === 'ready' ? state.bundle : null
+  const { afterStamp: cancelWeekReminders } = useReminders({ ritualAddress: route.params.ritualId,
+    eventIndex: model?.eventIndex, stamped: Boolean(model?.showedUp),
+    skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined })
   const makeSharedDeps = useCallback((kind: 'claim' | 'finalize' | 'initialize-event') => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !read || !model) throw new Error('Ritual or wallet is not ready')
     const destinationTokenAccounts = kind === 'finalize'
@@ -124,6 +128,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     if (claim.state.status === 'confirmed' && handled.current.claim !== claim.state.result.messageDigest) {
       handled.current.claim = claim.state.result.messageDigest
       const eventIndex = claimEventIndex.current
+      if (eventIndex !== null && ritualAddress) void cancelWeekReminders(ritualAddress.toBase58(), eventIndex)
       const refresh = () => { setNoteInput(''); state.retry(); setReload((value) => value + 1) }
       if (eventIndex !== null && notesOfferedRef.current && ritualAddress && noteInputRef.current.trim().length > 0) {
         void saveWeekNote(ritualAddress.toBase58(), eventIndex, noteInputRef.current).catch(() => undefined).then(refresh)
@@ -138,7 +143,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       // Opening a missed week is step one of two; clear it so the same button can settle.
       settle.reset()
     }
-  }, [claim.state, ritualAddress, settle.state, skip.state])
+  }, [claim.state, ritualAddress, settle.state, skip.state, cancelWeekReminders])
 
   // An action left in an error ("may have gone through") must not stay dead
   // once a chain re-read shows the week has moved on (phone run 2026-10-02).

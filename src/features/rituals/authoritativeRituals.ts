@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { RitualClient } from '../../data/rituals/ritualClient'
 import { RitualRpcError, type RitualBundleRead } from '../../data/rituals/ritualsRpc'
 import type { RitualClientState } from './client/useRitualClient'
+import { clearRitualReminders } from './reminders/runtime'
 
 export const KNOWN_RITUALS_STORAGE_KEY = '@rituals/known-rituals/v1'
 export type KnownRitual = Readonly<{ address: string; title: string; requirement: string }>
@@ -42,6 +43,7 @@ export async function rememberRitual(ritual: KnownRitual): Promise<void> {
 export async function forgetRitual(address: string): Promise<void> {
   const current = await listKnownRituals()
   await AsyncStorage.setItem(KNOWN_RITUALS_STORAGE_KEY, JSON.stringify(current.filter((item) => item.address !== address)))
+  await clearRitualReminders(address)
 }
 
 export async function loadKnownRitualBundles(client: RitualClient): Promise<readonly (KnownRitual & { bundle: RitualBundleRead })[]> {
