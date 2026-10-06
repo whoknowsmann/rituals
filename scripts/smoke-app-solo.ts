@@ -36,7 +36,8 @@ import { runCreateRitual } from '../src/features/rituals/create/runCreateRitual'
 import { buildRitualActionDeps } from '../src/features/rituals/buildRitualActionDeps'
 import { runLifecycleAction } from '../src/features/rituals/runLifecycleAction'
 import { lifecycleInitialState, lifecycleReducer, type LifecycleEvent, type LifecycleState } from '../src/features/rituals/lifecycleMachine'
-import { DEMO_CAUSE } from '../src/data/rituals/demoConfig'
+import { DEMO_CAUSES } from '../src/data/rituals/demoConfig'
+import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { decodeSeason } from '../src/data/rituals/accounts'
 import { connectionFor, integerOption, option, parseCli, readKeypair, requiredOption } from './lib/cli'
 import { refuseMainnetFundedPayer } from './lib/chain'
@@ -86,7 +87,14 @@ async function main(): Promise<void> {
   })
   if (mutateFee) console.log('simulating a wallet that rewrites the priority fee before signing')
   const client = createCurrentRitualClient(transport, transport)
-  if (DEMO_CAUSE.tokenAccount === null) throw new Error('demo cause is not configured')
+  // Where missed weeks go: --cause-index N (default 0) or --person <wallet> (Jack, 2026-10-06 picker).
+  const personText = option(args, 'person')
+  const causeIndex = Number(option(args, 'cause-index', '0'))
+  const cause = DEMO_CAUSES[causeIndex]
+  if (!personText && (!cause || cause.tokenAccount === null)) throw new Error(`demo cause ${causeIndex} is not configured`)
+  const config0 = await client.getProtocolConfig()
+  const destinationAccount = personText ? getAssociatedTokenAddressSync(config0.account.allowedStakeMint, new PublicKey(personText)) : cause!.tokenAccount!
+  console.log(`missed weeks go to ${personText ? `wallet ${personText}` : cause!.label}: ${destinationAccount.toBase58()}`)
 
   const season = seasonText
     ? decodeSeason((await connection.getAccountInfo(new PublicKey(seasonText), 'confirmed'))!, client.programId, new PublicKey(seasonText))
@@ -125,8 +133,9 @@ async function main(): Promise<void> {
     stakePerWeekAtomic: 1_000_000n,
     schedule,
     witnessMode: 'just-me',
-    destination: 'cause',
-    causeTokenAccount: DEMO_CAUSE.tokenAccount,
+    destination: personText ? 'person' : 'cause',
+    causeTokenAccount: personText ? null : cause!.tokenAccount,
+    personAddress: personText,
     seasonAddress: seasonText ? new PublicKey(seasonText) : null,
     settlerFunding,
     authorizedActor: () => owner.publicKey,
@@ -185,7 +194,7 @@ async function main(): Promise<void> {
   let missed: string[] = []
   if (!seasonText) {
     const window1 = active.account.schedule[1]
-    const causeBefore = (await getAccount(connection, DEMO_CAUSE.tokenAccount, 'confirmed')).amount
+    const causeBefore = (await getAccount(connection, destinationAccount, 'confirmed')).amount
     await sleepUntil(Number(window1.resolution), 'week 2 to lapse with no check-in')
     console.log('\n[auto-settle missed week 2] (open + settle, settle key, no owner signature)')
     const lapsed = await autoSettleWeek({ client: settlerClient, ritualAddress, settler: settler.publicKey, eventIndex: 1, needsEventInit: true, destinationTokenAccounts: [creatorToken] })
@@ -193,7 +202,7 @@ async function main(): Promise<void> {
     // Read back through the app's own reader: this threw "decoding failed" on 2026-10-02.
     const week2 = await client.getEventBundle(ritualAddress, 1)
     if (week2.event?.account.status !== 'Settled' || week2.event.account.forfeitedTotal !== active.account.perEventAllocation) throw new Error('missed week did not read back as Settled with the stake forfeited')
-    const causeAfter = (await getAccount(connection, DEMO_CAUSE.tokenAccount, 'confirmed')).amount
+    const causeAfter = (await getAccount(connection, destinationAccount, 'confirmed')).amount
     if (causeAfter - causeBefore !== active.account.perEventAllocation) throw new Error(`cause received ${causeAfter - causeBefore}, expected ${active.account.perEventAllocation}`)
     missed = [...lapsed.signatures]
     console.log('PASS missed week settled to the cause by the settle key and read by the app reader:', missed.join(' '))
