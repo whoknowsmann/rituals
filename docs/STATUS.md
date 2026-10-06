@@ -3,22 +3,86 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-10-05 22:35 CDT** (Opus re-verify after the Fable session
-was rate-limited) — `feat/solo-screens` @ 2216c85, clean, pushed; tsc clean;
-2,282 tests green; faucet `https://faucet.whoknowsman.com/api/health` ok
-(1.897 SOL / 4,900 TEST, 34 claims). **Phone has x2** (experimental
-reminders + widget build from `exp/reminders-widget` @ f3ca007, installed
-20:29), **not** the recording build d23 (2216c85's code: 2-minute demo weeks).
-Reinstall d23 before recording: `artifacts/rituals-d23.apk`. (Phone now has
-**x4**, installed 23:13, from `exp/reminders-widget` @ 4ee2a96.)
-Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT, i.e. Thursday night) ·
-**target: submit Thu Oct 8 ~6 pm CDT** (Jack, 10-05: Friday is the deadline,
-use the extra day). **Repo stays private for now** (Jack, 10-05 night): the
-repo-public cron `cd4e3bd1e174` is **paused**; Jack flips visibility himself.
-Fast-forward `main` (README + LICENSE) and run the history scan right before
-he does. **License: MIT** (`LICENSE`, holder "whoknowsmann").
+Last verified: **2026-10-06 ~15:20 CDT** — `feat/solo-screens` @ 43c3b83 + docs,
+pushed; tsc clean; **2,385 tests / 137 files** green. Phone (Seeker) has **d26**
+(b37ff2c, installed 14:52). d26 run with Jack 15:03–15:07: create → stamp week 1
+(HOLD fill, haptics, confetti, YOU SHOWED UP! all confirmed by Jack) → week 2
+missed on screen → 10 tSKR landed in the chosen wallet (smoke owner
+`fT9X…Jgo1`, ATA `EKe5…A1R9`: 9.125 → 19.125). Faucet health 200
+(1.897 SOL / 4,900 tSKR, 34 claims).
+Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT) · **target: submit Thu Oct 8
+~6 pm CDT**. Repo **private** until Jack flips it (public cron `cd4e3bd1e174`
+paused); fast-forward `main` + history scan right before. License **MIT**.
 
-### 2026-10-05 evening (not yet folded into the sections below)
+### START HERE (2026-10-06)
+
+**What changed today (all on `feat/solo-screens`, all pushed):**
+- Reminders merged (26893a8): Real weeks only; **proven on the phone** 09:12
+  (3 alarms scheduled, "Week 1 is open. Stamp it." delivered on time, cleared
+  on stamp).
+- Judge-polish batch (Astra, aeca64f): landed-before-expiry check (no false
+  "may have gone through"), network popup only on an explicit chain mismatch.
+  **Device finding: Seed Vault reports `chains: null`**, so the mismatch popup
+  never fires with Seed Vault; a real mismatch shows the quiet "Nothing was
+  sent" line and Seed Vault's own "Network mismatch" sheet. The README's
+  "switch Seed Vault to Devnet" step is the real guard.
+- Jack's list (fe56eb5 … 9907a1a): **1-minute demo weeks** (60 s lead after
+  prepare, b37ff2c; 45 s stamp, 10 s grace, 5 s gap); **one total stake**
+  split across weeks (presets 5/10/20/50, default 20); **choose where missed
+  weeks go**: Northside Food Bank / City Animal Shelter / Public Library Fund
+  (demo; new devnet token accounts `7axV…zQ`, `Bg6u…Z5`, owners' keys in
+  `.keys/`) or a wallet you choose (must hold a tSKR account); **TEST → tSKR**
+  everywhere; stamp says **YOU SHOWED UP!**; "Stamping…"; Figtree for card
+  titles (Fraunces 600 "f").
+- Smokes GREEN on 1-minute weeks: shelter destination (64BDihhR…) and wallet
+  destination (8vCr3ogz…): `artifacts/logs/smoke-app-solo-{shelter,person}-1min.log`.
+- Judge-break batch (Astra, fix/judge-break, merged): demo misses settle only
+  while the ritual is on screen (kept weeks + real weeks still settle in the
+  background); demo defaults to 2 weeks; one-line demo warning before Lock it
+  in; HOLD re-arms per week; chain time for timing; recovery after a killed
+  approval; serialized wallet sessions. Rejected its WIP that treated wallet
+  timeouts as "submitted" (Seed Vault declines are the same
+  CancellationException): `git stash` in ../preflight-break.
+- Stale recovery banner fixed (43c3b83): long-dead requests resolve as
+  expired, no notice.
+- **Websites (Vercel, team jacks-projects-aba8f24d):** `rituals.whoknowsman.com`
+  live (project `rituals-site`, prebuilt static from `~/projects/rituals-site`,
+  Cloudflare A `rituals` → 76.76.21.21 DNS-only, cert issued). The app's MWA
+  identity is now Rituals @ that origin + `icon.png` (7328db3; the wallet no
+  longer says github.com). **whoknowsman.com hidden** behind a "Private for
+  now." noindex page (prebuilt deploy to project `whoknowsman` from
+  `~/projects/whoknowsman-private`); restore: `npx vercel promote
+  https://whoknowsman-q32pr8qt0-jacks-projects-aba8f24d.vercel.app`. Faucet
+  unaffected.
+- UX review (Astra): `docs/overnight/2026-10-06-ux-review.md` on
+  `review/ux-2026-10-06`. Video script rewritten from it (one 2-week ritual:
+  stamp week 1, miss week 2, both receipts side by side).
+
+**In flight:** Astra (max) UX batch on `fix/ux-batch` (worktree
+`../preflight-ux`; brief `~/.hermes/cache/scratch/writers/ux-batch.md`):
+countdowns, HOLD TO STAMP, straight to the ritual after create, Connect wallet
+where missing, faucet retry, tappable receipt cells, finished-screen copy
+(show the wallet owner not the ATA, "Stake per week", cut "Every week is
+settled."), create/Settings/Home copy. Review → merge → d27 → walk.
+
+**Next, in order:**
+1. Hermes: review + merge the UX batch, build d27, walk it with screenshots.
+2. Jack + Hermes (~6 min, 2 approvals): record the main take on a FRESH Seed
+   Vault account ("test 2", Devnet) per `docs/submission/video-script.md`.
+3. Jack: voiceover (one read). Hermes: cut with captions (`scripts/video/render.py`).
+4. Hermes: release APK (`v0.1.0-clockin` + sha256), README final, deck +
+   store listing refresh (still say 2-minute weeks / stake per week), main
+   fast-forward + history scan. Jack: flip repo public. Hermes: logged-out link
+   check. Jack: submit Thu by ~6 pm.
+
+**Waiting on Jack:** faucet contact email (placeholder faucet@whoknowsman.com);
+repo description; organizer email send/skip; tSKR on-chain name (metadata)
+yes/no; widget (x5 clarity pass built, never shown) ship/park; faucet top-up
+(send devnet SOL to `FDjXc5KeLbWf9UaMr3y6uUe5ZQDqJYctWuMW7CdnRK8q`).
+
+## Log
+
+### 2026-10-05 evening
 
 - **Faucet live** at `https://faucet.whoknowsman.com` (Vercel, Cloudflare A
   record `faucet` → 76.76.21.21, DNS only). Fresh-keypair claim proven
