@@ -5,4 +5,4 @@ export function settlementVisibleEnough(model: Pick<SoloRitualModel, 'demoSpeedN
   return !model.demoSpeedNotice || model.showedUp || (focused && appState === 'active')
 }
 
-export const DEMO_CLOCK_WARNING = 'Demo weeks run back to back, even while you’re away. Stay here to stamp each week. Miss one and its stake goes to your chosen destination. Leaving does not pause the clock.'
+export const DEMO_CLOCK_WARNING = 'Demo weeks keep running while you’re away. Unstamped weeks are missed.'

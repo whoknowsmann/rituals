@@ -488,9 +488,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           )}
           {confirmedAddress && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
           {confirmedAddress && readbackError && <ActionButton tone="quiet" label="Check your ritual again" onPress={() => setReadbackAttempt((value) => value + 1)} />}
-          {!createComplete && (
-            <Text style={styles.quiet}>{speed === 'demo' ? DEMO_CLOCK_WARNING : 'Weeks keep their schedule while you’re away. Miss a week and its stake goes to your chosen destination when you reopen the ritual.'}</Text>
-          )}
+          {!createComplete && speed === 'demo' && <Text style={styles.quiet}>{DEMO_CLOCK_WARNING}</Text>}
           {!createComplete && (
             <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}

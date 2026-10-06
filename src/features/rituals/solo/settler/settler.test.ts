@@ -14,8 +14,8 @@ describe('demo misses need a visible ritual, not just a mounted screen', () => {
   it('keeps refunds and real-week settlement independent of demo visibility', () => {
     expect(settlementVisibleEnough({ ...missed, showedUp: true }, false, 'background')).toBe(true)
     expect(settlementVisibleEnough({ ...missed, demoSpeedNotice: null }, false, 'background')).toBe(true)
-    expect(DEMO_CLOCK_WARNING).toContain('Leaving does not pause the clock')
-    expect(DEMO_CLOCK_WARNING).toContain('stake goes to your chosen destination')
+    expect(DEMO_CLOCK_WARNING).toContain('keep running while you’re away')
+    expect(DEMO_CLOCK_WARNING).toContain('Unstamped weeks are missed')
   })
 })
 

@@ -263,7 +263,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         <WeekStrip cells={model.weekCells} tint={tint} />
         <PosterLine label="Your stake" value={formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)} />
       </Poster>
-      {model.demoSpeedNotice && <Text style={s.muted}>{model.demoSpeedNotice} {DEMO_CLOCK_WARNING}</Text>}
+      {model.demoSpeedNotice && model.state !== 'completed' && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}
       {!readyForWallet && <Text style={s.muted}>Connect the wallet that created this ritual to stamp it.</Text>}
       {canShareWitness && witness && (
         <View style={s.witnessCard}>
