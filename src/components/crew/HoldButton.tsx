@@ -46,6 +46,13 @@ export function HoldButton({
   const progress = useRef(new Animated.Value(done ? 1 : 0)).current
   const scale = useRef(new Animated.Value(1)).current
   const animation = useRef<Animated.CompositeAnimation | null>(null)
+  const live = useRef({ onComplete, disabled, done, mounted: true })
+  live.current = { ...live.current, onComplete, disabled, done }
+  useEffect(() => {
+    live.current.mounted = true
+    return () => { live.current.mounted = false; animation.current?.stop() }
+  }, [])
+  useEffect(() => { if (disabled) { animation.current?.stop(); setHolding(false); progress.setValue(0) } }, [disabled, progress])
   const lastProgress = useRef(0)
   const [holding, setHolding] = useState(false)
   const [screenReaderEnabled, setScreenReaderEnabled] = useState(false)
@@ -87,14 +94,14 @@ export function HoldButton({
   }
 
   const complete = () => {
-    if (disabled || done) return
+    if (!live.current.mounted || live.current.disabled || live.current.done) return
     animation.current?.stop()
     setHolding(false)
     progress.setValue(1)
     full()
     scale.setValue(1.06)
     settleScale(1, true)
-    onComplete()
+    live.current.onComplete()
   }
 
   const start = () => {

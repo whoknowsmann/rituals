@@ -33,7 +33,7 @@ import { color, fonts, radius, space, type, themedStyles, useColors } from '../.
 import { soloRitualModel, type SoloRitualModel } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloActionDeps'
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
-import { soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
+import { confirmedStampAdvanced, soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
 
 type Props = { route: { params: { ritualId: string } } }
 
@@ -163,6 +163,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     }
   }, [read, claim.state, skip.state, settle.state, route.params.ritualId])
   const unknownAction = [claim, skip, settle].some((action) => action.state.status === 'error' && !action.state.retryable)
+  useEffect(() => {
+    if (confirmedStampAdvanced(claim.state, actionTargets.current.claim, read)) claim.reset()
+  }, [read, claim.state, claim.reset])
   useEffect(() => {
     if (!unknownAction) return
     state.retry()
@@ -294,9 +297,8 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
   if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note={keptLine} animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
-  if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Stamping…</Text></View>
-
   if (model.state === 'completed') return <View style={s.card}><Text style={s.cardTitle}>Every week is settled.</Text></View>
+  if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Reading your stamp…</Text></View>
   // An open week needs no card: the big HOLD button says it all.
   return null
 }
