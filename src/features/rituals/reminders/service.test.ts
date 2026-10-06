@@ -44,6 +44,25 @@ beforeEach(() => {
 })
 
 describe('local reminder scheduling service', () => {
+  it('prepares foreground display without reading preferences or asking permission', async () => {
+    const f = fixture()
+    await f.service.prepare()
+    expect(f.loadNotifications).toHaveBeenCalledTimes(1)
+    expect(f.storage.getItem).not.toHaveBeenCalled()
+    expect(api.requestPermissionsAsync).not.toHaveBeenCalled()
+    expect(api.scheduleNotificationAsync).not.toHaveBeenCalled()
+    f.loadNotifications.mockRejectedValueOnce(new Error('missing native module'))
+    await expect(f.service.prepare()).resolves.toBeUndefined()
+    expect(logFailure).toHaveBeenCalled()
+  })
+  it('can disable an existing set without another permission request', async () => {
+    const f = fixture()
+    await f.service.afterCreate(input)
+    await f.service.afterCreate({ ...input, enabled: false })
+    expect(pending.size).toBe(0)
+    expect(api.requestPermissionsAsync).toHaveBeenCalledTimes(1)
+    expect((await readReminderPreferences(f.storage)).rituals.A.enabled).toBe(false)
+  })
   it('creates the channel before one permission request and maps exact date triggers', async () => {
     const f = fixture()
     await f.service.afterCreate(input)

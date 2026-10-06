@@ -83,7 +83,8 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     : state.status === 'ready' && state.bundle ? soloRitualModel(state.bundle, chainNow, null) : null
   const read = state.status === 'ready' ? state.bundle : null
   const { afterStamp: cancelWeekReminders } = useReminders({ ritualAddress: route.params.ritualId,
-    eventIndex: model?.eventIndex, stamped: Boolean(model?.showedUp || model?.state === 'skipped') })
+    eventIndex: model?.eventIndex, stamped: Boolean(model?.showedUp),
+    skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined })
   const makeSharedDeps = useCallback((kind: 'claim' | 'finalize' | 'initialize-event') => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !read || !model) throw new Error('Ritual or wallet is not ready')
     const destinationTokenAccounts = kind === 'finalize'

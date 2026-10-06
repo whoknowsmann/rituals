@@ -17,6 +17,14 @@ export const REMINDER_DAY_SECONDS = 86400
 export const reminderPrefix = (address: string): string => `rituals:reminders:v1:${address}:`
 export const weekReminderPrefix = (address: string, eventIndex: number): string => `${reminderPrefix(address)}${eventIndex}:`
 
+export type ReminderObservation = { eventIndex: number | undefined; stamped: boolean; skippedEventIndex?: number }
+/** A skipped result can describe the previous week while the model's current
+ * index has already advanced. Only the account's skipEventIndex is safe. */
+export function observedReminderWeeks(observed?: ReminderObservation): readonly number[] {
+  return [...new Set([observed?.stamped ? observed.eventIndex : undefined, observed?.skippedEventIndex])]
+    .filter((index): index is number => index !== undefined && Number.isInteger(index) && index >= 0 && index < MAX_REMINDER_WEEKS)
+}
+
 export function isRealReminderWindow(window: ReminderWindow): boolean {
   const times = [window.opens, window.deadline, window.resolution].map(Number)
   return times.every((time) => Number.isSafeInteger(time) && time >= 0 && time <= 8_640_000_000_000)

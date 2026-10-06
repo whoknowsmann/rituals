@@ -246,13 +246,13 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).catch(() => undefined)
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
       void scheduleReminders({ ritualAddress: confirmedAddress, schedule: read.account.schedule, ritualTitle: draft.title,
-        stakeLabel: stakeEachLabel, causeLabel: draft.destination === 'cause' ? DEMO_CAUSE.label : 'the person you picked',
+        stakeLabel: formatAtomic(read.account.perEventAllocation, read.account.stakeDecimals), causeLabel: draft.destination === 'cause' ? DEMO_CAUSE.label : 'the person you picked',
         enabled: speed === 'real' && remindWeekly })
     }).catch(() => {
       if (active) setReadbackError('Your ritual was sent, but it is not ready to show yet. Keep this screen open and try again.')
     })
     return () => { active = false }
-  }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title, draft.destination, stakeEachLabel, speed, remindWeekly, scheduleReminders])
+  }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title, draft.destination, speed, remindWeekly, scheduleReminders])
 
   const advance = () => {
     const creator = selectedAccount?.publicKey

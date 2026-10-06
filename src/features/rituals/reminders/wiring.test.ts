@@ -24,12 +24,14 @@ describe('reminder integration pins (not native UI tests)', () => {
     expect(create).toContain("create.state.status === 'confirmed' ? create.state.ritualAddress : null")
     expect(create.indexOf('void scheduleReminders(')).toBeGreaterThan(create.indexOf('void rememberRitual('))
     expect(create).toContain('schedule: read.account.schedule')
+    expect(create).toContain('stakeLabel: formatAtomic(read.account.perEventAllocation, read.account.stakeDecimals)')
   })
   it('cancels the captured confirmed stamp week, and reconciles an observed chain stamp or skip', () => {
     const ritual = source('../../../screens/solo/SoloRitualScreen.tsx')
     expect(ritual).toMatch(/claim.state.status === 'confirmed'[\s\S]*?const eventIndex = claimEventIndex.current\s*if \(eventIndex !== null && ritualAddress\) void cancelWeekReminders\(ritualAddress.toBase58\(\), eventIndex\)/)
-    expect(ritual).toContain("stamped: Boolean(model?.showedUp || model?.state === 'skipped')")
-    expect(source('./useReminders.ts')).toContain('void reminders.afterStamp(address, eventIndex)')
+    expect(ritual).toContain('stamped: Boolean(model?.showedUp)')
+    expect(ritual).toContain('skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined')
+    expect(source('./useReminders.ts')).toContain('void reminders.afterStamp(address, Number(week))')
   })
   it('registers the native plugin without push registration', () => {
     expect(JSON.parse(source('../../../../app.json')).expo.plugins).toContain('expo-notifications')

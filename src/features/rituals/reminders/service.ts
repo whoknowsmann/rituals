@@ -22,6 +22,7 @@ export function createReminderService(deps: {
     return queue
   }
   return {
+    prepare: (): Promise<void> => run(async () => { await deps.loadNotifications() }),
     afterCreate: (input: CreateReminderInput): Promise<void> => run(async () => {
       const preferences = await readReminderPreferences(deps.storage)
       const real = input.schedule.slice(0, 16).some(isRealReminderWindow)
@@ -29,8 +30,11 @@ export function createReminderService(deps: {
       const preference = { enabled: real && input.enabled, stampedWeeks: previous?.stampedWeeks ?? [] }
       preferences.rituals[input.ritualAddress] = preference
       await writeReminderPreferences(deps.storage, preferences)
-      // Demo/off create never loads the SDK or requests permission.
-      if (!preference.enabled) return
+      // A new Demo/off create never loads the SDK or requests permission.
+      if (!preference.enabled) {
+        if (previous?.enabled) await clearReminderPrefix(await deps.loadNotifications(), reminderPrefix(input.ritualAddress))
+        return
+      }
       const notifications = await deps.loadNotifications()
       // Android 13 needs a channel before the permission dialog.
       await notifications.setNotificationChannelAsync(REMINDERS_CHANNEL, { name: 'Rituals', importance: 3 })

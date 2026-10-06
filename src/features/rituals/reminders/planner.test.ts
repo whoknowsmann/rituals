@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { DEMO_SOLO_CADENCE, REAL_SOLO_CADENCE } from '../../../domain/rituals/schedule'
 import { scheduleWindows, selectSoloSchedule } from '../solo/create/schedule'
-import { planReminders, reminderPrefix, weekReminderPrefix, type ReminderWindow } from './planner'
+import { observedReminderWeeks, planReminders, reminderPrefix, weekReminderPrefix, type ReminderWindow } from './planner'
 
 const nowSeconds = 1_800_000_000
 const options = { ritualAddress: 'ritual-A', ritualTitle: 'Read', stakeLabel: '5 TEST', causeLabel: 'the food bank', nowSeconds }
 const schedule = (weeks = 2, cadence = REAL_SOLO_CADENCE) => scheduleWindows(selectSoloSchedule({ cadence, referenceSeconds: nowSeconds, eventCount: weeks }))
 
 describe('chain schedule reminder planner', () => {
+  it('reconciles the actual skipped week, not the advanced current model index', () => {
+    expect(observedReminderWeeks({ eventIndex: 1, stamped: false, skippedEventIndex: 0 })).toEqual([0])
+    expect(observedReminderWeeks({ eventIndex: 1, stamped: true, skippedEventIndex: 0 })).toEqual([1, 0])
+    expect(observedReminderWeeks({ eventIndex: 0, stamped: true, skippedEventIndex: 0 })).toEqual([0])
+  })
+  it('ignores absent or out-of-bounds observed weeks', () => {
+    expect(observedReminderWeeks()).toEqual([])
+    expect(observedReminderWeeks({ eventIndex: 0, stamped: false })).toEqual([])
+    expect(observedReminderWeeks({ eventIndex: 16, stamped: true, skippedEventIndex: -1 })).toEqual([])
+  })
   it('uses the exact open, deadline minus a day, and deadline minus an hour for each week', () => {
     const windows = schedule()
     expect(planReminders(windows, options).map((item) => item.at)).toEqual(windows.flatMap((window) => [Number(window.opens), Number(window.deadline) - 86400, Number(window.deadline) - 3600]))
