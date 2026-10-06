@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."   # the worktree this script lives in, so experiment bra
 export JAVA_HOME=$HOME/.local/jdk/jdk-17.0.20.1+1
 export PATH=$JAVA_HOME/bin:$PATH
 export EAS_LOCAL_BUILD_WORKINGDIR=$HOME/.cache/eas-local-build
+mkdir -p artifacts
 LOG=artifacts/apk-build-${TAG:-local}.log
 echo "commit $(git rev-parse --short HEAD) start $(date)" > "$LOG"
 rc=1
