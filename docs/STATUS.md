@@ -58,7 +58,9 @@ paused); fast-forward `main` + history scan right before. License **MIT**.
   `review/ux-2026-10-06`. Video script rewritten from it (one 2-week ritual:
   stamp week 1, miss week 2, both receipts side by side).
 
-**In flight:** Astra (max) UX batch on `fix/ux-batch` (worktree
+**Landed 15:30:** UX batch merged (6719f57, 2,420 tests); **d27 built from 6719f57 and installed 15:35**, walked: Home (no stale banner, "5 tSKR / wk"), step 1 ("Go for a run"), step 2 (TOTAL STAKE, cause list, one-line demo warning), finished ritual ("Stake per week", "10 tSKR went to the wallet you chose · fT9Xe…LJgo1."), tappable ✓/✕ cells → week 1 KEPT receipt ("10 tSKR back to you", note) and week 2 MISSED receipt, "Back to ritual" (`artifacts/shots/d27-contact.png`). Not yet walked on d27: countdowns + HOLD TO STAMP (need a create). **d27 is the recording build.**
+
+**Was in flight:** Astra (max) UX batch on `fix/ux-batch` (worktree
 `../preflight-ux`; brief `~/.hermes/cache/scratch/writers/ux-batch.md`):
 countdowns, HOLD TO STAMP, straight to the ritual after create, Connect wallet
 where missing, faucet retry, tappable receipt cells, finished-screen copy
@@ -66,7 +68,7 @@ where missing, faucet retry, tappable receipt cells, finished-screen copy
 settled."), create/Settings/Home copy. Review → merge → d27 → walk.
 
 **Next, in order:**
-1. Hermes: review + merge the UX batch, build d27, walk it with screenshots.
+1. ~~Hermes: review + merge the UX batch, build d27, walk it.~~ Done.
 2. Jack + Hermes (~6 min, 2 approvals): record the main take on a FRESH Seed
    Vault account ("test 2", Devnet) per `docs/submission/video-script.md`.
 3. Jack: voiceover (one read). Hermes: cut with captions (`scripts/video/render.py`).
