@@ -11,7 +11,7 @@ Show up, or pay up.
 Put a stake on a weekly promise. Keep it and you get it back.
 
 **Say:**
-Rituals is a commitment app for Solana Seeker. You put a stake behind something you keep skipping. Stamp the week and the stake comes back. Miss it and that week's stake goes to a cause you chose. Rituals takes nothing. Everything you see today runs on devnet with a valueless TEST token, and I will say that again where it matters.
+Rituals is a commitment app for Solana Seeker. You put a stake behind something you keep skipping. Stamp the week and the stake comes back. Miss it and that week's stake goes to a cause you chose. Rituals takes nothing. Everything you see today runs on devnet with a valueless tSKR token, and I will say that again where it matters.
 
 ## Slide 2 — The problem
 
@@ -55,10 +55,10 @@ Every approval is the Seed Vault Wallet's double-tap on the side button and a fi
 Show up: your stake comes back.
 Miss a week: that week's stake goes to the cause you chose.
 Rituals takes nothing. No fee at all.
-Devnet. TEST token, no value.
+Devnet. tSKR token, no value.
 
 **Say:**
-The stake is yours and you get it back when you keep the week. Only the missed week's stake moves, to a cause token account that is locked before you start. Fees on chain are set to 0, 0, 0, and since October 4 there is no activation fee. What you pay is network fees of about 0.000005 SOL per transaction, account rent that returns when the ritual closes, and the settle-key pre-payment. A four-week create comes to roughly 0.01 to 0.02 SOL all in. All of it is devnet, and TEST has no value.
+The stake is yours and you get it back when you keep the week. Only the missed week's stake moves, to a cause token account that is locked before you start. Fees on chain are set to 0, 0, 0, and since October 4 there is no activation fee. What you pay is network fees of about 0.000005 SOL per transaction, account rent that returns when the ritual closes, and the settle-key pre-payment. A four-week create comes to roughly 0.01 to 0.02 SOL all in. All of it is devnet, and tSKR has no value.
 
 ## Slide 6 — Proof
 
@@ -100,13 +100,13 @@ Code for these exists but is hidden, because it has rough edges: friends who sta
 ## Q&A you should expect
 
 **Is this gambling?**
-No. There is no chance in it, no counterparty, and nobody gains from a miss. The outcome depends only on whether you stamped the week. The closest analogue is a forfeitable deposit, as StickK and Beeminder use, here on chain. Today it is also a valueless TEST token on devnet.
+No. There is no chance in it, no counterparty, and nobody gains from a miss. The outcome depends only on whether you stamped the week. The closest analogue is a forfeitable deposit, as StickK and Beeminder use, here on chain. Today it is also a valueless tSKR token on devnet.
 
 **How do you make money?**
 We don't. Rituals takes no share of stakes or forfeits, and since October 4 there is no activation fee; the on-chain fee settings are 0, 0, 0. Users pay only what the chain charges: network fees, account rent that comes back when the ritual closes, and the small settle-key pre-payment.
 
 **Why devnet?**
-Because a mainnet stablecoin stake needs a legal and security review we have not done. TEST has no value, so a judge can try every path with nothing at risk. The program is mint-agnostic, so changing the stake asset is one config value.
+Because a mainnet stablecoin stake needs a legal and security review we have not done. tSKR has no value, so a judge can try every path with nothing at risk. The program is mint-agnostic, so changing the stake asset is one config value.
 
 **Who verifies the user did the thing?**
 Nobody does yet, and we say so. In the solo version you stamp the week yourself, with a hold and an optional note that stays on your phone, not on chain. The stake is the check on yourself. A witness who confirms, friends who confirm each other, and photo proof are built or planned but hidden for now.
@@ -118,4 +118,4 @@ Every week's open time, deadline and resolution is written on chain when the rit
 Nothing moves until the ritual is opened again, on either speed. The week's outcome was fixed on chain when its deadline passed, so waiting changes nothing. When you open the ritual, the app's settle key closes every finished week with no wallet prompt; the wallet button is the fallback. In-flight actions are journaled, so an app killed mid-action recovers after a restart.
 
 **How do judges get test tokens?**
-In the app. On the create screen, when the wallet is short, there is a Get test tokens button (also in Settings). Our devnet faucet sends 0.05 devnet SOL and 50 TEST in one transaction it pays itself, so a wallet that holds nothing can start a ritual without signing anything first. It refuses a wallet that already holds enough. TEST is a valueless devnet token, and Seed Vault Wallet must be switched to Devnet, otherwise it shows "Network mismatch".
+In the app. On the create screen, when the wallet is short, there is a Get test tokens button (also in Settings). Our devnet faucet sends 0.05 devnet SOL and 50 tSKR in one transaction it pays itself, so a wallet that holds nothing can start a ritual without signing anything first. It refuses a wallet that already holds enough. tSKR is a valueless devnet token, and Seed Vault Wallet must be switched to Devnet, otherwise it shows "Network mismatch".

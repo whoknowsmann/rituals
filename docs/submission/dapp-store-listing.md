@@ -21,7 +21,7 @@ Each week, hold the big button until the ring fills and the week is stamped. Add
 
 Weeks close by themselves. When you start, Rituals sets aside a small amount for the app's settle key, so later weeks finish without another wallet prompt. You get one declared skip per ritual: call it before the week opens and that week's stake comes back to you.
 
-Rituals takes nothing. No fee, no share of stakes, no share of forfeits. This build runs on Solana devnet with a valueless TEST token, so you can try the whole loop with nothing real at stake.
+Rituals takes nothing. No fee, no share of stakes, no share of forfeits. This build runs on Solana devnet with a valueless tSKR token, so you can try the whole loop with nothing real at stake.
 
 Show up, or pay up.
 
@@ -48,7 +48,7 @@ Keywords: commitment, habits, accountability, weekly goals, stake, Solana
 
 First release of Rituals, built for the CLOCK IN hackathon.
 Start a ritual in two steps with one wallet approval; stamp each week with a hold.
-Runs on Solana devnet with a valueless TEST token. Day and night themes included.
+Runs on Solana devnet with a valueless tSKR token. Day and night themes included.
 
 ## 5. Privacy policy
 
@@ -73,7 +73,7 @@ Wallet
 Rituals connects to your wallet through Mobile Wallet Adapter. Each approval happens inside your wallet app. Rituals never sees your seed phrase or your private keys.
 
 Network
-The app talks to a public Solana devnet RPC endpoint to read chain state and submit the transactions you approve. This build runs on devnet only, with a valueless TEST token.
+The app talks to a public Solana devnet RPC endpoint to read chain state and submit the transactions you approve. This build runs on devnet only, with a valueless tSKR token.
 
 Deleting your data
 Uninstall the app and everything stored on the phone is removed, including notes, the settle key and the journal. Any SOL still held by the settle key (typically a few thousandths of a SOL after a ritual finishes) is lost with it, so finish or settle your rituals first. Data already on chain is public and permanent and cannot be deleted by us or by you.
@@ -82,7 +82,7 @@ Contact: `<owner-email>`
 
 ## 6. Disclosures for review
 
-Devnet only. This build runs on Solana devnet and stakes a valueless TEST token. Nothing in it carries real-world value. The Seed Vault Wallet must be switched to Devnet, otherwise the wallet reports "Network mismatch".
+Devnet only. This build runs on Solana devnet and stakes a valueless tSKR token. Nothing in it carries real-world value. The Seed Vault Wallet must be switched to Devnet, otherwise the wallet reports "Network mismatch".
 
 A commitment device, not a wager. There is no chance in the outcome: a week is kept if you stamp it and missed if you don't. There is no counterparty, and no one gains from a miss. A missed week's stake goes to a cause the user locked before starting. Rituals takes no fee and no share of stakes or forfeits. The nearest comparison is a forfeitable deposit, as in StickK or Beeminder, recorded on chain.
 
@@ -92,7 +92,7 @@ Approvals expire. A wallet approval must land within about a minute.
 
 Timing. Demo speed (the default) compresses a week to 2 minutes. Real weeks last seven days; a finished real week settles the next time the app is opened, or through the wallet fallback button. Week timings are written on chain at creation and checked against the chain clock, so weeks cannot be clicked through.
 
-Known gaps. The wallet shows the requester as "github.com" until the app identity moves to its own https origin. Testers get TEST tokens in the app: the Get test tokens button (create screen or Settings) asks our devnet faucet for 0.05 devnet SOL and 50 TEST, paid by the faucet; nothing to sign.
+Known gaps. The wallet shows the requester as "github.com" until the app identity moves to its own https origin. Testers get tSKR tokens in the app: the Get test tokens button (create screen or Settings) asks our devnet faucet for 0.05 devnet SOL and 50 tSKR, paid by the faucet; nothing to sign.
 
 ## 7. Age rating
 

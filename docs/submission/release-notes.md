@@ -3,7 +3,7 @@
 Show up, or pay up. Put a stake on a weekly promise; stamp it to keep it; miss
 it and that week's stake goes to a cause you chose. Rituals takes nothing.
 
-Devnet only. TEST tokens have no value.
+Devnet only. tSKR tokens have no value.
 
 ## What's in this build
 - Start a ritual in two steps with one wallet approval (creates, stakes every
@@ -12,7 +12,7 @@ Devnet only. TEST tokens have no value.
 - Weeks close by themselves (settle key); KEPT and MISSED receipts.
 - Demo speed (2-minute weeks, default) or Real weeks (7 days, stamp any day
   in the first 6).
-- Get test tokens in the app: the faucet sends 0.05 devnet SOL + 50 TEST, no
+- Get test tokens in the app: the faucet sends 0.05 devnet SOL + 50 tSKR, no
   signing.
 - Seed Vault Wallet and Phantom; night mode.
 

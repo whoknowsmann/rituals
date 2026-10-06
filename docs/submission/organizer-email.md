@@ -34,7 +34,7 @@ questions affect eligibility and publication, so I'd rather ask than assume.
    for the review now rather than after.
 
 A smaller one: how will judges get the test token to try the app? I can add an
-in-app faucet for devnet TEST, or mint on request; if you have a preferred
+in-app faucet for devnet tSKR, or mint on request; if you have a preferred
 pattern from past hackathons I'll follow it.
 
 Thanks,

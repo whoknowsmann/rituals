@@ -19,7 +19,7 @@ Rows marked FOOTAGE are adb screen recordings. Rows marked CARD are a caption ca
 | 1 | 0-6 (6) | CARD. Still of Home, tiles slightly dimmed. | Rituals / Show up, or pay up. | You know the thing you keep meaning to do. Put a stake on it. That's Rituals. |
 | 2 | 6-12 (6) | FOOTAGE. Home on a fresh wallet, day mode: wordmark, tagline, "Start a ritual?" and one button. Hold 2 s, tap Start one. | none | Fresh wallet, nothing in it. This is where a judge starts. |
 | 3 | 12-20 (8) | FOOTAGE. Step 1: type "Read". Tap Next. | none | Two steps. I type what I keep putting off, and that's the name. |
-| 4 | 20-34 (14) | FOOTAGE. Step 2: "You have 0 TEST" and the Get test tokens button. Tap it. Hold on "Sending…" then the line "Sent: 50 TEST and 0.05 SOL." and the balance line updating to "You have 50 TEST". (Cut the wait if it runs past ~4 s.) | Devnet faucet · nothing to sign | Test tokens come from our faucet. One tap, nothing to sign; it pays the fee itself. |
+| 4 | 20-34 (14) | FOOTAGE. Step 2: "You have 0 tSKR" and the Get test tokens button. Tap it. Hold on "Sending…" then the line "Sent: 50 tSKR and 0.05 SOL." and the balance line updating to "You have 50 tSKR". (Cut the wait if it runs past ~4 s.) | Devnet faucet · nothing to sign | Test tokens come from our faucet. One tap, nothing to sign; it pays the fee itself. |
 | 4b | 34-44 (10) | FOOTAGE. Same screen: 4 weeks, Demo speed on, tap the 5 chip. Pause on the locked cause "Northside Food Bank (demo)" and the signed card with "Read". | none | Four weeks. Five a week. Miss one, and that week's stake goes to a food bank I picked up front. Rituals takes nothing. |
 | 5 | 44-47 (3) | CARD. Still of step 2 with the "Lock it in" button. Cut to the card as the finger lands on the button. | One approval in Seed Vault Wallet | One approval. |
 | 6 | 47-55 (8) | FOOTAGE. Button reads "Locked in." Land on the ritual screen. Hold on the line "Demo speed: a week here is 2 minutes." for about 2 seconds, then on the week 1 countdown (about a minute left by then) for 2 seconds. Cursor still. | none | That locks every week's stake. Demo speed: a week here is 2 minutes. |
@@ -97,8 +97,8 @@ Mode: day mode. The app's warm paper background and the deep-green KEPT ink are 
 
 Before the first take:
 1. Seed Vault Wallet is switched to Devnet. Otherwise the app shows "Network mismatch".
-2. The wallet holds at least 5 TEST plus enough SOL for the create, about 0.01 to 0.02 SOL for a 4-week ritual.
-3. The main run uses a FRESH Seed Vault account (add one in Seed Vault Wallet, e.g. "test 2"), connected in the app, holding 0 SOL / 0 TEST, so Home shows "Start a ritual?" and step 2 shows the Get test tokens button. The faucet must be live (health 200) before the take.
+2. The wallet holds at least 5 tSKR plus enough SOL for the create, about 0.01 to 0.02 SOL for a 4-week ritual.
+3. The main run uses a FRESH Seed Vault account (add one in Seed Vault Wallet, e.g. "test 2"), connected in the app, holding 0 SOL / 0 tSKR, so Home shows "Start a ritual?" and step 2 shows the Get test tokens button. The faucet must be live (health 200) before the take.
 4. The missed-week shot (row 12) is recorded separately on the main account, which already has finished rituals with misses ("Call mom", "stretch").
 5. Notifications off, battery and clock tidy, no other apps in the recent tray.
 6. Scroll Home to the bottom once and confirm the footer "Devnet · test tokens" is visible.
@@ -106,7 +106,7 @@ Before the first take:
 The run:
 1. Start recording. Open Home, then "+ New ritual".
 2. Type "Read" as the ritual.
-3. Step 2: tap Get test tokens first; wait for "Sent: 50 TEST and 0.05 SOL." and the balance line to read 50 TEST (a few seconds). Then 4 weeks, Demo speed on, stake 5. Check the locked cause "Northside Food Bank (demo)" and the signed card.
+3. Step 2: tap Get test tokens first; wait for "Sent: 50 tSKR and 0.05 SOL." and the balance line to read 50 tSKR (a few seconds). Then 4 weeks, Demo speed on, stake 5. Check the locked cause "Northside Food Bank (demo)" and the signed card.
 4. Tap Lock it in. First approval, within 60 seconds: Jack double-taps the side button and uses his fingerprint. Approvals must land within about 60 seconds, so Jack should be holding the phone and ready before Hermes taps.
 5. Wait for "Locked in." Capture the "Demo speed: a week here is 2 minutes." line and the week 1 countdown on the ritual screen. Keep recording through the wait; cut it in the edit.
 6. When the countdown ends and HOLD appears, Hermes presses and holds for the full 1.4 seconds. Add a one-line note. Second approval, within 60 seconds: Jack approves. The stamp window is 90 seconds, so hold the moment HOLD appears and approve the moment the sheet pops up.

@@ -16,8 +16,12 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
    - Step 1: what's your ritual (typed text becomes the name: "to read" → "Read";
      suggestions optional, deterministic, on-device — **never call them AI**).
    - Step 2: how many weeks (− / +, 1–16), **Demo speed · Real weeks** (Demo is
-     the default), stake per week (type it or 1 / 5 / 10 / 25), a single schedule
-     summary and the locked cause ("Northside Food Bank (demo)"). Balance and
+     the default), ONE total stake (type it or 5 / 10 / 20 / 50; the app splits
+     it evenly across the weeks, rounded down to 0.01 tSKR a week, and says so
+     when that locks a little less), a single schedule summary, and **where
+     missed weeks go, chosen by the user**: Northside Food Bank (demo, default),
+     City Animal Shelter (demo), Public Library Fund (demo), or a wallet you
+     choose (it must already hold a tSKR account). Balance and
      Get test tokens appear only when short or empty; the button blocks if the
      stake won't fit. No signed summary card.
    - The single approval creates the ritual, locks every week's stake in a vault,
@@ -25,7 +29,7 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
      capped 0.05) so later weeks close with no wallet prompt.
    - Button: **Lock it in** → **Locked in.**
 2. **Stamp a week — 1 approval.** A big centred HOLD (1.4 s fill, ring, buzz).
-   Optional one-line note, kept on the phone only. Then confetti, a SHOWED UP
+   Optional one-line note, kept on the phone only. Then confetti, a YOU SHOWED UP!
    stamp and a line from the sayings basket ("Couch: 0. You: 1.", "Future you
    says thanks.", …).
 3. **Weeks close by themselves.** The settle key opens a missed week and settles
@@ -47,21 +51,21 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
 
 ## Speeds
 
-- **Demo speed** (default; the app says "Demo speed: a week here is 2
-  minutes." on the ritual screen): week 1 opens 90 s after create, 90-second
-  stamp window, 20 s grace, next week 10 s later: 2-minute weeks; a 4-week
-  ritual runs start to finish in about 9½ minutes (ffeb8f9).
-- **Real weeks**: week 1 opens 90 s after create, stamp any day in a 6-day
+- **Demo speed** (default; the app says "Demo speed: a week here is 1
+  minute." on the ritual screen): week 1 opens 45 s after create, 45-second
+  stamp window, 10 s grace, next week 5 s later: 1-minute weeks; a 4-week
+  ritual runs start to finish in under 5 minutes (fe56eb5, 2026-10-06).
+- **Real weeks**: week 1 opens 45 s after create, stamp any day in a 6-day
   window, 23 h grace, 7-day weeks. A finished week settles the next time you
   open the app (or via the wallet fallback). Say this plainly.
 - Every week's opens / deadline / resolution is written on chain at create; the
   program checks stamps and settlements against the chain clock. Nobody can
   click through weeks.
 
-## Money (devnet, valueless TEST token, 6 decimals)
+## Money (devnet, valueless tSKR token, 6 decimals)
 
-- Stake is TEST. Kept week → your stake back. Missed week → that week's stake to
-  the cause's token account, locked before you start. **Rituals takes nothing**:
+- Stake is tSKR. Kept week → your stake back. Missed week → that week's stake to
+  the destination the user chose (a demo cause or a wallet), locked before you start. **Rituals takes nothing**:
   no share of stakes or forfeits, and since 2026-10-04 **no activation fee**
   (on-chain fee settings 0 / 0 / 0).
 - What the user pays: network fees (~0.000005 SOL per transaction), account
@@ -92,7 +96,7 @@ value) · mainnet stablecoin after legal and security review.
 
 - Anchor program on **devnet**: `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p`
   (upgraded 2026-10-04, slot 507505707). ProtocolConfig
-  `7LMgBSJmEFKkfYKh2znr6VSxcm5QEHEouNijXDENhMd1`. TEST mint
+  `7LMgBSJmEFKkfYKh2znr6VSxcm5QEHEouNijXDENhMd1`. tSKR mint
   `AaHgFh7ussUDor8QfaBCaRz2RHiPNCs7i2yuzdLbt9tc`. Demo cause token account
   `4adFBqT1x7AyBFF4bd8qVgeSjPbqhnaJVB4x5muMzbT5`.
 - App: React Native / Expo, TypeScript. Mobile Wallet Adapter with an explicit
@@ -110,14 +114,14 @@ value) · mainnet stablecoin after legal and security review.
 
 ## Honest gaps (say them, don't hide them)
 
-- Devnet only; TEST has no value. Seed Vault Wallet must be switched to Devnet
+- Devnet only; tSKR has no value. Seed Vault Wallet must be switched to Devnet
   (otherwise "Network mismatch").
-- A judge gets TEST in the app: **Get test tokens** (on the create screen when
+- A judge gets tSKR in the app: **Get test tokens** (on the create screen when
   the wallet is short or empty, and in Settings) asks the project's devnet
   faucet (faucet.whoknowsman.com, Vercel functions, repo whoknowsmann/rituals-faucet)
-  to send **0.05 devnet SOL + 50 TEST in one transaction the faucet pays**; the
+  to send **0.05 devnet SOL + 50 tSKR in one transaction the faucet pays**; the
   wallet signs nothing and may hold nothing. Limits: refused once a wallet holds
-  ≥ 0.03 SOL and ≥ 10 TEST; a small float (~2 devnet SOL) is the ceiling; if it is
+  ≥ 0.03 SOL and ≥ 10 tSKR; a small float (~2 devnet SOL) is the ceiling; if it is
   empty the app shows the contact email. Never blocks creating a ritual.
 - The wallet shows the requester as "github.com" until the app identity moves
   to its own https origin.
