@@ -16,6 +16,8 @@ export class RitualConfirmationError extends Error {
 
 export type RitualConfirmationTransport = Readonly<{
   confirmTransaction: (strategy: Readonly<{ signature: string; blockhash: string; lastValidBlockHeight: number }>, commitment: 'confirmed') => Promise<Readonly<{ context: Readonly<{ slot: number }>; value: Readonly<{ err: unknown | null }> }>>
+  /** Older test transports may omit history; without it expiry stays unknown. */
+  getSignatureStatuses?: (signatures: string[], config: { searchTransactionHistory: true }) => Promise<unknown>
 }>
 
 export type RitualActionExpectation =
@@ -207,6 +209,7 @@ function eventExpectation(value: RitualActionExpectation): { eventIndex: number 
 export class RitualConfirmationVerifier {
   readonly #reader: RitualsRpcReader
   readonly #confirm: RitualConfirmationTransport['confirmTransaction']
+  readonly #statuses: RitualConfirmationTransport['getSignatureStatuses']
   constructor(reader: RitualsRpcReader, transport: RitualConfirmationTransport) {
     try { if (!(reader instanceof RitualsRpcReader)) fail('input', 'Ritual confirmation reader is invalid') } catch (error) {
       if (error instanceof RitualConfirmationError) throw error
@@ -218,13 +221,45 @@ export class RitualConfirmationVerifier {
     if (typeof method !== 'function') fail('input', 'Ritual confirmation transport is invalid')
     this.#reader = reader
     this.#confirm = (method as RitualConfirmationTransport['confirmTransaction']).bind(transport)
+    try { this.#statuses = transport.getSignatureStatuses?.bind(transport) } catch { fail('input', 'Ritual confirmation transport is invalid') }
+  }
+  async #checkExpiredSignature(signature: string): Promise<unknown> {
+    if (!this.#statuses) return fail('confirmation', 'transaction status could not be checked')
+    // Seed Vault can hold its Success sheet open beyond the blockhash lifetime.
+    // A lagging RPC node can also initially miss a transaction that landed.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      let response: unknown
+      try { response = await this.#statuses([signature], { searchTransactionHistory: true }) } catch {
+        if (attempt === 2) return fail('confirmation', 'transaction status could not be checked')
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        continue
+      }
+      if (!isRecord(response)) return fail('confirmation', 'transaction status response is malformed')
+      const values = readConfirmation<unknown>(response, 'value')
+      if (!Array.isArray(values) || values.length !== 1) return fail('confirmation', 'transaction status response is malformed')
+      const status = values[0]
+      if (status !== null) {
+        if (!isRecord(status) || !owns(status, 'err')) return fail('confirmation', 'transaction status response is malformed')
+        if (readConfirmation<unknown>(status, 'err') !== null) return fail('confirmation', 'transaction failed')
+        const commitment = readConfirmation<unknown>(status, 'confirmationStatus')
+        if (commitment === 'confirmed' || commitment === 'finalized') {
+          return { context: { slot: readConfirmation<unknown>(status, 'slot') }, value: { err: null } }
+        }
+      }
+      if (attempt === 2) {
+        if (status === null) return fail('expired', 'transaction expired before confirmation')
+        return fail('confirmation', 'transaction has not reached confirmation')
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+    return fail('confirmation', 'transaction status could not be checked')
   }
   async confirmAndReadRitual(action: unknown): Promise<ConfirmedRitualAction> {
     const snapshot = snapshotAction(action)
     let confirmation: unknown
     try { confirmation = await this.#confirm(snapshot.strategy, 'confirmed') } catch (error) {
-      if (expired(error)) fail('expired', 'transaction expired before confirmation')
-      fail('confirmation', 'transaction confirmation failed')
+      if (!expired(error)) fail('confirmation', 'transaction confirmation failed')
+      confirmation = await this.#checkExpiredSignature(snapshot.strategy.signature)
     }
     if (!isRecord(confirmation)) fail('confirmation', 'transaction confirmation response is malformed')
     const context = readConfirmation<unknown>(confirmation as object, 'context'); const value = readConfirmation<unknown>(confirmation as object, 'value')

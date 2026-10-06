@@ -9,6 +9,7 @@ export type UseRitualAction = Readonly<{
   isBusy: boolean
   start: () => void
   reset: () => void
+  observeReadback: (ritualAddress: string) => void
 }>
 
 export function useRitualAction(makeDeps: () => LifecycleActionDeps): UseRitualAction {
@@ -23,5 +24,6 @@ export function useRitualAction(makeDeps: () => LifecycleActionDeps): UseRitualA
     void (async () => { try { await runLifecycleAction(makeDeps(), safeDispatch) } catch { safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the action. Nothing was sent.' }) } finally { inFlight.current = false } })()
   }, [makeDeps, safeDispatch, state])
   const reset = useCallback(() => { if (!inFlight.current) safeDispatch({ type: 'RESET' }) }, [safeDispatch])
-  return { state, copy: lifecycleStatusCopy(state), canSubmit: lifecycleCanSubmit(state), isBusy: lifecycleIsBusy(state), start, reset }
+  const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])
+  return { state, copy: lifecycleStatusCopy(state), canSubmit: lifecycleCanSubmit(state), isBusy: lifecycleIsBusy(state), start, reset, observeReadback }
 }

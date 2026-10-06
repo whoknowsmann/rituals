@@ -32,6 +32,7 @@ import { color, fonts, radius, space, type, themedStyles, useColors } from '../.
 import { soloRitualModel, type SoloRitualModel } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloActionDeps'
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
+import { soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
 
 type Props = { route: { params: { ritualId: string } } }
 
@@ -55,6 +56,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const notesOfferedRef = useRef(true)
   notesOfferedRef.current = notesOffered(soloNotes)
   const claimEventIndex = useRef<number | null>(null)
+  const actionTargets = useRef<{ claim: SoloActionTarget | null; skip: SoloActionTarget | null; settle: SoloActionTarget | null }>({ claim: null, skip: null, settle: null })
 
   useFocusEffect(useCallback(() => {
     let active = true
@@ -87,6 +89,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined })
   const makeSharedDeps = useCallback((kind: 'claim' | 'finalize' | 'initialize-event') => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !read || !model) throw new Error('Ritual or wallet is not ready')
+    actionTargets.current[kind === 'claim' ? 'claim' : 'settle'] = { kind, eventIndex: model.eventIndex, actor: selectedAccount.publicKey, ritualAddress: ritualAddress.toBase58() }
     const destinationTokenAccounts = kind === 'finalize'
       // The finalize builder appends the locked solo forfeit destination itself.
       ? read.ritual.account.members.map((member) => getAssociatedTokenAddressSync(read.ritual.account.stakeMint, member))
@@ -106,6 +109,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   }, [client, connection, model, read, ritualAddress, selectedAccount])
   const makeSkipDeps = useCallback(() => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !model) throw new Error('Ritual or wallet is not ready')
+    actionTargets.current.skip = { kind: 'skip', eventIndex: model.eventIndex, actor: selectedAccount.publicKey, ritualAddress: ritualAddress.toBase58() }
     return buildSoloSkipDeps({ client: client.client, ritualAddress, actor: selectedAccount.publicKey, eventIndex: model.eventIndex, pendingActionStore: asyncStoragePendingActionStore, getBlockHeight: () => connection.getBlockHeight('confirmed'), authorizedActor: () => accountRef.current?.publicKey ?? null })
   }, [client, connection, model, ritualAddress, selectedAccount])
   const claim = useRitualAction(() => makeSharedDeps('claim'))
@@ -145,15 +149,20 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     }
   }, [claim.state, ritualAddress, settle.state, skip.state, cancelWeekReminders])
 
-  // An action left in an error ("may have gone through") must not stay dead
-  // once a chain re-read shows the week has moved on (phone run 2026-10-02).
-  const stateKey = model ? `${model.eventIndex}:${model.state}:${model.showedUp}:${model.needsEventInit}:${model.eventStatus}` : null
-  const lastStateKey = useRef(stateKey)
+  // Check both arrival orders: readback may precede the late wallet error.
   useEffect(() => {
-    if (lastStateKey.current === stateKey) return
-    lastStateKey.current = stateKey
-    for (const action of [claim, skip, settle]) if (action.state.status === 'error') action.reset()
-  }, [stateKey])
+    for (const [name, action] of [['claim', claim], ['skip', skip], ['settle', settle]] as const) {
+      if (action.state.status === 'error' && !action.state.retryable && soloActionLanded(read, actionTargets.current[name])) action.observeReadback(route.params.ritualId)
+    }
+  }, [read, claim.state, skip.state, settle.state, route.params.ritualId])
+  const unknownAction = [claim, skip, settle].some((action) => action.state.status === 'error' && !action.state.retryable)
+  useEffect(() => {
+    if (!unknownAction) return
+    state.retry()
+    let remaining = 3
+    const timer = setInterval(() => { state.retry(); if (--remaining === 0) clearInterval(timer) }, 3000)
+    return () => clearInterval(timer)
+  }, [unknownAction])
 
   // The app's own settle key closes finished weeks: no wallet prompt. It is
   // pre-paid inside the create approval; without funds the manual button stays.

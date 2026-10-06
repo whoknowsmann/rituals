@@ -21,6 +21,7 @@ export type LifecycleEvent =
   | Readonly<{ type: 'CONFIRMED'; result: LifecycleConfirmedRef }>
   | Readonly<{ type: 'FAILED'; category: LifecycleFailureCategory; message: string }>
   | Readonly<{ type: 'RESET' }>
+  | Readonly<{ type: 'READBACK_OBSERVED'; ritualAddress: string }>
 
 const freeze = <T extends object>(value: T): Readonly<T> => Object.freeze(value)
 export const lifecycleInitialState = (): LifecycleState => freeze({ status: 'idle' as const })
@@ -29,6 +30,8 @@ export const lifecycleIsBusy = (state: LifecycleState): boolean => !lifecycleCan
 const addressOf = (state: LifecycleState): string | null => state.status === 'awaiting-wallet' || state.status === 'submitted' || state.status === 'confirming' || state.status === 'confirmed' || state.status === 'error' ? state.ritualAddress : null
 
 export function lifecycleReducer(state: LifecycleState, event: LifecycleEvent): LifecycleState {
+  // Only the action-specific authoritative reader may clear an unknown result.
+  if (event.type === 'READBACK_OBSERVED') return state.status === 'error' && !state.retryable && state.ritualAddress === event.ritualAddress ? lifecycleInitialState() : state
   if (event.type === 'FAILED') {
     if (state.status === 'idle' || state.status === 'confirmed' || state.status === 'error') return state
     const submitted = state.status === 'submitted' || state.status === 'confirming'

@@ -21,7 +21,10 @@ describe('reminder integration pins (not native UI tests)', () => {
   })
   it('schedules only after confirmed readback and uses its chain schedule', () => {
     const create = source('../../../screens/solo/SoloCreateScreen.tsx')
-    expect(create).toContain("create.state.status === 'confirmed' ? create.state.ritualAddress : null")
+    expect(create).toContain("create.state.status === 'confirmed' || create.state.status === 'recovered'")
+    expect(create).toContain("create.state.status === 'error' && !create.state.retryable")
+    expect(create.indexOf('setConfirmedReadback(true)')).toBeGreaterThan(create.indexOf('read.account.kind !== \'Solo\''))
+    expect(create.indexOf('void rememberRitual(')).toBeGreaterThan(create.indexOf('setConfirmedReadback(true)'))
     expect(create.indexOf('void scheduleReminders(')).toBeGreaterThan(create.indexOf('void rememberRitual('))
     expect(create).toContain('schedule: read.account.schedule')
     expect(create).toContain('stakeLabel: formatAtomic(read.account.perEventAllocation, read.account.stakeDecimals)')

@@ -34,6 +34,7 @@ export type UseCreateRitual = Readonly<{
   isTerminal: boolean
   start: () => void
   reset: () => void
+  observeReadback: (ritualAddress: string) => void
 }>
 
 export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitual {
@@ -77,6 +78,7 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   }, [safeDispatch])
 
   const busy = !canSubmitCreate(state) && !isTerminalCreateState(state)
+  const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])
 
   return {
     state,
@@ -86,5 +88,6 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
     isTerminal: isTerminalCreateState(state),
     start,
     reset,
+    observeReadback,
   }
 }

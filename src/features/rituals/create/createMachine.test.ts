@@ -20,6 +20,17 @@ const reduce = (state: CreateMachineState, ...events: Parameters<typeof createMa
   events.reduce((current, event) => createMachineReducer(current, event), state)
 
 describe('create machine: happy path', () => {
+  it('recovers a read-back ritual without enabling a duplicate create or inventing a signature', () => {
+    const error = reduce(createMachineInitialState(), { type: 'PREPARE' }, { type: 'PREPARED', prepared: PREPARED }, { type: 'FAILED', category: 'confirmation', message: 'unknown' })
+    expect(createMachineReducer(error, { type: 'READBACK_OBSERVED', ritualAddress: 'other' })).toBe(error)
+    const recovered = createMachineReducer(error, { type: 'READBACK_OBSERVED', ritualAddress: PREPARED.ritualAddress })
+    expect(recovered).toEqual({ status: 'recovered', ritualAddress: PREPARED.ritualAddress })
+    expect(createStatusCopy(recovered).title).toBe('Locked in.')
+    expect(canSubmitCreate(recovered)).toBe(false)
+    expect(isTerminalCreateState(recovered)).toBe(true)
+    expect(createMachineReducer(recovered, { type: 'PREPARE' })).toBe(recovered)
+  })
+
   it('starts idle with nothing in flight', () => {
     const state = createMachineInitialState()
     expect(state.status).toBe('idle')

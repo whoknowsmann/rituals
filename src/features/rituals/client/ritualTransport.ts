@@ -27,6 +27,7 @@ export function makeRitualTransport(connection: any, signAndSendTransaction: Rit
     getFeeForMessage: feeForMessageAtSlot(connection.getFeeForMessage.bind(connection)),
     getMinimumBalanceForRentExemption: withReadRetry(connection.getMinimumBalanceForRentExemption.bind(connection)),
     confirmTransaction: withReadRetry(connection.confirmTransaction.bind(connection)),
+    getSignatureStatuses: (signatures, config) => connection.getSignatureStatuses(signatures, config),
     signAndSendTransaction,
     getLandedTransactionMessage: (signature: string) => landedMessage(connection, signature),
   }

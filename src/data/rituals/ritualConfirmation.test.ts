@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import { RitualsRpcReader } from './ritualsRpc'
 import { RitualConfirmationError, RitualConfirmationVerifier, createCurrentRitualConfirmationVerifier, type RitualConfirmationTransport, type SubmittedRitualAction } from './ritualConfirmation'
@@ -31,6 +31,41 @@ class FakeReader extends RitualsRpcReader {
 const bundleFor = (account: typeof lifecycleSource, slot = 50): RitualBundleRead => Object.freeze({ slot, ritual: Object.freeze({ slot, address, protocolConfigAddress: address, protocolConfig: {} as never, account: Object.freeze(account) }), event: null, claims: Object.freeze([]) })
 
 describe('Ritual confirmation verifier', () => {
+  it.each(['confirmed', 'finalized'])('reads a landed %s action after the wallet returns past blockhash expiry', async (confirmationStatus) => {
+    const reader = new FakeReader(bundleFor(lifecycleContext().account))
+    const statuses = vi.fn(async () => ({ value: [{ slot: 50, err: null, confirmationStatus }] }))
+    const result = await new RitualConfirmationVerifier(reader, {
+      confirmTransaction: async () => { throw { name: 'TransactionExpiredBlockheightExceededError' } },
+      getSignatureStatuses: statuses,
+    }).confirmAndReadRitual(action({ kind: 'created', creator: lifecycleSource.creator, nonce: lifecycleSource.nonce }))
+    expect(statuses).toHaveBeenCalledWith([validSignature], { searchTransactionHistory: true })
+    expect(result.confirmationSlot).toBe(50)
+    expect(reader.calls[0].options).toEqual({ minContextSlot: 50 })
+  })
+
+  it('retries a lagging status node, but still rejects a mismatched authoritative readback', async () => {
+    const statuses = vi.fn().mockResolvedValueOnce({ value: [null] }).mockResolvedValue({ value: [{ slot: 50, err: null, confirmationStatus: 'confirmed' }] })
+    const reader = new FakeReader(bundleFor(lifecycleContext().account))
+    await expect(new RitualConfirmationVerifier(reader, {
+      confirmTransaction: async () => { throw { name: 'TransactionExpiredBlockheightExceededError' } }, getSignatureStatuses: statuses,
+    }).confirmAndReadRitual(action({ kind: 'activated' }))).rejects.toMatchObject({ category: 'readback' })
+    expect(statuses).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    [null, 'expired', 3],
+    [{ slot: 50, err: { InstructionError: [0, 'x'] }, confirmationStatus: 'confirmed' }, 'confirmation', 1],
+    [{ slot: 50, err: null, confirmationStatus: 'processed' }, 'confirmation', 3],
+  ])('only calls an absent signature expired after bounded history checks (%j)', async (status, category, calls) => {
+    const reader = new FakeReader(bundleFor(lifecycleContext().account))
+    const statuses = vi.fn(async () => ({ value: [status] }))
+    await expect(new RitualConfirmationVerifier(reader, {
+      confirmTransaction: async () => { throw { name: 'TransactionExpiredBlockheightExceededError' } }, getSignatureStatuses: statuses,
+    }).confirmAndReadRitual(action({ kind: 'created', creator: lifecycleSource.creator, nonce: lifecycleSource.nonce }))).rejects.toMatchObject({ category })
+    expect(statuses).toHaveBeenCalledTimes(calls)
+    expect(reader.calls).toHaveLength(0)
+  })
+
   it('exposes a verifier for blockheight confirmation and readback', () => {
     expect(RitualConfirmationVerifier).toBeDefined()
     const action: SubmittedRitualAction = {

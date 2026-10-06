@@ -32,8 +32,9 @@ describe('SoloRitualScreen proof and witness controls', () => {
   })
 
   it('clears a stale action error once the chain state moves on (dead Settle, 2026-10-02)', () => {
-    expect(source).toContain('if (lastStateKey.current === stateKey) return')
-    expect(source).toContain("if (action.state.status === 'error') action.reset()")
+    expect(source).toContain('soloActionLanded(read, actionTargets.current[name])')
+    expect(source).toContain('action.observeReadback(route.params.ritualId)')
+    expect(source).toContain('[read, claim.state, skip.state, settle.state, route.params.ritualId]')
   })
 
   it('closes finished weeks with the app settle key, keeping the wallet button only as a fallback', () => {

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { soloRitualModel, labelSoloDestination, demoSpeedNotice, type SoloRitualBundle } from './soloRitualModel'
+import { soloActionLanded } from './actionReadback'
+import { lifecycleReducer, lifecycleCanSubmit, lifecycleStatusCopy, type LifecycleState } from '../../lifecycleMachine'
 
 const me = new PublicKey(new Uint8Array(32).fill(7))
 const witness = new PublicKey(new Uint8Array(32).fill(8))
@@ -25,6 +27,29 @@ const event = (overrides: Record<string, unknown> = {}) => ({ account: {
 const claim = (status: 'Pending' | 'Confirmed' | 'Questioned') => ({ member: me, account: { status } })
 
 describe('soloRitualModel', () => {
+  it('clears the non-retryable stamp warning only for the claimed week, even if the read arrived before the error', () => {
+    const read = bundle({}, event({ status: 'Claiming' }), [claim('Confirmed')])
+    const target = { kind: 'claim' as const, ritualAddress: address.toBase58(), eventIndex: 0, actor: me }
+    expect(soloRitualModel(read, 150, me).showedUp).toBe(true)
+    const error: LifecycleState = { status: 'error', category: 'confirmation', message: 'late expiry', submitted: true, retryable: false, ritualAddress: target.ritualAddress }
+    expect(lifecycleReducer(error, { type: 'RESET' })).toBe(error)
+    expect(soloActionLanded(read, { ...target, eventIndex: 1 })).toBe(false)
+    expect(soloActionLanded(bundle({}, event(), [claim('Pending')]), target)).toBe(false)
+    expect(soloActionLanded(read, { ...target, actor: witness })).toBe(false)
+    expect(soloActionLanded(read, target)).toBe(true)
+    const recovered = lifecycleReducer(error, { type: 'READBACK_OBSERVED', ritualAddress: target.ritualAddress })
+    expect(recovered.status).toBe('idle')
+    expect(lifecycleCanSubmit(recovered)).toBe(true)
+    expect(lifecycleStatusCopy(recovered).body).not.toContain('may already')
+    expect(lifecycleReducer(error, { type: 'READBACK_OBSERVED', ritualAddress: 'another ritual' })).toBe(error)
+    const advanced = { ...bundle({ currentEventIndex: 1, settledEventCount: 1 }), history: [read] }
+    expect(soloActionLanded(advanced, target)).toBe(true)
+    expect(soloActionLanded(advanced, { ...target, kind: 'finalize' })).toBe(true)
+    expect(soloActionLanded(read, { ...target, kind: 'initialize-event' })).toBe(true)
+    expect(soloActionLanded(bundle({ skipDeclared: true, skipEventIndex: 0 }), { ...target, kind: 'skip' })).toBe(true)
+    expect(soloActionLanded(bundle(), { ...target, kind: 'skip' })).toBe(false)
+  })
+
   it.each([
     ['funding', { status: 'Funding' }, null, []],
     ['waiting', {}, null, []],

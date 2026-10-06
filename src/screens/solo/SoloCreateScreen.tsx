@@ -213,14 +213,15 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const create = useCreateRitual(makeDeps)
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
   useDevnetMismatchAlert(create.state.status, create.state.status === 'error' ? create.state.category : null, walletPackage)
-  const confirmedAddress = create.state.status === 'confirmed' ? create.state.ritualAddress : null
+  const createComplete = create.state.status === 'confirmed' || create.state.status === 'recovered'
+  const confirmedAddress = createComplete || (create.state.status === 'error' && !create.state.retryable) ? ('ritualAddress' in create.state ? create.state.ritualAddress : null) : null
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (event) => {
       if (!shouldReturnToFirstCreateStep({
         step,
         isBusy: create.isBusy,
-        isConfirmed: create.state.status === 'confirmed',
+        isConfirmed: createComplete,
         actionType: event.data.action.type,
       })) return
       event.preventDefault()
@@ -228,7 +229,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       setStepErrors([])
     })
     return unsubscribe
-  }, [create.isBusy, create.state.status, navigation, step])
+  }, [create.isBusy, createComplete, navigation, step])
 
   useEffect(() => {
     if (!confirmedAddress || client.status !== 'ready') {
@@ -240,8 +241,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     setConfirmedReadback(false)
     setReadbackError(null)
     void client.client.readRitual(new PublicKey(confirmedAddress)).then((read) => {
-      if (!read.account.kind || read.account.kind !== 'Solo' || read.account.status !== 'Active') throw new Error('unexpected')
+      if (read.account.kind !== 'Solo' || !['Active', 'Completed'].includes(read.account.status) || !read.account.creator.equals(accountRef.current?.publicKey ?? PublicKey.default)) throw new Error('unexpected')
       if (!active) return
+      create.observeReadback(confirmedAddress)
       setConfirmedReadback(true)
       void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).catch(() => undefined)
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
@@ -279,7 +281,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   }
 
   // buildSoloCreateDeps invokes client.prepareCreateSoloFundAndActivate for this single approval.
-  if (create.state.status === 'confirmed' && confirmedReadback) {
+  if (createComplete && confirmedReadback) {
     return (
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
         <Hero kicker="Ritual started">Locked in.</Hero>
@@ -426,21 +428,21 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           </View>
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
-          {create.state.status !== 'idle' && create.state.status !== 'confirmed' && (
+          {create.state.status !== 'idle' && !createComplete && (
             <View style={styles.status} accessibilityLabel="Create status">
               <Text style={styles.statusTitle}>{createCopy.title}</Text>
               <Text style={styles.quiet} accessibilityLiveRegion="polite">{createCopy.body}</Text>
             </View>
           )}
-          {create.state.status === 'confirmed' && !confirmedReadback && !readbackError && (
+          {createComplete && !confirmedReadback && !readbackError && (
             <View style={styles.status} accessibilityLabel="Checking your ritual">
               <Text style={styles.statusTitle}>Checking your ritual…</Text>
               <Text style={styles.quiet}>Your wallet approved. We are checking that your ritual is ready.</Text>
             </View>
           )}
-          {create.state.status === 'confirmed' && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
+          {confirmedAddress && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
           {create.state.status === 'idle' && selectedAccount && !stepThreeErrors.length && <Text style={styles.walletNote}>{walletHandoffNote(walletPackage)}</Text>}
-          {create.state.status !== 'confirmed' && (
+          {!createComplete && (
             <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}
           {create.state.status === 'error' && create.canSubmit && <ActionButton label="Try again" tone="quiet" onPress={create.start} accessibilityLabel="Try starting the ritual again" />}

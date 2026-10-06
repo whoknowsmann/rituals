@@ -47,6 +47,7 @@ export type CreateMachineState =
   | Readonly<{ status: 'submitted'; prepared: CreatePreparedRef; handle: CreateSubmittedRef; ritualAddress: string }>
   | Readonly<{ status: 'confirming'; prepared: CreatePreparedRef; handle: CreateSubmittedRef; ritualAddress: string }>
   | Readonly<{ status: 'confirmed'; result: CreateConfirmedRef; ritualAddress: string }>
+  | Readonly<{ status: 'recovered'; ritualAddress: string }>
   | Readonly<{
       status: 'error'
       category: CreateFailureCategory
@@ -65,6 +66,7 @@ export type CreateMachineEvent =
   | Readonly<{ type: 'CONFIRMED'; result: CreateConfirmedRef }>
   | Readonly<{ type: 'FAILED'; category: CreateFailureCategory; message: string }>
   | Readonly<{ type: 'RESET' }>
+  | Readonly<{ type: 'READBACK_OBSERVED'; ritualAddress: string }>
 
 const freeze = <T extends object>(value: T): Readonly<T> => Object.freeze(value)
 
@@ -80,7 +82,7 @@ export function canSubmitCreate(state: CreateMachineState): boolean {
 }
 
 export function isTerminalCreateState(state: CreateMachineState): boolean {
-  if (state.status === 'confirmed') return true
+  if (state.status === 'confirmed' || state.status === 'recovered') return true
   return state.status === 'error' && !state.retryable
 }
 
@@ -123,10 +125,13 @@ export function createMachineReducer(
   event: CreateMachineEvent,
 ): CreateMachineState {
   if (event === null || typeof event !== 'object' || typeof event.type !== 'string') return state
+  // Recover the existing ritual, never reset Create to an enabled submit button.
+  if (event.type === 'READBACK_OBSERVED') return state.status === 'error' && !state.retryable && state.ritualAddress === event.ritualAddress
+    ? freeze({ status: 'recovered' as const, ritualAddress: event.ritualAddress }) : state
 
   // A failure can arrive in any active phase.
   if (event.type === 'FAILED') {
-    if (state.status === 'idle' || state.status === 'confirmed' || state.status === 'error') return state
+    if (state.status === 'idle' || state.status === 'confirmed' || state.status === 'recovered' || state.status === 'error') return state
     return failureState(state, event.category, event.message)
   }
 
@@ -233,6 +238,7 @@ export function createStatusCopy(state: CreateMachineState): CreateStatusCopy {
         tone: 'progress' as const,
       })
     case 'confirmed':
+    case 'recovered':
       return freeze({
         title: 'Locked in.',
         body: 'Your stake is in.',
