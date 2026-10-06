@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Local EAS build -> artifacts/rituals-$TAG.apk, staged for adb. Usage: TAG=d4 scripts/build-apk-local.sh
 set -u
-cd /home/hound/projects/preflight-solo
+cd "$(dirname "$0")/.."   # the worktree this script lives in, so experiment branches build themselves
 export JAVA_HOME=$HOME/.local/jdk/jdk-17.0.20.1+1
 export PATH=$JAVA_HOME/bin:$PATH
 export EAS_LOCAL_BUILD_WORKINGDIR=$HOME/.cache/eas-local-build
