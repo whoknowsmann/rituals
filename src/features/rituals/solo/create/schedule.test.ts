@@ -26,9 +26,9 @@ describe('week speed on create (Demo speed · Real weeks, approved 2026-10-04)',
 
   it('says how long demo weeks are, singular for one week', () => {
     const four = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 4 }).schedule
-    expect(soloScheduleSummary({ weekCount: 4, totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 6.5 min each · 20 TEST in all')
+    expect(soloScheduleSummary({ weekCount: 4, totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 2 min each · 20 TEST in all')
     const one = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 1 }).schedule
-    expect(soloScheduleSummary({ weekCount: 1, totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('1 demo week · 6.5 min · 5 TEST in all')
+    expect(soloScheduleSummary({ weekCount: 1, totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('1 demo week · 2 min · 5 TEST in all')
   })
 
   it('names the day the last real week settles, in the app date style', () => {
@@ -48,8 +48,8 @@ describe('solo create schedule selection', () => {
   it('generates a demo schedule from firstEventStart for an unlinked ritual', () => {
     expect(generated.source).toBe('generated')
     expect(generated.schedule).toHaveLength(4)
-    expect(generated.schedule[0].claimOpensAt).toBe(1_120)
-    expect(generated.schedule[1].claimOpensAt).toBe(1_300)
+    expect(generated.schedule[0].claimOpensAt).toBe(1_090) // solo lead 90 s
+    expect(generated.schedule[1].claimOpensAt).toBe(1_270) // group DEMO_CADENCE period 180 s
   })
 
   it('uses the Season schedule exactly instead of generating a new one', () => {

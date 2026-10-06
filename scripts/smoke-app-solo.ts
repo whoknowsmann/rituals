@@ -16,10 +16,10 @@
  *   npx tsx scripts/smoke-app-solo.ts --keypair .keys/rituals-solo-smoke-owner.json \
  *     --creator-token-account <TEST ATA> [--season <address>] [--claim-window-seconds N] [--cadence demo|real]
  * Without --season it creates a standalone solo ritual on the app's own solo
- * cadence (DEMO_SOLO_CADENCE: 120 s lead, 300 s check-in, ~8 min end to end).
+ * cadence (DEMO_SOLO_CADENCE: 90 s lead, 90 s check-in, 2-minute weeks, ~5 min end to end).
  * --claim-window-seconds N swaps in a shorter test cadence instead.
  * --cadence real creates on REAL_SOLO_CADENCE (the create screen's "Real
- * weeks": 120 s lead, 6 d check-in, 23 h grace, 7 d period), prints every
+ * weeks": 90 s lead, 6 d check-in, 23 h grace, 7 d period), prints every
  * window read back from chain as ±seconds from now, asserts the shape, waits
  * for week 1 to open, stamps, verifies the claim and exits 0. It does NOT wait
  * for settlement (that is a week away); the demo path is unchanged.
@@ -148,7 +148,7 @@ async function main(): Promise<void> {
     active.account.schedule.forEach((window, index) => console.log(`week ${index + 1}: opens ${fromNow(window.opens)} · deadline ${fromNow(window.deadline)} · resolution ${fromNow(window.resolution)}`))
     const window1 = active.account.schedule[1]
     const lead = Number(window0.opens) - Number(active.account.createdAt)
-    if (Math.abs(lead - 120) > 30) throw new Error(`week 1 opens ${lead}s after the chain's create time; expected 120s ±30s`)
+    if (Math.abs(lead - 90) > 30) throw new Error(`week 1 opens ${lead}s after the chain's create time; expected 90s ±30s`)
     if (Number(window0.deadline) - Number(window0.opens) !== 6 * DAY) throw new Error(`week 1 check-in is ${Number(window0.deadline) - Number(window0.opens)}s, expected 6 days`)
     if (Number(window0.resolution) - Number(window0.deadline) !== 23 * HOUR) throw new Error(`week 1 grace is ${Number(window0.resolution) - Number(window0.deadline)}s, expected 23 hours`)
     if (Number(window1.opens) - Number(window0.opens) !== 7 * DAY) throw new Error(`week 2 opens ${Number(window1.opens) - Number(window0.opens)}s after week 1, expected 7 days`)

@@ -21,12 +21,12 @@ const DAY = 24 * HOUR
  * lobby keeps DEMO_CADENCE.
  */
 describe('DEMO_SOLO_CADENCE', () => {
-  it('has a 300 s check-in window and leaves 30 s between a week resolving and the next opening', () => {
-    expect(DEMO_SOLO_CADENCE.claimWindowSeconds).toBe(300)
+  it('is a 2-minute week: 90 s to stamp, 20 s grace, 10 s before the next opens', () => {
+    expect(DEMO_SOLO_CADENCE.claimWindowSeconds).toBe(90)
+    expect(DEMO_SOLO_CADENCE.resolutionGraceSeconds).toBe(20)
+    expect(DEMO_SOLO_CADENCE.periodSeconds).toBe(120)
     expect(DEMO_SOLO_CADENCE.accelerated).toBe(true)
-    expect(DEMO_SOLO_CADENCE.periodSeconds).toBeGreaterThanOrEqual(
-      DEMO_SOLO_CADENCE.claimWindowSeconds + DEMO_SOLO_CADENCE.resolutionGraceSeconds + 30,
-    )
+    expect(DEMO_SOLO_CADENCE.periodSeconds).toBeGreaterThan(DEMO_SOLO_CADENCE.claimWindowSeconds + DEMO_SOLO_CADENCE.resolutionGraceSeconds)
   })
 
   it('leaves the group demo cadence unchanged', () => {
@@ -37,17 +37,17 @@ describe('DEMO_SOLO_CADENCE', () => {
   it('builds a schedule the program accepts (opens < deadline < resolution < next opens)', () => {
     const now = 1_790_000_000
     const first = firstEventStart({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 })
-    // Week 1 opens within ~2 minutes of create; the create's blockhash expires
-    // well before that, so a create that lands can always still activate.
+    // Week 1 opens 90 s after create: longer than a blockhash lives (~60-90 s),
+    // so a create that lands at all lands before week 1 opens and can activate.
     expect(first - now).toBe(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS)
-    expect(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS).toBeLessThanOrEqual(120)
+    expect(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS).toBe(90)
     const schedule = generateRitualSchedule({ firstEventAt: first, eventCount: 16, cadence: DEMO_SOLO_CADENCE })
     schedule.forEach((entry, index) => {
       expect(entry.claimOpensAt).toBeLessThan(entry.claimDeadlineAt)
       expect(entry.claimDeadlineAt).toBeLessThan(entry.resolutionDeadlineAt)
       if (index > 0) expect(entry.claimOpensAt).toBeGreaterThan(schedule[index - 1].resolutionDeadlineAt)
     })
-    expect(schedule[0].claimDeadlineAt - schedule[0].claimOpensAt).toBe(300)
+    expect(schedule[0].claimDeadlineAt - schedule[0].claimOpensAt).toBe(90)
   })
 })
 
@@ -66,8 +66,8 @@ describe('REAL_SOLO_CADENCE', () => {
     expect(REAL_SOLO_CADENCE.label).toBe('Weekly')
   })
 
-  it('opens week 1 120 s after create instead of next same weekday', () => {
-    expect(firstEventStart({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 }) - now).toBe(120)
+  it('opens week 1 90 s after create instead of next same weekday', () => {
+    expect(firstEventStart({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 }) - now).toBe(90)
   })
 
   it('builds 1- and 16-week schedules the program accepts (opens < deadline < resolution < next opens)', () => {
@@ -109,6 +109,7 @@ describe('demo speed from the on-chain schedule (no local record)', () => {
   it('names the demo week length in minutes from two openings, else the shipped solo period', () => {
     expect(demoWeekMinutesLabel([1_000, 1_390])).toBe('6.5')
     expect(demoWeekMinutesLabel([1_000, 1_180])).toBe('3')
-    expect(demoWeekMinutesLabel([1_000])).toBe('6.5')
+    expect(demoWeekMinutesLabel([1_000, 1_120])).toBe('2')
+    expect(demoWeekMinutesLabel([1_000])).toBe('2')
   })
 })
