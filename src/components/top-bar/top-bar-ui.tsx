@@ -100,7 +100,7 @@ export function TopBarWalletMenu() {
             accessibilityLabel={`Connect with ${option.label}`}
           />
         ))}
-      {!selectedAccount && notice && <Menu.Item title={notice} disabled />}
+      {notice && <Menu.Item title={notice} disabled />}
       {selectedAccount && walletOptionByPackage(walletPackage) && (
         <Menu.Item title={`Via ${walletOptionByPackage(walletPackage)?.label}`} leadingIcon="check" disabled />
       )}
@@ -116,8 +116,8 @@ export function TopBarWalletMenu() {
       />}
       {selectedAccount && <Menu.Item
         onPress={async () => {
-          await disconnect();
-          closeMenu();
+          try { await disconnect(); setNotice(null); closeMenu(); }
+          catch { setNotice('Finish any open wallet request, then try disconnecting again.'); }
         }}
         title="Disconnect"
         leadingIcon="link-off"

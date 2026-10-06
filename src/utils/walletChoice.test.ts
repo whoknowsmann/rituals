@@ -10,6 +10,11 @@ import {
 } from './walletChoice'
 
 describe('wallet choice', () => {
+  it('awaits durable authorization, reads current identity before send, and guards rapid choice', () => {
+    expect(readFileSync('src/utils/useAuthorization.tsx', 'utf8')).toContain('mutateAsync: setAuthorization')
+    expect(readFileSync('src/utils/useMobileWallet.tsx', 'utf8')).toContain('const current = getCurrentAccount()')
+    expect(readFileSync('src/components/wallet/WalletChoiceButtons.tsx', 'utf8')).toContain('if (inFlight.current) return')
+  })
   it('offers Seed Vault Wallet first, then Phantom, with real Android packages', () => {
     expect(WALLET_OPTIONS.map((w) => w.id)).toEqual(['seed-vault', 'phantom'])
     expect(walletOptionById('seed-vault')?.androidPackage).toBe('com.solanamobile.wallet')

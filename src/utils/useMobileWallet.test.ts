@@ -107,6 +107,11 @@ describe('wallet back-out', () => {
 })
 
 describe('stale wallet authorization (account switched in Phantom)', () => {
+  it('also clears a stale token rejected by authorize before signing', async () => {
+    const session = wallet()
+    await expect(authorizeAndSendTransaction(session, async () => { throw new Error('auth_token not valid') }, legacy(), 1)).rejects.toMatchObject({ category: 'authorization', staleAuthorization: true })
+    expect(session.signAndSendTransactions).not.toHaveBeenCalled()
+  })
   it('classifies "auth_token not valid for signing" as stale authorization, not a generic failure', async () => {
     const session = { signAndSendTransactions: vi.fn(async () => { throw new Error('-1/auth_token not valid for signing') }) }
     const error = await authorizeAndSendTransaction(session, authorize, legacy(), 12).catch((e: unknown) => e)

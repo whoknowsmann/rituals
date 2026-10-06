@@ -108,6 +108,7 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
         record = { ...makePendingActionRecord(prepared, now()), actor: actor.toBase58(), eventIndex }
         await pendingActionStore.upsert(record)
       }
+      assertAuthorized()
       try { handle = await client.submitPrepared(prepared) } catch (error) {
         const e = error as { submitted?: unknown; signature?: unknown } | null
         if (e && typeof e === 'object' && e.submitted === true && typeof e.signature === 'string' && pendingActionStore && record) {
