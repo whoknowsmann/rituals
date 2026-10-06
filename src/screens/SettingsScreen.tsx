@@ -6,6 +6,7 @@ import { useAuthorization } from '../utils/useAuthorization'
 import { useDevnetFaucet } from '../features/rituals/faucet/useDevnetFaucet'
 import { faucetLine } from '../features/rituals/faucet/devnetFaucet'
 import { ActionButton, Footnote, Hero } from '../components/crew'
+import { WalletChoiceButtons } from '../components/wallet/WalletChoiceButtons'
 import { RITUALS_PROGRAM_ID } from '../data/rituals/programIds'
 import { color, radius, space, type, themedStyles, useColors } from '../theme'
 
@@ -32,7 +33,7 @@ export function SettingsScreen() {
       </View>
       <View style={s.card} accessibilityLabel="Test tokens">
         <Text style={s.label}>tSKR</Text>
-        <Text style={s.muted}>{selectedAccount ? 'Sends 50 tSKR and 0.05 devnet SOL to your wallet. No approval needed.' : 'Connect a wallet first.'}</Text>
+        {selectedAccount ? <Text style={s.muted}>Sends 50 tSKR and 0.05 devnet SOL. No approval needed.</Text> : <View><Text style={s.muted}>Set your wallet to Devnet.</Text><WalletChoiceButtons failureCopy="Connection not completed. Try again." /></View>}
         <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={!selectedAccount || faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" style={s.explorerButton} />
         {faucet.status === 'done' && faucet.result && <Text style={s.muted} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
       </View>

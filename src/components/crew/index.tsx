@@ -7,7 +7,7 @@ import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewS
 import * as Haptics from 'expo-haptics'
 import { color, memberColor, radius, space, type, themedStyles, useColors } from '../../theme'
 import { HoldButton } from './HoldButton'
-import { weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
+import { isClosedWeekCell, weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
 
 export { HoldButton }
 export { Confetti } from './Confetti'
@@ -71,19 +71,20 @@ export { type WeekCell, weekCellLabel, weekSummary, weekSummaryShort } from './w
  * The punch card. Full: one cell per week (✓ kept, ✕ missed, NOW, numbers to
  * come) with a summary line under it. Compact (Home tiles): small dots + line.
  */
-export function WeekStrip({ cells, tint, compact = false, summary = true }: { cells: readonly WeekCell[]; tint: string; compact?: boolean; summary?: boolean }) {
+export function WeekStrip({ cells, tint, compact = false, summary = true, onClosedWeekPress }: { cells: readonly WeekCell[]; tint: string; compact?: boolean; summary?: boolean; onClosedWeekPress?: (eventIndex: number) => void }) {
   const s = useS()
   const line = compact ? weekSummaryShort(cells) : weekSummary(cells)
   return (
     <View accessibilityLabel={line}>
       <View style={[s.strip, compact && s.stripCompact]}>
-        {cells.map((cell, i) => compact
-          ? <View key={i} style={[s.dot, cell === 'done' && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
-          : (
-            <View key={i} style={[s.cell, cell === 'done' && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]}>
-              <Text style={[s.cellText, cell === 'done' && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
-            </View>
-          ))}
+        {cells.map((cell, i) => {
+          if (compact) return <View key={i} style={[s.dot, cell === 'done' && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
+          const cellStyle = [s.cell, cell === 'done' && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]
+          const label = <Text style={[s.cellText, cell === 'done' && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
+          return onClosedWeekPress && isClosedWeekCell(cell)
+            ? <Pressable key={i} onPress={() => onClosedWeekPress(i)} accessibilityRole="button" accessibilityLabel={`See week ${i + 1} receipt`} hitSlop={{ top: 6, bottom: 6 }} style={({ pressed }) => [...cellStyle, pressed && { opacity: 0.7 }]}>{label}</Pressable>
+            : <View key={i} style={cellStyle}>{label}</View>
+        })}
       </View>
       {summary && <Text style={[s.stripSummary, compact && s.stripSummaryCompact]} numberOfLines={1}>{line}</Text>}
     </View>
@@ -142,7 +143,7 @@ export function ActionButton({ label, onPress, tone = 'go', disabled, loading, a
       accessibilityState={{ disabled: !!off, busy: !!loading }}
       style={({ pressed }) => [s.btn, tone === 'go' && s.btnGo, tone === 'dark' && s.btnDark, tone === 'quiet' && s.btnQuiet, off && { opacity: 0.45 }, pressed && !off && { transform: [{ scale: 0.97 }] }, style]}
     >
-      <Text style={[s.btnText, tone === 'dark' && { color: color.onDark }, tone === 'go' && { color: color.goInk }]}>{loading ? '…' : label}</Text>
+      <Text style={[s.btnText, tone === 'dark' && { color: color.onDark }, tone === 'go' && { color: color.goInk }]}>{label}</Text>
     </Pressable>
   )
 }

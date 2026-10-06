@@ -7,7 +7,7 @@ import { stampTimeLeftLabel, weekOpensLabel } from '../../displayFormat'
 import { currentWeekCell } from '../../../../components/crew/weekStripLogic'
 
 export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' | 'claimable' | 'awaiting-witness' | 'closing' | 'resolving/settle' | 'skipped' | 'missed' | 'completed'
-export type SoloWeekCell = 'done' | 'missed' | 'now' | 'current' | 'future'
+export type SoloWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'current' | 'future'
 
 /**
  * A current bundle plus bounded historical bundles. Historical reads are kept
@@ -97,7 +97,9 @@ function weekCells(bundle: SoloRitualBundle, now: number): readonly SoloWeekCell
     const outcome = outcomeOf({ event: historical.event, claims: historical.claims }, account.members[0] ?? null)
     if (outcome) byIndex.set(historical.event.account.eventIndex, outcome === 'missed' ? 'missed' : 'done')
   }
-  return Object.freeze(account.schedule.map((window, index) => byIndex.get(index) ?? (index === account.currentEventIndex && account.status === 'Active' ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'future')))
+  return Object.freeze(account.schedule.map((window, index) => byIndex.get(index)
+    ?? (index < account.currentEventIndex || account.status === 'Completed' ? 'closed'
+      : index === account.currentEventIndex && account.status === 'Active' ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'future')))
 }
 
 function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null): { state: SoloRitualUiState; showedUp: boolean; claimStatus: SoloRitualModel['claimStatus']; message: string } {

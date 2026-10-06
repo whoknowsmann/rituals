@@ -260,7 +260,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {/* The poster is the hero; the line above it is the week, nothing else. */}
       <Text style={s.title} accessibilityRole="header">{model.state === 'funding' ? 'Solo ritual' : model.state === 'completed' ? 'Finished' : `Week ${model.eventIndex + 1}`}</Text>
       <Poster tint={tint} kicker="YOUR RITUAL" title={ritualTitle ?? 'Your ritual'}>
-        <WeekStrip cells={model.weekCells} tint={tint} />
+        <WeekStrip cells={model.weekCells} tint={tint} onClosedWeekPress={(eventIndex) => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex })} />
         <PosterLine label="Your stake" value={formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)} />
       </Poster>
       {model.demoSpeedNotice && model.state !== 'completed' && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}

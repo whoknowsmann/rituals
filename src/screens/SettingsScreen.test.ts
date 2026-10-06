@@ -5,6 +5,11 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SettingsScreen.tsx'), 'utf8')
 
 describe('SettingsScreen', () => {
+  it('reuses the wallet chooser at the faucet instead of a disconnected dead end', () => {
+    expect(source).toContain('<WalletChoiceButtons')
+    expect(source).toContain('Set your wallet to Devnet.')
+    expect(source).not.toContain('Connect a wallet first.')
+  })
   it('shows devnet, the token disclosure, a shortened program id, and an explorer action', () => {
     expect(source).toContain('Network')
     expect(source).toContain('Devnet')

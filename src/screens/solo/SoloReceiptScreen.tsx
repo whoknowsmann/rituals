@@ -39,7 +39,7 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
       {receipt.state === 'kept' ? <View style={s.card}><Text style={s.cardTitle}>Your stake is {receipt.copy}</Text><Stamp kind="kept" note={keptSaying(route.params.ritualId, route.params.eventIndex)} />{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}<Row label="Your stake" value={`${formatAtomic(receipt.amount, decimals)} · ${receipt.copy}`} /></View> : null}
       {receipt.state === 'missed' ? <View style={s.card}><Text style={s.cardTitle}>This week was missed</Text><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Row label="Missed stake" value={formatAtomic(receipt.amount, decimals)} /><Row label="Destination" value={receipt.destinationLabel ?? 'the locked destination'} /></View> : null}
       {receipt.state === 'skipped' ? <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /><Text style={s.muted}>This week was declared skipped before it opened.</Text></View> : null}
-      <ActionButton tone="quiet" label="Back to rituals" onPress={() => navigation.goBack()} />
+      <ActionButton tone="quiet" label="Back to ritual" onPress={() => navigation.goBack()} />
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )

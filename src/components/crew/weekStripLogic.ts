@@ -1,6 +1,11 @@
 /** 'closed' = a finished week whose result is not known (yet): neutral, never a guessed tick. */
 export type WeekCell = 'done' | 'now' | 'current' | 'future' | 'missed' | 'closed'
 
+/** Closed weeks have a receipt even while their outcome read is unavailable. */
+export function isClosedWeekCell(cell: WeekCell): boolean {
+  return cell === 'done' || cell === 'missed' || cell === 'closed'
+}
+
 /** Keep the current-week ring, but reserve NOW for the inclusive stamp window. */
 export function currentWeekCell(opens: number, deadline: number, chainNow: number): 'now' | 'current' {
   return opens <= chainNow && chainNow <= deadline ? 'now' : 'current'

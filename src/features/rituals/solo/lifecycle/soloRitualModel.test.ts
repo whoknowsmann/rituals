@@ -109,6 +109,11 @@ describe('soloRitualModel', () => {
     }
   })
 
+  it('keeps receipts reachable when historical outcome reads are unavailable', () => {
+    expect(soloRitualModel(bundle({ currentEventIndex: 1 }), 450, me).weekCells).toEqual(['closed', 'now'])
+    expect(soloRitualModel(bundle({ status: 'Completed', currentEventIndex: 2 }), 700, me).weekCells).toEqual(['closed', 'closed'])
+  })
+
   it('labels the demo cause only for the exact configured destination', () => {
     expect(labelSoloDestination(destination, destination)).toContain('Northside Food Bank')
     expect(labelSoloDestination(destination, new PublicKey(new Uint8Array(32).fill(10)))).toContain('wallet you chose')

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useIsFocused, useNavigation } from '@react-navigation/native'
+import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import { PublicKey } from '@solana/web3.js'
 import { decodeSeason, type SeasonAccountView } from '../../data/rituals/accounts'
@@ -23,6 +23,7 @@ import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
 import { ActionButton, ErrorLine, Footnote, Hero, Section } from '../../components/crew'
+import { WalletChoiceButtons } from '../../components/wallet/WalletChoiceButtons'
 import { radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
 import { splitTotalStake, atomicDecimalText } from '../../features/rituals/solo/create/stakeSplit'
@@ -193,8 +194,14 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const [testBalance, setTestBalance] = useState<bigint | null>(null)
   const [balanceTick, setBalanceTick] = useState(0)
   // "Get test tokens": the faucet pays; after a send the balance line re-reads a few seconds later.
-  const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, () => { setTimeout(() => setBalanceTick((value) => value + 1), 4000) })
-  useEffect(() => {
+  const balanceRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (balanceRefreshTimer.current) clearTimeout(balanceRefreshTimer.current) }, [])
+  const onFaucetSent = useCallback(() => {
+    if (balanceRefreshTimer.current) clearTimeout(balanceRefreshTimer.current)
+    balanceRefreshTimer.current = setTimeout(() => setBalanceTick((value) => value + 1), 4000)
+  }, [])
+  const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, onFaucetSent)
+  useFocusEffect(useCallback(() => {
     if (client.status !== 'ready' || !selectedAccount) { setTestBalance(null); return }
     let active = true
     void client.client.getProtocolConfig().then(async (config) => {
@@ -207,7 +214,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       if (active) setTestBalance(balance)
     }).catch(() => { if (active) setTestBalance(null) }) // unknown: never block on a failed read
     return () => { active = false }
-  }, [client, connection, selectedAccount, balanceTick])
+  }, [client, connection, selectedAccount, balanceTick]))
   const shortOfTest = testBalance !== null && neededAtomic !== null && testBalance < neededAtomic
 
   const makeDeps = useCallback(() => {
@@ -447,7 +454,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
             {stakeSplit.ok && !stakeSplit.split.exact && <Text style={styles.quiet}>{`Splits evenly to ${formatAtomic(stakeSplit.split.lockedAtomic, 6)}.`}</Text>}
             {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
-            {testBalance !== null && (shortOfTest || testBalance === 0n) && faucet.status !== 'done' && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
+            {selectedAccount && (testBalance === null || shortOfTest || testBalance === 0n) && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
             {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
             {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</ErrorLine>}
           </View>
@@ -490,7 +497,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
 
         </>
       )}
-      {!selectedAccount && <Text style={styles.quiet}>Connect your wallet to start this ritual.</Text>}
+      {step === 3 && !selectedAccount && <View><Text style={styles.quiet}>Set your wallet to Devnet.</Text><WalletChoiceButtons failureCopy="Connection not completed. Try again." /></View>}
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )

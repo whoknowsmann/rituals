@@ -5,6 +5,15 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloCreateScreen.tsx'), 'utf8')
 
 describe('SoloCreateScreen transaction and commitment wiring', () => {
+  it('offers the existing wallet chooser inline and refreshes balance on focus and after a faucet send', () => {
+    expect(source).toContain('step === 3 && !selectedAccount && <View>')
+    expect(source).toContain('<WalletChoiceButtons')
+    expect(source).not.toContain('Connect your wallet to start this ritual.')
+    expect(source).toContain('useFocusEffect(useCallback(() => {')
+    expect(source).toContain('[client, connection, selectedAccount, balanceTick]))')
+    expect(source).toContain('setTimeout(() => setBalanceTick((value) => value + 1), 4000)')
+    expect(source).not.toContain("faucet.status !== 'done'")
+  })
   it('only explains the wallet handoff while the wallet is opening', () => {
     expect(source).not.toContain('walletHandoffNote(')
     expect(source).toContain('withWalletHandoff(')
@@ -33,7 +42,7 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).not.toContain('Missed weeks go to')
     for (const removed of ['YOUR RITUAL', 'LOCKED BEFORE YOU START', 'If I miss, it goes to', 'One declared skip', 'formatSol(', 'styles.promiseCard']) expect(source).not.toContain(removed)
     expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\) && <Text[^\n]*You have/)
-    expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\)[^\n]*Get test tokens/)
+    expect(source).toMatch(/selectedAccount && \(testBalance === null \|\| shortOfTest \|\| testBalance === 0n\)[^\n]*Get test tokens/)
     expect(source).toContain('testBalance < neededAtomic')
     expect(source).toContain('stepThreeErrors.filter((error) => !stepErrors.includes(error))')
     expect(source).toContain('causeUnavailable && <ErrorLine>')

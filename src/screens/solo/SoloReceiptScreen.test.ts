@@ -5,6 +5,10 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloReceiptScreen.tsx'), 'utf8')
 
 describe('SoloReceiptScreen proof note', () => {
+  it('returns to the ritual, not Home', () => {
+    expect(source).toContain('label="Back to ritual" onPress={() => navigation.goBack()}')
+    expect(source).not.toContain('Back to rituals')
+  })
   it('reads the ritual notes and shows a kept-week note label', () => {
     expect(source).toContain('readSoloNotes(')
     expect(source).toContain('YOUR NOTE')
