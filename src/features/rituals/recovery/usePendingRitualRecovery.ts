@@ -77,7 +77,8 @@ export function usePendingRitualRecovery(
       running = true
       void resolvePendingActions(store, transport).then((resolutions) => {
         if (!mounted) return
-        const resolution = resolutions.find((item) => item.status === 'still-unknown') ?? resolutions[0]
+        // An expired request sent nothing: there is nothing to tell the user.
+        const resolution = resolutions.find((item) => item.status === 'still-unknown') ?? resolutions.find((item) => item.status !== 'expired')
         setNotice(resolution ? Object.freeze({ title: 'Picking up where you left off', body: copyFor(resolution), resolution }) : null)
       }).catch(() => { /* journal remains available for retry */ }).finally(() => { running = false })
     }

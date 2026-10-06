@@ -119,7 +119,7 @@ export function RitualsHomeScreen() {
   const goJoin = () => navigation.navigate('JoinRitual', {})
 
   if (homeState.status === 'loading') {
-    return <View style={styles.center} accessibilityRole="progressbar" accessibilityLiveRegion="polite"><ActivityIndicator accessibilityLabel="Loading your rituals" /><Text style={styles.muted}>Checking in…</Text><Text style={styles.disclosure}>{view.disclosure}</Text></View>
+    return <View style={styles.center} accessibilityRole="progressbar" accessibilityLiveRegion="polite"><ActivityIndicator accessibilityLabel="Loading your rituals" /><Text style={styles.muted}>Loading rituals…</Text><Text style={styles.disclosure}>{view.disclosure}</Text></View>
   }
   if (homeState.status === 'error') {
     return <View style={styles.center} accessibilityLiveRegion="polite"><Text style={styles.errorTitle}>Your rituals are out of reach</Text><Text style={styles.muted}>{homeState.message}</Text><Text style={styles.disclosure}>{view.disclosure}</Text><Button mode="contained" onPress={load} accessibilityLabel="Try again">Try again</Button></View>
@@ -239,7 +239,7 @@ const makeStyles = (theme: MD3Theme, color: Palette) => StyleSheet.create({
   tilePressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   tileOrb: { position: 'absolute', right: -40, top: -40, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.14)' },
   tileHead: { gap: space.xs },
-  tileStake: { ...type.label, color: color.white, opacity: 0.85 },
+  tileStake: { ...type.label, textTransform: 'none', letterSpacing: 0.5, color: color.white, opacity: 0.85 },
   tileTitle: { ...type.heading, color: color.white },
   tileFoot: { gap: space.sm, marginTop: space.md },
   tilePill: { alignSelf: 'flex-start', maxWidth: '100%', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 4 },
@@ -259,5 +259,5 @@ const makeStyles = (theme: MD3Theme, color: Palette) => StyleSheet.create({
   muted: { ...type.body, color: color.muted, textAlign: 'center' },
   comingSoon: { ...type.caption, color: color.muted, textAlign: 'center', marginTop: space.xl },
   errorTitle: { ...type.section, color: color.fg, textAlign: 'center' },
-  disclosure: { ...type.label, color: color.faint, textAlign: 'center', marginVertical: space.md },
+  disclosure: { ...type.caption, color: color.faint, textAlign: 'center', marginVertical: space.md },
 })

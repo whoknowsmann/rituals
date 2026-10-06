@@ -92,6 +92,9 @@ export function withPendingActionSignature(record: PendingActionRecord, signatur
   return parsed
 }
 
+/** Blocks past lastValidBlockHeight before a missing status counts as never landed. */
+export const EXPIRY_MARGIN_BLOCKS = 150
+
 export async function resolvePendingAction(record: PendingActionRecord, transport: PendingActionTransport): Promise<PendingActionResolution> {
   let currentHeight: number | null = null
   try {
@@ -109,8 +112,17 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
         if (readback.actionObserved && safeHeight(readback.slot) && (status.slot === null || readback.slot >= status.slot)) return Object.freeze({ status: 'confirmed' as const, record, slot: readback.slot })
       } catch { /* authoritative readback has not caught up yet */ }
     }
-    // Expiry is not proof of failure: an old send may have landed even if this
-    // node cannot serve its status/readback. Never encourage a duplicate.
+    // Expiry alone is not proof of failure while a node may lag. But once the
+    // chain is well past the transaction's last valid block height, it can no
+    // longer land; if history has no status for it and the action is absent
+    // on chain, it never happened (found on the phone 2026-10-06: a stale
+    // record kept Home saying "still checking" forever).
+    if (status === null && currentHeight !== null && currentHeight > record.lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS) {
+      try {
+        const readback = await transport.readRitual(new PublicKey(record.ritualAddress), record)
+        if (readback.actionObserved === false) return Object.freeze({ status: 'expired' as const, record })
+      } catch { /* outage is not evidence of expiry */ }
+    }
     return Object.freeze({ status: 'still-unknown' as const, record })
   }
 
@@ -122,6 +134,13 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
       if (readback.actionObserved && safeHeight(readback.slot)) return Object.freeze({ status: 'confirmed' as const, record, slot: readback.slot })
       if (readback.actionObserved === false && currentHeight !== null && currentHeight > record.lastValidBlockHeight) return Object.freeze({ status: 'expired' as const, record })
     } catch { /* outage is not evidence of expiry */ }
+  }
+  // An unsigned journal for an action we cannot read back (legacy stamp
+  // records with no actor/week) never resolves on its own. Once its blockhash
+  // is long dead, stop nagging: the ritual screen shows the chain's truth, and
+  // the program rejects a duplicate stamp anyway.
+  if (record.transactionSignature === undefined && currentHeight !== null && currentHeight > record.lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS) {
+    return Object.freeze({ status: 'expired' as const, record })
   }
   return Object.freeze({ status: 'still-unknown' as const, record })
 }

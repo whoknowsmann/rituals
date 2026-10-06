@@ -111,4 +111,16 @@ describe('resolvePendingAction', () => {
     })
     expect(result.status).toBe('still-unknown')
   })
+  it('lets a long-dead request go instead of saying "still checking" forever (phone, 2026-10-06)', async () => {
+    const lost = await resolvePendingAction(base, { getBlockHeight: async () => 100 + 151,
+      getSignatureStatus: async () => null, readRitual: async () => ({ slot: 300, actionObserved: false }) })
+    expect(lost.status).toBe('expired')
+    const landed = await resolvePendingAction(base, { getBlockHeight: async () => 100 + 151,
+      getSignatureStatus: async () => null, readRitual: async () => ({ slot: 300, actionObserved: true }) })
+    expect(landed.status).toBe('still-unknown')
+    const { transactionSignature: _ignored, ...unsigned } = base
+    const legacyStamp = await resolvePendingAction({ ...unsigned, actionKind: 'claim' }, { getBlockHeight: async () => 100 + 151,
+      getSignatureStatus: vi.fn(), readRitual: async () => ({ slot: 120, actionObserved: true }) })
+    expect(legacyStamp.status).toBe('expired')
+  })
 })
