@@ -83,6 +83,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
   const [suggestionRound, setSuggestionRound] = useState(0)
   const [confirmedReadback, setConfirmedReadback] = useState(false)
+  // This screen stays mounted under the ritual; client/auth identities change.
+  const handledCreateAddresses = useRef(new Set<string>())
   const [readbackError, setReadbackError] = useState<string | null>(null)
   // The app's settle key, pre-paid in this same approval so weeks close with
   // no further wallet prompt. Without it, create still works (manual settle).
@@ -237,6 +239,11 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       setReadbackError(null)
       return
     }
+    if (handledCreateAddresses.current.has(confirmedAddress)) {
+      setConfirmedReadback(true)
+      setReadbackError(null)
+      return
+    }
     let active = true
     setConfirmedReadback(false)
     setReadbackError(null)
@@ -245,6 +252,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       if (!active) return
       create.observeReadback(confirmedAddress)
       setConfirmedReadback(true)
+      // Mark synchronously, before starting any asynchronous one-shot writes.
+      if (handledCreateAddresses.current.has(confirmedAddress)) return
+      handledCreateAddresses.current.add(confirmedAddress)
       void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).catch(() => undefined)
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
       void scheduleReminders({ ritualAddress: confirmedAddress, schedule: read.account.schedule, ritualTitle: draft.title,
