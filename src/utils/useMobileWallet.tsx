@@ -4,6 +4,7 @@ import { PublicKey, Transaction, TransactionSignature, VersionedTransaction } fr
 import { useCallback, useMemo } from "react";
 import { associationConfigFor, walletOptionByPackage } from "./walletChoice";
 import { logFailure } from "./diagnostics";
+import { assertWalletNetwork } from "./walletNetwork";
 import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode, type WalletAssociationConfig } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
 export type MobileWalletErrorCategory = "authorization" | "input" | "wallet";
@@ -24,7 +25,9 @@ function isUserRejection(error: unknown): boolean {
       // Backing out of the wallet ends the association: the native layer reports
       // "Local association cancelled by user". That is a choice, not a fault.
       const message = (error as { message?: unknown }).message;
-      return typeof message === "string" && /cancel{1,2}ed by user/i.test(message);
+      // Seed Vault uses CancellationException for decline, timeout AND its
+      // mismatch sheet. None of these alone proves a network mismatch.
+      return value.name === 'CancellationException' || value.name === 'TimeoutError' || (typeof message === "string" && /cancel{1,2}ed|CancellationException|timed?\s*out|timeout/i.test(message));
     }
   } catch { /* sanitize hostile errors */ }
   return false;
@@ -60,6 +63,8 @@ export async function authorizeAndSendTransaction(
     authorizedKey = new PublicKey(candidate.toBytes());
   } catch (error) { if (error instanceof MobileWalletError) throw error; return inputFailure("wallet authorization has no valid account"); }
   if (!payer.equals(authorizedKey)) inputFailure("transaction fee payer does not match the authorized account");
+  // Missing/empty chains are allowed; only explicit contrary evidence blocks.
+  assertWalletNetwork(authorized.chains);
   let signatures: unknown;
   try {
     signatures = await wallet.signAndSendTransactions({ transactions: [transaction], minContextSlot, commitment: "confirmed", skipPreflight: false, maxRetries: 3, waitForCommitmentToSendNextTransaction: true });
@@ -83,6 +88,7 @@ export function useMobileWallet() {
     catch (error) {
       // Drop the stale token so the next attempt re-authorizes against the wallet's current account.
       if (error instanceof MobileWalletError && error.staleAuthorization) { try { await clearAuthorization(); } catch { /* best effort */ } }
+      if (!(error instanceof MobileWalletError) && isUserRejection(error)) throw new MobileWalletError('wallet', 'wallet request was rejected', true);
       throw error;
     }
   }, [authorizeSession, clearAuthorization, session, walletPackage]);

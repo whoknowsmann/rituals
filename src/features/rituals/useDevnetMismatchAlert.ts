@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Alert } from 'react-native'
 import { DEVNET_MISMATCH_BODY, DEVNET_MISMATCH_TITLE, shouldWarnDevnetMismatch } from './devnetMismatch'
 
-/** Show the popup once per failure; a new attempt that fails again shows it again. */
+/** Show once per explicit mismatch; a generic failed wallet step never alerts. */
 export function useDevnetMismatchAlert(status: string, category: string | null | undefined, walletPackage: string | null | undefined): void {
   const shownFor = useRef<string | null>(null)
   useEffect(() => {

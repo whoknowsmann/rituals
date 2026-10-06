@@ -20,7 +20,7 @@ export type RitualSubmissionResult = Readonly<{
   expectationKind: RitualActionExpectation['kind']
   confirmed: ConfirmedRitualAction
 }>
-export type RitualSubmissionErrorCategory = 'input' | 'wallet' | 'signature' | 'deployment'
+export type RitualSubmissionErrorCategory = 'input' | 'wallet' | 'signature' | 'deployment' | 'network-mismatch'
 export class RitualSubmissionError extends Error {
   readonly category: RitualSubmissionErrorCategory
   /**
@@ -51,14 +51,19 @@ function expectation(value: PreparedExpectation): RitualActionExpectation {
 }
 function walletFailure(error: unknown): never {
   logFailure('wallet.raw', error)
+  let mismatch = false
+  let rejected = false
   try {
     if (error !== null && typeof error === 'object') {
       const name = (error as { name?: unknown }).name
       const code = (error as { code?: unknown }).code
       const userRejected = (error as { userRejected?: unknown }).userRejected
-      if (userRejected === true || name === 'WalletSignAndSendTransactionError' || name === 'UserRejectedRequestError' || code === 4001) return fail('wallet', 'wallet request was rejected')
+      mismatch = (error as { category?: unknown }).category === 'network-mismatch'
+      rejected = userRejected === true || name === 'UserRejectedRequestError' || code === 4001
     }
   } catch { /* sanitize hostile errors */ }
+  if (mismatch) return fail('network-mismatch', 'wallet account does not support the requested network')
+  if (rejected) return fail('wallet', 'wallet request was rejected')
   return fail('wallet', 'wallet submission failed')
 }
 

@@ -39,8 +39,10 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
 7. Empty Home says "Start a ritual?" with one button. Each remembered ritual
    gets its own tile colour. A finished ritual (or one made by another wallet)
    can be removed from the phone; the chain is untouched.
-8. If a Seed Vault Wallet approval fails, a popup explains the Devnet switch
-   ("Network mismatch"); there is no permanent note.
+8. Only an explicit authorize account chain list excluding Devnet triggers the
+   network popup and blocks sending. Absent/empty chains fail open; cancellation
+   and timeout get a quiet inline line, not a popup. Device proof of Seed Vault's
+   `accounts[].chains` is still pending; each authorize logs the selected list.
 
 ## Speeds
 

@@ -12,6 +12,11 @@ import { lifecycleContext, lifecycleSource } from './lifecycleBuilderTestHelpers
 import { eventPda } from './pdas'
 import type { BuildCreateRitualArgs } from './instructionsLifecycle'
 import * as api from './index'
+import { WalletNetworkMismatchError } from '../../utils/walletNetwork'
+import { runLifecycleAction } from '../../features/rituals/runLifecycleAction'
+import { lifecycleReducer, lifecycleInitialState, lifecycleStatusCopy } from '../../features/rituals/lifecycleMachine'
+import { runCreateRitual } from '../../features/rituals/create/runCreateRitual'
+import { createMachineReducer, createMachineInitialState, createStatusCopy } from '../../features/rituals/create/createMachine'
 
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
 const payer = Keypair.fromSeed(new Uint8Array(32).fill(7))
@@ -73,6 +78,29 @@ const actionCases = [
 ] as const
 
 describe('Ritual action submission', () => {
+  it.each([
+    [new WalletNetworkMismatchError(), 'network-mismatch'],
+    [Object.assign(new Error('wallet request was rejected'), { userRejected: true }), 'wallet-rejected'],
+  ])('preserves wallet evidence through sanitization and both UI machines (%s)', async (error, category) => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    const verifier = new CapturingVerifier()
+    const submitter = new RitualActionSubmitter(preparer, verifier, { signAndSendTransaction: async () => { throw error } })
+    const submit = async () => { await submitter.submitPrepared(prepared); throw new Error('unreachable') }
+    const confirm = async () => { throw new Error('must not confirm') }
+    let lifecycle = lifecycleInitialState()
+    await runLifecycleAction({ prepare: async () => ({ kind: 'claim', messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress }), submit, confirm }, (event) => { lifecycle = lifecycleReducer(lifecycle, event) })
+    let create = createMachineInitialState()
+    await runCreateRitual({ prepare: async () => ({ kind: 'create', messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress }), submit, confirm }, (event) => { create = createMachineReducer(create, event) })
+    for (const state of [create, lifecycle]) expect(state).toMatchObject({ status: 'error', category, retryable: true, submitted: false })
+    for (const copy of [createStatusCopy(create), lifecycleStatusCopy(lifecycle)]) {
+      expect(copy.tone).toBe('neutral')
+      expect(copy.body).toContain('Nothing was sent.')
+      expect(copy.body).not.toContain('You declined')
+    }
+    expect(verifier.actions).toHaveLength(0)
+  })
+
   it('converts every prepared expectation and binds exactly one deterministic signer', async () => {
     const observed: string[] = []
     for (const testCase of actionCases) {

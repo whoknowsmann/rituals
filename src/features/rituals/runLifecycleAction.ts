@@ -8,11 +8,12 @@ export type LifecycleActionDeps = Readonly<{
 }>
 export type LifecycleOutcome = Readonly<{ ok: true; result: LifecycleConfirmedRef }> | Readonly<{ ok: false; category: LifecycleFailureCategory }>
 type Dispatch = (event: LifecycleEvent) => void
-const rejection = ['user rejected', 'user declined', 'declined by user', 'rejected the request', 'request rejected', 'cancelled by user', 'canceled by user']
+const rejection = ['user rejected', 'user declined', 'declined by user', 'rejected the request', 'request rejected', 'wallet request was rejected', 'wallet authorization was rejected', 'cancelled by user', 'canceled by user']
 const messageFor: Record<LifecycleFailureCategory, string> = {
   preparation: 'Could not prepare the action. Nothing was sent. Check your connection and try again.',
   'wallet-rejected': 'The request was declined in your wallet. Nothing was sent.',
   'wallet-unavailable': 'No wallet was available to approve the request.',
+  'network-mismatch': 'Nothing was sent. Switch your wallet to Devnet, then try again.',
   'blockhash-expired': 'The prepared transaction expired before wallet approval. Nothing was sent; prepare again.',
   submission: 'Could not send the transaction to the network. Nothing was sent; you can try again.',
   confirmation: 'The transaction was sent but could not be confirmed.',
@@ -29,6 +30,7 @@ export async function runLifecycleAction(deps: LifecycleActionDeps, dispatch: Di
   try { handle = await deps.submit(prepared) } catch (error) {
     logFailure('action.submit', error)
     if (error !== null && typeof error === 'object' && (error as { submitted?: unknown }).submitted === true) return fail('confirmation')
+    if (error !== null && typeof error === 'object' && (error as { category?: unknown }).category === 'network-mismatch') return fail('network-mismatch')
     if (error !== null && typeof error === 'object' && (error as { blockhashExpired?: unknown }).blockhashExpired === true) return fail('blockhash-expired')
     return fail(isRejection(error) ? 'wallet-rejected' : 'submission')
   }

@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { PublicKey, Transaction, VersionedTransaction, TransactionMessage, SystemProgram } from '@solana/web3.js'
 import { authorizeAndSendTransaction, MobileWalletError } from './useMobileWallet'
 import type { Account } from './useAuthorization'
+import { getAuthorizationFromAuthorizationResult } from './useAuthorization'
+import type { AuthorizationResult } from '@solana-mobile/mobile-wallet-adapter-protocol'
+vi.mock('@react-native-async-storage/async-storage', () => ({ default: {} }))
 
 const payer = Key(7)
 function Key(value: number) { return new PublicKey(new Uint8Array(32).fill(value)) }
@@ -12,6 +15,33 @@ function wallet() { return { signAndSendTransactions: vi.fn(async () => ['sig'])
 const authorize = vi.fn(async () => account(payer))
 
 describe('authorizeAndSendTransaction', () => {
+  it('uses fresh selected-account chains, logs them once, and blocks a reported mismatch before send', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const address = Buffer.from(payer.toBytes()).toString('base64')
+      const result: AuthorizationResult = { auth_token: 'test', wallet_uri_base: 'https://wallet.invalid', accounts: [{ address: Buffer.from(Key(8).toBytes()).toString('base64'), chains: ['solana:devnet'] }, { address, chains: ['solana:mainnet'] }] }
+      const selected = getAuthorizationFromAuthorizationResult(result, { ...account(payer), address, chains: ['solana:devnet'] }, 'com.solanamobile.wallet').selectedAccount
+      expect(selected.chains).toEqual(['solana:mainnet'])
+      expect(log).toHaveBeenCalledExactlyOnceWith('[rituals] mwa.authorize.chains: ["solana:mainnet"]')
+      const session = wallet()
+      await expect(authorizeAndSendTransaction(session, async () => selected, legacy(), 12)).rejects.toMatchObject({ category: 'network-mismatch' })
+      expect(session.signAndSendTransactions).not.toHaveBeenCalled()
+    } finally { log.mockRestore() }
+  })
+
+  it.each([undefined, [], ['solana:devnet'], ['solana:mainnet', 'solana:devnet']])('allows absent, empty, or compatible chains: %j', async (chains) => {
+    const session = wallet()
+    await expect(authorizeAndSendTransaction(session, async () => ({ ...account(payer), chains }), legacy(), 12)).resolves.toBe('sig')
+    expect(session.signAndSendTransactions).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([new Error('java.util.concurrent.CancellationException'), new Error('request timed out')])('keeps cancel/timeout neutral without claiming a network mismatch', async (error) => {
+    const session = wallet()
+    await expect(authorizeAndSendTransaction(session, async () => { throw error }, legacy(), 12)).rejects.toMatchObject({ category: 'authorization', userRejected: true })
+    session.signAndSendTransactions.mockRejectedValueOnce(error)
+    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 12)).rejects.toMatchObject({ category: 'wallet', userRejected: true })
+  })
+
   it('authorizes once and sends the same transaction with explicit safe MWA options', async () => {
     const session = wallet(); const tx = legacy()
     await expect(authorizeAndSendTransaction(session, authorize, tx, 12)).resolves.toBe('sig')

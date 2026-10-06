@@ -36,6 +36,7 @@ export type CreateFailureCategory =
   | 'preparation'
   | 'wallet-rejected'
   | 'wallet-unavailable'
+  | 'network-mismatch'
   | 'blockhash-expired'
   | 'submission'
   | 'confirmation'
@@ -254,11 +255,12 @@ export function createStatusCopy(state: CreateMachineState): CreateStatusCopy {
       }
       if (state.category === 'wallet-rejected') {
         return freeze({
-          title: 'Not approved',
-          body: 'You declined the request in your wallet. Nothing was sent and nothing was charged.',
+          title: 'Not sent',
+          body: 'Nothing was sent. Try again.',
           tone: 'neutral' as const,
         })
       }
+      if (state.category === 'network-mismatch') return freeze({ title: 'Switch to Devnet', body: 'Nothing was sent. Switch your wallet to Devnet, then try again.', tone: 'neutral' as const })
       return freeze({
         title: 'Could not create the ritual',
         body: 'Nothing was sent to the network. You can safely try again.',

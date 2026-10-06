@@ -2,7 +2,7 @@ export type LifecycleActionKind = 'fund' | 'activate' | 'initialize-event' | 'cl
 export type LifecyclePreparedRef = Readonly<{ kind: LifecycleActionKind; messageDigest: string; ritualAddress: string }>
 export type LifecycleSubmittedRef = Readonly<{ id: string }>
 export type LifecycleConfirmedRef = Readonly<{ signature: string; messageDigest: string }>
-export type LifecycleFailureCategory = 'preparation' | 'wallet-rejected' | 'wallet-unavailable' | 'blockhash-expired' | 'submission' | 'confirmation'
+export type LifecycleFailureCategory = 'preparation' | 'wallet-rejected' | 'wallet-unavailable' | 'network-mismatch' | 'blockhash-expired' | 'submission' | 'confirmation'
 
 export type LifecycleState =
   | Readonly<{ status: 'idle' }>
@@ -57,6 +57,7 @@ export function lifecycleStatusCopy(state: LifecycleState): Readonly<{ title: st
   if (state.status === 'submitted' || state.status === 'confirming') return { title: 'Confirming', body: 'Sent. Checking it landed.', tone: 'progress' }
   if (state.status === 'confirmed') return { title: 'Done', body: 'Confirmed on chain.', tone: 'success' }
   if (state.submitted || state.category === 'confirmation') return { title: 'Confirmation incomplete', body: 'Your transaction may already have gone through. Do not retry — check the ritual before acting again.', tone: 'warning' }
-  if (state.category === 'wallet-rejected') return { title: 'Not approved', body: 'You declined the request in your wallet. Nothing was sent.', tone: 'neutral' }
+  if (state.category === 'wallet-rejected') return { title: 'Not sent', body: 'Nothing was sent. Try again.', tone: 'neutral' }
+  if (state.category === 'network-mismatch') return { title: 'Switch to Devnet', body: 'Nothing was sent. Switch your wallet to Devnet, then try again.', tone: 'neutral' }
   return { title: 'Could not continue', body: 'Nothing was sent to the network. You can safely try again.', tone: 'warning' }
 }

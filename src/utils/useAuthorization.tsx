@@ -14,15 +14,14 @@ import { toUint8Array } from "js-base64";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { reusableAuthToken } from "./walletChoice";
-
-const CHAIN = "solana";
-const CLUSTER = "devnet";
-const CHAIN_IDENTIFIER = `${CHAIN}:${CLUSTER}`;
+import { CHAIN_IDENTIFIER } from "./walletNetwork";
+import { logNote } from "./diagnostics";
 
 export type Account = Readonly<{
   address: Base64EncodedAddress;
   label?: string;
   publicKey: PublicKey;
+  chains?: readonly string[];
 }>;
 
 type WalletAuthorization = Readonly<{
@@ -40,25 +39,15 @@ function getAccountFromAuthorizedAccount(account: AuthorizedAccount): Account {
   };
 }
 
-function getAuthorizationFromAuthorizationResult(
+export function getAuthorizationFromAuthorizationResult(
   authorizationResult: AuthorizationResult,
   previouslySelectedAccount: Account | undefined,
   walletPackage: string | null
 ): WalletAuthorization {
-  let selectedAccount: Account;
-  if (
-    // We have yet to select an account.
-    previouslySelectedAccount == null ||
-    // The previously selected account is no longer in the set of authorized addresses.
-    !authorizationResult.accounts.some(
-      ({ address }) => address === previouslySelectedAccount.address
-    )
-  ) {
-    const firstAccount = authorizationResult.accounts[0];
-    selectedAccount = getAccountFromAuthorizedAccount(firstAccount);
-  } else {
-    selectedAccount = previouslySelectedAccount;
-  }
+  // Always use the fresh account metadata, even when the address is unchanged.
+  const selected = authorizationResult.accounts.find(({ address }) => address === previouslySelectedAccount?.address) ?? authorizationResult.accounts[0];
+  const selectedAccount = getAccountFromAuthorizedAccount(selected);
+  logNote('mwa.authorize.chains', JSON.stringify(selectedAccount.chains ?? null));
   return {
     accounts: authorizationResult.accounts.map(getAccountFromAuthorizedAccount),
     authToken: authorizationResult.auth_token,

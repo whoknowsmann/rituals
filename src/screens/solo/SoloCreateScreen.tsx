@@ -428,7 +428,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           </View>
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
-          {create.state.status !== 'idle' && !createComplete && (
+          {create.state.status === 'error' && createCopy.tone === 'neutral' && <Text style={styles.quiet} accessibilityLiveRegion="polite">{createCopy.body}</Text>}
+          {create.state.status !== 'idle' && !createComplete && createCopy.tone !== 'neutral' && (
             <View style={styles.status} accessibilityLabel="Create status">
               <Text style={styles.statusTitle}>{createCopy.title}</Text>
               <Text style={styles.quiet} accessibilityLiveRegion="polite">{createCopy.body}</Text>

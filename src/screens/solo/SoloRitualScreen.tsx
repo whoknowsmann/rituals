@@ -121,8 +121,8 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   // A week nobody checked in to has no event account yet; the first tap opens it
   // (one approval), the screen re-reads, and the next tap settles it.
   const settle = useRitualAction(() => makeSharedDeps(model?.needsEventInit ? 'initialize-event' : 'finalize'))
-  // Whichever wallet step failed last: the Seed Vault network popup keys off it (hooks stay above the early returns).
-  const failed = [claim, skip, settle].find((item) => item.state.status === 'error')?.state
+  // A generic cancellation is not evidence of a network mismatch.
+  const failed = [claim, skip, settle].find((item) => item.state.status === 'error' && item.state.category === 'network-mismatch')?.state
   useDevnetMismatchAlert(failed ? 'error' : 'idle', failed && failed.status === 'error' ? failed.category : null, walletPackage)
   // One "already handled" digest per action. A single shared ref let a stale
   // confirmed stamp re-run after Settle and save an empty note over the real
@@ -252,7 +252,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         </View>
       )}
       {renderState(model, witness, action, actionCopy, readyForWallet, walletPackage, weekNote, settlingByItself, celebrate > 0, keptSaying(route.params.ritualId, model.eventIndex))}
-      {actionError && <ErrorLine>{actionError}</ErrorLine>}
+      {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
       {holdVisible && <View style={s.holdArea}><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} />{readyForWallet && claim.state.status === 'idle' ? <Text style={s.note}>{walletHandoffNote(walletPackage)}</Text> : null}</View>}
@@ -281,7 +281,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{model.destinationLabel} received that week's stake.</Text></View>
   if (model.showedUp) return <View style={s.paper}><Stamp kind="showed-up" note={keptLine} animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
   if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Checking…</Text></View>
-  if (action.state.status !== 'idle') return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{action.state.status === 'awaiting-wallet' ? actionCopy.body : action.state.status === 'error' ? actionCopy.body : 'Getting this week ready…'}</Text></View>
+  if (action.state.status !== 'idle' && action.state.status !== 'error') return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text><Text style={s.muted}>{action.state.status === 'awaiting-wallet' ? actionCopy.body : 'Getting this week ready…'}</Text></View>
   if (model.state === 'completed') return <View style={s.card}><Text style={s.cardTitle}>Every week is settled.</Text></View>
   // An open week needs no card: the big HOLD button says it all.
   return null
