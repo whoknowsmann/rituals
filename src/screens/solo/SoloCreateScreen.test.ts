@@ -5,8 +5,8 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloCreateScreen.tsx'), 'utf8')
 
 describe('SoloCreateScreen transaction and commitment wiring', () => {
-  it('warns before the wallet handoff and replaces copy while the wallet is open', () => {
-    expect(source).toContain('walletHandoffNote(')
+  it('only explains the wallet handoff while the wallet is opening', () => {
+    expect(source).not.toContain('walletHandoffNote(')
     expect(source).toContain('withWalletHandoff(')
   })
 
@@ -26,8 +26,16 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).not.toContain('suggestions[0]?.draft.eventCount')
   })
 
-  it('shows how many weeks and the total at stake before the approval', () => {
-    expect(source).toContain('· ${totalStakeLabel} in all')
+  it('keeps one schedule summary and one cause line, with validation and low-balance help intact', () => {
+    expect(source.match(/\{scheduleLine\}/g)).toHaveLength(1)
+    expect(source).toContain('Missed weeks go to {DEMO_CAUSE.label}')
+    for (const removed of ['YOUR RITUAL', 'LOCKED BEFORE YOU START', 'If I miss, it goes to', 'One declared skip', 'formatSol(', 'styles.promiseCard']) expect(source).not.toContain(removed)
+    expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\) && <Text[^\n]*You have/)
+    expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\)[^\n]*Get test tokens/)
+    expect(source).toContain('testBalance < neededAtomic')
+    expect(source).toContain('stepThreeErrors.filter((error) => !stepErrors.includes(error))')
+    expect(source).toContain('causeUnavailable && <ErrorLine>')
+    expect(source).toContain('Not enough TEST: this needs')
   })
 
   it('says "Lock it in" / "Locked in." (Jack, 2026-10-04)', () => {

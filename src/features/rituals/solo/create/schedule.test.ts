@@ -26,17 +26,17 @@ describe('week speed on create (Demo speed · Real weeks, approved 2026-10-04)',
 
   it('says how long demo weeks are, singular for one week', () => {
     const four = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 4 }).schedule
-    expect(soloScheduleSummary({ weekCount: 4, totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 2 min each · 20 TEST in all')
+    expect(soloScheduleSummary({ weekCount: 4, stakeEachLabel: '5 TEST', totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 2 min each · 20 TEST')
     const one = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 1 }).schedule
-    expect(soloScheduleSummary({ weekCount: 1, totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('1 demo week · 2 min · 5 TEST in all')
+    expect(soloScheduleSummary({ weekCount: 1, stakeEachLabel: '5 TEST', totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('1 demo week · 2 min · 5 TEST')
   })
 
   it('names the day the last real week settles, in the app date style', () => {
     const four = selectSoloSchedule({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, eventCount: 4 }).schedule
     // 2 min lead + 3 full weeks + 6 d + 23 h after Sun Oct 4 → Sun Nov 1.
-    expect(soloScheduleSummary({ weekCount: 4, totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('4 weeks · ends Sun, Nov 1 · 20 TEST in all')
+    expect(soloScheduleSummary({ weekCount: 4, stakeEachLabel: '5 TEST', totalStakeLabel: '20 TEST', schedule: four, nowSeconds: now })).toBe('5 TEST a week · ends Sun, Nov 1')
     const one = selectSoloSchedule({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, eventCount: 1 }).schedule
-    expect(soloScheduleSummary({ weekCount: 1, totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('1 week · ends Sun, Oct 11 · 5 TEST in all')
+    expect(soloScheduleSummary({ weekCount: 1, stakeEachLabel: '5 TEST', totalStakeLabel: '5 TEST', schedule: one, nowSeconds: now })).toBe('5 TEST a week · ends Sun, Oct 11')
   })
 })
 import { DEMO_CADENCE } from '../../../../domain/rituals/schedule'

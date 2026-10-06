@@ -16,9 +16,10 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
    - Step 1: what's your ritual (typed text becomes the name: "to read" → "Read";
      suggestions optional, deterministic, on-device — **never call them AI**).
    - Step 2: how many weeks (− / +, 1–16), **Demo speed · Real weeks** (Demo is
-     the default), stake per week (type it or 1 / 5 / 10 / 25), the wallet's TEST
-     balance (button blocks if the stake won't fit), the locked cause
-     ("Northside Food Bank (demo)"), the signed card with the ritual's name.
+     the default), stake per week (type it or 1 / 5 / 10 / 25), a single schedule
+     summary and the locked cause ("Northside Food Bank (demo)"). Balance and
+     Get test tokens appear only when short or empty; the button blocks if the
+     stake won't fit. No signed summary card.
    - The single approval creates the ritual, locks every week's stake in a vault,
      activates it, and pre-pays the app's settle key (0.001 + 0.002 SOL per week,
      capped 0.05) so later weeks close with no wallet prompt.

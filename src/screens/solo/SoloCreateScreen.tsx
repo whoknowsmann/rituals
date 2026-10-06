@@ -12,7 +12,7 @@ import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatch
 import { useDevnetFaucet } from '../../features/rituals/faucet/useDevnetFaucet'
 import { faucetLine } from '../../features/rituals/faucet/devnetFaucet'
 import { useConnection } from '../../utils/ConnectionProvider'
-import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
+import { withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
 import { useReminders } from '../../features/rituals/reminders/useReminders'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
@@ -21,14 +21,14 @@ import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { formatAtomic } from '../../features/rituals/displayFormat'
 import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
 import { ActionButton, ErrorLine, Footnote, Hero, Section, Stamp } from '../../components/crew'
-import { color, fonts, radius, space, type, themedStyles, useColors } from '../../theme'
+import { radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
 import { DEFAULT_SOLO_SPEED, SOLO_SPEEDS, selectSoloSchedule, soloCadenceFor, soloEventCount, soloScheduleSummary, SOLO_MAX_WEEKS, SOLO_MIN_WEEKS, STAKE_PRESETS, stepWeeks, type SoloSpeed } from '../../features/rituals/solo/create/schedule'
 import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
 import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, soloCreateSteps, type SoloCreateStep } from '../../features/rituals/solo/create/steps'
 import { SCOPE } from '../../features/rituals/productScope'
 import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
-import { formatSol, settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
+import { settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
 import { startedSaying } from '../../features/rituals/solo/sayings'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee, type FeeConfig } from '../../domain/rituals/money'
@@ -75,7 +75,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const stepPosition = soloCreateStepPosition(step, CREATE_STEPS)
   const [draft, setDraft] = useState<SoloCreateDraft>(initialDraft)
   const [pickedEventCount, setPickedEventCount] = useState<string | number | undefined>(undefined)
-  // Demo speed (6.5-minute weeks) by default; Real weeks writes 7-day windows.
+  // Demo speed by default; Real weeks writes 7-day windows.
   const [speed, setSpeed] = useState<SoloSpeed>(DEFAULT_SOLO_SPEED)
   const [remindWeekly, setRemindWeekly] = useState(true)
   const { afterCreate: scheduleReminders } = useReminders()
@@ -138,8 +138,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     const nowSeconds = Math.floor(Date.now() / 1000)
     try {
       const selection = selectSoloSchedule({ cadence: soloCadenceFor(speed), referenceSeconds: nowSeconds, eventCount: weekCount, seasonSchedule: season.account?.schedule })
-      return soloScheduleSummary({ weekCount, totalStakeLabel, schedule: selection.schedule, nowSeconds })
-    } catch { return `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${totalStakeLabel} in all` }
+      return soloScheduleSummary({ weekCount, stakeEachLabel, totalStakeLabel, schedule: selection.schedule, nowSeconds })
+    } catch { return `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${totalStakeLabel}` }
   })()
   // What the approval will take in TEST: stake for every week, plus whatever
   // activation fee the live ProtocolConfig says (0 once the protocol is free).
@@ -367,7 +367,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
 
       {step === 3 && (
         <>
-          <Hero>Your stake</Hero>
+          <Hero>Lock it in</Hero>
           <View style={styles.stakeCard}>
             <Text style={styles.label}>HOW MANY WEEKS</Text>
             <View style={styles.stepper}>
@@ -403,31 +403,26 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               })}
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
-            {testBalance !== null && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
+            {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
             {testBalance !== null && (shortOfTest || testBalance === 0n) && faucet.status !== 'done' && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
             {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
             {shortOfTest && neededAtomic !== null && <ErrorLine>{`Not enough TEST: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</ErrorLine>}
-            {settlerKey && <Text style={styles.quiet}>{`+ ${formatSol(settlerBudgetLamports(weekCount))} so each week closes ${speed === 'real' ? 'itself when you next open the app' : 'on its own'}`}</Text>}
           </View>
-          <Section title="If I miss, it goes to" aside="LOCKED BEFORE YOU START" />
-          {destinationChoices(DEMO_CAUSE).filter((choice) => SCOPE.personDestination || choice.kind === 'cause').map((choice) => (
+          {!SCOPE.personDestination && <Text style={styles.quiet}>Missed weeks go to {DEMO_CAUSE.label}</Text>}
+          {SCOPE.personDestination && destinationChoices(DEMO_CAUSE).map((choice) => (
             <OptionRow key={choice.kind} selected={draft.destination === choice.kind} disabled={choice.disabled} title={choice.kind === 'cause' ? DEMO_CAUSE.label : choice.label} detail={choice.disabled ? choice.detail : choice.kind === 'cause' ? 'The selected cause' : choice.detail} onPress={() => { if (!choice.disabled) setDraft((current) => ({ ...current, destination: choice.kind })) }} />
           ))}
-          {draft.destination === 'person' && (
+          {SCOPE.personDestination && draft.destination === 'person' && (
             <View style={styles.indentedField}>
               <TextInput value={draft.personAddress} onChangeText={(value) => setDraft((current) => ({ ...current, personAddress: value }))} placeholder="Paste their wallet address" placeholderTextColor={color.faint} autoCapitalize="none" style={styles.input} accessibilityLabel="Person destination wallet address" />
               {selectedAccount && <ErrorLine>{validatePersonError(draft.personAddress, selectedAccount.publicKey, witnessKey)}</ErrorLine>}
             </View>
           )}
-          <Text style={styles.skip}>✓ One declared skip · call it before the week opens and that week comes back to you.</Text>
-          <View style={styles.promiseCard} accessibilityLabel="Your ritual">
-            <Text style={styles.label}>YOUR RITUAL</Text>
-            {/* The name stands alone, so whatever was typed still reads right. */}
-            <Text style={styles.promiseText}>“{draft.title || 'Your ritual'}”</Text>
-            <Text style={styles.promiseTerms}>{`${weekCount === 1 ? 'This week only.' : `Every week, for ${weekCount} weeks.`} Miss a week and that week’s ${stakeEachLabel} goes to ${draft.destination === 'cause' ? DEMO_CAUSE.label : 'the person you picked'}.`}</Text>
-          </View>
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
+          {client.status !== 'ready' && <ErrorLine>{client.reason}</ErrorLine>}
+          {causeUnavailable && <ErrorLine>This cause is unavailable. Try again later.</ErrorLine>}
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
+          {stepThreeErrors.filter((error) => !stepErrors.includes(error)).map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
           {create.state.status === 'error' && createCopy.tone === 'neutral' && <Text style={styles.quiet} accessibilityLiveRegion="polite">{createCopy.body}</Text>}
           {create.state.status !== 'idle' && !createComplete && createCopy.tone !== 'neutral' && (
             <View style={styles.status} accessibilityLabel="Create status">
@@ -442,11 +437,10 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             </View>
           )}
           {confirmedAddress && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
-          {create.state.status === 'idle' && selectedAccount && !stepThreeErrors.length && <Text style={styles.walletNote}>{walletHandoffNote(walletPackage)}</Text>}
           {!createComplete && (
             <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}
-          {create.state.status === 'error' && create.canSubmit && <ActionButton label="Try again" tone="quiet" onPress={create.start} accessibilityLabel="Try starting the ritual again" />}
+
         </>
       )}
       {!selectedAccount && <Text style={styles.quiet}>Connect your wallet to start this ritual.</Text>}
@@ -515,14 +509,8 @@ const useStyles = themedStyles((color) => StyleSheet.create({
   presetTextChosen: { color: color.goInk },
   money: { ...type.money, color: color.fg },
   quiet: { ...type.caption, color: color.muted },
-  skip: { ...type.caption, color: color.muted, paddingHorizontal: 2 },
-  promiseCard: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.xl, gap: space.md },
-  promiseText: { fontFamily: fonts.hand, color: color.fg, fontSize: 21, lineHeight: 28 },
-  promiseTerms: { ...type.body, color: color.fg },
-  signature: { fontFamily: fonts.hand, color: color.fg, fontSize: 18, alignSelf: 'flex-end' },
   status: { backgroundColor: color.card, borderRadius: radius.lg, borderColor: color.line, borderWidth: 1, padding: space.lg, gap: space.xs },
   statusTitle: { ...type.heading, color: color.fg },
-  walletNote: { ...type.caption, color: color.muted, textAlign: 'center' },
   confirmedCard: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.xl },
   devnetCard: { backgroundColor: color.card, borderColor: color.goDeep, borderWidth: 1.5, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
   devnetTitle: { ...type.bodyStrong, color: color.fg },

@@ -56,23 +56,23 @@ export function soloCadenceFor(speed: SoloSpeed): RitualCadence {
 
 /**
  * The one quiet line under the stake card, true to the windows that will be
- * written on chain: "4 demo weeks · 6.5 min each · 20 TEST in all" or
- * "4 weeks · ends Sun, Nov 1 · 20 TEST in all" (last week's resolution, phone
+ * written on chain: "4 demo weeks · 2 min each · 20 TEST" or
+ * "5 TEST a week · ends Sun, Nov 1" (last week's resolution, phone
  * local time, in the app's usual date style).
  */
-export function soloScheduleSummary(input: Readonly<{ weekCount: number; totalStakeLabel: string; schedule: SoloScheduleSelection['schedule']; nowSeconds: number }>): string {
-  const { weekCount, totalStakeLabel, schedule, nowSeconds } = input
+export function soloScheduleSummary(input: Readonly<{ weekCount: number; stakeEachLabel: string; totalStakeLabel: string; schedule: SoloScheduleSelection['schedule']; nowSeconds: number }>): string {
+  const { weekCount, stakeEachLabel, totalStakeLabel, schedule, nowSeconds } = input
   const first = schedule[0]
   const last = schedule[schedule.length - 1]
   const noun = weekCount === 1 ? 'week' : 'weeks'
-  if (!first || !last) return `${weekCount} ${noun} · ${totalStakeLabel} in all`
+  if (!first || !last) return `${weekCount} ${noun} · ${totalStakeLabel}`
   if (isDemoSpeedWindow(first.claimOpensAt, first.claimDeadlineAt)) {
     const minutes = demoWeekMinutesLabel(schedule.map((entry) => entry.claimOpensAt))
-    return `${weekCount} demo ${noun} · ${minutes} min${weekCount === 1 ? '' : ' each'} · ${totalStakeLabel} in all`
+    return `${weekCount} demo ${noun} · ${minutes} min${weekCount === 1 ? '' : ' each'} · ${totalStakeLabel}`
   }
   // weekOpensLabel gives "Sun, Nov 1 · 2:47 PM"; the day is what matters here.
   const ends = weekOpensLabel(last.resolutionDeadlineAt, nowSeconds).split(' · ')[0]
-  return `${weekCount} ${noun} · ends ${ends} · ${totalStakeLabel} in all`
+  return `${stakeEachLabel} a week · ends ${ends}`
 }
 
 /** Selects the exact Season template when linked; otherwise creates the demo schedule. */
