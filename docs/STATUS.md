@@ -58,6 +58,23 @@ he does. **License: MIT** (`LICENSE`, holder "whoknowsmann").
   character whose face escalates through the week, big streak number, one
   line (brief: `~/.hermes/cache/scratch/writers/widget-duo.md`). Not on the
   shipping branch.
+  **Landed 1767a71** (pushed; typecheck clean, full suite green): 9 states
+  (open/calm · concerned/side-eye at ≤⅓ left · alarmed at ≤15 % or last hour
+  · stamped/joyful · missed/sad · resting · finished · closing · empty),
+  streak = consecutive kept weeks, picks the ritual that needs you most,
+  snapshot-only (no network in the widget). **x3** (built from 1767a71,
+  installed 22:59) renders on the phone: `artifacts/shots/x3-widget-2x2.png`
+  (the finished "Read" ritual: grey neutral stamp, "0 week streak").
+  All-states preview (HTML from the real SVGs, approximate layout):
+  `artifacts/shots/x3-widget-states.png`. Polish round dispatched 23:05
+  (tally instead of "0 week streak" on finished rituals, cleaner side-eye
+  and sad faces, number/label alignment; brief `widget-polish.md`).
+  Integration branch `integrate/reminders-widget` (worktree
+  `~/projects/preflight-integrate`, node_modules symlinked to
+  preflight-widget): merge of feat/solo-screens into the exp branch is
+  committed locally (a21e86d, docs-only on top of the exp code), **not
+  pushed and not tested** — its tsc/test/push command was held on an
+  approval prompt with Jack away and did not run.
 - **Recording not done.** Needs Jack ~12 min: Seed Vault on Devnet, fresh
   empty account "test 2", two approvals ~90 s apart.
 - Open decisions (package plan §4): repo description, FAUCET_CONTACT
