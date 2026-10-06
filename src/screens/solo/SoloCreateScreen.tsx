@@ -40,9 +40,9 @@ import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee, type FeeCon
 import { RITUAL_FEE_CONFIG } from '../../features/rituals/create/draftForm'
 import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
-  SOLO_CREATE_MESSAGES,
   applyTypedIntention,
   publicKeyFromCanonical,
+  validatePersonDestination,
   validateSoloCreateStep,
   validateWitnessAddress,
   type SoloCreateDraft,
@@ -89,6 +89,8 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const { afterCreate: scheduleReminders } = useReminders()
   const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
+  const [personTouched, setPersonTouched] = useState(false)
+  const [triedCreate, setTriedCreate] = useState(false)
   const [suggestionRound, setSuggestionRound] = useState(0)
   const [confirmedReadback, setConfirmedReadback] = useState(false)
   // Client/auth identities can change during readback; keep local writes one-shot.
@@ -146,6 +148,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   useEffect(() => {
     const owner = draft.destination === 'person' ? publicKeyFromCanonical(draft.personAddress) : null
     if (!owner || client.status !== 'ready') { setPersonAccount('unknown'); return }
+    setPersonAccount('unknown')
     let active = true
     void client.client.getProtocolConfig().then(async (config) => {
       const ata = getAssociatedTokenAddressSync(config.account.allowedStakeMint, owner)
@@ -154,12 +157,17 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     }).catch(() => { if (active) setPersonAccount('unknown') })
     return () => { active = false }
   }, [client, connection, draft.destination, draft.personAddress])
+  const personError = draft.destination === 'person'
+    ? validatePersonDestination(draft.personAddress, selectedAccount?.publicKey ?? PublicKey.default, witnessKey)
+      ?? (personAccount === 'missing' ? 'That wallet has no tSKR account yet.' : null)
+    : null
+  const visiblePersonError = personTouched || triedCreate ? personError : null
   const stepThreeErrors = useMemo(() => {
     const errors = [...validateSoloCreateStep(3, stakeDraft, selectedAccount?.publicKey)]
     if (!stakeSplit.ok && stakeSplit.reason === 'too-small') errors.unshift(`Too small to split over ${weekCount} ${weekCount === 1 ? 'week' : 'weeks'}.`)
-    if (stakeDraft.destination === 'person' && personAccount === 'missing') errors.push("That wallet has no tSKR account yet, so it can't receive a missed week. Pick a cause, or have them tap Get test tokens once.")
+    if (personError && !errors.includes(personError)) errors.push(personError)
     return errors
-  }, [stakeDraft, selectedAccount, stakeSplit.ok, weekCount, personAccount])
+  }, [stakeDraft, selectedAccount, stakeSplit.ok, weekCount, personError])
   const totalStakeLabel = (() => {
     return stakeSplit.ok ? formatAtomic(stakeSplit.split.lockedAtomic, 6) : '—'
   })()
@@ -361,7 +369,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               setSelectedSuggestionKey(null)
               setStepErrors([])
             }}
-            placeholder="Run three times a week"
+            placeholder="Go for a run"
             placeholderTextColor={color.faint}
             autoCapitalize="sentences"
             maxLength={120}
@@ -440,7 +448,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               </View>
             )}
             <View style={styles.divider} />
-            <Text style={styles.label}>STAKE</Text>
+            <Text style={styles.label}>TOTAL STAKE</Text>
             <View style={styles.amountBox}>
               <TextInput value={stakeTotal} onChangeText={setStakeTotal} keyboardType="decimal-pad" selectTextOnFocus style={styles.stakeInput} accessibilityLabel="Total stake" />
               <Text style={styles.money}>tSKR</Text>
@@ -452,7 +460,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               })}
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
-            {stakeSplit.ok && !stakeSplit.split.exact && <Text style={styles.quiet}>{`Splits evenly to ${formatAtomic(stakeSplit.split.lockedAtomic, 6)}.`}</Text>}
+            {stakeSplit.ok && !stakeSplit.split.exact && <Text style={styles.quiet}>{`Locks ${formatAtomic(stakeSplit.split.lockedAtomic, 6)} after rounding.`}</Text>}
             {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
             {selectedAccount && (testBalance === null || shortOfTest || testBalance === 0n) && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
             {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
@@ -466,15 +474,15 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           <OptionRow selected={draft.destination === 'person'} disabled={create.isBusy} title="A wallet you choose" onPress={() => setDraft((current) => ({ ...current, destination: 'person' }))} />
           {draft.destination === 'person' && (
             <View style={styles.indentedField}>
-              <TextInput value={draft.personAddress} onChangeText={(value) => setDraft((current) => ({ ...current, personAddress: value.trim() }))} placeholder="Paste a wallet address" placeholderTextColor={color.faint} autoCapitalize="none" autoCorrect={false} style={styles.input} accessibilityLabel="Wallet address for missed weeks" />
-              {selectedAccount && draft.personAddress.length > 0 && <ErrorLine>{validatePersonError(draft.personAddress, selectedAccount.publicKey, witnessKey)}</ErrorLine>}
+              <Text style={styles.quiet}>Needs a tSKR account; Get test tokens creates one.</Text>
+              <TextInput value={draft.personAddress} onChangeText={(value) => { setPersonTouched(true); setPersonAccount('unknown'); setDraft((current) => ({ ...current, personAddress: value.trim() })) }} editable={!create.isBusy} placeholder="Paste a wallet address" placeholderTextColor={color.faint} autoCapitalize="none" autoCorrect={false} style={styles.input} accessibilityLabel="Wallet address for missed weeks" />
+              {visiblePersonError && <ErrorLine>{visiblePersonError}</ErrorLine>}
             </View>
           )}
           {seasonAddressText && season.status === 'error' && <ErrorLine>{season.message}</ErrorLine>}
           {client.status !== 'ready' && <ErrorLine>{client.reason}</ErrorLine>}
           {causeUnavailable && <ErrorLine>This cause is unavailable. Try again later.</ErrorLine>}
-          {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
-          {stepThreeErrors.filter((error) => !stepErrors.includes(error)).map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
+          {stepThreeErrors.filter((error) => error !== personError).map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
           {create.state.status === 'error' && createCopy.tone === 'neutral' && <Text style={styles.quiet} accessibilityLiveRegion="polite">{createCopy.body}</Text>}
           {create.state.status !== 'idle' && !createComplete && createCopy.tone !== 'neutral' && (
             <View style={styles.status} accessibilityLabel="Create status">
@@ -492,7 +500,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           {confirmedAddress && readbackError && <ActionButton tone="quiet" label="Check your ritual again" onPress={() => setReadbackAttempt((value) => value + 1)} />}
           {!createComplete && speed === 'demo' && <Text style={styles.quiet}>{DEMO_CLOCK_WARNING}</Text>}
           {!createComplete && (
-            <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setStepErrors(stepThreeErrors); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || stepThreeErrors.length > 0 || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
+            <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}
 
         </>
@@ -503,10 +511,6 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   )
 }
 
-function validatePersonError(address: string, creator: PublicKey, witness: PublicKey | null): string {
-  const errors = validateSoloCreateStep(3, { ...initialDraft, destination: 'person', personAddress: address, witnessMode: witness ? 'one-witness' : 'just-me', witnessAddress: witness?.toBase58() ?? '' }, creator)
-  return errors.find((error) => error !== SOLO_CREATE_MESSAGES.stakeRequired) ?? ''
-}
 
 function OptionRow({ selected, disabled, title, detail, onPress }: { selected: boolean; disabled?: boolean; title: string; detail?: string; onPress: () => void }) { const styles = useStyles();
   return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ selected, disabled }} style={[styles.option, selected && styles.optionSelected, disabled && styles.optionDisabled]}><View style={[styles.radio, selected && styles.radioSelected]} /><View style={styles.optionCopy}><Text style={styles.optionTitle}>{title}</Text>{detail ? <Text style={styles.optionDetail}>{detail}</Text> : null}</View></Pressable>

@@ -53,6 +53,7 @@ describe('solo create validation', () => {
   })
 
   it('keeps a person destination distinct from both creator and witness', () => {
+    expect(validatePersonDestination('', creator, witness)).toBe('Paste a wallet address')
     expect(validatePersonDestination('', creator, witness)).toBe(SOLO_CREATE_MESSAGES.personRequired)
     expect(validatePersonDestination('not-a-key', creator, witness)).toBe(SOLO_CREATE_MESSAGES.personInvalid)
     expect(validatePersonDestination(creator.toBase58(), creator, witness)).toBe(SOLO_CREATE_MESSAGES.personCreator)

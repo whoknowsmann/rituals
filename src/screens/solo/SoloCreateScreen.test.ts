@@ -5,6 +5,21 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloCreateScreen.tsx'), 'utf8')
 
 describe('SoloCreateScreen transaction and commitment wiring', () => {
+  it('keeps wallet validation quiet until typing or attempting to lock, without an empty error row', () => {
+    expect(source).toContain('const visiblePersonError = personTouched || triedCreate ? personError : null')
+    expect(source).toContain('setPersonTouched(true)')
+    expect(source).toContain('{visiblePersonError && <ErrorLine>{visiblePersonError}</ErrorLine>}')
+    expect(source).toContain('setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start()')
+    expect(source).not.toContain('|| stepThreeErrors.length > 0 ||')
+    expect(source).not.toContain('validatePersonError(')
+    expect(source).toMatch(/draft.destination === 'person' && \([\s\S]*?Needs a tSKR account; Get test tokens creates one\./)
+  })
+  it('labels the total stake, rounding and one weekly action concretely', () => {
+    expect(source).toContain('>TOTAL STAKE</Text>')
+    expect(source).toContain('placeholder="Go for a run"')
+    expect(source).toContain('Locks ${formatAtomic(stakeSplit.split.lockedAtomic, 6)} after rounding.')
+    expect(source).not.toContain('Splits evenly to')
+  })
   it('offers the existing wallet chooser inline and refreshes balance on focus and after a faucet send', () => {
     expect(source).toContain('step === 3 && !selectedAccount && <View>')
     expect(source).toContain('<WalletChoiceButtons')
@@ -22,7 +37,8 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
   it('advances from a typed promise and shows step errors on every step, not only step 3', () => {
     expect(source).toContain('applyTypedIntention(')
     const errorLines = source.match(/stepErrors\.map\(/g) ?? []
-    expect(errorLines.length).toBeGreaterThanOrEqual(3)
+    expect(errorLines.length).toBeGreaterThanOrEqual(2)
+    expect(source).toContain('stepThreeErrors.filter((error) => error !== personError)')
   })
 
   it('does not describe solo suggestions as friend-confirmed (the group shape label says "a friend confirms")', () => {
@@ -44,7 +60,7 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\) && <Text[^\n]*You have/)
     expect(source).toMatch(/selectedAccount && \(testBalance === null \|\| shortOfTest \|\| testBalance === 0n\)[^\n]*Get test tokens/)
     expect(source).toContain('testBalance < neededAtomic')
-    expect(source).toContain('stepThreeErrors.filter((error) => !stepErrors.includes(error))')
+    expect(source).toContain('stepThreeErrors.filter((error) => error !== personError)')
     expect(source).toContain('causeUnavailable && <ErrorLine>')
     expect(source).toContain('Not enough tSKR: this needs')
   })
