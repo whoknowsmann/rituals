@@ -31,12 +31,24 @@ he does. **License: MIT** (`LICENSE`, holder "whoknowsmann").
   `8k73dTAB…`, `artifacts/logs/smoke-app-solo-2min.log`). d23 built 19:28,
   walked to step 2. Submission docs (FACTS, README, deck, video script, store
   listing, release notes, shots template, package plan) now say 2 minutes
-  (were 6.5); deck PDF needs a re-render.
+  (were 6.5); deck PDF re-rendered 10-05 22:55 (`artifacts/deck/rituals-deck.pdf`;
+  slide 8 still lists reminders as "coming soon" — drop that word if they ship).
 - **Reminders** (`feat/reminders` @ a7b1f6f, gpt-6-astra): expo-notifications,
   Real weeks only (week open · 1 day left · last hour), "Remind me each week"
-  pill on create, permission after create, cancel on stamp. Unit-tested;
-  **not proven on device** (needs one Real-weeks create + Allow, then
-  `dumpsys alarm`).
+  pill on create, permission after create, cancel on stamp. **Code complete
+  against the brief** (parent review 10-05 night: planner future-only and
+  capped, stake label is `formatAtomic` → "5 TEST", cancel on stamp + on
+  observed stamp/skip + on remove, rollback on partial schedule, never throws
+  into wallet actions). On the phone (x2): the pill renders under Real weeks
+  only, styled like the speed pills (`artifacts/shots/x2-create-real-reminders.png`).
+  Known limits: rituals created before the feature get no reminders; tap
+  just opens the app. **Not yet proven: scheduling + delivery** — needs one
+  wallet approval. Morning check (~3 min of Jack, 2 approvals): Seed Vault on
+  Devnet, account "test"; Hermes drives + New ritual → "Stretch" → 1 week ·
+  Real weeks · ✓ Remind me · 1 TEST → Lock it in (approval 1) → Allow on the
+  notification sheet → `adb shell dumpsys alarm | grep -i rituals` shows 3
+  alarms → ~90 s later "Week 1 is open…" lands in the shade (screenshot) →
+  HOLD (approval 2) → that week's alarms are gone.
 - **Widget** (`feat/widget` @ 1dd0199, then fix f3ca007 on
   `exp/reminders-widget`, now pushed): builds and places from the launcher.
   f3ca007 already has true 2x2 sizing (110dp); the tall render was the
