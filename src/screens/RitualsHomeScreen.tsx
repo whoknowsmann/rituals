@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { AppState, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { ActivityIndicator, Button, Text, useTheme, type MD3Theme } from 'react-native-paper'
 import { useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -12,6 +12,7 @@ import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
 import { homeRitualTarget } from '../features/rituals/home/homeViewModel'
 import { useConnection } from '../utils/ConnectionProvider'
 import { useChainTime } from '../features/rituals/useChainTime'
+import { usePendingRitualRecovery } from '../features/rituals/recovery/usePendingRitualRecovery'
 import { DEMO_SEASON } from '../data/rituals/demoConfig'
 import type { SeasonAccountView } from '../data/rituals/accounts'
 import { readSeason } from '../features/rituals/solo/season/readSeason'
@@ -95,6 +96,13 @@ export function RitualsHomeScreen() {
   // settle must show the fresh chain state, not the list from app launch.
   const focused = useIsFocused()
   const chainNow = useChainTime(connection, focused)
+  const recovery = usePendingRitualRecovery(client, connection, undefined, focused)
+  useEffect(() => {
+    if (!focused) return
+    const listener = AppState.addEventListener('change', (state) => { if (state === 'active') load() })
+    return () => listener.remove()
+  }, [focused, load])
+  useEffect(() => { if (focused && recovery?.resolution.status === 'confirmed') load() }, [focused, recovery, load])
   useEffect(() => {
     mounted.current = true
     if (focused) load()
@@ -119,6 +127,7 @@ export function RitualsHomeScreen() {
 
   return <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Rituals home">
     <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>
+    {recovery && <Text style={styles.muted} accessibilityLiveRegion="polite">{recovery.body}</Text>}
     {homeState.rituals.length === 0
       ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
       : <ActiveRituals rituals={homeState.rituals} known={homeState.known} outcomes={outcomes} now={chainNow} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}

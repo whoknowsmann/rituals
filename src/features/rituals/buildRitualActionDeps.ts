@@ -105,7 +105,7 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
         if (Number.isSafeInteger(current) && current > prepared.lastValidBlockHeight) throw preSubmissionError('prepared blockhash expired before signing', true)
       }
       if (pendingActionStore) {
-        record = makePendingActionRecord(prepared, now())
+        record = { ...makePendingActionRecord(prepared, now()), actor: actor.toBase58(), eventIndex }
         await pendingActionStore.upsert(record)
       }
       try { handle = await client.submitPrepared(prepared) } catch (error) {

@@ -17,6 +17,8 @@ export type PendingActionRecord = Readonly<{
   blockhash: string
   lastValidBlockHeight: number
   createdAt: number
+  actor?: string
+  eventIndex?: number
 }>
 
 export type PendingActionSignatureStatus = Readonly<{
@@ -73,7 +75,9 @@ export function parsePendingAction(value: unknown): PendingActionRecord | null {
   if (record.transactionSignature !== undefined) {
     try { transactionSignature = canonicalBase58Signature(record.transactionSignature) } catch { return null }
   }
-  return Object.freeze({ version: 1, actionKind: record.actionKind as PendingActionKind, ritualAddress: record.ritualAddress as string, messageDigest: record.messageDigest, ...(transactionSignature === undefined ? {} : { transactionSignature }), blockhash: record.blockhash as string, lastValidBlockHeight: record.lastValidBlockHeight, createdAt: record.createdAt })
+  const hasTarget = record.actor !== undefined || record.eventIndex !== undefined
+  if (hasTarget && (canonicalPublicKey(record.actor) === null || !Number.isInteger(record.eventIndex) || (record.eventIndex as number) < 0 || (record.eventIndex as number) > 15)) return null
+  return Object.freeze({ version: 1, actionKind: record.actionKind as PendingActionKind, ritualAddress: record.ritualAddress as string, messageDigest: record.messageDigest, ...(transactionSignature === undefined ? {} : { transactionSignature }), ...(hasTarget ? { actor: record.actor as string, eventIndex: record.eventIndex as number } : {}), blockhash: record.blockhash as string, lastValidBlockHeight: record.lastValidBlockHeight, createdAt: record.createdAt })
 }
 
 export function makePendingActionRecord(action: PreparedRitualAction, createdAt = Date.now()): PendingActionRecord {
@@ -102,12 +106,23 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
     if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
       try {
         const readback = await transport.readRitual(new PublicKey(record.ritualAddress), record)
-        if (readback.actionObserved && safeHeight(readback.slot)) return Object.freeze({ status: 'confirmed' as const, record, slot: readback.slot })
+        if (readback.actionObserved && safeHeight(readback.slot) && (status.slot === null || readback.slot >= status.slot)) return Object.freeze({ status: 'confirmed' as const, record, slot: readback.slot })
       } catch { /* authoritative readback has not caught up yet */ }
     }
+    // Expiry is not proof of failure: an old send may have landed even if this
+    // node cannot serve its status/readback. Never encourage a duplicate.
+    return Object.freeze({ status: 'still-unknown' as const, record })
   }
 
-  if (currentHeight !== null && currentHeight > record.lastValidBlockHeight) return Object.freeze({ status: 'expired' as const, record })
+  // A killed wallet handoff may never return a signature. Creation has a unique
+  // address, so its account is evidence; existence alone cannot prove a stamp.
+  if (['create', 'create-solo', 'create-and-fund', 'create-solo-fund-and-activate'].includes(record.actionKind) || (record.actor !== undefined && record.eventIndex !== undefined)) {
+    try {
+      const readback = await transport.readRitual(new PublicKey(record.ritualAddress), record)
+      if (readback.actionObserved && safeHeight(readback.slot)) return Object.freeze({ status: 'confirmed' as const, record, slot: readback.slot })
+      if (readback.actionObserved === false && currentHeight !== null && currentHeight > record.lastValidBlockHeight) return Object.freeze({ status: 'expired' as const, record })
+    } catch { /* outage is not evidence of expiry */ }
+  }
   return Object.freeze({ status: 'still-unknown' as const, record })
 }
 
@@ -126,13 +141,19 @@ async function writeRecords(records: readonly PendingActionRecord[]): Promise<vo
   await AsyncStorage.setItem(PENDING_ACTION_STORAGE_KEY, JSON.stringify(records))
 }
 
+let journalWrites: Promise<void> = Promise.resolve()
+function updateRecords(change: (records: readonly PendingActionRecord[]) => readonly PendingActionRecord[]): Promise<void> {
+  const write = journalWrites.then(async () => writeRecords(change(await readRecords())))
+  journalWrites = write.catch(() => undefined)
+  return write
+}
+
 export const asyncStoragePendingActionStore: PendingActionStore = Object.freeze({
   list: readRecords,
   async upsert(record) {
-    const next = (await readRecords()).filter((existing) => existing.messageDigest !== record.messageDigest)
-    await writeRecords([...next, record])
+    await updateRecords((records) => [...records.filter((existing) => existing.messageDigest !== record.messageDigest), record])
   },
   async remove(record) {
-    await writeRecords((await readRecords()).filter((existing) => existing.messageDigest !== record.messageDigest))
+    await updateRecords((records) => records.filter((existing) => existing.messageDigest !== record.messageDigest))
   },
 })

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Connection, PublicKey } from '@solana/web3.js'
+import { AppState } from 'react-native'
+import { readPendingAction } from './readPendingAction'
 import type { RitualClient } from '../../../data/rituals/ritualClient'
 import type { RitualClientState } from '../client/useRitualClient'
 import {
@@ -18,17 +20,17 @@ export type PendingRecoveryTransport = Readonly<{
 }>
 
 export type PendingRecoveryNotice = Readonly<{
-  title: 'We found a transaction from before the app closed'
+  title: 'Picking up where you left off'
   body: string
   resolution: PendingActionResolution
 }>
 
 const copyFor = (resolution: PendingActionResolution): string => {
   switch (resolution.status) {
-    case 'confirmed': return 'It is confirmed on-chain. Your ritual state is up to date.'
-    case 'failed': return 'It failed on-chain. Nothing from this transaction was applied.'
-    case 'expired': return 'It expired before landing. Nothing was resubmitted.'
-    case 'still-unknown': return 'We cannot tell yet whether it landed. Check your rituals before acting again.'
+    case 'confirmed': return 'Your earlier approval went through. Open the ritual to see it.'
+    case 'failed': return 'Your earlier request did not go through.'
+    case 'expired': return 'Your earlier request expired. Nothing was sent again.'
+    case 'still-unknown': return 'We are still checking your earlier request. Open the ritual before trying again.'
   }
 }
 
@@ -52,34 +54,38 @@ export function usePendingRitualRecovery(
   clientState: RitualClientState,
   connection: Connection,
   store: PendingActionStore = asyncStoragePendingActionStore,
+  enabled = true,
 ): PendingRecoveryNotice | null {
   const [notice, setNotice] = useState<PendingRecoveryNotice | null>(null)
 
   useEffect(() => {
     let mounted = true
-    if (clientState.status !== 'ready') return () => { mounted = false }
+    if (clientState.status !== 'ready' || !enabled) return () => { mounted = false }
     const client = clientState.client
     const transport: PendingRecoveryTransport = {
       getSignatureStatus: async (signature): Promise<PendingActionSignatureStatus | null> => {
-        const response = await connection.getSignatureStatuses([signature])
+        const response = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true })
         const value = response.value[0]
         return value === null ? null : { slot: value.slot, err: value.err, confirmationStatus: value.confirmationStatus ?? null }
       },
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
-      readRitual: async (address) => {
-        const read = await client.readRitual(address)
-        return { slot: read.slot, actionObserved: true }
-      },
+      readRitual: (address, record) => readPendingAction(client, address, record),
     }
-    void resolvePendingActions(store, transport).then((resolutions) => {
-      if (!mounted) return
-      const resolution = resolutions[0]
-      if (resolution) setNotice(Object.freeze({ title: 'We found a transaction from before the app closed', body: copyFor(resolution), resolution }))
-    }).catch(() => {
-      // Recovery is best effort; the journal remains available for the next mount.
-    })
-    return () => { mounted = false }
-  }, [clientState, connection, store])
+    let running = false
+    const recover = () => {
+      if (running || AppState.currentState !== 'active') return
+      running = true
+      void resolvePendingActions(store, transport).then((resolutions) => {
+        if (!mounted) return
+        const resolution = resolutions.find((item) => item.status === 'still-unknown') ?? resolutions[0]
+        setNotice(resolution ? Object.freeze({ title: 'Picking up where you left off', body: copyFor(resolution), resolution }) : null)
+      }).catch(() => { /* journal remains available for retry */ }).finally(() => { running = false })
+    }
+    recover()
+    const listener = AppState.addEventListener('change', recover)
+    const timer = setInterval(recover, 15_000)
+    return () => { mounted = false; listener.remove(); clearInterval(timer) }
+  }, [clientState, connection, store, enabled])
 
   return notice
 }

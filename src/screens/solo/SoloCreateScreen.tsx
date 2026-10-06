@@ -93,6 +93,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   // This screen stays mounted under the ritual; client/auth identities change.
   const handledCreateAddresses = useRef(new Set<string>())
   const [readbackError, setReadbackError] = useState<string | null>(null)
+  const [readbackAttempt, setReadbackAttempt] = useState(0)
   // The app's settle key, pre-paid in this same approval so weeks close with
   // no further wallet prompt. Without it, create still works (manual settle).
   const [settlerKey, setSettlerKey] = useState<PublicKey | null>(null)
@@ -241,6 +242,10 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       authorizedActor: () => accountRef.current?.publicKey ?? null,
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
       pendingActionStore: asyncStoragePendingActionStore,
+      rememberBeforeSend: async (address) => {
+        await rememberRitual({ address, title: draft.title, requirement: draft.requirement })
+        await saveProofMode(address, draft.proofMode)
+      },
     })
   }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey, speed, stakeTotal])
 
@@ -296,7 +301,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       if (active) setReadbackError('Your ritual was sent, but it is not ready to show yet. Keep this screen open and try again.')
     })
     return () => { active = false }
-  }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title, draft.destination, speed, remindWeekly, scheduleReminders])
+  }, [client, confirmedAddress, draft.proofMode, draft.requirement, draft.title, draft.destination, speed, remindWeekly, scheduleReminders, readbackAttempt])
 
   const advance = () => {
     const creator = selectedAccount?.publicKey
@@ -482,6 +487,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             </View>
           )}
           {confirmedAddress && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
+          {confirmedAddress && readbackError && <ActionButton tone="quiet" label="Check your ritual again" onPress={() => setReadbackAttempt((value) => value + 1)} />}
           {!createComplete && (
             <Text style={styles.quiet}>{speed === 'demo' ? DEMO_CLOCK_WARNING : 'Weeks keep their schedule while you’re away. Miss a week and its stake goes to your chosen destination when you reopen the ritual.'}</Text>
           )}
