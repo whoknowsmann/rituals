@@ -164,12 +164,13 @@ export function nextWeekdayOccurrence(referenceSeconds: number, weekday: number)
 /**
  * Lead before week 1 opens. The one-approval create (create + fund + activate)
  * must land before week 1 opens or activation fails, so the lead covers a
- * Seed Vault approval (~13 s practised, slower for a first-timer); 45 s keeps
- * the wait short (Jack, 2026-10-06; was 90 s). A group must still be
+ * Seed Vault approval (~13 s practised, slower for a first-timer). 60 s: the
+ * lead starts when the transaction is prepared, before the wallet opens
+ * (UX review 2026-10-06; was 90 s, then 45 s). A group must still be
  * funded by everyone, and the program rejects activation once week 1 has
  * opened (`now < opens`), so friends get ten minutes to put their stake in.
  */
-export const DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS = 45
+export const DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS = 60
 export const DEMO_GROUP_FIRST_EVENT_LEAD_SECONDS = 600
 
 /**

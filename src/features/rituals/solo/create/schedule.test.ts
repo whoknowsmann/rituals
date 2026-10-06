@@ -48,8 +48,8 @@ describe('solo create schedule selection', () => {
   it('generates a demo schedule from firstEventStart for an unlinked ritual', () => {
     expect(generated.source).toBe('generated')
     expect(generated.schedule).toHaveLength(4)
-    expect(generated.schedule[0].claimOpensAt).toBe(1_045) // solo lead 45 s
-    expect(generated.schedule[1].claimOpensAt).toBe(1_225) // group DEMO_CADENCE period 180 s
+    expect(generated.schedule[0].claimOpensAt).toBe(1_060) // solo lead 60 s
+    expect(generated.schedule[1].claimOpensAt).toBe(1_240) // group DEMO_CADENCE period 180 s
   })
 
   it('uses the Season schedule exactly instead of generating a new one', () => {

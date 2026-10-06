@@ -37,11 +37,11 @@ describe('DEMO_SOLO_CADENCE', () => {
   it('builds a schedule the program accepts (opens < deadline < resolution < next opens)', () => {
     const now = 1_790_000_000
     const first = firstEventStart({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 })
-    // Week 1 opens 45 s after the create is prepared: enough for a Seed Vault
+    // Week 1 opens 60 s after the create is prepared: enough for a Seed Vault
     // approval. A create approved later than that fails as a whole (activation
     // needs now < opens), so nothing is sent and the user simply retries.
     expect(first - now).toBe(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS)
-    expect(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS).toBe(45)
+    expect(DEMO_SOLO_FIRST_EVENT_LEAD_SECONDS).toBe(60)
     const schedule = generateRitualSchedule({ firstEventAt: first, eventCount: 16, cadence: DEMO_SOLO_CADENCE })
     schedule.forEach((entry, index) => {
       expect(entry.claimOpensAt).toBeLessThan(entry.claimDeadlineAt)
@@ -67,8 +67,8 @@ describe('REAL_SOLO_CADENCE', () => {
     expect(REAL_SOLO_CADENCE.label).toBe('Weekly')
   })
 
-  it('opens week 1 45 s after create instead of next same weekday', () => {
-    expect(firstEventStart({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 }) - now).toBe(45)
+  it('opens week 1 60 s after create instead of next same weekday', () => {
+    expect(firstEventStart({ cadence: REAL_SOLO_CADENCE, referenceSeconds: now, memberCount: 1 }) - now).toBe(60)
   })
 
   it('builds 1- and 16-week schedules the program accepts (opens < deadline < resolution < next opens)', () => {
