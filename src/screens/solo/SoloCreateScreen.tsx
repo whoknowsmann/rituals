@@ -14,6 +14,7 @@ import { faucetLine } from '../../features/rituals/faucet/devnetFaucet'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { walletHandoffNote, withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
+import { refreshWidget } from '../../widget/refreshWidget'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
 import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
@@ -240,7 +241,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       if (!read.account.kind || read.account.kind !== 'Solo' || read.account.status !== 'Active') throw new Error('unexpected')
       if (!active) return
       setConfirmedReadback(true)
-      void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).catch(() => undefined)
+      void rememberRitual({ address: confirmedAddress, title: draft.title, requirement: draft.requirement }).then(() => refreshWidget([{ address: confirmedAddress, bundle: { ritual: read, slot: read.slot, event: null, claims: [] } }])).catch(() => undefined)
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
     }).catch(() => {
       if (active) setReadbackError('Your ritual was sent, but it is not ready to show yet. Keep this screen open and try again.')

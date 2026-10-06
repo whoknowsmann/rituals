@@ -20,6 +20,7 @@ import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { COMING_SOON_LINE, SCOPE } from '../features/rituals/productScope'
 import { readSoloWeekOutcomes, soloHomeCells } from '../features/rituals/home/soloHistory'
 import { tileStatus } from '../features/rituals/home/tileStatus'
+import { refreshWidget } from '../widget/refreshWidget'
 import { soloRitualModel } from '../features/rituals/solo/lifecycle/soloRitualModel'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
 import { PublicKey } from '@solana/web3.js'
@@ -81,8 +82,9 @@ export function RitualsHomeScreen() {
           seasonStatus: season.status,
         })
         const getMany = withReadRetry((keys: PublicKey[]) => connection.getMultipleAccountsInfo(keys, 'confirmed'))
+        void refreshWidget(rituals, known, undefined, true)
         void readSoloWeekOutcomes(getMany, client.client.programId, rituals.map((ritual) => ({ address: new PublicKey(ritual.address), account: ritual.bundle.ritual.account })))
-          .then((read) => { if (mounted.current && generation === requestGeneration.current) setOutcomes(read) })
+          .then((read) => { if (mounted.current && generation === requestGeneration.current) { setOutcomes(read); void refreshWidget(rituals, known, read, true) } })
           .catch(() => undefined) // cards keep the neutral "closed" mark
       })
       .catch((error: unknown) => {

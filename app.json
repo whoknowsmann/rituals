@@ -36,7 +36,26 @@
       }
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "react-native-android-widget",
+        {
+          "fonts": ["./node_modules/@expo-google-fonts/fraunces/900Black/Fraunces_900Black.ttf"],
+          "widgets": [
+            {
+              "name": "RitualWidget",
+              "label": "Rituals",
+              "description": "Your weekly promise",
+              "minWidth": "146dp",
+              "minHeight": "146dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "none",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
     ]
   }
 }
