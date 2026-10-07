@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { stampedWeekClosingLabel, tileStatus } from './tileStatus'
+import { laterWeekOpenAt, stampedWeekClosingLabel, tileStatus } from './tileStatus'
 import { ritualPalette, ritualTint } from '../../../theme/tokens'
 
 describe('Home tile', () => {
@@ -27,5 +27,18 @@ describe('Home tile', () => {
     const tints = new Set(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((seed) => ritualTint(`${seed}ritual`)))
     expect(tints.size).toBeGreaterThan(3)
     for (const tint of tints) expect(ritualPalette).toContain(tint)
+  })
+})
+
+describe('Home tile when the chain moved on but the last week is unsettled (design review 2026-10-07)', () => {
+  const schedule = [{ opens: 100, deadline: 145 }, { opens: 160, deadline: 205 }]
+  it('asks for a stamp while a later week is open', () => {
+    expect(laterWeekOpenAt(schedule, 0, 170)).toBe(true)
+    expect(tileStatus({ state: 'resolving/settle', showedUp: true, nextOpensLabel: null }, true)).toEqual({ text: 'Stamp this week', act: true })
+  })
+  it('does nothing different before the later week opens or after it closes', () => {
+    expect(laterWeekOpenAt(schedule, 0, 150)).toBe(false)
+    expect(laterWeekOpenAt(schedule, 0, 206)).toBe(false)
+    expect(laterWeekOpenAt(schedule, 1, 170)).toBe(false)
   })
 })

@@ -21,7 +21,7 @@ import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/so
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { SCOPE } from '../features/rituals/productScope'
 import { readSoloWeekOutcomes, soloHomeCells } from '../features/rituals/home/soloHistory'
-import { stampedWeekClosingLabel, tileStatus } from '../features/rituals/home/tileStatus'
+import { laterWeekOpenAt, stampedWeekClosingLabel, tileStatus } from '../features/rituals/home/tileStatus'
 import { soloRitualModel } from '../features/rituals/solo/lifecycle/soloRitualModel'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
 import { PublicKey } from '@solana/web3.js'
@@ -194,9 +194,9 @@ function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { 
   // The solo creator is the only member, so the model can tell "stamped".
   const model = account.kind === 'Solo' && now !== null ? soloRitualModel(ritual.bundle, now, account.members[0] ?? null) : null
   const status = account.kind === 'Solo'
-    ? model ? tileStatus(model) : { text: 'Checking time…', act: false }
+    ? model && now !== null ? tileStatus(model, laterWeekOpenAt(account.schedule, account.currentEventIndex, now)) : { text: 'Checking time…', act: false }
     : { text: statusLabel(account.status), act: false }
-  const closingLine = model && now !== null ? stampedWeekClosingLabel(model, now) : null
+  const closingLine = model && now !== null && !laterWeekOpenAt(account.schedule, account.currentEventIndex, now) ? stampedWeekClosingLabel(model, now) : null
   return <Pressable
     onPress={onPress}
     accessibilityRole="button"

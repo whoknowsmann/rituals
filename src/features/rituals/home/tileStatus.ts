@@ -14,7 +14,11 @@ export function stampedWeekClosingLabel(model: Pick<SoloRitualModel, 'showedUp' 
  * The one line at the bottom of a Home tile: what this ritual wants from you
  * now. `act` = there is something to do (stamp this week), shown as a pill.
  */
-export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp: boolean; nextOpensLabel: string | null; weekSkipped?: boolean }>): TileStatus {
+export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp: boolean; nextOpensLabel: string | null; weekSkipped?: boolean }>, laterWeekOpen = false): TileStatus {
+  // The chain has moved on to a later week whose window is open, but the last
+  // one has not been settled yet (settling runs on the ritual screen). That
+  // later week still wants a stamp: say so instead of "Stamped"/"Closing…".
+  if (laterWeekOpen && model.state !== 'completed') return { text: 'Stamp this week', act: true }
   switch (model.state) {
     case 'claimable':
     case 'open-not-initialized':
@@ -28,4 +32,9 @@ export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp:
     case 'awaiting-witness': return { text: 'Waiting on witness', act: false }
     case 'funding': return { text: 'Not active yet', act: false }
   }
+}
+
+/** Is a week after the chain's current one open for stamping right now? */
+export function laterWeekOpenAt(schedule: readonly Readonly<{ opens: bigint | number; deadline: bigint | number }>[], currentEventIndex: number, now: number): boolean {
+  return schedule.some((window, index) => index > currentEventIndex && Number(window.opens) <= now && now <= Number(window.deadline))
 }
