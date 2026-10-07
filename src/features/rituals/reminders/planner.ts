@@ -11,7 +11,7 @@ export type ReminderOptions = Readonly<{
   /** Zero-based on-chain event indices already stamped, skipped or closed. */
   stampedWeeks?: readonly number[]
 }>
-export type Reminder = Readonly<{ id: string; at: number; title: string; body: string; demo: boolean }>
+export type Reminder = Readonly<{ id: string; at: number; title: string; body: string; kind: ReminderKind; demo: boolean }>
 export const MAX_REMINDER_WEEKS = 16
 export const REMINDER_DAY_SECONDS = 86400
 export const reminderPrefix = (address: string): string => `rituals:reminders:v1:${address}:`
@@ -73,7 +73,7 @@ export function planReminders(schedule: readonly ReminderWindow[], options: Remi
       // A precisely one-day window has coincident open/day reminders: one is enough.
       if (at <= options.nowSeconds || at < opens || at >= deadline || seen.has(at)) continue
       seen.add(at)
-      plan.push({ id: `${weekReminderPrefix(options.ritualAddress, eventIndex)}${kind}`, at, title, demo,
+      plan.push({ id: `${weekReminderPrefix(options.ritualAddress, eventIndex)}${kind}`, at, title, kind, demo,
         body: demo ? demoReminderLine(eventIndex + 1, deadline)
           : reminderLine(kind, options.ritualAddress, eventIndex + 1, options.stakeLabel, options.causeLabel) })
     }

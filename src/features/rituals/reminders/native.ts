@@ -14,8 +14,11 @@ export function nativeReminderNotifications(): ReminderNotifications {
     },
   })
   return {
+    setNotificationChannelGroupAsync: async (id, group) => Platform.OS === 'android'
+      ? Notifications.setNotificationChannelGroupAsync(id, group) : null,
     setNotificationChannelAsync: async (id, channel) => Platform.OS === 'android'
-      ? Notifications.setNotificationChannelAsync(id, { ...channel, importance: Notifications.AndroidImportance.DEFAULT }) : null,
+      ? Notifications.setNotificationChannelAsync(id, { ...channel, importance: channel.importance === 'low'
+        ? Notifications.AndroidImportance.LOW : Notifications.AndroidImportance.DEFAULT }) : null,
     getPermissionsAsync: () => Notifications.getPermissionsAsync(),
     requestPermissionsAsync: () => Notifications.requestPermissionsAsync(),
     getAllScheduledNotificationsAsync: () => Notifications.getAllScheduledNotificationsAsync(),

@@ -6,8 +6,8 @@ import { clearReminderPrefix } from './scheduler'
 
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }))
 vi.mock('expo-notifications', () => ({
-  setNotificationHandler: vi.fn(), setNotificationChannelAsync: vi.fn(),
-  AndroidImportance: { DEFAULT: 3 }, SchedulableTriggerInputTypes: { DATE: 'date' },
+  setNotificationHandler: vi.fn(), setNotificationChannelGroupAsync: vi.fn(), setNotificationChannelAsync: vi.fn(),
+  AndroidImportance: { DEFAULT: 5, LOW: 4 }, SchedulableTriggerInputTypes: { DATE: 'date' },
   getPermissionsAsync: vi.fn(), requestPermissionsAsync: vi.fn(),
   scheduleNotificationAsync: vi.fn(), getAllScheduledNotificationsAsync: vi.fn(),
   cancelScheduledNotificationAsync: vi.fn(), getPresentedNotificationsAsync: vi.fn(), dismissNotificationAsync: vi.fn(),
@@ -40,7 +40,7 @@ describe('Expo 0.29 reminder adapter (mocked native modules)', () => {
     const request = { identifier: 'rituals:reminders:v1:A:0:open',
       content: { title: 'Read', body: 'Demo week 1: stamp by 2026-10-07 18:30:45 UTC.', sound: 'default' as const,
         data: { ritualReminder: 'demo' as const } },
-      trigger: { type: 'date' as const, date: new Date('2026-10-07T18:30:00Z'), channelId: 'rituals-reminders' } }
+      trigger: { type: 'date' as const, date: new Date('2026-10-07T18:30:00Z'), channelId: 'rituals-demo-weeks' } }
     await nativeReminderNotifications().scheduleNotificationAsync(request)
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledExactlyOnceWith(request)
   })
@@ -56,10 +56,11 @@ describe('Expo 0.29 reminder adapter (mocked native modules)', () => {
   })
   it('keeps Android channel importance at default and skips channel creation on iOS', async () => {
     const adapter = nativeReminderNotifications()
-    await adapter.setNotificationChannelAsync('rituals-reminders', { name: 'Rituals', importance: 3 })
-    expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledExactlyOnceWith('rituals-reminders', { name: 'Rituals', importance: 3 })
+    const channel = { name: 'Week opens', importance: 'default' as const, groupId: 'rituals', sound: 'default' as const }
+    await adapter.setNotificationChannelAsync('rituals-week-opens', channel)
+    expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledExactlyOnceWith('rituals-week-opens', { ...channel, importance: 5 })
     Platform.OS = 'ios'
-    await adapter.setNotificationChannelAsync('rituals-reminders', { name: 'Rituals', importance: 3 })
+    await adapter.setNotificationChannelAsync('rituals-week-opens', channel)
     expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledTimes(1)
   })
 })

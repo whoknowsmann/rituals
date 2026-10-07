@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Native modules are never evaluated; only the injected SDK-shaped port is used.
 vi.mock('expo-notifications', () => ({
-  setNotificationChannelAsync: vi.fn(), getPermissionsAsync: vi.fn(), requestPermissionsAsync: vi.fn(),
+  setNotificationChannelGroupAsync: vi.fn(), setNotificationChannelAsync: vi.fn(), getPermissionsAsync: vi.fn(), requestPermissionsAsync: vi.fn(),
   scheduleNotificationAsync: vi.fn(), getAllScheduledNotificationsAsync: vi.fn(), cancelScheduledNotificationAsync: vi.fn(),
   getPresentedNotificationsAsync: vi.fn(), dismissNotificationAsync: vi.fn(),
 }))
@@ -10,7 +10,7 @@ vi.mock('../../../utils/diagnostics', () => ({ logFailure: vi.fn(), logNote: vi.
 import * as Notifications from 'expo-notifications'
 import { logFailure } from '../../../utils/diagnostics'
 import { createReminderService, type CreateReminderInput } from './service'
-import { REMINDERS_CHANNEL, type ReminderNotifications, type ReminderRequest } from './scheduler'
+import { REMINDER_CHANNELS, type ReminderNotifications, type ReminderRequest } from './scheduler'
 import { readReminderPreferences, REMINDERS_STORAGE_KEY } from './storage'
 import { reminderPrefix, weekReminderPrefix } from './planner'
 
@@ -71,16 +71,16 @@ describe('local reminder scheduling service', () => {
     expect(api.requestPermissionsAsync).toHaveBeenCalledTimes(1)
     expect((await readReminderPreferences(f.storage)).rituals.A.enabled).toBe(false)
   })
-  it('creates the channel before one permission request and maps exact date triggers', async () => {
+  it('creates channels before one permission request and maps exact date triggers', async () => {
     const f = fixture()
     await f.service.afterCreate(input)
-    expect(api.setNotificationChannelAsync).toHaveBeenCalledWith(REMINDERS_CHANNEL, { name: 'Rituals', importance: 3 })
+    expect(api.setNotificationChannelAsync).toHaveBeenCalledWith(REMINDER_CHANNELS.open.id, { name: 'Week opens', importance: 'default', groupId: 'rituals', sound: 'default' })
     expect(api.setNotificationChannelAsync.mock.invocationCallOrder[0]).toBeLessThan(api.requestPermissionsAsync.mock.invocationCallOrder[0])
     expect(api.requestPermissionsAsync).toHaveBeenCalledTimes(1)
     expect(pending.size).toBe(6)
     expect(pending.get(`${weekReminderPrefix('A', 0)}open`)).toEqual({
       identifier: `${weekReminderPrefix('A', 0)}open`, content: { title: 'Read', body: expect.any(String), sound: 'default', data: { ritualReminder: 'real' } },
-      trigger: { type: 'date', date: new Date(Number(input.schedule[0].opens) * 1000), channelId: REMINDERS_CHANNEL },
+      trigger: { type: 'date', date: new Date(Number(input.schedule[0].opens) * 1000), channelId: REMINDER_CHANNELS.open.id },
     })
     expect((await readReminderPreferences(f.storage)).rituals.A.enabled).toBe(true)
   })

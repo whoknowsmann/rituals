@@ -1,6 +1,6 @@
 import { logFailure, logNote } from '../../../utils/diagnostics'
 import { isDemoReminderWindow, isRealReminderWindow, planReminders, reminderPrefix, weekReminderPrefix, type ReminderOptions, type ReminderWindow } from './planner'
-import { clearReminderPrefix, REMINDERS_CHANNEL, scheduleReminderPlan, type ReminderNotifications } from './scheduler'
+import { clearReminderPrefix, ensureReminderChannels, scheduleReminderPlan, type ReminderNotifications } from './scheduler'
 import { readReminderPreferences, writeReminderPreferences, type ReminderStorage } from './storage'
 
 export type CreateReminderInput = Omit<ReminderOptions, 'nowSeconds' | 'stampedWeeks'> & {
@@ -22,7 +22,7 @@ export function createReminderService(deps: {
     return queue
   }
   return {
-    prepare: (): Promise<void> => run(async () => { await deps.loadNotifications() }),
+    prepare: (): Promise<void> => run(async () => { await ensureReminderChannels(await deps.loadNotifications()) }),
     afterCreate: (input: CreateReminderInput): Promise<void> => run(async () => {
       const preferences = await readReminderPreferences(deps.storage)
       const eligible = input.schedule.slice(0, 16).some((window) => isRealReminderWindow(window) || isDemoReminderWindow(window))
@@ -37,7 +37,7 @@ export function createReminderService(deps: {
       }
       const notifications = await deps.loadNotifications()
       // Android 13 needs a channel before the permission dialog.
-      await notifications.setNotificationChannelAsync(REMINDERS_CHANNEL, { name: 'Rituals', importance: 3 })
+      await ensureReminderChannels(notifications)
       let permission = await notifications.getPermissionsAsync()
       if (!permission.granted && !preferences.permissionAsked && permission.canAskAgain) {
         preferences.permissionAsked = true

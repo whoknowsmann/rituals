@@ -46,8 +46,16 @@ Integration
   identifiers. Off preferences are recorded without requesting access; an off
   retry clears a previously enabled set. Screen remount never schedules a set.
 
-  One “Rituals” Android channel, default importance. Create the channel before
-  asking permission, check current permission first, persist permissionAsked
+  One “Rituals” Android channel group (id rituals; Expo 0.29.14 supports groups).
+  Channels: rituals-week-opens / “Week opens”, rituals-one-day-left / “One day
+  left”, rituals-last-hour / “Last hour” use DEFAULT importance; rituals-demo-weeks
+  / “Demo weeks” uses LOW because minute-spaced demo nudges should be quiet by
+  default. Android lets users disable, silence or customize each independently.
+  Re-registering channels preserves user choices. Never delete/recreate them.
+  The old rituals-reminders channel is left intact: already scheduled alerts
+  keep that channel until cancelled or explicitly rescheduled; new sets use the
+  per-kind channels. No automatic migration cancels an upgraded phone's queue.
+  Create all channels before asking permission, check permission first, persist permissionAsked
   before the one request. Denial is logged, not a create failure. Other creates
   and process restarts do not re-prompt. Granting access in Android Settings
   does not automatically rebuild previously denied sets.
@@ -94,7 +102,7 @@ Device verification for the parent (not performed by this branch)
      Demo opt-in warns about late delivery. Neither selection prompts access.
   3. Create two Real weeks, 5 tSKR each, reminders on. Approve creation; only
      after chain readback should Android ask. Allow promptly. Look for the
-     “Rituals” channel at default importance and a reminders Scheduled log.
+     “Rituals” group with all four channels (Real DEFAULT, Demo LOW) and a reminders Scheduled log.
      Background the app before week one's on-chain opens; expect a notification
      near that time with the ritual title. Do not change the phone clock.
   4. Inspect actual scheduled requests before and after changes, not just logs.

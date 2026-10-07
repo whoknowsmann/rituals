@@ -1,6 +1,13 @@
 import type { Reminder } from './planner'
 
-export const REMINDERS_CHANNEL = 'rituals-reminders'
+// Leave the legacy rituals-reminders channel intact for already queued alerts.
+export const REMINDERS_CHANNEL_GROUP = 'rituals'
+export const REMINDER_CHANNELS = {
+  open: { id: 'rituals-week-opens', name: 'Week opens', importance: 'default' },
+  day: { id: 'rituals-one-day-left', name: 'One day left', importance: 'default' },
+  hour: { id: 'rituals-last-hour', name: 'Last hour', importance: 'default' },
+  demo: { id: 'rituals-demo-weeks', name: 'Demo weeks', importance: 'low' },
+} as const
 export type ReminderRequest = {
   identifier: string
   content: { title: string; body: string; sound: 'default'; data: { ritualReminder: 'demo' | 'real' } }
@@ -8,7 +15,8 @@ export type ReminderRequest = {
 }
 /** Native-free port: the only SDK translation lives in native.ts. */
 export interface ReminderNotifications {
-  setNotificationChannelAsync(id: string, channel: { name: string; importance: 3 }): Promise<unknown>
+  setNotificationChannelGroupAsync(id: string, group: { name: string }): Promise<unknown>
+  setNotificationChannelAsync(id: string, channel: { name: string; importance: 'default' | 'low'; groupId: string; sound: 'default' }): Promise<unknown>
   getPermissionsAsync(): Promise<{ granted: boolean; canAskAgain: boolean }>
   requestPermissionsAsync(): Promise<{ granted: boolean }>
   scheduleNotificationAsync(request: ReminderRequest): Promise<string>
@@ -16,6 +24,14 @@ export interface ReminderNotifications {
   cancelScheduledNotificationAsync(identifier: string): Promise<void>
   getPresentedNotificationsAsync(): Promise<readonly { request: { identifier: string } }[]>
   dismissNotificationAsync(identifier: string): Promise<void>
+}
+
+export async function ensureReminderChannels(notifications: ReminderNotifications): Promise<void> {
+  await notifications.setNotificationChannelGroupAsync(REMINDERS_CHANNEL_GROUP, { name: 'Rituals' })
+  for (const { id, ...channel } of Object.values(REMINDER_CHANNELS)) {
+    // Android retains the user's settings when an existing channel is created again.
+    await notifications.setNotificationChannelAsync(id, { ...channel, groupId: REMINDERS_CHANNEL_GROUP, sound: 'default' })
+  }
 }
 
 async function clearMatching(ids: readonly string[], prefix: string, clear: (id: string) => Promise<void>): Promise<void> {
@@ -46,7 +62,7 @@ export async function scheduleReminderPlan(notifications: ReminderNotifications,
     await notifications.scheduleNotificationAsync({
       identifier: reminder.id,
       content: { title: reminder.title, body: reminder.body, sound: 'default', data: { ritualReminder: reminder.demo ? 'demo' : 'real' } },
-      trigger: { type: 'date', date: new Date(reminder.at * 1000), channelId: REMINDERS_CHANNEL },
+      trigger: { type: 'date', date: new Date(reminder.at * 1000), channelId: REMINDER_CHANNELS[reminder.demo ? 'demo' : reminder.kind].id },
     })
     count += 1
   }
