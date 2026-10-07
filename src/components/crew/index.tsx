@@ -131,20 +131,21 @@ export function FeedRow({ index, name, action, when, faded, children }: { index:
   )
 }
 
-/** Primary action. `go` = lime, `dark` = ink. Never more than one per screen. */
-export function ActionButton({ label, onPress, tone = 'go', disabled, loading, accessibilityLabel, style }: { label: string; onPress: () => void; tone?: 'go' | 'dark' | 'quiet'; disabled?: boolean; loading?: boolean; accessibilityLabel?: string; style?: StyleProp<ViewStyle> }) {
+/** Primary action. `go` = lime, `dark` = ink. Never more than one per screen. `link` = a minor action, quiet text. */
+export function ActionButton({ label, onPress, tone = 'go', disabled, loading, accessibilityLabel, style }: { label: string; onPress: () => void; tone?: 'go' | 'dark' | 'quiet' | 'link'; disabled?: boolean; loading?: boolean; accessibilityLabel?: string; style?: StyleProp<ViewStyle> }) {
   const s = useS()
   const color = useColors()
   const off = disabled || loading
+  const link = tone === 'link'
   return (
     <Pressable
       onPress={() => { if (off) return; haptic.light(); onPress() }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!off, busy: !!loading }}
-      style={({ pressed }) => [s.btn, tone === 'go' && s.btnGo, tone === 'dark' && s.btnDark, tone === 'quiet' && s.btnQuiet, off && { opacity: 0.45 }, pressed && !off && { transform: [{ scale: 0.97 }] }, style]}
+      style={({ pressed }) => [link ? s.link : s.btn, tone === 'go' && s.btnGo, tone === 'dark' && s.btnDark, tone === 'quiet' && s.btnQuiet, off && { opacity: 0.45 }, pressed && !off && (link ? { opacity: 0.6 } : { transform: [{ scale: 0.97 }] }), style]}
     >
-      <Text style={[s.btnText, tone === 'dark' && { color: color.onDark }, tone === 'go' && { color: color.goInk }]}>{label}</Text>
+      <Text style={[link ? s.linkText : s.btnText, tone === 'dark' && { color: color.onDark }, tone === 'go' && { color: color.goInk }]}>{label}</Text>
     </Pressable>
   )
 }
@@ -256,6 +257,8 @@ const useS = themedStyles((color) => StyleSheet.create({
   btnDark: { backgroundColor: color.fg },
   btnQuiet: { backgroundColor: color.card, borderWidth: 1, borderColor: color.line },
   btnText: { ...type.heading, color: color.fg },
+  link: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: space.lg },
+  linkText: { ...type.bodyStrong, color: color.muted, textDecorationLine: 'underline' },
 
   dock: { position: 'absolute', left: 12, right: 12, bottom: 14, backgroundColor: color.fg, borderRadius: radius.poster, paddingVertical: 14, paddingLeft: space.xl, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 14, elevation: 12, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
   dockTitle: { ...type.heading, color: color.onDark },

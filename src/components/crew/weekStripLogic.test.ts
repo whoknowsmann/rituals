@@ -17,6 +17,14 @@ describe('punch card (week strip)', () => {
     expect(kit).toContain('busy: !!loading')
     expect(kit).toContain('if (off) return')
   })
+  it('has a link tone for minor actions: quiet underlined text, same button role, busy label and 44 pt target', () => {
+    const kit = readFileSync(`${__dirname}/index.tsx`, 'utf8')
+    expect(kit).toContain("tone?: 'go' | 'dark' | 'quiet' | 'link'")
+    expect(kit).toContain('link ? s.link : s.btn')
+    expect(kit).toContain('link ? s.linkText : s.btnText')
+    expect(kit.match(/linkText: \{[^}]*\}/)?.[0]).toContain("textDecorationLine: 'underline'")
+    expect(kit.match(/ {2}link: \{[^}]*\}/)?.[0]).toContain('minHeight: 44')
+  })
   it('labels cells so they read without a legend', () => {
     expect(['done', 'missed', 'closed', 'now', 'future'].map((cell, i) => weekCellLabel(cell as never, i))).toEqual(['✓', '✕', '·', 'NOW', '5'])
     expect(weekCellLabel('current', 0)).toBe('1')

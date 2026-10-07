@@ -86,4 +86,12 @@ describe('SoloRitualScreen proof and witness controls', () => {
     // Last week's MISSED paper gives way to this week's stamp.
     expect(source).toContain("model.state !== 'missed' && keptWeek === null && <View style={s.paper}")
   })
+
+  it('keeps the one declared skip available while valid, as a quiet link out of the main flow that names its week (Jack, 2026-10-07)', () => {
+    expect(source).toContain("{model.canSkip && <ActionButton tone=\"link\" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start}")
+    expect(source).not.toContain('Skip next week')
+    expect(source).not.toMatch(/tone="(quiet|dark|go)"[^\n]*skip\.start/)
+    // After the other secondary controls, never between the hero and them.
+    expect(source.indexOf('tone="link" label={skip.isBusy')).toBeGreaterThan(source.indexOf('label={`Reminders: '))
+  })
 })

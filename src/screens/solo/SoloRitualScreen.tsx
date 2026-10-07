@@ -313,11 +313,12 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
       {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
-      {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to rituals" onPress={() => navigation.navigate('RitualsHome')} />}
       {readyBundle.ritual.account.status === 'Active' && model.state !== 'completed' && <ActionButton tone="quiet" label={`Reminders: ${ritualRemindersOn ? 'on' : 'off'}`} onPress={toggleRitualReminders} disabled={!reminderSettings.preferences?.masterEnabled || reminderSettings.busy || claim.isBusy || skip.isBusy || settle.isBusy} />}
       {reminderSettings.error && <Text style={s.muted} accessibilityLiveRegion="polite">{reminderSettings.error}</Text>}
+      {/* A minor action looks minor (Jack, 2026-10-07): a quiet link, only while the skip is valid. */}
+      {model.canSkip && <ActionButton tone="link" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
       {removalError && <ErrorLine>{removalError}</ErrorLine>}
 
