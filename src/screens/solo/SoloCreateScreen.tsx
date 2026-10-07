@@ -21,7 +21,6 @@ import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/
 import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
 import { parseTokenAmount } from '../../features/rituals/create/decimal'
 import { formatAtomic } from '../../features/rituals/displayFormat'
-import { suggestRituals, type RitualSuggestion } from '../../features/rituals/create/suggestRituals'
 import { ActionButton, ErrorLine, Footnote, Hero, Section } from '../../components/crew'
 import { WalletChoiceButtons } from '../../components/wallet/WalletChoiceButtons'
 import { radius, space, type, themedStyles, useColors } from '../../theme'
@@ -38,7 +37,6 @@ import { DEMO_CLOCK_WARNING } from '../../features/rituals/solo/settler/settleme
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee, type FeeConfig } from '../../domain/rituals/money'
 import { RITUAL_FEE_CONFIG } from '../../features/rituals/create/draftForm'
-import { suggestionIsSelected, suggestionKey } from '../../features/rituals/solo/create/suggestionSelection'
 import {
   applyTypedIntention,
   publicKeyFromCanonical,
@@ -87,11 +85,9 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const [causeIndex, setCauseIndex] = useState(0)
   const [remindWeekly, setRemindWeekly] = useState(true)
   const { afterCreate: scheduleReminders } = useReminders()
-  const [selectedSuggestionKey, setSelectedSuggestionKey] = useState<string | null>(null)
   const [stepErrors, setStepErrors] = useState<readonly string[]>([])
   const [personTouched, setPersonTouched] = useState(false)
   const [triedCreate, setTriedCreate] = useState(false)
-  const [suggestionRound, setSuggestionRound] = useState(0)
   const [confirmedReadback, setConfirmedReadback] = useState(false)
   // Client/auth identities can change during readback; keep local writes one-shot.
   const handledCreateAddresses = useRef(new Set<string>())
@@ -129,10 +125,6 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     return () => { active = false }
   }, [client, connection, seasonAddress, seasonAddressText])
 
-  const suggestions = useMemo<readonly RitualSuggestion[]>(
-    () => draft.intention.trim().length > 0 ? suggestRituals(draft.intention) : [],
-    [draft.intention, suggestionRound],
-  )
 
   const witnessKey = draft.witnessMode === 'one-witness' ? publicKeyFromCanonical(draft.witnessAddress) : null
   const selectedCause = DEMO_CAUSES[causeIndex] ?? DEMO_CAUSES[0]
@@ -338,17 +330,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     if (next !== null) setStep(next)
   }
 
-  const chooseSuggestion = (suggestion: RitualSuggestion) => {
-    setDraft((current) => ({
-      ...current,
-      title: suggestion.draft.title,
-      requirement: suggestion.draft.requirement,
-    }))
-    setPickedEventCount(suggestion.draft.eventCount)
-    setSelectedSuggestionKey(suggestionKey(suggestion))
-    setSuggestionRound((value) => value + 1)
-    setStepErrors([])
-  }
+
 
   // buildSoloCreateDeps invokes client.prepareCreateSoloFundAndActivate for this single approval.
   return (
@@ -361,40 +343,33 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       {step === 1 && (
         <>
           <Hero>What’s your ritual?</Hero>
+          {/* Name + the user's own description; no suggestions, no preset weeks (Jack, 2026-10-07). */}
+          <Text style={styles.label}>NAME</Text>
           <TextInput
             value={draft.intention}
             onChangeText={(value) => {
-              setDraft((current) => ({ ...current, intention: value, title: '', requirement: '' }))
-              setPickedEventCount(undefined)
-              setSelectedSuggestionKey(null)
+              setDraft((current) => ({ ...current, intention: value, title: '' }))
               setStepErrors([])
             }}
             placeholder="Go for a run"
             placeholderTextColor={color.faint}
             autoCapitalize="sentences"
-            maxLength={120}
+            maxLength={60}
             style={styles.input}
-            accessibilityLabel="Describe your ritual"
+            accessibilityLabel="Name your ritual"
           />
-          {suggestions.length > 0 && (
-            <View style={styles.suggestions}>
-              <Section title="Suggestions" />
-              {suggestions.map((suggestion) => {
-                const selected = suggestionIsSelected(suggestion, selectedSuggestionKey)
-                return (
-                <Pressable key={`${suggestionRound}:${suggestionKey(suggestion)}`} onPress={() => chooseSuggestion(suggestion)} style={({ pressed }) => [styles.suggestion, selected && styles.optionSelected, pressed && styles.pressed]} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={`Use ${suggestion.draft.title}`}>
-                  <View style={[styles.band, { backgroundColor: selected ? color.goDeep : color.line }]} />
-                  <View style={styles.suggestionBody}>
-                    <Text style={styles.suggestionTitle}>{suggestion.draft.title}</Text>
-                    <Text style={styles.suggestionRule}>{suggestion.draft.requirement}</Text>
-                    <Text style={styles.suggestionMeta}>{suggestion.draft.eventCount} weeks</Text>
-                  </View>
-                  <Text style={styles.use}>{selected ? '✓ Chosen' : 'Use'}</Text>
-                </Pressable>
-                )
-              })}
-            </View>
-          )}
+          <Text style={styles.label}>WHAT COUNTS (OPTIONAL)</Text>
+          <TextInput
+            value={draft.requirement}
+            onChangeText={(value) => setDraft((current) => ({ ...current, requirement: value }))}
+            placeholder="Three miles, any pace"
+            placeholderTextColor={color.faint}
+            autoCapitalize="sentences"
+            maxLength={140}
+            multiline
+            style={styles.input}
+            accessibilityLabel="Describe what counts as showing up"
+          />
           {stepErrors.map((error) => <ErrorLine key={error}>{error}</ErrorLine>)}
           <ActionButton label="Next" onPress={advance} accessibilityLabel={nextSoloCreateStep(1, CREATE_STEPS) === 2 ? 'Continue to who keeps you honest' : 'Continue to your stake'} />
         </>

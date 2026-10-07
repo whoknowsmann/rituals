@@ -65,6 +65,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const removalSaving = useRef(false)
   const [removalError, setRemovalError] = useState<string | null>(null)
   const [ritualTitle, setRitualTitle] = useState<string | null>(null)
+  const [ritualNote, setRitualNote] = useState<string | null>(null)
   const [knownRituals, setKnownRituals] = useState<readonly KnownRitual[]>([])
   const noteInputRef = useRef(noteInput)
   noteInputRef.current = noteInput
@@ -80,7 +81,10 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     void listKnownRituals().then((rituals) => {
       if (!active) return
       setKnownRituals(rituals)
-      setRitualTitle(rituals.find((item) => item.address === route.params.ritualId)?.title ?? null)
+      const known = rituals.find((item) => item.address === route.params.ritualId)
+      setRitualTitle(known?.title ?? null)
+      // The user's own description, if they wrote one (create step 1).
+      setRitualNote(known?.requirement && known.requirement !== 'Do it, then check in before the week closes.' ? known.requirement : null)
     })
     return () => { active = false }
   }, [reload, route.params.ritualId]))
@@ -280,6 +284,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {/* The poster is the hero; the line above it is the week, nothing else. */}
       <Text style={s.title} accessibilityRole="header">{model.state === 'funding' ? 'Solo ritual' : model.state === 'completed' ? 'Finished' : `Week ${model.eventIndex + 1}`}</Text>
       <Poster tint={tint} kicker="YOUR RITUAL" title={ritualTitle ?? 'Your ritual'}>
+        {ritualNote ? <Text style={s.posterNote}>{ritualNote}</Text> : null}
         <WeekStrip cells={model.weekCells} tint={tint} onClosedWeekPress={(eventIndex) => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex })} />
         <PosterLine label="Stake per week" value={amountLabel} />
       </Poster>
@@ -339,5 +344,5 @@ function Centered({ children }: { children: React.ReactNode }) { const s = useS(
 function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { const s = useS(); return <View style={s.center}><Text style={s.title}>Ritual unavailable</Text><Text style={s.muted}>{message}</Text><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back to rituals" onPress={onHome} /></View> }
 
 const useS = themedStyles((color) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.bg }, holdArea: { alignItems: 'center', paddingVertical: space.lg, gap: space.md }, screen: { backgroundColor: color.bg }, content: { padding: space.screen, paddingBottom: 48, gap: space.md }, back: { ...type.heading, color: color.muted }, kicker: { ...type.label, color: color.muted }, title: { ...type.display, color: color.fg }, card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs }, paper: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.lg, gap: space.md }, holdCard: { backgroundColor: color.fg, borderRadius: radius.poster, padding: space.xl, alignItems: 'center', gap: space.sm }, witnessCard: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.sm }, cardTitle: { ...type.heading, color: color.fg }, holdCardTitle: { ...type.heading, color: color.onDark }, muted: { ...type.body, color: color.muted }, note: { ...type.caption, color: color.faint, textAlign: 'center' }, weekNote: { ...type.body, fontFamily: fonts.hand, color: color.fg }, weekNoteInput: { ...type.body, color: color.fg, backgroundColor: color.card, borderWidth: 1, borderColor: color.line, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md }, center: { flex: 1, padding: space.screen, justifyContent: 'center', gap: space.md, backgroundColor: color.bg },
+  root: { flex: 1, backgroundColor: color.bg }, posterNote: { ...type.body, color: color.white, opacity: 0.9, marginBottom: space.sm }, holdArea: { alignItems: 'center', paddingVertical: space.lg, gap: space.md }, screen: { backgroundColor: color.bg }, content: { padding: space.screen, paddingBottom: 48, gap: space.md }, back: { ...type.heading, color: color.muted }, kicker: { ...type.label, color: color.muted }, title: { ...type.display, color: color.fg }, card: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.xs }, paper: { backgroundColor: color.paperMuted, borderRadius: radius.lg, padding: space.lg, gap: space.md }, holdCard: { backgroundColor: color.fg, borderRadius: radius.poster, padding: space.xl, alignItems: 'center', gap: space.sm }, witnessCard: { backgroundColor: color.card, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg, gap: space.sm }, cardTitle: { ...type.heading, color: color.fg }, holdCardTitle: { ...type.heading, color: color.onDark }, muted: { ...type.body, color: color.muted }, note: { ...type.caption, color: color.faint, textAlign: 'center' }, weekNote: { ...type.body, fontFamily: fonts.hand, color: color.fg }, weekNoteInput: { ...type.body, color: color.fg, backgroundColor: color.card, borderWidth: 1, borderColor: color.line, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md }, center: { flex: 1, padding: space.screen, justifyContent: 'center', gap: space.md, backgroundColor: color.bg },
 }))

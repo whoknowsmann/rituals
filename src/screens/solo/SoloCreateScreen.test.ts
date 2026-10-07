@@ -41,9 +41,11 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('stepThreeErrors.filter((error) => error !== personError)')
   })
 
-  it('does not describe solo suggestions as friend-confirmed (the group shape label says "a friend confirms")', () => {
-    expect(source).not.toContain('suggestion.shape}')
-    expect(source).toContain('suggestion.draft.eventCount} weeks')
+  it('step 1 is the user’s own name + optional description, no suggestions or preset weeks (Jack, 2026-10-07)', () => {
+    expect(source).not.toContain('suggestRituals(')
+    expect(source).not.toContain('Suggestions')
+    expect(source).toContain('accessibilityLabel="Name your ritual"')
+    expect(source).toContain('accessibilityLabel="Describe what counts as showing up"')
   })
 
   it('sizes the promise from the joined Season or the picked suggestion, never suggestions[0]', () => {
@@ -96,12 +98,9 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain("navigation.replace('SoloRitual', { ritualId: confirmedAddress })")
   })
 
-  it('keeps a picked suggestion visibly selected and clears it when typing changes', () => {
-    expect(source).toContain('suggestionIsSelected(')
-    expect(source).toContain('accessibilityState={{ selected }}')
-    expect(source).toContain("selected ? '✓ Chosen' : 'Use'")
-    expect(source).toContain('setSelectedSuggestionKey(null)')
-    expect(source).toContain('title: \'\', requirement: \'\'')
+  it('editing the name never wipes the description the user typed', () => {
+    expect(source).toContain("intention: value, title: ''")
+    expect(source).not.toContain("intention: value, title: '', requirement: ''")
   })
 
   it('turns back navigation into a previous-step action while creating', () => {
