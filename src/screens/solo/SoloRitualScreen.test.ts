@@ -67,5 +67,23 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('<Confetti fire={celebrate}')
     expect(source).toContain('animate={freshStamp}')
     expect(source).not.toContain("animate={action.state.status !== 'confirmed'}")
+    // A re-mounted stamp (in the gap before the next week, or on the finished ritual) stays still.
+    expect(source).toContain('celebrate > 0 && model.showedUp,')
+  })
+
+  it('keeps YOU SHOWED UP! as the hero after a stamp, with its cell ✓ and one ticking line, until the next week takes over (Jack, 2026-10-07)', () => {
+    const body = source.slice(source.indexOf('function renderState('))
+    const kept = body.indexOf('if (keptWeek !== null) return')
+    expect(kept).toBeGreaterThan(0)
+    for (const later of ["if (model.state === 'waiting')", "if (model.state === 'closing')", "if (model.state === 'resolving/settle')"]) expect(kept).toBeLessThan(body.indexOf(later))
+    // The narration cards that replaced the stamp are gone; the unstamped (missed) path keeps its own.
+    expect(source).not.toContain('You showed up. It settles in a moment.')
+    expect(source).not.toContain('Your stake comes back to you.')
+    expect(source).toContain('The check-in window has closed. It settles in a moment.')
+    expect(source).toContain('<WeekStrip cells={punchCardCells(model.weekCells, model.showedUp, keptWeek)}')
+    expect(source).toContain('`Week ${titleWeekIndex(model, keptWeek) + 1}`')
+    expect(source.match(/\{nextLine && <Text style=\{s\.muted\}>\{nextLine\}<\/Text>\}/g)).toHaveLength(1)
+    // Last week's MISSED paper gives way to this week's stamp.
+    expect(source).toContain("model.state !== 'missed' && keptWeek === null && <View style={s.paper}")
   })
 })
