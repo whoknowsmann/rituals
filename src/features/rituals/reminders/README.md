@@ -6,7 +6,8 @@ Boundary and contract
   (opens/deadline/resolution, bigint or number) and an explicit nowSeconds.
   ritualAddress is an additional required planner option: it namespaces ids
   and seeds deterministic copy. stampedWeeks uses zero-based chain indices.
-  The returned at values are epoch seconds; only the scheduler converts to Date.
+  The returned at values are epoch seconds; the scheduler converts trigger times
+  to Date. Demo copy separately formats the immutable stamp deadline.
   Production creation uses read.account.schedule and its perEventAllocation,
   never a fresh selectSoloSchedule calculation after wallet approval.
 
