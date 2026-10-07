@@ -11,7 +11,7 @@ export type ReminderOptions = Readonly<{
   /** Zero-based on-chain event indices already stamped, skipped or closed. */
   stampedWeeks?: readonly number[]
 }>
-export type Reminder = Readonly<{ id: string; at: number; title: string; body: string }>
+export type Reminder = Readonly<{ id: string; at: number; title: string; body: string; demo: boolean }>
 export const MAX_REMINDER_WEEKS = 16
 export const REMINDER_DAY_SECONDS = 86400
 export const reminderPrefix = (address: string): string => `rituals:reminders:v1:${address}:`
@@ -64,8 +64,7 @@ export function planReminders(schedule: readonly ReminderWindow[], options: Remi
     if (!demo && !isRealReminderWindow(window)) return
     const opens = Number(window.opens)
     const deadline = Number(window.deadline)
-    // Demo speed (1-minute weeks): one nudge when each week opens, nothing
-    // else (Jack, 2026-10-06: see the pop-up on the home screen during a demo).
+    // Demo speed (1-minute weeks): one opening request, no day/hour nudges.
     const times: readonly [ReminderKind, number][] = demo
       ? [['open', opens]]
       : [['open', opens], ['day', deadline - REMINDER_DAY_SECONDS], ['hour', deadline - 3600]]
@@ -74,7 +73,7 @@ export function planReminders(schedule: readonly ReminderWindow[], options: Remi
       // A precisely one-day window has coincident open/day reminders: one is enough.
       if (at <= options.nowSeconds || at < opens || at >= deadline || seen.has(at)) continue
       seen.add(at)
-      plan.push({ id: `${weekReminderPrefix(options.ritualAddress, eventIndex)}${kind}`, at, title,
+      plan.push({ id: `${weekReminderPrefix(options.ritualAddress, eventIndex)}${kind}`, at, title, demo,
         body: demo ? demoReminderLine(eventIndex + 1, deadline)
           : reminderLine(kind, options.ritualAddress, eventIndex + 1, options.stakeLabel, options.causeLabel) })
     }

@@ -3,7 +3,7 @@ import type { Reminder } from './planner'
 export const REMINDERS_CHANNEL = 'rituals-reminders'
 export type ReminderRequest = {
   identifier: string
-  content: { title: string; body: string; sound: 'default' }
+  content: { title: string; body: string; sound: 'default'; data: { ritualReminder: 'demo' | 'real' } }
   trigger: { type: 'date'; date: Date; channelId: string }
 }
 /** Native-free port: the only SDK translation lives in native.ts. */
@@ -45,7 +45,7 @@ export async function scheduleReminderPlan(notifications: ReminderNotifications,
     if (reminder.at <= nowSeconds()) continue
     await notifications.scheduleNotificationAsync({
       identifier: reminder.id,
-      content: { title: reminder.title, body: reminder.body, sound: 'default' },
+      content: { title: reminder.title, body: reminder.body, sound: 'default', data: { ritualReminder: reminder.demo ? 'demo' : 'real' } },
       trigger: { type: 'date', date: new Date(reminder.at * 1000), channelId: REMINDERS_CHANNEL },
     })
     count += 1

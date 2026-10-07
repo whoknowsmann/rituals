@@ -6,7 +6,12 @@ import type { ReminderNotifications } from './scheduler'
  * native module can still create, stamp and remove rituals. No push tokens. */
 export function nativeReminderNotifications(): ReminderNotifications {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({ shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false }),
+    handleNotification: async (notification) => {
+      // Demo windows are shorter than Android's delivery tolerance. Never
+      // interrupt the foreground app with them; Real-weeks behavior is unchanged.
+      const show = notification.request.content.data?.ritualReminder !== 'demo'
+      return { shouldShowAlert: show, shouldPlaySound: show, shouldSetBadge: false }
+    },
   })
   return {
     setNotificationChannelAsync: async (id, channel) => Platform.OS === 'android'

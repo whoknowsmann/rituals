@@ -79,7 +79,7 @@ describe('local reminder scheduling service', () => {
     expect(api.requestPermissionsAsync).toHaveBeenCalledTimes(1)
     expect(pending.size).toBe(6)
     expect(pending.get(`${weekReminderPrefix('A', 0)}open`)).toEqual({
-      identifier: `${weekReminderPrefix('A', 0)}open`, content: { title: 'Read', body: expect.any(String), sound: 'default' },
+      identifier: `${weekReminderPrefix('A', 0)}open`, content: { title: 'Read', body: expect.any(String), sound: 'default', data: { ritualReminder: 'real' } },
       trigger: { type: 'date', date: new Date(Number(input.schedule[0].opens) * 1000), channelId: REMINDERS_CHANNEL },
     })
     expect((await readReminderPreferences(f.storage)).rituals.A.enabled).toBe(true)
@@ -232,6 +232,14 @@ describe('local reminder scheduling service', () => {
     await createReminderService(f).afterCreate(demoInput)
     expect(pending.has(id)).toBe(false)
     expect(pending.size).toBe(3)
+  })
+  it('marks only demo alarms for foreground suppression, without changing Real-weeks content', async () => {
+    const f = fixture()
+    await f.service.afterCreate(demoInput)
+    expect([...pending.values()]).toHaveLength(2)
+    expect([...pending.values()].every((request) => request.content.data.ritualReminder === 'demo')).toBe(true)
+    await f.service.afterCreate({ ...input, ritualAddress: 'B' })
+    expect([...pending.values()].filter((request) => request.content.data.ritualReminder === 'real')).toHaveLength(6)
   })
   it('forget dismisses delivered alerts even after they leave the scheduled queue', async () => {
     const f = fixture()

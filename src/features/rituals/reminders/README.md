@@ -50,6 +50,10 @@ Integration
   before the one request. Denial is logged, not a create failure. Other creates
   and process restarts do not re-prompt. Granting access in Android Settings
   does not automatically rebuild previously denied sets.
+  New requests carry data.ritualReminder = 'demo' or 'real'. The Expo foreground
+  handler suppresses both alert and sound for Demo anywhere in the foreground
+  app, including Home and the ritual screen; Real-weeks behavior stays enabled.
+  This handler is not a background notification filter.
 
   SoloRitualScreen: confirmed claim clears the captured claimEventIndex, not
   the possibly advanced display week. Confirmed skip clears its captured action
@@ -128,6 +132,9 @@ Device verification for the parent (not performed by this branch)
      openings: no alarms. Stamp/skip: that week's pending AND tray alerts clear.
      Leave the ritual screen open past deadlines/completion: closed weeks clear.
      Repeat after process restart; another ritual's requests must remain intact.
+ 12. Demo opening while foreground: no alert/sound over the app. Real opening:
+     existing channel behavior. Background both: alerts can arrive late. Tap
+     from warm and cold states: normal app resume/Home, no ritual deep link.
 
 Honest limits and rollback
 
@@ -156,6 +163,9 @@ Honest limits and rollback
   expose failures; the app never promises reminders guarantee a kept week.
   The hook installs the foreground handler when visiting create/ritual screens;
   a cold process left only on Home has not initialized that handler.
+  Expo's default without a handler drops foreground notifications; no guarantee
+  of Real-weeks foreground presentation on a Home-only cold start is added.
+  Old queued requests without the new data marker retain the prior policy.
 
   Remove screen hook imports/calls and the create toggle/state, the
   authoritativeRituals cleanup import/call, and the app.json plugin to drop this
