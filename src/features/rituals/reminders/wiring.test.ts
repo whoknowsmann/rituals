@@ -11,13 +11,13 @@ import { clearRitualReminders } from './runtime'
 const source = (path: string) => readFileSync(resolve('src/features/rituals/reminders', path), 'utf8')
 
 describe('reminder integration pins (not native UI tests)', () => {
-  it('only renders the default-on reminder toggle for Real weeks, below the speed pills', () => {
+  it('renders the default-on reminder toggle for both speeds, below the speed pills', () => {
     const create = source('../../../screens/solo/SoloCreateScreen.tsx')
     expect(create).toContain('const [remindWeekly, setRemindWeekly] = useState(true)')
-    expect(create).toMatch(/\{speed === 'real' && \(\s*<View style=\{styles.presets\}>\s*<Pressable[^\n]*accessibilityRole="switch"[^\n]*accessibilityLabel="Remind me each week"/)
-    expect(create.indexOf("{speed === 'real' && (")).toBeGreaterThan(create.indexOf('SOLO_SPEEDS.map'))
+    expect(create).toMatch(/<View style=\{styles.presets\}>\s*<Pressable[^\n]*accessibilityRole="switch"[^\n]*accessibilityLabel="Remind me each week"/)
+    expect(create.indexOf('accessibilityLabel="Remind me each week"')).toBeGreaterThan(create.indexOf('SOLO_SPEEDS.map'))
     expect(create).toContain('styles.preset, remindWeekly && styles.presetChosen')
-    expect(create).toContain("enabled: speed === 'real' && remindWeekly")
+    expect(create).toContain('enabled: remindWeekly')
   })
   it('schedules only after confirmed readback and uses its chain schedule', () => {
     const create = source('../../../screens/solo/SoloCreateScreen.tsx')

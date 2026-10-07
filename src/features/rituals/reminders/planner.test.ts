@@ -23,8 +23,10 @@ describe('chain schedule reminder planner', () => {
     expect(planReminders(windows, options).map((item) => item.at)).toEqual(windows.flatMap((window) => [Number(window.opens), Number(window.deadline) - 86400, Number(window.deadline) - 3600]))
     expect(planReminders(windows, options).every((item) => item.title === 'Read')).toBe(true)
   })
-  it('gives Demo speed no reminders, regardless of the title or caller preference', () => {
-    expect(planReminders(schedule(16, DEMO_SOLO_CADENCE), options)).toEqual([])
+  it('gives Demo speed one reminder per week, when the week opens (Jack, 2026-10-06)', () => {
+    const plan = planReminders(schedule(2, DEMO_SOLO_CADENCE), options)
+    expect(plan).toHaveLength(2)
+    expect(plan.every((item) => item.id.endsWith(':open'))).toBe(true)
   })
   it('caps at sixteen weeks and three reminders per week', () => {
     const windows = schedule(16)
@@ -53,7 +55,7 @@ describe('chain schedule reminder planner', () => {
     const opens = nowSeconds + 90
     const window = { opens, deadline: opens + 86400, resolution: opens + 90000 }
     expect(planReminders([window], options).map((item) => item.at)).toEqual([opens, window.deadline - 3600])
-    expect(planReminders([{ ...window, deadline: window.deadline - 1 }], options)).toEqual([])
+    expect(planReminders([{ ...window, deadline: window.deadline - 1 }], options).map((item) => item.at)).toEqual([opens])
   })
   it('handles empty schedules and invalid clock values without scheduling', () => {
     expect(planReminders([], options)).toEqual([])

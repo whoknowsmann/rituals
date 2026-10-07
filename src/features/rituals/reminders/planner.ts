@@ -31,16 +31,29 @@ export function isRealReminderWindow(window: ReminderWindow): boolean {
     && times[1] - times[0] >= REMINDER_DAY_SECONDS && times[2] > times[1]
 }
 
+/** A demo-speed window: valid times, shorter than a day. */
+export function isDemoReminderWindow(window: ReminderWindow): boolean {
+  const times = [window.opens, window.deadline, window.resolution].map(Number)
+  return times.every((time) => Number.isSafeInteger(time) && time >= 0 && time <= 8_640_000_000_000)
+    && times[1] > times[0] && times[1] - times[0] < REMINDER_DAY_SECONDS && times[2] > times[1]
+}
+
 /** Future-only absolute chain times. Never infer cadence from the phone clock. */
 export function planReminders(schedule: readonly ReminderWindow[], options: ReminderOptions): readonly Reminder[] {
   if (!Number.isFinite(options.nowSeconds)) return []
   const plan: Reminder[] = []
   const title = Array.from(options.ritualTitle.trim() || 'Your ritual').slice(0, 60).join('')
   schedule.slice(0, MAX_REMINDER_WEEKS).forEach((window, eventIndex) => {
-    if (!isRealReminderWindow(window) || options.stampedWeeks?.includes(eventIndex)) return
+    if (options.stampedWeeks?.includes(eventIndex)) return
+    const demo = isDemoReminderWindow(window)
+    if (!demo && !isRealReminderWindow(window)) return
     const opens = Number(window.opens)
     const deadline = Number(window.deadline)
-    const times: readonly [ReminderKind, number][] = [['open', opens], ['day', deadline - REMINDER_DAY_SECONDS], ['hour', deadline - 3600]]
+    // Demo speed (1-minute weeks): one nudge when each week opens, nothing
+    // else (Jack, 2026-10-06: see the pop-up on the home screen during a demo).
+    const times: readonly [ReminderKind, number][] = demo
+      ? [['open', opens]]
+      : [['open', opens], ['day', deadline - REMINDER_DAY_SECONDS], ['hour', deadline - 3600]]
     const seen = new Set<number>()
     for (const [kind, at] of times) {
       // A precisely one-day window has coincident open/day reminders: one is enough.

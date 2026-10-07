@@ -311,7 +311,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       void saveProofMode(confirmedAddress, draft.proofMode).catch(() => undefined)
       void scheduleReminders({ ritualAddress: confirmedAddress, schedule: read.account.schedule, ritualTitle: draft.title,
         stakeLabel: formatAtomic(read.account.perEventAllocation, read.account.stakeDecimals), causeLabel: draft.destination === 'cause' ? selectedCause.label : 'the person you picked',
-        enabled: speed === 'real' && remindWeekly })
+        enabled: remindWeekly })
     }).catch(() => {
       if (active) setReadbackError('Your ritual was sent, but it is not ready to show yet. Keep this screen open and try again.')
     })
@@ -440,7 +440,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
                 return <Pressable key={option.speed} onPress={() => setSpeed(option.speed)} disabled={locked} accessibilityRole="button" accessibilityState={{ selected: chosen, disabled: locked }} accessibilityLabel={option.accessibilityLabel} style={({ pressed }) => [styles.preset, chosen && styles.presetChosen, locked && styles.stepButtonOff, pressed && styles.pressed]}><Text style={[styles.presetText, chosen && styles.presetTextChosen]}>{option.label}</Text></Pressable>
               })}
             </View>
-            {speed === 'real' && (
+            {(
               <View style={styles.presets}>
                 <Pressable onPress={() => setRemindWeekly((value) => !value)} disabled={create.isBusy} accessibilityRole="switch" accessibilityState={{ checked: remindWeekly, disabled: create.isBusy }} accessibilityLabel="Remind me each week" style={({ pressed }) => [styles.preset, remindWeekly && styles.presetChosen, pressed && styles.pressed]}>
                   <Text style={[styles.presetText, remindWeekly && styles.presetTextChosen]}>{remindWeekly ? '✓ ' : ''}Remind me each week</Text>

@@ -97,12 +97,11 @@ describe('local reminder scheduling service', () => {
     expect(api.requestPermissionsAsync).not.toHaveBeenCalled()
     expect(pending.size).toBe(0)
   })
-  it('never loads native code or prompts for Demo speed or an opt-out', async () => {
+  it('never loads native code or prompts for an opt-out', async () => {
     const f = fixture()
     await f.service.afterCreate({ ...input, enabled: false })
-    await f.service.afterCreate({ ...input, ritualAddress: 'B', schedule: [{ opens: start + 90, deadline: start + 180, resolution: start + 200 }] })
     expect(f.loadNotifications).not.toHaveBeenCalled()
-    expect((await readReminderPreferences(f.storage)).rituals).toEqual({ A: { enabled: false, stampedWeeks: [] }, B: { enabled: false, stampedWeeks: [] } })
+    expect((await readReminderPreferences(f.storage)).rituals).toEqual({ A: { enabled: false, stampedWeeks: [] } })
   })
   it('missing native module and SDK errors never reject into create', async () => {
     const f = fixture()
