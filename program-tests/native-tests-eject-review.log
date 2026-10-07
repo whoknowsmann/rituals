@@ -1,0 +1,1159 @@
+warning: unexpected `cfg` condition value: `custom-heap`
+  --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:14:1
+   |
+14 | #[program]
+   | ^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `$crate::custom_heap_default` crate for guidance on how handle this unexpected cfg
+   = help: the macro `$crate::custom_heap_default` may come from an old version of the `solana_program_entrypoint` crate, try updating your dependency with `cargo update -p solana_program_entrypoint`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+   = note: this warning originates in the macro `$crate::custom_heap_default` which comes from the expansion of the attribute macro `program` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `solana`
+  --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:14:1
+   |
+14 | #[program]
+   | ^^^^^^^^^^
+   |
+   = note: expected values for `target_os` are: `aix`, `amdhsa`, `android`, `cuda`, `cygwin`, `dragonfly`, `emscripten`, `espidf`, `freebsd`, `fuchsia`, `haiku`, `helenos`, `hermit`, `horizon`, `hurd`, `illumos`, `ios`, `l4re`, `linux`, `lynxos178`, `macos`, `managarm`, `motor`, `netbsd`, `none`, `nto`, `nuttx`, `openbsd`, `psp`, `psx`, `qurt`, `redox`, `rtems`, `solaris`, and `solid_asp3` and 14 more
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `$crate::custom_heap_default` crate for guidance on how handle this unexpected cfg
+   = help: the macro `$crate::custom_heap_default` may come from an old version of the `solana_program_entrypoint` crate, try updating your dependency with `cargo update -p solana_program_entrypoint`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `$crate::custom_heap_default` which comes from the expansion of the attribute macro `program` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `custom-panic`
+  --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:14:1
+   |
+14 | #[program]
+   | ^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `$crate::custom_panic_default` crate for guidance on how handle this unexpected cfg
+   = help: the macro `$crate::custom_panic_default` may come from an old version of the `solana_program_entrypoint` crate, try updating your dependency with `cargo update -p solana_program_entrypoint`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `$crate::custom_panic_default` which comes from the expansion of the attribute macro `program` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `solana`
+  --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:14:1
+   |
+14 | #[program]
+   | ^^^^^^^^^^
+   |
+   = note: expected values for `target_os` are: `aix`, `amdhsa`, `android`, `cuda`, `cygwin`, `dragonfly`, `emscripten`, `espidf`, `freebsd`, `fuchsia`, `haiku`, `helenos`, `hermit`, `horizon`, `hurd`, `illumos`, `ios`, `l4re`, `linux`, `lynxos178`, `macos`, `managarm`, `motor`, `netbsd`, `none`, `nto`, `nuttx`, `openbsd`, `psp`, `psx`, `qurt`, `redox`, `rtems`, `solaris`, and `solid_asp3` and 14 more
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `$crate::custom_panic_default` crate for guidance on how handle this unexpected cfg
+   = help: the macro `$crate::custom_panic_default` may come from an old version of the `solana_program_entrypoint` crate, try updating your dependency with `cargo update -p solana_program_entrypoint`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `$crate::custom_panic_default` which comes from the expansion of the attribute macro `program` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+  --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:14:1
+   |
+14 | #[program]
+   | ^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+   = note: using a cfg inside a attribute macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `program` crate for guidance on how handle this unexpected cfg
+   = help: the attribute macro `program` may come from an old version of the `anchor_attribute_program` crate, try updating your dependency with `cargo update -p anchor_attribute_program`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the attribute macro `program` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+  --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:14:1
+   |
+14 | #[program]
+   | ^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+   = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+   = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:1503:10
+     |
+1503 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:1537:10
+     |
+1537 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:1544:10
+     |
+1544 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2113:10
+     |
+2113 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2122:10
+     |
+2122 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2134:10
+     |
+2134 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2170:10
+     |
+2170 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2210:10
+     |
+2210 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2217:10
+     |
+2217 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2235:10
+     |
+2235 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2254:10
+     |
+2254 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2268:10
+     |
+2268 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2282:10
+     |
+2282 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2294:10
+     |
+2294 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2310:10
+     |
+2310 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `anchor-debug`
+    --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:2324:10
+     |
+2324 | #[derive(Accounts)]
+     |          ^^^^^^^^
+     |
+     = note: expected values for `feature` are: `cpi`, `default`, `idl-build`, `no-entrypoint`, `no-idl`, and `no-log-ix-name`
+     = note: using a cfg inside a derive macro will use the cfgs from the destination crate and not the ones from the defining crate
+     = help: try referring to `Accounts` crate for guidance on how handle this unexpected cfg
+     = help: the derive macro `Accounts` may come from an old version of the `anchor_derive_accounts` crate, try updating your dependency with `cargo update -p anchor_derive_accounts`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: this warning originates in the derive macro `Accounts` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of deprecated method `anchor_lang::prelude::AccountInfo::<'a>::realloc`: Use AccountInfo::resize() instead
+  --> /home/hound/projects/preflight-eject/programs/rituals/src/lib.rs:14:1
+   |
+14 | #[program]
+   | ^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+   = note: this warning originates in the attribute macro `program` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `rituals` (lib) generated 28 warnings (5 duplicates)
+warning: unused import: `Space`
+ --> tests/support/mod.rs:5:60
+  |
+5 |     AccountDeserialize, AccountSerialize, InstructionData, Space, ToAccountMetas,
+  |                                                            ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `ClaimStatus` and `EventStatus`
+ --> tests/support/mod.rs:9:5
+  |
+9 |     ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, RitualEvent,
+  |     ^^^^^^^^^^^                   ^^^^^^^^^^^
+
+warning: use of deprecated module `solana_sdk::system_program`: Use `solana_system_interface::program` instead
+  --> tests/support/mod.rs:20:5
+   |
+20 |     system_program,
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: constant `WRONG_MINT` is never used
+  --> tests/support/mod.rs:29:18
+   |
+29 | pub(crate) const WRONG_MINT: Pubkey = Pubkey::new_from_array([13; 32]);
+   |                  ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `OUTSIDER` is never used
+  --> tests/support/mod.rs:30:18
+   |
+30 | pub(crate) const OUTSIDER: Pubkey = Pubkey::new_from_array([14; 32]);
+   |                  ^^^^^^^^
+
+warning: function `process_instruction` is never used
+  --> tests/support/mod.rs:32:15
+   |
+32 | pub(crate) fn process_instruction(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `finalize_event_ix` is never used
+  --> tests/support/mod.rs:53:15
+   |
+53 | pub(crate) fn finalize_event_ix(
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: function `finalize_event_ix_with_accounts` is never used
+  --> tests/support/mod.rs:77:15
+   |
+77 | pub(crate) fn finalize_event_ix_with_accounts(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `close_terminal_vaults_ix` is never used
+   --> tests/support/mod.rs:104:15
+    |
+104 | pub(crate) fn close_terminal_vaults_ix(ritual: Pubkey, creator: Pubkey) -> Instruction {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `approve_claim_ix` is never used
+   --> tests/support/mod.rs:157:15
+    |
+157 | pub(crate) fn approve_claim_ix(
+    |               ^^^^^^^^^^^^^^^^
+
+warning: function `question_claim_ix` is never used
+   --> tests/support/mod.rs:181:15
+    |
+181 | pub(crate) fn question_claim_ix(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `approve_claim_ix_with_accounts` is never used
+   --> tests/support/mod.rs:205:15
+    |
+205 | pub(crate) fn approve_claim_ix_with_accounts(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `question_claim_ix_with_accounts` is never used
+   --> tests/support/mod.rs:229:15
+    |
+229 | pub(crate) fn question_claim_ix_with_accounts(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `deserialize_event` is never used
+   --> tests/support/mod.rs:253:15
+    |
+253 | pub(crate) fn deserialize_event(data: &[u8]) -> RitualEvent {
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `deserialize_claim` is never used
+   --> tests/support/mod.rs:257:15
+    |
+257 | pub(crate) fn deserialize_claim(data: &[u8]) -> CompletionClaim {
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `deserialize_season` is never used
+   --> tests/support/mod.rs:261:15
+    |
+261 | pub(crate) fn deserialize_season(data: &[u8]) -> Season {
+    |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `replace_season` is never used
+   --> tests/support/mod.rs:265:21
+    |
+265 | pub(crate) async fn replace_season<F: FnOnce(&mut Season)>(
+    |                     ^^^^^^^^^^^^^^
+
+warning: function `start_with_members` is never used
+   --> tests/support/mod.rs:341:21
+    |
+341 | pub(crate) async fn start_with_members(
+    |                     ^^^^^^^^^^^^^^^^^^
+
+warning: function `start_with_member_set` is never used
+   --> tests/support/mod.rs:416:21
+    |
+416 | pub(crate) async fn start_with_member_set(
+    |                     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `initialize_ix` is never used
+   --> tests/support/mod.rs:483:15
+    |
+483 | pub(crate) fn initialize_ix(authority: Pubkey) -> Instruction {
+    |               ^^^^^^^^^^^^^
+
+warning: function `update_config_ix` is never used
+   --> tests/support/mod.rs:515:15
+    |
+515 | pub(crate) fn update_config_ix(
+    |               ^^^^^^^^^^^^^^^^
+
+warning: function `deserialize_config` is never used
+   --> tests/support/mod.rs:536:15
+    |
+536 | pub(crate) fn deserialize_config(data: &[u8]) -> rituals::ProtocolConfig {
+    |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `finalize_solo_ix` is never used
+   --> tests/support/mod.rs:579:15
+    |
+579 | pub(crate) fn finalize_solo_ix(
+    |               ^^^^^^^^^^^^^^^^
+
+warning: function `create_ix` is never used
+   --> tests/support/mod.rs:603:15
+    |
+603 | pub(crate) fn create_ix(
+    |               ^^^^^^^^^
+
+warning: function `create_ix_with_members` is never used
+   --> tests/support/mod.rs:640:15
+    |
+640 | pub(crate) fn create_ix_with_members(
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `create_ix_with_members_and_stake` is never used
+   --> tests/support/mod.rs:648:15
+    |
+648 | pub(crate) fn create_ix_with_members_and_stake(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `cancel_ix` is never used
+   --> tests/support/mod.rs:727:15
+    |
+727 | pub(crate) fn cancel_ix(
+    |               ^^^^^^^^^
+
+warning: function `assert_error` is never used
+   --> tests/support/mod.rs:758:15
+    |
+758 | pub(crate) fn assert_error(result: Result<(), solana_program_test::BanksClientError>, code: u32) {
+    |               ^^^^^^^^^^^^
+
+warning: function `cancel_ix_for_ritual` is never used
+   --> tests/support/mod.rs:767:15
+    |
+767 | pub(crate) fn cancel_ix_for_ritual(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `cancel_ix_with_accounts` is never used
+   --> tests/support/mod.rs:796:15
+    |
+796 | pub(crate) fn cancel_ix_with_accounts(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `amount` is never used
+   --> tests/support/mod.rs:816:21
+    |
+816 | pub(crate) async fn amount(context: &mut ProgramTestContext, address: Pubkey) -> u64 {
+    |                     ^^^^^^
+
+warning: function `replace_ritual` is never used
+   --> tests/support/mod.rs:839:21
+    |
+839 | pub(crate) async fn replace_ritual<F: FnOnce(&mut rituals::Ritual)>(
+    |                     ^^^^^^^^^^^^^^
+
+warning: function `replace_claim` is never used
+   --> tests/support/mod.rs:862:21
+    |
+862 | pub(crate) async fn replace_claim<F: FnOnce(&mut CompletionClaim)>(
+    |                     ^^^^^^^^^^^^^
+
+warning: function `replace_event` is never used
+   --> tests/support/mod.rs:885:21
+    |
+885 | pub(crate) async fn replace_event<F: FnOnce(&mut RitualEvent)>(
+    |                     ^^^^^^^^^^^^^
+
+warning: function `replace_config` is never used
+   --> tests/support/mod.rs:908:21
+    |
+908 | pub(crate) async fn replace_config<F: FnOnce(&mut rituals::ProtocolConfig)>(
+    |                     ^^^^^^^^^^^^^^
+
+warning: function `replace_token_amount` is never used
+   --> tests/support/mod.rs:931:21
+    |
+931 | pub(crate) async fn replace_token_amount(
+    |                     ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `replace_token_close_authority` is never used
+   --> tests/support/mod.rs:939:21
+    |
+939 | pub(crate) async fn replace_token_close_authority(
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `replace_token_destination_fields` is never used
+   --> tests/support/mod.rs:952:21
+    |
+952 | pub(crate) async fn replace_token_destination_fields(
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `replace_owner` is never used
+   --> tests/support/mod.rs:983:21
+    |
+983 | pub(crate) async fn replace_owner(
+    |                     ^^^^^^^^^^^^^
+
+warning: function `replace_account` is never used
+    --> tests/support/mod.rs:1000:21
+     |
+1000 | pub(crate) async fn replace_account(
+     |                     ^^^^^^^^^^^^^^^
+
+warning: function `freeze_token_account` is never used
+    --> tests/support/mod.rs:1008:21
+     |
+1008 | pub(crate) async fn freeze_token_account(context: &mut ProgramTestContext, address: Pubkey) {
+     |                     ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ActivationSnapshot` is never constructed
+    --> tests/support/mod.rs:1018:19
+     |
+1018 | pub(crate) struct ActivationSnapshot {
+     |                   ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `capture` is never used
+    --> tests/support/mod.rs:1029:25
+     |
+1028 | impl ActivationSnapshot {
+     | ----------------------- associated function in this implementation
+1029 |     pub(crate) async fn capture(
+     |                         ^^^^^^^
+
+warning: struct `CancellationSnapshot` is never constructed
+    --> tests/support/mod.rs:1058:19
+     |
+1058 | pub(crate) struct CancellationSnapshot {
+     |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `capture` is never used
+    --> tests/support/mod.rs:1068:25
+     |
+1067 | impl CancellationSnapshot {
+     | ------------------------- associated function in this implementation
+1068 |     pub(crate) async fn capture(
+     |                         ^^^^^^^
+
+warning: function `funding_snapshot` is never used
+    --> tests/support/mod.rs:1094:21
+     |
+1094 | pub(crate) async fn funding_snapshot(
+     |                     ^^^^^^^^^^^^^^^^
+
+warning: function `split_funding_snapshot` is never used
+    --> tests/support/mod.rs:1114:21
+     |
+1114 | pub(crate) async fn split_funding_snapshot(
+     |                     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `setup_host` is never used
+    --> tests/support/mod.rs:1133:21
+     |
+1133 | pub(crate) async fn setup_host(
+     |                     ^^^^^^^^^^
+
+warning: struct `ClaimFlowSnapshot` is never constructed
+    --> tests/support/mod.rs:1155:19
+     |
+1155 | pub(crate) struct ClaimFlowSnapshot {
+     |                   ^^^^^^^^^^^^^^^^^
+
+warning: associated function `capture` is never used
+    --> tests/support/mod.rs:1165:25
+     |
+1164 | impl ClaimFlowSnapshot {
+     | ---------------------- associated function in this implementation
+1165 |     pub(crate) async fn capture(
+     |                         ^^^^^^^
+
+warning: struct `SettlementSnapshot` is never constructed
+    --> tests/support/mod.rs:1184:19
+     |
+1184 | pub(crate) struct SettlementSnapshot {
+     |                   ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `capture` is never used
+    --> tests/support/mod.rs:1194:25
+     |
+1193 | impl SettlementSnapshot {
+     | ----------------------- associated function in this implementation
+1194 |     pub(crate) async fn capture(
+     |                         ^^^^^^^
+
+warning: unused import: `RitualStatus`
+  --> tests/support/mod.rs:10:5
+   |
+10 |     RitualStatus, Season,
+   |     ^^^^^^^^^^^^
+
+warning: unused variable: `creator`
+   --> tests/solo_ritual.rs:291:23
+    |
+291 |     let (mut context, creator, ritual, event, destination) = solo_fixture(None, 9103).await;
+    |                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_creator`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `finalize_event_ix_with_accounts` is never used
+  --> tests/support/mod.rs:77:15
+   |
+77 | pub(crate) fn finalize_event_ix_with_accounts(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `initialize_free_ix` is never used
+   --> tests/support/mod.rs:512:15
+    |
+512 | pub(crate) fn initialize_free_ix(authority: Pubkey) -> Instruction {
+    |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `finalize_event_ix` is never used
+  --> tests/support/mod.rs:53:15
+   |
+53 | pub(crate) fn finalize_event_ix(
+   |               ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ClaimStatus`
+ --> tests/support/mod.rs:9:5
+  |
+9 |     ClaimStatus, CompletionClaim, EventStatus, EventWindow, FeePayerMode, RitualEvent,
+  |     ^^^^^^^^^^^
+
+warning: unused variable: `creator`
+   --> tests/finalize_event.rs:203:17
+    |
+203 |     let (mut c, creator, other, ritual, event) = one_event_fixture(1, 7404).await;
+    |                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_creator`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `close_terminal_vaults_ix` is never used
+   --> tests/support/mod.rs:104:15
+    |
+104 | pub(crate) fn close_terminal_vaults_ix(ritual: Pubkey, creator: Pubkey) -> Instruction {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `create_solo_ix` is never used
+   --> tests/support/mod.rs:540:15
+    |
+540 | pub(crate) fn create_solo_ix(
+    |               ^^^^^^^^^^^^^^
+
+warning: function `event_pda` is never used
+  --> tests/support/mod.rs:43:15
+   |
+43 | pub(crate) fn event_pda(ritual: &Pubkey, event_index: u8) -> Pubkey {
+   |               ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `claim_pda` is never used
+  --> tests/support/mod.rs:46:15
+   |
+46 | pub(crate) fn claim_pda(event: &Pubkey, claimant: &Pubkey, version: u8) -> Pubkey {
+   |               ^^^^^^^^^
+
+warning: function `initialize_event_ix` is never used
+   --> tests/support/mod.rs:119:15
+    |
+119 | pub(crate) fn initialize_event_ix(ritual: Pubkey, payer: Pubkey, event_index: u8) -> Instruction {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_completion_ix` is never used
+   --> tests/support/mod.rs:132:15
+    |
+132 | pub(crate) fn claim_completion_ix(
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `source_for_member` is never used
+   --> tests/support/mod.rs:412:15
+    |
+412 | pub(crate) fn source_for_member(index: usize) -> Pubkey {
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `activate_ix` is never used
+   --> tests/support/mod.rs:705:15
+    |
+705 | pub(crate) fn activate_ix(creator: Pubkey, nonce: u64, recipient: Pubkey) -> Instruction {
+    |               ^^^^^^^^^^^
+
+warning: function `activate_ix_default` is never used
+   --> tests/support/mod.rs:724:15
+    |
+724 | pub(crate) fn activate_ix_default(creator: Pubkey, nonce: u64) -> Instruction {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `OUTSIDER` is never used
+  --> tests/support/mod.rs:30:18
+   |
+30 | pub(crate) const OUTSIDER: Pubkey = Pubkey::new_from_array([14; 32]);
+   |                  ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated module `solana_sdk::system_program`: Use `solana_system_interface::program` instead
+ --> tests/initialize.rs:8:5
+  |
+8 |     system_program,
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+warning: function `claim_pda` is never used
+  --> tests/support/mod.rs:46:15
+   |
+46 | pub(crate) fn claim_pda(event: &Pubkey, claimant: &Pubkey, version: u8) -> Pubkey {
+   |               ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `before`
+   --> tests/activate_ritual.rs:318:9
+    |
+318 |     let before = full_snapshot(&mut context, ritual, false).await;
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_before`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `rituals-program-tests` (test "eject_compute") generated 52 warnings (run `cargo fix --test "eject_compute" -p rituals-program-tests` to apply 2 suggestions)
+warning: `rituals-program-tests` (test "solo_ritual") generated 37 warnings (33 duplicates) (run `cargo fix --test "solo_ritual" -p rituals-program-tests` to apply 2 suggestions)
+warning: `rituals-program-tests` (test "eject_ritual") generated 33 warnings (32 duplicates)
+warning: `rituals-program-tests` (test "finalize_event") generated 30 warnings (26 duplicates) (run `cargo fix --test "finalize_event" -p rituals-program-tests` to apply 2 suggestions)
+warning: `rituals-program-tests` (test "fund_member") generated 46 warnings (39 duplicates)
+warning: `rituals-program-tests` (test "approve_claim") generated 38 warnings (37 duplicates)
+warning: `rituals-program-tests` (test "initialize") generated 1 warning
+warning: `rituals-program-tests` (test "close_terminal_vaults") generated 33 warnings (32 duplicates)
+warning: `rituals-program-tests` (test "season") generated 44 warnings (44 duplicates)
+warning: `rituals-program-tests` (test "claim_completion") generated 39 warnings (39 duplicates)
+warning: `rituals-program-tests` (test "activate_ritual") generated 42 warnings (41 duplicates) (run `cargo fix --test "activate_ritual" -p rituals-program-tests` to apply 1 suggestion)
+warning: `rituals-program-tests` (test "free_program") generated 33 warnings (33 duplicates)
+warning: constant `SECOND_RECIPIENT` is never used
+  --> tests/support/mod.rs:27:18
+   |
+27 | pub(crate) const SECOND_RECIPIENT: Pubkey = Pubkey::new_from_array([15; 32]);
+   |                  ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `WRONG_MINT` is never used
+  --> tests/support/mod.rs:29:18
+   |
+29 | pub(crate) const WRONG_MINT: Pubkey = Pubkey::new_from_array([13; 32]);
+   |                  ^^^^^^^^^^
+
+warning: function `event_pda` is never used
+  --> tests/support/mod.rs:43:15
+   |
+43 | pub(crate) fn event_pda(ritual: &Pubkey, event_index: u8) -> Pubkey {
+   |               ^^^^^^^^^
+
+warning: function `token_account` is never used
+   --> tests/support/mod.rs:320:15
+    |
+320 | pub(crate) fn token_account(owner: Pubkey, amount: u64) -> Account {
+    |               ^^^^^^^^^^^^^
+
+warning: function `initialize_ix_with_fee` is never used
+   --> tests/support/mod.rs:486:15
+    |
+486 | pub(crate) fn initialize_ix_with_fee(
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated module `solana_sdk::system_program`: Use `solana_system_interface::program` instead
+  --> tests/create_ritual.rs:14:5
+   |
+14 |     system_program,
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: `rituals-program-tests` (test "cancel_unactivated") generated 40 warnings (40 duplicates)
+warning: `rituals-program-tests` (test "fund_split") generated 59 warnings (54 duplicates)
+warning: `rituals-program-tests` (test "create_ritual") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.43s
+     Running tests/activate_ritual.rs (target/debug/deps/activate_ritual-b5d210025c9c917f)
+
+running 14 tests
+test activate_ritual_api_has_no_user_authority_parameter ... ok
+test config_replacement_cannot_redirect_a_locked_recipient_or_pause_activation ... ok
+test frozen_fee_cpi_rolls_back_before_activation_state_is_written ... ok
+test activate_split_accepts_shuffled_funding_order ... ok
+test activation_rejects_locked_fee_not_derived_from_full_bitmap ... ok
+test activation_success_preserves_everything_except_status_and_timestamp ... ok
+test incomplete_and_malformed_funding_are_rejected_atomically ... ok
+test activation_rejects_open_boundary_and_replay ... ok
+test activate_host_transfers_exact_snapshotted_fee_and_preserves_dust ... ok
+test replay_after_success_returns_exact_6020_and_full_rollback ... ok
+test activation_timing_rejects_past_and_exact_open_with_full_rollback ... ok
+test short_vaults_reject_without_state_or_token_movement ... ok
+test account_binding_rejections_are_atomic_for_recipient_mints_vaults_and_programs ... ok
+test malformed_locked_activation_states_are_independently_rejected_with_full_rollback ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.72s
+
+     Running tests/approve_claim.rs (target/debug/deps/approve_claim-b06a8745d75fd0e7)
+
+running 31 tests
+test corrupted_nonfunded_active_state_is_not_reported_as_nonmember ... ok
+test nonmember_question_is_rejected_without_mutation ... ok
+test approval_after_claim_deadline_before_resolution_succeeds_and_resolves_event ... ok
+test confirmed_claim_is_honored_as_6046 ... ok
+test n4_majority_confirms_only_on_second_different_member_in_shuffled_order ... ok
+test approval_at_resolution_succeeds_but_after_resolution_is_rejected ... ok
+test duplicate_approval_before_threshold_is_rejected_without_mutation ... ok
+test nonmember_approval_is_rejected_without_mutation ... ok
+test one_friend_approval_confirms_exactly_at_threshold ... ok
+test approval_after_questioned_is_rejected_as_6046 ... ok
+test confirmed_replay_and_extra_approver_are_rejected_as_6046 ... ok
+test claim_version_one_and_cross_account_substitution_reject_without_mutation ... ok
+test n4_unanimous_requires_all_three_other_members ... ok
+test question_after_claim_deadline_before_resolution_succeeds_and_resolves_event ... ok
+test question_after_resolution_is_rejected_without_mutation ... ok
+test question_preserves_approvals_and_enters_resolving ... ok
+test question_pending_claim_with_no_approvals_is_valid ... ok
+test question_replay_after_questioned_is_rejected_as_6046 ... ok
+test self_approval_is_rejected_without_mutation ... ok
+test question_at_exact_resolution_succeeds ... ok
+test prior_approver_cannot_question_the_claim ... ok
+test question_cross_ritual_event_claim_substitution_is_rejected_unchanged ... ok
+test questioned_claim_is_honored_as_6046_for_both_actions ... ok
+test sixth_member_approval_sets_the_high_boundary_bitmap_bit ... ok
+test self_question_is_rejected_without_mutation ... ok
+test unsigned_approval_is_rejected_without_mutation ... ok
+test successful_approval_has_no_custody_accounts_and_preserves_external_balances ... ok
+test unsigned_question_is_rejected_without_mutation ... ok
+test claim_status_invariant_corruption_is_rejected_without_mutation ... ok
+test claim_corruption_table_is_rejected_and_unchanged ... ok
+test event_corruption_table_is_rejected_and_unchanged ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.19s
+
+     Running tests/cancel_unactivated.rs (target/debug/deps/cancel_unactivated-06a89e08843f09f7)
+
+running 30 tests
+test cancellation_uses_locked_terms_after_protocol_config_mutation ... ok
+test destination_outer_system_owner_is_rejected_atomically ... ok
+test frozen_second_destination_rolls_back_first_stake_and_fee_cpis ... ok
+test duplicate_refund_destinations_are_rejected_atomically ... ok
+test active_ritual_rejects_cancellation_without_mutation ... ok
+test creator_can_cancel_empty_funding_and_records_timestamp ... ok
+test destination_outer_token_2022_owner_is_rejected_atomically ... ok
+test exact_open_allows_arbitrary_signer ... ok
+test cancellation_requires_signing_caller_and_has_no_extra_config_or_recipient_accounts ... ok
+test cancellation_after_first_window_allows_arbitrary_signer ... ok
+test host_cancellation_refunds_tracked_partial_stake_and_fee_only ... ok
+test cancellation_preserves_untracked_stake_and_fee_dust ... ok
+test cancellation_replay_is_rejected_without_mutation ... ok
+test invalid_second_destination_has_no_first_transfer_movement ... ok
+test malformed_funding_equations_are_rejected_atomically ... ok
+test cancellation_binding_matrix_rejects_wrong_mint_and_vault_without_movement ... ok
+test malformed_lifecycle_is_rejected_before_authority_check ... ok
+test noncreator_before_first_window_is_rejected_atomically ... ok
+test mismatched_ritual_vault_is_rejected_without_mutating_either_ritual ... ok
+test split_cancellation_n2_full_returns_exact_stake_and_fee_shares ... ok
+test refund_destination_count_is_exact_and_atomic ... ok
+test read_only_refund_destination_is_rejected_atomically ... ok
+test split_cancellation_n3_remainder_shuffled_partial_is_exact ... ok
+test split_cancellation_n3_remainder_shuffled_full_is_exact ... ok
+test destination_validation_table_rejects_wrong_order_owner_mint_and_uninitialized ... ok
+test substituted_token_program_is_rejected_atomically ... ok
+test short_stake_vault_is_6036_and_short_fee_vault_is_6037_atomically ... ok
+test cancellation_lifecycle_fields_are_each_rejected_atomically ... ok
+test host_refund_matrix_nonhost_host_and_both_restores_exact_sources ... ok
+test malformed_cancellation_locked_terms_each_roll_back ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.33s
+
+     Running tests/claim_completion.rs (target/debug/deps/claim_completion-6d513064df5317f1)
+
+running 21 tests
+test initialize_and_claim_account_structs_have_no_custody_accounts ... ok
+test honor_claim_is_immediately_confirmed_and_sets_both_bitmaps ... ok
+test failed_initialization_and_claim_do_not_mutate_ritual_or_tokens ... ok
+test claim_version_binding_rejects_v1_and_accepts_exact_v0_pda ... ok
+test authorization_and_rent_rollback_errors_are_exact ... ok
+test nonmember_nonfunded_and_unsigned_claims_are_atomic ... ok
+test pending_claim_full_readback_and_ritual_vault_recipient_are_unchanged ... ok
+test initialize_event_requires_signed_payer_and_duplicate_is_account_in_use ... ok
+test initialize_event_rejects_funding_cancelled_wrong_index_and_out_of_range ... ok
+test member_index_table_covers_both_members_and_claimant_derivation ... ok
+test initialize_event_pda_and_cross_ritual_substitution_are_rejected ... ok
+test same_claimant_cross_event_isolation_and_account_constraints ... ok
+test prefunded_event_and_claim_pdas_remain_initializable ... ok
+test synthetic_nonfunding_corruption_is_active_state_inconsistent ... ok
+test valid_state_rejects_unsigned_claimant_exactly ... ok
+test exact_open_and_deadline_boundaries_are_claiming_and_claimable ... ok
+test initialize_event_status_window_table_fresh_fixtures ... ok
+test claim_window_table_and_resolving_event_rejection ... ok
+test event_bitmap_corruption_table_rejects_out_of_range_overlap_and_preclaimed ... ok
+test event_snapshot_corruption_table_rejects_every_field ... ok
+test active_ritual_corruption_table_is_rejected_before_claim_creation ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.98s
+
+     Running tests/close_terminal_vaults.rs (target/debug/deps/close_terminal_vaults-dc38bec919e6aa2c)
+
+running 15 tests
+test close_api_has_only_fixed_creator_destination_and_two_vaults ... ok
+test replay_after_success_cannot_credit_creator_twice ... ok
+test six_member_terminal_fixture_closes_without_account_looping ... ok
+test cancelled_empty_funding_closes_exact_rent_and_preserves_ritual ... ok
+test partially_funded_cancelled_and_refunded_path_closes ... ok
+test completed_real_path_closes_both_vaults_to_creator_not_payer ... ok
+test creator_destination_is_immutable_and_wrong_destination_is_rejected ... ok
+test funding_and_active_statuses_are_not_terminal ... ok
+test completed_close_preserves_historical_activation_fee_accounting ... ok
+test stake_and_fee_dust_are_rejected_without_burn_or_close ... ok
+test outsider_close_authority_is_rejected_but_none_and_ritual_authority_work ... ok
+test terminal_timestamp_ordering_is_rejected ... ok
+test malformed_completed_and_cancelled_terminal_states_fail_closed_as_a_table ... ok
+test vault_mint_owner_and_token_program_substitutions_are_rejected ... ok
+test terminal_timestamps_must_be_positive_and_preserve_failed_close_state ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.75s
+
+     Running tests/create_ritual.rs (target/debug/deps/create_ritual-027d76b8f59cd4ea)
+
+running 11 tests
+test wished_for_create_ritual_api_compiles ... ok
+test create_ritual_locks_fee_against_future_config_replacement ... ok
+test create_ritual_rejects_group_pool_overflow ... ok
+test create_ritual_rejects_paused_protocol_without_creating_ritual ... ok
+test create_ritual_stores_immutable_configuration_and_locked_fee ... ok
+test create_ritual_rejects_token_program_substitution ... ok
+test create_ritual_rejects_repeated_nonce_without_changing_original ... ok
+test create_ritual_rejects_wrong_fee_recipient_address ... ok
+test create_ritual_uses_group_pool_for_fee_raw_calculation ... ok
+test create_ritual_rejects_wrong_solana_account_owners_with_exact_3007 ... ok
+test create_ritual_reports_the_exact_structural_error_matrix ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.09s
+
+     Running tests/eject_compute.rs (target/debug/deps/eject_compute-800eee3527ef28f5)
+
+running 1 test
+test eject_compute_units_on_sbf ... ignored, needs the SBF build: SBF_OUT_DIR=../target/deploy
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/eject_ritual.rs (target/debug/deps/eject_ritual-41837457c047f13f)
+
+running 17 tests
+test eject_stamped_unsettled_returns_all_with_kept_receipt ... ok
+test eject_before_open_returns_all_and_vault_rent ... ok
+test eject_stamped_open_week_settles_it_as_kept ... ok
+test eject_settles_a_kept_and_a_missed_week_and_returns_the_open_one ... ok
+test eject_all_sixteen_missing_weeks_conserves_and_records_receipts ... ok
+test eject_rejects_a_group_ritual ... ok
+test eject_declared_skip_returns_all ... ok
+test eject_settles_a_miss_at_a_prefunded_event_address ... ok
+test eject_in_a_stamped_last_week_settles_every_week ... ok
+test eject_rejects_a_completed_ritual ... ok
+test eject_rejects_double_noncreator_and_funding ... ok
+test eject_preserves_prior_settlement_and_refunds_fee_dust ... ok
+test eject_missing_or_initialized_past_week_forfeits_during_grace ... ok
+test eject_open_unstamped_and_exact_deadline_return_current_week ... ok
+test eject_rejects_wrong_destination_owner_mint_events_and_changed_quote ... ok
+test ended_ritual_rejects_every_other_instruction ... ok
+test eject_witnessed_claims_pending_questioned_or_approved_all_come_back ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.72s
+
+     Running tests/finalize_event.rs (target/debug/deps/finalize_event-f5aaea69675f639f)
+
+running 21 tests
+test finalize_api_has_no_caller_claim_or_fee_accounts ... ok
+test settlement_plan_mixed_remainder_goes_to_lowest_confirmed_index ... ok
+test fee_vault_dust_and_recipient_are_not_settlement_metas_or_moved ... ok
+test settled_n2_transfers_pool_and_records_receipt ... ok
+test short_stake_vault_rejects_without_touching_fee_or_destinations ... ok
+test cross_ritual_stake_vault_is_rejected_without_mutating_either_ritual ... ok
+test max_six_member_settlement_executes_all_destination_cpis_and_completes ... ok
+test finalize_rejects_wrong_token_program_and_wrong_stake_accounts ... ok
+test settled_n3_real_claims_forfeit_unclaimed_remainder_and_preserve_bitmaps ... ok
+test questioned_claim_is_real_safe_void ... ok
+test pending_claim_is_real_safe_void_and_refunds_pool ... ok
+test frozen_second_destination_rolls_back_first_positive_settlement_cpi ... ok
+test no_claims_can_finalize_to_no_confirmed_void ... ok
+test all_confirmed_n2_pays_each_allocation ... ok
+test exact_resolution_replay_and_receipt_corruption_are_rejected_atomically ... ok
+test terminal_finalize_replay_is_a_real_unchanged_transaction ... ok
+test wrong_stake_vault_is_rejected_atomically ... ok
+test receipt_prefields_and_future_initialization_reject_with_6039 ... ok
+test two_event_programtest_lifecycle_reaches_completed ... ok
+test finalize_destination_count_and_every_destination_are_validated_atomically ... ok
+test finalize_rejects_wrong_owner_mint_uninitialized_duplicate_and_read_only_destinations ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.16s
+
+     Running tests/free_program.rs (target/debug/deps/free_program-fafee5417b202749)
+
+running 8 tests
+test update_protocol_config_by_authority_changes_only_the_fee_fields ... ok
+test update_protocol_config_rejects_non_authority_and_missing_signature ... ok
+test update_protocol_config_rejects_invalid_values_atomically ... ok
+test free_solo_missed_sends_the_whole_stake_to_the_cause_with_no_protocol_cut ... ok
+test ritual_locked_under_paid_config_still_pays_its_locked_fee_after_update_to_free ... ok
+test free_group_cancel_refunds_exact_stake_with_an_empty_fee_vault ... ok
+test free_solo_kept_returns_the_whole_stake_and_closes_the_empty_fee_vault ... ok
+test free_group_funds_and_activates_without_any_fee_transfer ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.94s
+
+     Running tests/fund_member.rs (target/debug/deps/fund_member-0f528065a2af3dac)
+
+running 15 tests
+test wished_for_host_fund_member_api_compiles ... ok
+test split_funding_uses_exact_member_share ... ok
+test inconsistent_funding_state_is_6027_and_fully_atomic ... ok
+test host_insufficient_total_is_atomic_before_stake_cpi ... ok
+test checked_next_accounting_overflow_is_6026_and_fully_atomic ... ok
+test nonhost_stake_below_minimum_is_atomic ... ok
+test wrong_vault_addresses_are_rejected_atomically ... ok
+test nonmember_source_is_rejected_atomically ... ok
+test unsolicited_dust_is_not_counted_as_liability ... ok
+test host_total_overflow_is_6024_and_fully_atomic ... ok
+test extra_source_balance_is_preserved ... ok
+test host_funding_tracks_ordered_members_and_exact_liabilities ... ok
+test classic_token_account_owner_and_program_are_required ... ok
+test wrong_source_authority_and_mint_are_rejected ... ok
+test paused_and_nonfunding_statuses_are_rejected ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.96s
+
+     Running tests/fund_split.rs (target/debug/deps/fund_split-2d6a2de88cc3328d)
+
+running 4 tests
+test split_insufficient_total_is_6025_and_atomic ... ok
+test split_duplicate_is_6022_and_atomic ... ok
+test split_inconsistent_state_is_6027_and_atomic ... ok
+test split_exact_matrix_two_through_six_members_all_remainders ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.67s
+
+     Running tests/initialize.rs (target/debug/deps/initialize-62320f3e3577a989)
+
+running 8 tests
+test wished_for_initialize_api_compiles_against_native_program_entrypoint ... ok
+test initialize_protocol_config_stores_exact_state ... ok
+test initialize_rejects_zero_maximum_member_stake ... ok
+test initialize_rejects_repeated_pda_initialization ... ok
+test initialize_rejects_non_signing_authority ... ok
+test initialize_rejects_invalid_basis_points ... ok
+test initialize_rejects_reversed_fee_bounds ... ok
+test initialize_accepts_zero_fee_settings_and_reads_them_back ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+
+     Running tests/mobile_account_vectors.rs (target/debug/deps/mobile_account_vectors-813e59e473e7d9da)
+
+running 4 tests
+test account_data_lengths_are_the_frozen_allocations ... ok
+test account_discriminators_are_the_frozen_anchor_bytes ... ok
+test pda_vectors_are_independent_from_typescript ... ok
+test real_anchor_account_vectors_are_frozen ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mobile_event_instruction_vectors.rs (target/debug/deps/mobile_event_instruction_vectors-ab43866899d50c5e)
+
+running 2 tests
+test eject_instruction_manifest_is_frozen ... ok
+test event_instruction_manifests_are_frozen ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mobile_instruction_vectors.rs (target/debug/deps/mobile_instruction_vectors-b853615db5162ea5)
+
+running 1 test
+test ritual_instruction_data_matches_frozen_vectors ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mobile_lifecycle_instruction_vectors.rs (target/debug/deps/mobile_lifecycle_instruction_vectors-6469162235e06ff0)
+
+running 1 test
+test lifecycle_instruction_manifests_are_frozen ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/season.rs (target/debug/deps/season-2fceeab6e2c75373)
+
+running 11 tests
+test season_pda_matches_typescript_vector ... ok
+test solo_season_create_fund_activate_succeeds_in_one_transaction ... ok
+test solo_create_with_season_does_not_increment_participant_count ... ok
+test season_participant_count_increments_on_activation ... ok
+test season_initialization_requires_protocol_authority ... ok
+test cancelling_an_unactivated_season_ritual_does_not_increment_participant_count ... ok
+test honor_confirmation_increments_once_and_replay_does_not_double_count ... ok
+test solo_create_rejects_season_schedule_mismatch ... ok
+test non_season_solo_and_group_rituals_have_no_season_counter ... ok
+test witness_confirmation_increments_only_on_approval ... ok
+test season_activation_requires_the_matching_optional_account ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+
+     Running tests/solo_ritual.rs (target/debug/deps/solo_ritual-cc33a2b743db4794)
+
+running 10 tests
+test solo_create_rejects_witness_owned_forfeit_destination ... ok
+test solo_create_rejects_creator_owned_forfeit_destination ... ok
+test solo_create_has_one_host_and_locks_witness_and_destination ... ok
+test witness_cannot_fund_or_claim ... ok
+test solo_success_returns_stake_to_host_and_witness_approval_is_non_staking ... ok
+test solo_create_rejects_witness_equal_to_creator_and_wrong_mint_destination ... ok
+test declare_skip_is_one_shot_and_member_only ... ok
+test solo_miss_pays_locked_destination_and_pending_claim_is_void ... ok
+test declare_skip_rejects_open_windows_and_group_rituals ... ok
+test solo_finalize_requires_locked_destination_and_forfeit_account ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.35s
+
+exit 0
