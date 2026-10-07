@@ -7,7 +7,7 @@ import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewS
 import * as Haptics from 'expo-haptics'
 import { color, memberColor, radius, space, type, themedStyles, useColors } from '../../theme'
 import { HoldButton } from './HoldButton'
-import { isClosedWeekCell, weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
+import { isClosedWeekCell, isKeptWeekCell, weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
 
 export { HoldButton }
 export { Confetti } from './Confetti'
@@ -78,9 +78,10 @@ export function WeekStrip({ cells, tint, compact = false, summary = true, summar
     <View accessibilityLabel={line}>
       <View style={[s.strip, compact && s.stripCompact]}>
         {cells.map((cell, i) => {
-          if (compact) return <View key={i} style={[s.dot, cell === 'done' && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
-          const cellStyle = [s.cell, cell === 'done' && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]
-          const label = <Text style={[s.cellText, cell === 'done' && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
+          const kept = isKeptWeekCell(cell)
+          if (compact) return <View key={i} style={[s.dot, kept && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
+          const cellStyle = [s.cell, kept && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]
+          const label = <Text style={[s.cellText, kept && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
           return onClosedWeekPress && isClosedWeekCell(cell)
             ? <Pressable key={i} onPress={() => onClosedWeekPress(i)} accessibilityRole="button" accessibilityLabel={`See week ${i + 1} receipt`} hitSlop={{ top: 6, bottom: 6 }} style={({ pressed }) => [...cellStyle, pressed && { opacity: 0.7 }]}>{label}</Pressable>
             : <View key={i} style={cellStyle}>{label}</View>
@@ -130,20 +131,21 @@ export function FeedRow({ index, name, action, when, faded, children }: { index:
   )
 }
 
-/** Primary action. `go` = lime, `dark` = ink. Never more than one per screen. */
-export function ActionButton({ label, onPress, tone = 'go', disabled, loading, accessibilityLabel, style }: { label: string; onPress: () => void; tone?: 'go' | 'dark' | 'quiet'; disabled?: boolean; loading?: boolean; accessibilityLabel?: string; style?: StyleProp<ViewStyle> }) {
+/** Primary action. `go` = lime, `dark` = ink. Never more than one per screen. `link` = a minor action, quiet text. */
+export function ActionButton({ label, onPress, tone = 'go', disabled, loading, accessibilityLabel, style }: { label: string; onPress: () => void; tone?: 'go' | 'dark' | 'quiet' | 'link'; disabled?: boolean; loading?: boolean; accessibilityLabel?: string; style?: StyleProp<ViewStyle> }) {
   const s = useS()
   const color = useColors()
   const off = disabled || loading
+  const link = tone === 'link'
   return (
     <Pressable
       onPress={() => { if (off) return; haptic.light(); onPress() }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!off, busy: !!loading }}
-      style={({ pressed }) => [s.btn, tone === 'go' && s.btnGo, tone === 'dark' && s.btnDark, tone === 'quiet' && s.btnQuiet, off && { opacity: 0.45 }, pressed && !off && { transform: [{ scale: 0.97 }] }, style]}
+      style={({ pressed }) => [link ? s.link : s.btn, tone === 'go' && s.btnGo, tone === 'dark' && s.btnDark, tone === 'quiet' && s.btnQuiet, off && { opacity: 0.45 }, pressed && !off && (link ? { opacity: 0.6 } : { transform: [{ scale: 0.97 }] }), style]}
     >
-      <Text style={[s.btnText, tone === 'dark' && { color: color.onDark }, tone === 'go' && { color: color.goInk }]}>{label}</Text>
+      <Text style={[link ? s.linkText : s.btnText, tone === 'dark' && { color: color.onDark }, tone === 'go' && { color: color.goInk }]}>{label}</Text>
     </Pressable>
   )
 }
@@ -255,6 +257,8 @@ const useS = themedStyles((color) => StyleSheet.create({
   btnDark: { backgroundColor: color.fg },
   btnQuiet: { backgroundColor: color.card, borderWidth: 1, borderColor: color.line },
   btnText: { ...type.heading, color: color.fg },
+  link: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+  linkText: { ...type.bodyStrong, color: color.muted, textDecorationLine: 'underline' },
 
   dock: { position: 'absolute', left: 12, right: 12, bottom: 14, backgroundColor: color.fg, borderRadius: radius.poster, paddingVertical: 14, paddingLeft: space.xl, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 14, elevation: 12, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
   dockTitle: { ...type.heading, color: color.onDark },
