@@ -93,6 +93,7 @@ export function createReminderService(deps: {
     // Chain reads happen outside the serialized queue so offline Settings never
     // hold up stamp/removal cleanup. Recheck consent here after every read.
     restore: (input: CreateReminderInput) => run(() => schedule(input, true)),
+    setRitualEnabled: (input: CreateReminderInput) => run(() => schedule(input, false)),
     afterCreate: (input: CreateReminderInput): Promise<void> => run(async () => { await schedule(input, false) }),
     afterStamp: (address: string, eventIndex: number): Promise<void> => run(async () => {
       if (!Number.isInteger(eventIndex) || eventIndex < 0 || eventIndex >= 16) return

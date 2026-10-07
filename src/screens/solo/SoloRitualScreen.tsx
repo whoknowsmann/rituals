@@ -9,6 +9,9 @@ import type { RootStackParamList } from '../../navigators/AppNavigator'
 import { useAuthorization } from '../../utils/useAuthorization'
 import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatchAlert'
 import { useReminders } from '../../features/rituals/reminders/useReminders'
+import { useReminderSettings } from '../../features/rituals/reminders/useReminderSettings'
+import { reminderInputFromBundle } from '../../features/rituals/reminders/restore'
+import { reminders } from '../../features/rituals/reminders/runtime'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { useChainTime } from '../../features/rituals/useChainTime'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
@@ -52,6 +55,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const { selectedAccount, walletPackage } = useAuthorization()
   const chainNow = useChainTime(connection, focused)
   const state = useSoloRitualBundle(client, route.params.ritualId)
+  const reminderSettings = useReminderSettings()
   const accountRef = useRef(selectedAccount); accountRef.current = selectedAccount
   const [reload, setReload] = useState(0)
   const ritualAddress = useMemo(() => { try { return new PublicKey(route.params.ritualId) } catch { return null } }, [route.params.ritualId])
@@ -263,6 +267,12 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const canShareWitness = SCOPE.witness && Boolean(witness && selectedAccount && readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
   const shareAddress = ritualAddress?.toBase58() ?? route.params.ritualId
   const amountLabel = formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)
+  const ritualRemindersOn = Boolean(reminderSettings.preferences?.masterEnabled && reminderSettings.preferences.rituals[route.params.ritualId]?.enabled)
+  const toggleRitualReminders = () => { void reminderSettings.update(async () => {
+    if (chainNow === null) return false
+    const input = reminderInputFromBundle({ address: route.params.ritualId, title: ritualTitle ?? 'Your ritual', requirement: '' }, readyBundle, chainNow)
+    return input ? reminders.setRitualEnabled({ ...input, enabled: !ritualRemindersOn }) : false
+  }) }
 
   return (
     <View style={s.root}>
@@ -294,6 +304,8 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {model.canSkip && <ActionButton tone="quiet" label={skip.isBusy ? 'Working…' : 'Skip next week'} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to rituals" onPress={() => navigation.navigate('RitualsHome')} />}
+      {readyBundle.ritual.account.status === 'Active' && model.state !== 'completed' && <ActionButton tone="quiet" label={`Reminders: ${ritualRemindersOn ? 'on' : 'off'}`} onPress={toggleRitualReminders} disabled={!reminderSettings.preferences?.masterEnabled || reminderSettings.busy || claim.isBusy || skip.isBusy || settle.isBusy} />}
+      {reminderSettings.error && <Text style={s.muted} accessibilityLiveRegion="polite">{reminderSettings.error}</Text>}
       {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
       {removalError && <ErrorLine>{removalError}</ErrorLine>}
 

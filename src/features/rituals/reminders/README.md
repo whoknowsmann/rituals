@@ -59,7 +59,7 @@ Integration
   before the one request. Denial is logged, not a create failure. Other creates
   and process restarts do not re-prompt. Granting access in Android Settings
   does not automatically rebuild previously denied sets; toggle the master
-  off/on to rebuild future dates explicitly.
+  off/on (or an individual ritual off/on) to rebuild future dates explicitly.
   New requests carry data.ritualReminder = 'demo' or 'real'. The Expo foreground
   handler suppresses both alert and sound for Demo anywhere in the foreground
   app, including Home and the ritual screen; Real-weeks behavior stays enabled.
@@ -75,6 +75,13 @@ Integration
   state can describe the previous week: never cancel its current eventIndex
   merely because it says 'skipped'. Screen mounting sets up foreground display
   but never requests permission or schedules a set.
+
+  Active ritual screens also have one quiet “Reminders: on/off” button. Off
+  clears only that ritual; on replans its already-read chain bundle through the
+  same planner, keeping stamp/skip exclusions. The button is disabled and reads
+  off while the master is off; per-ritual consent is retained for master-on.
+  A newly enabled ritual can request permission once, subject to the same global
+  prompt history as create. There is no wallet action or extra RPC on this tap.
 
   Settings: a Notifications card has the app-level system permission line
   (“On” / “Off — turn on in Android settings”), a “Notification settings” button
