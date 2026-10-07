@@ -94,10 +94,66 @@ describe('soloRitualModel', () => {
     expect(model.canSkip).toBe(false)
   })
 
-  it('offers a declared skip only before claim opens and when unused', () => {
-    expect(soloRitualModel(bundle({}, null), 99, me).canSkip).toBe(true)
-    expect(soloRitualModel(bundle({ skipDeclared: true }, null), 99, me).canSkip).toBe(false)
-    expect(soloRitualModel(bundle({ schedule: [window] }, null), 99, me).canSkip).toBe(false)
+  // Device run 2026-10-07 (ritual 6tbkhyp…): "Skip next week" tapped while
+  // waiting for week 1 skipped WEEK 1 (declare_skip targets the current
+  // week, now < opens); the screen kept offering HOLD, he stamped, and the
+  // program voided the stamped week as DeclaredSkip.
+  describe('declared skip (declare_skip: current week, now < opens)', () => {
+    const DAY = 86_400n
+    const realWeeks = [{ opens: 10_000n, deadline: 10_000n + 6n * DAY, resolution: 10_000n + 6n * DAY + 82_800n }, { opens: 10_000n + 7n * DAY, deadline: 10_000n + 13n * DAY, resolution: 10_000n + 13n * DAY + 82_800n }]
+    const demoWeeks = [{ opens: 1_000n, deadline: 1_045n, resolution: 1_055n }, { opens: 1_060n, deadline: 1_105n, resolution: 1_115n }]
+
+    it('offers it on real weeks only while an approval can land a minute before the week opens', () => {
+      expect(soloRitualModel(bundle({ schedule: realWeeks }, null), 10_000 - 61, me).canSkip).toBe(true)
+      expect(soloRitualModel(bundle({ schedule: realWeeks }, null), 10_000 - 60, me).canSkip).toBe(false)
+      expect(soloRitualModel(bundle({ schedule: realWeeks, skipDeclared: true }, null), 5_000, me).canSkip).toBe(false)
+      expect(soloRitualModel(bundle({ schedule: [realWeeks[0]] }, null), 5_000, me).canSkip).toBe(false)
+    })
+
+    it('never offers it at demo speed, where every skippable week opens within seconds', () => {
+      for (const now of [0, 900, 939, 999]) expect(soloRitualModel(bundle({ schedule: demoWeeks }, null), now, me).canSkip).toBe(false)
+      expect(soloRitualModel(bundle({ schedule: demoWeeks, currentEventIndex: 1 }, null), 1_056, me).canSkip).toBe(false)
+    })
+
+    it('shows the skipped week as skipped from the moment it is declared: no HOLD, no countdown, never NOW', () => {
+      for (const schedule of [realWeeks, demoWeeks]) {
+        const opens = Number(schedule[0].opens)
+        for (const now of [opens - 30, opens, opens + 20, Number(schedule[0].deadline), Number(schedule[0].resolution)]) {
+          const model = soloRitualModel(bundle({ schedule, skipDeclared: true, skipEventIndex: 0 }, null), now, me)
+          expect(model.state).toBe('skipped')
+          expect(model.weekSkipped).toBe(true)
+          expect(model.weekCells[0]).toBe('current')
+          expect(model.nextOpensLabel).toBeNull()
+          expect(model.stampTimeLeftLabel).toBeNull()
+        }
+      }
+    })
+
+    it('does not count a stamp made on a skipped week (the program voids it)', () => {
+      const stamped = bundle({ schedule: demoWeeks, skipDeclared: true, skipEventIndex: 0 }, event({ window: demoWeeks[0], status: 'Claiming', claimedMembersBitmap: 1, confirmedMembersBitmap: 1 }), [claim('Confirmed')])
+      const model = soloRitualModel(stamped, 1_020, me)
+      expect(model.state).toBe('skipped')
+      expect(model.showedUp).toBe(false)
+    })
+
+    it('settles it after resolution like any closed week, opening the event first when nobody stamped', () => {
+      const model = soloRitualModel(bundle({ schedule: demoWeeks, skipDeclared: true, skipEventIndex: 0 }, null), 1_056, me)
+      expect(model.state).toBe('resolving/settle')
+      expect(model.weekSkipped).toBe(true)
+      expect(model.showedUp).toBe(false)
+      expect(model.needsEventInit).toBe(true)
+    })
+
+    it('marks a settled skip neutral on the punch card, not kept', () => {
+      const settled = {
+        ...bundle({ schedule: demoWeeks, currentEventIndex: 1, settledEventCount: 1, skipDeclared: true, skipEventIndex: 0 }, null),
+        history: [{ ritual: bundle().ritual, event: event({ status: 'Voided', voidReason: 'DeclaredSkip', eventIndex: 0 }), claims: [] }],
+      } as unknown as SoloRitualBundle
+      const model = soloRitualModel(settled, 1_057, me)
+      expect(model.weekCells).toEqual(['closed', 'current'])
+      expect(model.weekSkipped).toBe(false)
+      expect(model.lastClosedOutcome).toBe('skipped')
+    })
   })
 
   it('numbers a not-yet-open current week; NOW lasts only for the open stamp window', () => {

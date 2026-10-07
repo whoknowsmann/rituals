@@ -63,6 +63,13 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('settlerCanPay(settlerBalance, model.needsEventInit)')
   })
 
+  it('names the week a skip applies to and never calls a skipped week missed (skip run, 2026-10-07)', () => {
+    expect(source).toContain('`Skip week ${model.eventIndex + 1}`')
+    expect(source).not.toContain('Skip next week')
+    expect(source).toContain('!model.showedUp && !model.weekSkipped && <Stamp kind="missed"')
+    expect(source).toContain("model.showedUp || model.weekSkipped ? 'Your stake comes back to you.'")
+  })
+
   it('celebrates a stamp once: confetti and the stamp animation only for a stamp made here (double pop, 2026-10-04)', () => {
     expect(source).toContain('<Confetti fire={celebrate}')
     expect(source).toContain('animate={freshStamp}')

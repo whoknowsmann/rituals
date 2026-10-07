@@ -4,7 +4,7 @@ import { eventPda } from '../../../data/rituals/pdas'
 import { currentWeekCell } from '../../../components/crew/weekStripLogic'
 
 export type HomeWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'current' | 'future'
-type SoloAccount = Readonly<{ kind: 'Group' | 'Solo'; status: string; currentEventIndex: number; schedule: readonly unknown[] }>
+type SoloAccount = Readonly<{ kind: 'Group' | 'Solo'; status: string; currentEventIndex: number; schedule: readonly unknown[]; skipDeclared?: boolean; skipEventIndex?: number }>
 
 /** Closed weeks of a solo ritual: every week before the current one, or all of them once it completes. */
 export function closedWeekCount(account: SoloAccount): number {
@@ -13,10 +13,10 @@ export function closedWeekCount(account: SoloAccount): number {
   return Math.max(0, Math.min(closed, 16))
 }
 
-/** A solo week's result from its event alone: a forfeit means nobody checked in. */
-export function eventOutcome(event: Pick<RitualEventAccountView, 'status' | 'forfeitedTotal'>): 'done' | 'missed' | null {
+/** A solo week's result from its event alone: a forfeit means nobody checked in. A declared skip is neither kept nor missed. */
+export function eventOutcome(event: Pick<RitualEventAccountView, 'status' | 'forfeitedTotal' | 'voidReason'>): 'done' | 'missed' | null {
   if (event.status === 'Settled') return event.forfeitedTotal > 0n ? 'missed' : 'done'
-  if (event.status === 'Voided') return 'done' // declared skip or unresolved: the stake came back
+  if (event.status === 'Voided') return event.voidReason === 'DeclaredSkip' ? null : 'done' // unresolved claim: the stake came back
   return null
 }
 
@@ -30,6 +30,7 @@ export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number
   return account.schedule.map((_window, index) => {
     if (index < closed) return outcomes?.get(index) ?? 'closed'
     if (account.status === 'Active' && index === account.currentEventIndex) {
+      if (account.skipDeclared && account.skipEventIndex === index) return 'current'
       const window = _window as { opens?: bigint; deadline?: bigint } | null
       return now !== null && window?.opens !== undefined && window?.deadline !== undefined
         ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'current'

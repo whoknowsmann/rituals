@@ -10,6 +10,14 @@ export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' |
 export type SoloWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'current' | 'future'
 
 /**
+ * declare_skip only targets the week the chain is on, and only while
+ * now < that week's opens. Offer it only when an approval can still land
+ * with a minute to spare; at demo speed every skippable week opens within
+ * seconds (60 s lead, 5 s between weeks), so it is never offered there.
+ */
+export const SKIP_MIN_LEAD_SECONDS = 60
+
+/**
  * A current bundle plus bounded historical bundles. Historical reads are kept
  * outside this pure mapper so it remains deterministic and easy to exercise.
  */
@@ -19,7 +27,13 @@ export type SoloRitualModel = Readonly<{
   state: SoloRitualUiState
   eventIndex: number
   weekCells: readonly SoloWeekCell[]
+  /** Skip the current week (always the week `eventIndex`, which has not opened). */
   canSkip: boolean
+  /**
+   * The current week is a declared skip. The program voids it at settlement
+   * (stake back) even if it is stamped, so it is never offered for stamping.
+   */
+  weekSkipped: boolean
   nextOpensLabel: string | null
   stampTimeLeftLabel: string | null
   destinationLabel: string
@@ -50,6 +64,8 @@ type Terminal = { event: EventLike; claims: RitualBundleRead['claims'] }
 const terminal = (value: RitualBundleRead): boolean => Boolean(value.event && (value.event.account.status === 'Settled' || value.event.account.status === 'Voided'))
 const eventIndexOf = (value: RitualBundleRead): number => value.event?.account.eventIndex ?? -1
 const short = (value: PublicKey): string => shortRosterAddress(value.toBase58())
+const currentWeekSkipped = (account: SoloRitualBundle['ritual']['account']): boolean =>
+  account.status === 'Active' && account.skipDeclared && account.skipEventIndex === account.currentEventIndex && account.currentEventIndex < account.schedule.length
 
 export function labelSoloDestination(destination: PublicKey, causeTokenAccount: PublicKey | null = DEMO_CAUSE.tokenAccount, owner: PublicKey | null = null): string {
   if (causeTokenAccount && destination.equals(causeTokenAccount)) return DEMO_CAUSE.label
@@ -84,7 +100,11 @@ function outcomeOf(terminalEvent: Terminal | null, me: PublicKey | null): 'skipp
   return null
 }
 
-/** Week strip from the current bundle plus history: kept ✓, missed –, now, future. Home uses it too. */
+/**
+ * Week strip from the current bundle plus history: kept ✓, missed ✕, now,
+ * future. A skipped week is neither kept nor missed: neutral once closed, and
+ * never NOW while it runs.
+ */
 export function soloWeekCells(bundle: SoloRitualBundle, now: number): readonly SoloWeekCell[] {
   return weekCells(bundle, now)
 }
@@ -95,11 +115,12 @@ function weekCells(bundle: SoloRitualBundle, now: number): readonly SoloWeekCell
   for (const historical of [bundle, ...(bundle.history ?? [])]) {
     if (!historical.event || !terminal(historical)) continue
     const outcome = outcomeOf({ event: historical.event, claims: historical.claims }, account.members[0] ?? null)
-    if (outcome) byIndex.set(historical.event.account.eventIndex, outcome === 'missed' ? 'missed' : 'done')
+    if (outcome) byIndex.set(historical.event.account.eventIndex, outcome === 'missed' ? 'missed' : outcome === 'skipped' ? 'closed' : 'done')
   }
+  const skipped = currentWeekSkipped(account)
   return Object.freeze(account.schedule.map((window, index) => byIndex.get(index)
     ?? (index < account.currentEventIndex || account.status === 'Completed' ? 'closed'
-      : index === account.currentEventIndex && account.status === 'Active' ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'future')))
+      : index === account.currentEventIndex && account.status === 'Active' ? (skipped ? 'current' : currentWeekCell(Number(window.opens), Number(window.deadline), now)) : 'future')))
 }
 
 function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null): { state: SoloRitualUiState; showedUp: boolean; claimStatus: SoloRitualModel['claimStatus']; message: string } {
@@ -111,6 +132,15 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
   const recent = latestTerminal(bundle)
   const recentOutcome = outcomeOf(recent, me)
   const schedule = account.schedule[account.currentEventIndex]
+  const mine = me ? bundle.claims.find((entry) => entry.member.equals(me))?.account : null
+  const claimStatus = mine?.status ?? 'none'
+  // A declared skip voids this week at settlement whatever happens in it, so
+  // it shows as skipped (no HOLD) until it can be settled.
+  if (schedule && currentWeekSkipped(account)) {
+    return now > Number(schedule.resolution)
+      ? { state: 'resolving/settle', showedUp: false, claimStatus, message: 'This week is ready to settle.' }
+      : { state: 'skipped', showedUp: false, claimStatus, message: 'This week is skipped. Your stake comes back.' }
+  }
   // Last week's result (skipped / missed) shows only until this week opens;
   // after that the user must be able to stamp this week.
   const beforeThisWeek = !schedule || now < Number(schedule.opens)
@@ -128,8 +158,6 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
       : { state: 'closing', showedUp: false, claimStatus: 'none', message: 'This week is closing.' }
   }
 
-  const mine = me ? bundle.claims.find((entry) => entry.member.equals(me))?.account : null
-  const claimStatus = mine?.status ?? 'none'
   if (current.account.status === 'Voided' && current.account.voidReason === 'DeclaredSkip') return { state: 'skipped', showedUp: false, claimStatus, message: 'This week was skipped. Your stake comes back.' }
   if (current.account.status === 'Settled') {
     const missed = current.account.forfeitedTotal > 0n && mine?.status !== 'Confirmed'
@@ -150,14 +178,17 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
   const account = bundle.ritual.account
   const schedule = account.schedule[account.currentEventIndex]
   const mapped = modelState(bundle, now, me)
-  const canSkip = account.schedule.length > 1 && account.status === 'Active' && !account.skipDeclared && Boolean(schedule) && now < Number(schedule.opens)
+  const weekSkipped = currentWeekSkipped(account)
+  const canSkip = account.schedule.length > 1 && account.status === 'Active' && !account.skipDeclared && Boolean(schedule)
+    && !isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline)) && now + SKIP_MIN_LEAD_SECONDS < Number(schedule.opens)
   const witness = account.witness ? (account.witness.equals(me ?? PublicKey.default) ? 'you' : `your friend · ${short(account.witness)}`) : null
   return Object.freeze({
     state: mapped.state,
     eventIndex: account.currentEventIndex,
     weekCells: weekCells(bundle, now),
     canSkip,
-    nextOpensLabel: account.status === 'Active' && schedule && now < Number(schedule.opens)
+    weekSkipped,
+    nextOpensLabel: account.status === 'Active' && schedule && !weekSkipped && now < Number(schedule.opens)
       ? weekOpensLabel(Number(schedule.opens), now, isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline))) : null,
     stampTimeLeftLabel: schedule && !mapped.showedUp && (mapped.state === 'claimable' || mapped.state === 'open-not-initialized')
       ? stampTimeLeftLabel(Number(schedule.deadline), now, isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline))) : null,

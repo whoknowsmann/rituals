@@ -14,7 +14,7 @@ export function stampedWeekClosingLabel(model: Pick<SoloRitualModel, 'showedUp' 
  * The one line at the bottom of a Home tile: what this ritual wants from you
  * now. `act` = there is something to do (stamp this week), shown as a pill.
  */
-export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp: boolean; nextOpensLabel: string | null }>): TileStatus {
+export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp: boolean; nextOpensLabel: string | null; weekSkipped?: boolean }>): TileStatus {
   switch (model.state) {
     case 'claimable':
     case 'open-not-initialized':
@@ -23,7 +23,7 @@ export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp:
     case 'closing':
     case 'resolving/settle': return { text: model.showedUp ? 'Stamped' : 'Closing…', act: false }
     case 'missed': return { text: 'Missed last week', act: false }
-    case 'skipped': return { text: 'Skipped last week', act: false }
+    case 'skipped': return { text: model.weekSkipped ? 'Skipped this week' : 'Skipped last week', act: false }
     case 'completed': return { text: 'Finished', act: false }
     case 'awaiting-witness': return { text: 'Waiting on witness', act: false }
     case 'funding': return { text: 'Not active yet', act: false }

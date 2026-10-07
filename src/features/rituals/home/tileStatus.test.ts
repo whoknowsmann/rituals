@@ -18,6 +18,8 @@ describe('Home tile', () => {
     expect(tileStatus({ state: 'claimable', showedUp: true, nextOpensLabel: null })).toEqual({ text: 'Stamped', act: false })
     expect(tileStatus({ state: 'waiting', showedUp: false, nextOpensLabel: 'in 2 min' }).text).toBe('Opens in 2 min')
     expect(tileStatus({ state: 'completed', showedUp: false, nextOpensLabel: null }).text).toBe('Finished')
+    expect(tileStatus({ state: 'skipped', showedUp: false, nextOpensLabel: null, weekSkipped: true }).text).toBe('Skipped this week')
+    expect(tileStatus({ state: 'skipped', showedUp: false, nextOpensLabel: 'in 2 min', weekSkipped: false }).text).toBe('Skipped last week')
   })
 
   it('gives each ritual a stable colour of its own', () => {

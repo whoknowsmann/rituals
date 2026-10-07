@@ -11,9 +11,17 @@ describe('Home solo week strip (missed weeks used to show as ticks)', () => {
   })
 
   it('reads a week result from its event: forfeit = missed', () => {
-    expect(eventOutcome({ status: 'Settled', forfeitedTotal: 5_000_000n })).toBe('missed')
-    expect(eventOutcome({ status: 'Settled', forfeitedTotal: 0n })).toBe('done')
-    expect(eventOutcome({ status: 'Claiming', forfeitedTotal: 0n })).toBeNull()
+    expect(eventOutcome({ status: 'Settled', forfeitedTotal: 5_000_000n, voidReason: 'None' })).toBe('missed')
+    expect(eventOutcome({ status: 'Settled', forfeitedTotal: 0n, voidReason: 'None' })).toBe('done')
+    expect(eventOutcome({ status: 'Claiming', forfeitedTotal: 0n, voidReason: 'None' })).toBeNull()
+  })
+
+  it('never counts a declared skip as kept, and never shows a skipped week as NOW', () => {
+    expect(eventOutcome({ status: 'Voided', forfeitedTotal: 0n, voidReason: 'DeclaredSkip' })).toBeNull()
+    expect(eventOutcome({ status: 'Voided', forfeitedTotal: 0n, voidReason: 'UnresolvedClaims' })).toBe('done')
+    const skipped = { ...solo('Active', 0), schedule: [{ opens: 100n, deadline: 145n }, { opens: 160n, deadline: 205n }], skipDeclared: true, skipEventIndex: 0 }
+    expect(soloHomeCells(skipped, undefined, 120)).toEqual(['current', 'future'])
+    expect(soloHomeCells({ ...skipped, currentEventIndex: 1 }, undefined, 170)).toEqual(['closed', 'now'])
   })
 
   it('shows kept / missed when known, a neutral closed mark when not, never a guessed tick', () => {

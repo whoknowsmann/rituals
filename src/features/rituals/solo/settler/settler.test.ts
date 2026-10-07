@@ -5,7 +5,7 @@ import { formatSol, settlerBudgetLamports, settlerCanPay } from './settlerBudget
 import { DEMO_CLOCK_WARNING, settlementVisibleEnough } from './settlementVisibility'
 
 describe('demo misses need a visible ritual, not just a mounted screen', () => {
-  const missed = { demoSpeedNotice: 'Demo speed', showedUp: false }
+  const missed = { demoSpeedNotice: 'Demo speed', showedUp: false, weekSkipped: false }
   it('blocks a missed demo in background, inactive, unknown, or behind another route', () => {
     for (const state of ['background', 'inactive', null]) expect(settlementVisibleEnough(missed, true, state)).toBe(false)
     expect(settlementVisibleEnough(missed, false, 'active')).toBe(false)
@@ -13,6 +13,7 @@ describe('demo misses need a visible ritual, not just a mounted screen', () => {
   })
   it('keeps refunds and real-week settlement independent of demo visibility', () => {
     expect(settlementVisibleEnough({ ...missed, showedUp: true }, false, 'background')).toBe(true)
+    expect(settlementVisibleEnough({ ...missed, weekSkipped: true }, false, 'background')).toBe(true)
     expect(settlementVisibleEnough({ ...missed, demoSpeedNotice: null }, false, 'background')).toBe(true)
     expect(DEMO_CLOCK_WARNING).toContain('keep running while you’re away')
     expect(DEMO_CLOCK_WARNING).toContain('Unstamped weeks are missed')
