@@ -46,6 +46,36 @@ describe('RitualEvent exact reachable-state decoder matrix', () => {
     expectCategory(() => decode(soloMissReceipt(2)), 'invariant')
   })
 
+  // derive_solo_event_settlement_plan, skipped: Voided, DeclaredSkip, pool =
+  // refunded = allocation, 0 confirmed, claim bits untouched. Devnet
+  // 2026-10-07 (ritual 6tbkhyp…, week 1): skipped, then stamped anyway; the
+  // settle readback and every later read of that week failed.
+  const soloSkipReceipt = (claimed: number, confirmed: number, questioned: number, memberCount = 1) => {
+    const bytes = source()
+    const base = decode(source())
+    putU8(bytes, O.members, memberCount); putU8(bytes, O.status, 4)
+    putU8(bytes, O.claimed, claimed); putU8(bytes, O.confirmed, confirmed); putU8(bytes, O.questioned, questioned)
+    putI64(bytes, O.resolved, base.window.resolution + 7n); putU8(bytes, O.settlementVersion, 1); putU8(bytes, O.voidReason, 3)
+    putI64(bytes, O.pool, 10_000_000n); putI64(bytes, O.forfeited, 0n); putI64(bytes, O.payout, 0n); putI64(bytes, O.refunded, 10_000_000n)
+    putU8(bytes, O.count, 0); putI64(bytes, O.remainder, 0n)
+    return bytes
+  }
+
+  it.each([
+    ['not stamped', 0, 0, 0], ['stamped after the skip', 1, 1, 0], ['stamp waiting on a witness', 1, 0, 0], ['stamp questioned by a witness', 1, 0, 1],
+  ])('accepts a declared-skip week (%s)', (_name, claimed, confirmed, questioned) => {
+    const value = decode(soloSkipReceipt(claimed, confirmed, questioned))
+    expect(value.voidReason).toBe('DeclaredSkip')
+    expect(value.refundedTotal).toBe(10_000_000n)
+    expect(value.confirmedMemberCount).toBe(0)
+  })
+
+  it('still rejects a declared skip that counts a confirmed member, or on a group', () => {
+    expectCategory(() => { const b = soloSkipReceipt(1, 1, 0); putU8(b, O.count, 1); decode(b) }, 'invariant')
+    expectCategory(() => decode(soloSkipReceipt(0, 0, 0, 2)), 'invariant')
+    expectCategory(() => { const b = soloSkipReceipt(1, 1, 0); putI64(b, O.refunded, 0n); putI64(b, O.payout, 10_000_000n); decode(b) }, 'invariant')
+  })
+
   it('derives the 139-byte layout and accepts the source Claiming receipt', () => {
     const bytes = source()
     expect(bytes).toHaveLength(139)

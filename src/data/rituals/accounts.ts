@@ -171,8 +171,13 @@ export function decodeRitualEvent(input: AccountEnvelope, expectedProgramId: Pub
   const eventPool = reader.u64(); const forfeitedTotal = reader.u64(); const payoutTotal = reader.u64(); const refundedTotal = reader.u64(); const confirmedMemberCount = reader.u8(); const remainderUnits = reader.u64(); const remainingStakeTotalAfter = reader.u64(); const bump = reader.u8()
   const mask = memberCount >= 1 && memberCount <= 6 ? maskFor(memberCount) : 0
   const terminal = status === 'Settled' || status === 'Voided'
+  // A solo week voided by a declared skip keeps whatever claim bits it had (a
+  // stamp made after the skip still lands) but records 0 confirmed members
+  // (derive_solo_event_settlement_plan). Seen on devnet 2026-10-07, ritual
+  // 6tbkhyp…, week 1: stamped after the skip, and the reader rejected it.
+  const declaredSkip = status === 'Voided' && voidReason === 'DeclaredSkip'
   const zeroReceipt = eventPool === 0n && forfeitedTotal === 0n && payoutTotal === 0n && refundedTotal === 0n && confirmedMemberCount === 0 && remainderUnits === 0n && remainingStakeTotalAfter === 0n
-  const structuralInvalid = ritual.equals(zero) || memberCount < 1 || memberCount > 6 || eventIndex > 15 || (claimedMembersBitmap & ~mask) !== 0 || (confirmedMembersBitmap & ~mask) !== 0 || (questionedMembersBitmap & ~mask) !== 0 || (confirmedMembersBitmap & ~claimedMembersBitmap) !== 0 || (questionedMembersBitmap & ~claimedMembersBitmap) !== 0 || (confirmedMembersBitmap & questionedMembersBitmap) !== 0 || (terminal && confirmedMemberCount !== popcount(confirmedMembersBitmap)) || settlementVersion > 1 || initializedAt <= 0n
+  const structuralInvalid = ritual.equals(zero) || memberCount < 1 || memberCount > 6 || eventIndex > 15 || (claimedMembersBitmap & ~mask) !== 0 || (confirmedMembersBitmap & ~mask) !== 0 || (questionedMembersBitmap & ~mask) !== 0 || (confirmedMembersBitmap & ~claimedMembersBitmap) !== 0 || (questionedMembersBitmap & ~claimedMembersBitmap) !== 0 || (confirmedMembersBitmap & questionedMembersBitmap) !== 0 || (terminal && !declaredSkip && confirmedMemberCount !== popcount(confirmedMembersBitmap)) || settlementVersion > 1 || initializedAt <= 0n
   if (structuralInvalid) throw new RitualAccountDecodeError('invariant', 'RitualEvent state is inconsistent')
   const invalidLifecycle = !terminal && (!zeroReceipt || settlementVersion !== 0 || resolvedAt !== 0n || voidReason !== 'None')
   const invalidStage = (status === 'Scheduled' && (claimedMembersBitmap !== 0 || confirmedMembersBitmap !== 0 || questionedMembersBitmap !== 0)) || (status === 'Claiming' && questionedMembersBitmap !== 0)
@@ -185,7 +190,7 @@ export function decodeRitualEvent(input: AccountEnvelope, expectedProgramId: Pub
   const soloForfeit = memberCount === 1 && claimedMembersBitmap === 0 && confirmedMembersBitmap === 0 && questionedMembersBitmap === 0 && confirmedMemberCount === 0 && voidReason === 'None' && payoutTotal === 0n && refundedTotal === 0n && remainderUnits === 0n && forfeitedTotal === eventPool
   if (status === 'Settled' && invalidSettlement && !soloForfeit) throw new RitualAccountDecodeError('invariant', 'Settled receipt is inconsistent')
   const pending = claimedMembersBitmap & ~(confirmedMembersBitmap | questionedMembersBitmap)
-  const invalidVoid = payoutTotal !== 0n || refundedTotal !== eventPool || forfeitedTotal !== 0n || remainderUnits !== 0n || (voidReason === 'DeclaredSkip' ? (claimedMembersBitmap !== 0 || confirmedMembersBitmap !== 0 || questionedMembersBitmap !== 0 || confirmedMemberCount !== 0) : (pending !== 0 || questionedMembersBitmap !== 0 ? voidReason !== 'UnresolvedClaims' : voidReason !== 'NoConfirmedMembers' || confirmedMemberCount !== 0))
+  const invalidVoid = payoutTotal !== 0n || refundedTotal !== eventPool || forfeitedTotal !== 0n || remainderUnits !== 0n || (voidReason === 'DeclaredSkip' ? (memberCount !== 1 || confirmedMemberCount !== 0) : (pending !== 0 || questionedMembersBitmap !== 0 ? voidReason !== 'UnresolvedClaims' : voidReason !== 'NoConfirmedMembers' || confirmedMemberCount !== 0))
   if (status === 'Voided' && invalidVoid) throw new RitualAccountDecodeError('invariant', 'Voided receipt is inconsistent')
   const output = Object.freeze({ schemaVersion, ritual, eventIndex, window, memberCount, status, claimedMembersBitmap, confirmedMembersBitmap, questionedMembersBitmap, initializedAt, resolvedAt, settlementVersion, voidReason, eventPool, forfeitedTotal, payoutTotal, refundedTotal, confirmedMemberCount, remainderUnits, remainingStakeTotalAfter, bump })
   return finish(reader, output)
