@@ -6,7 +6,7 @@ explanatory sentence. Ranked by impact on what a judge sees; `[row n]` = row in
 `docs/submission/video-script.md`.
 
 Basis: the code on this branch after Part 1, read state by state, and
-`opus/bughunt-2026-10-07` @ f83d702 where it changes the same screens. The
+`opus/bughunt-2026-10-07` @ b4a6dd9 where it changes the same screens. The
 screenshots in `artifacts/shots/` (d26–d29) could not be opened in this session
 (no image viewer was available), so nothing here is credited to a screenshot.
 
@@ -172,15 +172,18 @@ is shown. The skip is a quiet "Skip week N" link.
 - Effort S. Risk low (the test's disclosure pin is satisfied by the footnote).
 
 ## Notes for the lead
-- Merging this branch with `opus/bughunt-2026-10-07` (f83d702): checked with
-  `git merge-tree`, there is one conflict, the skip line. Both sides already say
-  "Skip week N". Take `tone="link"`. With that resolution tsc is clean and 1,869
-  tests (97 files) pass in src/screens, src/components/crew,
-  src/features/rituals/{solo,home,reminders}, productScope and
-  src/data/rituals. The stamped variants of the closing / settle cards were left
-  byte-identical to base so bughunt's `weekSkipped` edits merge untouched. They
-  can no longer render for a stamped week (the stamp branch comes first), so
-  delete them after the merge.
+- Merging this branch with `opus/bughunt-2026-10-07` (checked against b4a6dd9
+  with `git merge-tree`) gives two mechanical conflicts:
+  - `SoloRitualScreen.tsx`, the skip line. Both sides already say "Skip week
+    N"; take `tone="link"`.
+  - `SoloRitualScreen.test.ts`. Both sides appended tests at the same spot;
+    keep both.
+
+  With that resolution tsc is clean and the full suite passes (2,537 tests, 145
+  files, run on an exported copy of the merged tree). The stamped variants of
+  the closing / settle cards were left byte-identical to base, so bughunt's
+  `weekSkipped` edits merge untouched. They can no longer render for a stamped
+  week (the stamp branch comes first), so delete them after the merge.
 - Logic, not design (bughunt / lead): the settle key runs only while the ritual
   screen is open. If someone stamps and goes back to Home, the week settles
   only when they reopen the ritual. Until then the tile shows "Closing…" and
