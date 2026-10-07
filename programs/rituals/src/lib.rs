@@ -1232,9 +1232,15 @@ pub mod rituals {
         Ok(())
     }
 
-    /// End the whole solo ritual. Remaining accounts are every unsettled event
-    /// PDA, in schedule order (including future, absent accounts). This prevents
-    /// omission of a miss and handles deadlines crossed during wallet approval.
+    /// End a solo ritual early and give its money back. Remaining accounts are
+    /// the event PDA of every unsettled week, in schedule order (absent ones
+    /// too), so the chain clock decides which weeks are already decided. A week
+    /// whose deadline has passed settles exactly as finalize_event would (no
+    /// event account means nobody stamped: a miss); an open week that is
+    /// already stamped settles as kept. Everything else in both vaults goes to
+    /// the creator and the vaults close. `expected_forfeit` is the forfeit the
+    /// creator was shown: a deadline passing during wallet approval fails the
+    /// transaction instead of sending more than they agreed to.
     pub fn eject_ritual<'a>(
         ctx: Context<'_, '_, '_, 'a, EjectRitual<'a>>,
         expected_forfeit: u64,
@@ -1258,6 +1264,12 @@ pub mod rituals {
         for (offset, info) in ctx.remaining_accounts.iter().enumerate() {
             let index = (first + offset) as u8;
             let window = &ritual.schedule[index as usize];
+            let lapsed = window.deadline < now;
+            let absent = info.owner == &anchor_lang::system_program::ID && info.data_is_empty();
+            // Weeks are chronological: after the first undecided week, none is decided.
+            if !lapsed && absent {
+                break;
+            }
             let (address, bump) = Pubkey::find_program_address(
                 &[b"event", ritual_key.as_ref(), &[index]],
                 &crate::ID,
@@ -1266,10 +1278,6 @@ pub mod rituals {
                 info.key == &address && info.is_writable,
                 RitualsError::EjectEventAccounts
             );
-            if window.deadline >= now {
-                continue;
-            }
-            let absent = info.owner == &anchor_lang::system_program::ID && info.data_is_empty();
             let mut event = if absent {
                 RitualEvent {
                     schema_version: 1,
@@ -1326,6 +1334,10 @@ pub mod rituals {
                 );
                 event
             };
+            // An open week counts only once it is stamped: then it is kept.
+            if !lapsed && event.confirmed_members_bitmap == 0 {
+                break;
+            }
             let plan = derive_solo_event_settlement_plan(
                 ritual.per_event_allocation,
                 event.claimed_members_bitmap,
@@ -1358,6 +1370,9 @@ pub mod rituals {
             event.remainder_units = plan.remainder_units;
             event.remaining_stake_total_after = remaining;
             receipts.push((info, event, absent));
+            if !lapsed {
+                break;
+            }
         }
         // Consent is amount-bound: a newly lapsed miss requires a fresh review,
         // never silently taking more than the receipt the creator approved.
@@ -1480,7 +1495,6 @@ pub mod rituals {
         ritual.current_event_index = settled;
         ritual.settled_event_count = settled;
         ritual.funded_stake_total = 0;
-        ritual.funded_fee_total = 0;
         ritual.vaults_closed = true;
         Ok(())
     }

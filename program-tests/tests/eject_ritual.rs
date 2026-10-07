@@ -4,9 +4,14 @@ use support::*;
 
 const NONCE: u64 = 10807;
 
-fn eject_ix(
+fn code(error: RitualsError) -> u32 {
+    6000 + error as u32
+}
+
+fn eject_ix_to(
     ritual: Pubkey,
     creator: Pubkey,
+    creator_destination: Pubkey,
     start: u8,
     count: u8,
     expected_forfeit: u64,
@@ -17,7 +22,7 @@ fn eject_ix(
         stake_mint: MINT,
         stake_vault: vault_pda(b"stake-vault", &ritual),
         fee_vault: vault_pda(b"fee-vault", &ritual),
-        creator_destination: source_for_member(0),
+        creator_destination,
         forfeit_destination: SECOND_RECIPIENT,
         token_program: spl_token::ID,
         system_program: system_program::ID,
@@ -34,6 +39,24 @@ fn eject_ix(
     }
 }
 
+fn eject_ix(
+    ritual: Pubkey,
+    creator: Pubkey,
+    start: u8,
+    count: u8,
+    expected_forfeit: u64,
+) -> Instruction {
+    eject_ix_to(
+        ritual,
+        creator,
+        source_for_member(0),
+        start,
+        count,
+        expected_forfeit,
+    )
+}
+
+/// A solo ritual of `count` 60-second weeks (45 s to stamp, 10 s grace), 30 a week.
 async fn fixture(count: u8) -> (ProgramTestContext, Keypair, Pubkey, i64) {
     let creator = Keypair::new();
     let mut c = start_with_member_set(&[&creator], &[2000]).await;
@@ -97,12 +120,12 @@ async fn clock(c: &mut ProgramTestContext, now: i64) {
     c.set_sysvar(&value);
 }
 
-async fn stamp(c: &mut ProgramTestContext, creator: &Keypair, ritual: Pubkey) {
+async fn stamp(c: &mut ProgramTestContext, creator: &Keypair, ritual: Pubkey, index: u8) {
     submit(
         c,
         vec![
-            initialize_event_ix(ritual, creator.pubkey(), 0),
-            claim_completion_ix(ritual, creator.pubkey(), 0, 0),
+            initialize_event_ix(ritual, creator.pubkey(), index),
+            claim_completion_ix(ritual, creator.pubkey(), index, 0),
         ],
         &[creator],
     )
@@ -110,6 +133,9 @@ async fn stamp(c: &mut ProgramTestContext, creator: &Keypair, ritual: Pubkey) {
     .unwrap();
 }
 
+/// Ejects and proves the whole ritual account, both vaults closed, and exact
+/// conservation: everything that left the vaults went to the creator or to
+/// the locked destination, and the destination got exactly `forfeited`.
 async fn assert_eject(
     c: &mut ProgramTestContext,
     creator: &Keypair,
@@ -145,7 +171,6 @@ async fn assert_eject(
     expected.current_event_index = settled;
     expected.settled_event_count = settled;
     expected.funded_stake_total = 0;
-    expected.funded_fee_total = 0;
     expected.vaults_closed = true;
     let mut bytes = Vec::new();
     expected.try_serialize(&mut bytes).unwrap();
@@ -195,6 +220,10 @@ async fn reject(
     }
 }
 
+fn event(c_data: &[u8]) -> RitualEvent {
+    deserialize_event(c_data)
+}
+
 #[tokio::test]
 async fn eject_before_open_returns_all_and_vault_rent() {
     let (mut c, creator, ritual, _) = fixture(3).await;
@@ -218,17 +247,53 @@ async fn eject_open_unstamped_and_exact_deadline_return_current_week() {
         let (mut c, creator, ritual, opens) = fixture(3).await;
         clock(&mut c, opens + offset).await;
         assert_eject(&mut c, &creator, ritual, 3, 0, 0).await;
+        assert!(c
+            .banks_client
+            .get_account(event_pda(&ritual, 0))
+            .await
+            .unwrap()
+            .is_none());
     }
+}
+
+#[tokio::test]
+async fn eject_stamped_open_week_settles_it_as_kept() {
+    let (mut c, creator, ritual, opens) = fixture(3).await;
+    clock(&mut c, opens).await;
+    stamp(&mut c, &creator, ritual, 0).await;
+    clock(&mut c, opens + 10).await; // Still inside the stamp window.
+    assert_eject(&mut c, &creator, ritual, 3, 0, 1).await;
+    let e = event(&get_account(&mut c, event_pda(&ritual, 0)).await.data);
+    assert_eq!(
+        (
+            e.status,
+            e.void_reason,
+            e.payout_total,
+            e.forfeited_total,
+            e.settlement_version,
+            e.resolved_at,
+            e.remaining_stake_total_after
+        ),
+        (
+            EventStatus::Settled,
+            VoidReason::None,
+            30,
+            0,
+            1,
+            opens + 10,
+            60
+        )
+    );
 }
 
 #[tokio::test]
 async fn eject_stamped_unsettled_returns_all_with_kept_receipt() {
     let (mut c, creator, ritual, opens) = fixture(3).await;
     clock(&mut c, opens).await;
-    stamp(&mut c, &creator, ritual).await;
+    stamp(&mut c, &creator, ritual, 0).await;
     clock(&mut c, opens + 46).await; // Inside grace; must not wait for resolution.
     assert_eject(&mut c, &creator, ritual, 3, 0, 1).await;
-    let e = deserialize_event(&get_account(&mut c, event_pda(&ritual, 0)).await.data);
+    let e = event(&get_account(&mut c, event_pda(&ritual, 0)).await.data);
     assert_eq!(
         (e.status, e.payout_total, e.forfeited_total, e.resolved_at),
         (EventStatus::Settled, 30, 0, opens + 46)
@@ -255,15 +320,16 @@ async fn eject_missing_or_initialized_past_week_forfeits_during_grace() {
             (a.owner, a.data.len()),
             (PROGRAM_ID, 8 + RitualEvent::INIT_SPACE)
         );
-        let e = deserialize_event(&a.data);
+        let e = event(&a.data);
         assert_eq!(
             (
                 e.ritual,
                 e.event_index,
                 e.member_count,
-                e.settlement_version
+                e.settlement_version,
+                e.status
             ),
-            (ritual, 0, 1, 1)
+            (ritual, 0, 1, 1, EventStatus::Settled)
         );
         assert_eq!(
             (
@@ -283,6 +349,70 @@ async fn eject_missing_or_initialized_past_week_forfeits_during_grace() {
 }
 
 #[tokio::test]
+async fn eject_settles_a_kept_and_a_missed_week_and_returns_the_open_one() {
+    let (mut c, creator, ritual, opens) = fixture(3).await;
+    clock(&mut c, opens).await;
+    stamp(&mut c, &creator, ritual, 0).await;
+    // Week 1 kept but never settled, week 2 lapsed with nobody stamping, week 3 open.
+    clock(&mut c, opens + 120 + 5).await;
+    assert_eject(&mut c, &creator, ritual, 3, 30, 2).await;
+    let kept = event(&get_account(&mut c, event_pda(&ritual, 0)).await.data);
+    let missed = event(&get_account(&mut c, event_pda(&ritual, 1)).await.data);
+    assert_eq!(
+        (
+            kept.status,
+            kept.payout_total,
+            kept.remaining_stake_total_after
+        ),
+        (EventStatus::Settled, 30, 60)
+    );
+    assert_eq!(
+        (
+            missed.status,
+            missed.forfeited_total,
+            missed.remaining_stake_total_after
+        ),
+        (EventStatus::Settled, 30, 30)
+    );
+    assert!(c
+        .banks_client
+        .get_account(event_pda(&ritual, 2))
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn eject_settles_a_miss_at_a_prefunded_event_address() {
+    let (mut c, creator, ritual, opens) = fixture(3).await;
+    let prefund = Rent::default().minimum_balance(0) + 7;
+    let payer = c.payer.pubkey();
+    submit(
+        &mut c,
+        vec![solana_sdk::system_instruction::transfer(
+            &payer,
+            &event_pda(&ritual, 0),
+            prefund,
+        )],
+        &[],
+    )
+    .await
+    .unwrap();
+    clock(&mut c, opens + 46).await;
+    assert_eject(&mut c, &creator, ritual, 3, 30, 1).await;
+    let a = get_account(&mut c, event_pda(&ritual, 0)).await;
+    assert_eq!(
+        (a.owner, a.data.len(), a.lamports),
+        (
+            PROGRAM_ID,
+            8 + RitualEvent::INIT_SPACE,
+            Rent::default().minimum_balance(8 + RitualEvent::INIT_SPACE)
+        )
+    );
+    assert_eq!(event(&a.data).forfeited_total, 30);
+}
+
+#[tokio::test]
 async fn eject_declared_skip_returns_all() {
     let (mut c, creator, ritual, opens) = fixture(3).await;
     let ix = Instruction {
@@ -297,7 +427,7 @@ async fn eject_declared_skip_returns_all() {
     submit(&mut c, vec![ix], &[&creator]).await.unwrap();
     clock(&mut c, opens + 46).await;
     assert_eject(&mut c, &creator, ritual, 3, 0, 1).await;
-    let e = deserialize_event(&get_account(&mut c, event_pda(&ritual, 0)).await.data);
+    let e = event(&get_account(&mut c, event_pda(&ritual, 0)).await.data);
     assert_eq!(
         (e.status, e.void_reason, e.refunded_total),
         (EventStatus::Voided, VoidReason::DeclaredSkip, 30)
@@ -308,7 +438,7 @@ async fn eject_declared_skip_returns_all() {
 async fn eject_preserves_prior_settlement_and_refunds_fee_dust() {
     let (mut c, creator, ritual, opens) = fixture(3).await;
     clock(&mut c, opens).await;
-    stamp(&mut c, &creator, ritual).await;
+    stamp(&mut c, &creator, ritual, 0).await;
     clock(&mut c, opens + 56).await;
     submit(
         &mut c,
@@ -350,15 +480,14 @@ async fn eject_all_sixteen_missing_weeks_conserves_and_records_receipts() {
     assert_eject(&mut c, &creator, ritual, 16, 480, 16).await;
     for i in 0..16 {
         assert_eq!(
-            deserialize_event(&get_account(&mut c, event_pda(&ritual, i)).await.data)
-                .forfeited_total,
+            event(&get_account(&mut c, event_pda(&ritual, i)).await.data).forfeited_total,
             30
         );
     }
 }
 
 #[tokio::test]
-async fn eject_rejects_double_noncreator_group_and_funding() {
+async fn eject_rejects_double_noncreator_and_funding() {
     let (mut c, creator, ritual, _) = fixture(3).await;
     let outsider = c.payer.pubkey();
     reject(
@@ -366,29 +495,16 @@ async fn eject_rejects_double_noncreator_group_and_funding() {
         &creator,
         ritual,
         eject_ix(ritual, outsider, 0, 3, 0),
-        6000 + RitualsError::EjectCreatorOnly as u32,
+        code(RitualsError::EjectCreatorOnly),
     )
     .await;
-    replace_ritual(&mut c, ritual, |r| r.kind = RitualKind::Group).await;
+    replace_ritual(&mut c, ritual, |r| r.status = RitualStatus::Funding).await;
     reject(
         &mut c,
         &creator,
         ritual,
         eject_ix(ritual, creator.pubkey(), 0, 3, 0),
-        6064,
-    )
-    .await;
-    replace_ritual(&mut c, ritual, |r| {
-        r.kind = RitualKind::Solo;
-        r.status = RitualStatus::Funding;
-    })
-    .await;
-    reject(
-        &mut c,
-        &creator,
-        ritual,
-        eject_ix(ritual, creator.pubkey(), 0, 3, 0),
-        6000 + RitualsError::EjectActiveOnly as u32,
+        code(RitualsError::EjectActiveOnly),
     )
     .await;
     replace_ritual(&mut c, ritual, |r| r.status = RitualStatus::Active).await;
@@ -405,19 +521,125 @@ async fn eject_rejects_double_noncreator_group_and_funding() {
 }
 
 #[tokio::test]
+async fn eject_rejects_a_group_ritual() {
+    let creator = Keypair::new();
+    let other = Keypair::new();
+    let nonce = 10808;
+    let creator_source = Pubkey::new_from_array([21; 32]);
+    let mut c = start_with_members(&creator, &other, 250, 250).await;
+    submit(
+        &mut c,
+        vec![
+            initialize_free_ix(creator.pubkey()),
+            create_ix(creator.pubkey(), other.pubkey(), nonce, FeePayerMode::Host),
+        ],
+        &[&creator],
+    )
+    .await
+    .unwrap();
+    for (member, source) in [
+        (&other, Pubkey::new_from_array([22; 32])),
+        (&creator, creator_source),
+    ] {
+        submit(
+            &mut c,
+            vec![fund_ix(creator.pubkey(), nonce, member.pubkey(), source)],
+            &[member],
+        )
+        .await
+        .unwrap();
+    }
+    let ritual = ritual_pda(&creator.pubkey(), nonce);
+    let now = c
+        .banks_client
+        .get_sysvar::<solana_sdk::clock::Clock>()
+        .await
+        .unwrap()
+        .unix_timestamp;
+    replace_ritual(&mut c, ritual, |r| {
+        r.schedule[0].opens = now + 100;
+        r.schedule[0].deadline = now + 101;
+        r.schedule[0].resolution = now + 102;
+    })
+    .await;
+    submit(
+        &mut c,
+        vec![activate_ix_default(creator.pubkey(), nonce)],
+        &[],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        deserialize(&get_account(&mut c, ritual).await.data).kind,
+        RitualKind::Group
+    );
+    let stake_vault = vault_pda(b"stake-vault", &ritual);
+    let before = (
+        get_account(&mut c, ritual).await,
+        amount(&mut c, stake_vault).await,
+        amount(&mut c, creator_source).await,
+    );
+    assert_error(
+        submit(
+            &mut c,
+            vec![eject_ix_to(
+                ritual,
+                creator.pubkey(),
+                creator_source,
+                0,
+                1,
+                0,
+            )],
+            &[&creator],
+        )
+        .await,
+        code(RitualsError::SoloOnlyInstruction),
+    );
+    assert_eq!(
+        (
+            get_account(&mut c, ritual).await,
+            amount(&mut c, stake_vault).await,
+            amount(&mut c, creator_source).await
+        ),
+        before
+    );
+}
+
+#[tokio::test]
 async fn eject_rejects_wrong_destination_owner_mint_events_and_changed_quote() {
     let (mut c, creator, ritual, opens) = fixture(3).await;
     clock(&mut c, opens + 46).await;
     let ix = eject_ix(ritual, creator.pubkey(), 0, 3, 30);
     let mut wrong = ix.clone();
     wrong.accounts[6].pubkey = RECIPIENT;
-    reject(&mut c, &creator, ritual, wrong, 6056).await;
+    reject(
+        &mut c,
+        &creator,
+        ritual,
+        wrong,
+        code(RitualsError::InvalidFinalizeDestination),
+    )
+    .await;
     let mut wrong = ix.clone();
     wrong.accounts[5].pubkey = SECOND_RECIPIENT;
-    reject(&mut c, &creator, ritual, wrong, 6034).await;
+    reject(
+        &mut c,
+        &creator,
+        ritual,
+        wrong,
+        code(RitualsError::InvalidRefundDestination),
+    )
+    .await;
     replace_token_destination_fields(&mut c, source_for_member(0), Some(WRONG_MINT), None, None)
         .await;
-    reject(&mut c, &creator, ritual, ix.clone(), 6034).await;
+    reject(
+        &mut c,
+        &creator,
+        ritual,
+        ix.clone(),
+        code(RitualsError::InvalidRefundDestination),
+    )
+    .await;
     replace_token_destination_fields(&mut c, source_for_member(0), Some(MINT), None, None).await;
     let mut wrong = ix.clone();
     wrong.accounts.swap(9, 10);
@@ -426,7 +648,17 @@ async fn eject_rejects_wrong_destination_owner_mint_events_and_changed_quote() {
         &creator,
         ritual,
         wrong,
-        6000 + RitualsError::EjectEventAccounts as u32,
+        code(RitualsError::EjectEventAccounts),
+    )
+    .await;
+    let mut wrong = ix.clone();
+    wrong.accounts[9].is_writable = false;
+    reject(
+        &mut c,
+        &creator,
+        ritual,
+        wrong,
+        code(RitualsError::EjectEventAccounts),
     )
     .await;
     let mut wrong = ix.clone();
@@ -436,7 +668,7 @@ async fn eject_rejects_wrong_destination_owner_mint_events_and_changed_quote() {
         &creator,
         ritual,
         wrong,
-        6000 + RitualsError::EjectEventAccounts as u32,
+        code(RitualsError::EjectEventAccounts),
     )
     .await;
     reject(
@@ -444,7 +676,7 @@ async fn eject_rejects_wrong_destination_owner_mint_events_and_changed_quote() {
         &creator,
         ritual,
         eject_ix(ritual, creator.pubkey(), 0, 3, 0),
-        6000 + RitualsError::EjectQuoteChanged as u32,
+        code(RitualsError::EjectQuoteChanged),
     )
     .await;
     assert!(c
