@@ -14,7 +14,8 @@ export type ReminderOptions = Readonly<{
 export type Reminder = Readonly<{ id: string; at: number; title: string; body: string; kind: ReminderKind; demo: boolean }>
 export const MAX_REMINDER_WEEKS = 16
 export const REMINDER_DAY_SECONDS = 86400
-export const reminderPrefix = (address: string): string => `rituals:reminders:v1:${address}:`
+export const REMINDERS_PREFIX = 'rituals:reminders:v1:'
+export const reminderPrefix = (address: string): string => `${REMINDERS_PREFIX}${address}:`
 export const weekReminderPrefix = (address: string, eventIndex: number): string => `${reminderPrefix(address)}${eventIndex}:`
 
 export type ReminderObservation = {

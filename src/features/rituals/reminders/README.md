@@ -58,7 +58,8 @@ Integration
   Create all channels before asking permission, check permission first, persist permissionAsked
   before the one request. Denial is logged, not a create failure. Other creates
   and process restarts do not re-prompt. Granting access in Android Settings
-  does not automatically rebuild previously denied sets.
+  does not automatically rebuild previously denied sets; toggle the master
+  off/on to rebuild future dates explicitly.
   New requests carry data.ritualReminder = 'demo' or 'real'. The Expo foreground
   handler suppresses both alert and sound for Demo anywhere in the foreground
   app, including Home and the ritual screen; Real-weeks behavior stays enabled.
@@ -75,12 +76,34 @@ Integration
   merely because it says 'skipped'. Screen mounting sets up foreground display
   but never requests permission or schedules a set.
 
+  Settings: a Notifications card has the app-level system permission line
+  (“On” / “Off — turn on in Android settings”), a “Notification settings” button
+  and a local “Remind me” master switch. Channel-specific blocks are managed by
+  Android, not inferred from the app-level permission. Reads refresh on focus
+  and AppState active, never prompt. Missing native support says “Unavailable
+  on this install”; loading/errors use the same single state line.
+  React Native Linking opens APP_NOTIFICATION_SETTINGS with APP_PACKAGE from
+  the existing Expo config, falling back to Linking.openSettings. No dependency.
+  Master off saves locally, cancels every Rituals prefix (legacy queue included)
+  and dismisses delivered alerts; new creates still save per-ritual choices but
+  cannot schedule or prompt. Cancellation is attempted even if storage fails;
+  a memory guard blocks this process until master on is successfully saved.
+  Master on re-reads opted-in remembered rituals via the existing bundle reader
+  and replans active Solo rituals from their chain schedules. Confirmed stamps,
+  skips, earlier/expired weeks and stored exclusions are omitted. No implicit
+  opt-in for old or individually disabled rituals. Native work stays serialized;
+  RPC reads stay outside the queue and consent is rechecked after each read.
+  No prompt on restore; denied permission stays off. RPC/native/storage failure
+  uses one quiet error line; toggle off/on to retry, never blocks create/stamp.
+
   forgetRitual: removes phone record, clears its notification prefix and its
   preference. Other rituals and the global permissionAsked flag are preserved.
   Identifier format: rituals:reminders:v1:<address>:<zero-based-week>:<stage>.
-  Storage: @rituals/reminders/v1 -> { permissionAsked, rituals: {
+  Storage: @rituals/reminders/v1 -> { masterEnabled, permissionAsked, rituals: {
     [address]: { enabled, stampedWeeks }
-  }}. Native identifiers need no parallel local ledger: enumerate scheduled
+  }}. Missing masterEnabled in pre-upgrade records defaults to true; consent,
+  stamp exclusions and prompt history survive. Native identifiers need no
+  parallel local ledger: enumerate scheduled
   requests and match the exact colon-terminated ritual/week prefix. Cancellation
   also dismisses matching delivered tray alerts, after cancelling the alarms.
   Both collections are attempted even if one cannot be read/cleared.
@@ -159,7 +182,7 @@ Honest limits and rollback
   while away; deadline copy plus the create warning disclose that limitation.
   Screen-event cleanup is best effort, not an atomic background expiry guarantee.
   If zero late alerts is required, do not enable Demo reminders for that run.
-  No notification tap deep-link or post-create reminder settings UI is added:
+  No notification tap deep-link is added:
   Expo opens the app; cold start reaches Home, warm start resumes the current
   navigator. No notification response listener attempts an invalid route.
   Preferences/ids belong to rituals on this phone, not the selected wallet.
@@ -170,11 +193,21 @@ Honest limits and rollback
   normally persist independently of JS, but an app kill mid-schedule, failed
   cancellation, or failed native enqueue is not automatically repaired. Logs
   expose failures; the app never promises reminders guarantee a kept week.
-  The hook installs the foreground handler when visiting create/ritual screens;
+  The hooks install the foreground handler when visiting create/ritual/Settings;
   a cold process left only on Home has not initialized that handler.
   Expo's default without a handler drops foreground notifications; no guarantee
   of Real-weeks foreground presentation on a Home-only cold start is added.
   Old queued requests without the new data marker retain the prior policy.
+
+  Device-only settings checks: open Notifications on Android 13+, confirm the
+  four channels/group, silence or disable one and keep the others unchanged
+  across a new create and restart. Check the app-specific intent and fallback,
+  deny/grant app access and return (state line refreshes without prompting).
+  Master off must empty pending AND tray Rituals ids; create while off adds
+  none. On with permission granted must restore only eligible future dates
+  for remembered opted-in active rituals, with stamped/skipped weeks excluded.
+  Check an upgrade with old-channel queued alerts and retain customized channel
+  settings. Unit/source tests do not prove OEM screens, native linkage or sound.
 
   Remove screen hook imports/calls and the create toggle/state, the
   authoritativeRituals cleanup import/call, and the app.json plugin to drop this

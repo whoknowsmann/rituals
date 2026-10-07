@@ -37,6 +37,21 @@
 Every sentence in the README, video script, deck and store listing must trace
 to a line here. If a claim is not here, it is not made. Measured, not inherited.
 
+## Reminder follow-up — source verified, device check pending
+
+The fix/reminders-final follow-up adds phone-local Demo-speed reminders (one
+opening request per future week; deadline copy, no foreground interruption),
+four Android notification channels in a Rituals group, and Settings controls.
+Week opens / One day left / Last hour use DEFAULT importance; Demo weeks uses
+LOW. The old channel stays for existing queued alerts. Settings shows current
+app-level permission, opens Android notification settings, and has a local
+Remind me master switch. Off cancels reminders; on re-reads opted-in remembered
+active rituals and replans future dates, excluding closed/stamped/skipped weeks.
+These additions have unit/source verification only, not new Seeker proof.
+The Real-only reminder descriptions above and in Speeds describe the earlier
+device-proven candidate, not this follow-up. Demo delivery remains best effort
+and may follow the stamp deadline; no exact-alarm permission is added.
+
 ## One line
 
 Rituals: put a stake on a weekly promise. Stamp the week to keep it. Miss it and

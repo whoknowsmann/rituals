@@ -53,9 +53,10 @@ export async function clearReminderPrefix(notifications: ReminderNotifications, 
   }
 }
 
-export async function scheduleReminderPlan(notifications: ReminderNotifications, plan: readonly Reminder[], nowSeconds: () => number): Promise<number> {
+export async function scheduleReminderPlan(notifications: ReminderNotifications, plan: readonly Reminder[], nowSeconds: () => number, maySchedule: () => boolean = () => true): Promise<number> {
   let count = 0
   for (const reminder of plan) {
+    if (!maySchedule()) break
     // Permission dialogs can outlast week one's opening. Never turn a past
     // date into an immediate notification after the dialog closes.
     if (reminder.at <= nowSeconds()) continue

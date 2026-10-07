@@ -8,11 +8,11 @@ export function memoryStorage() {
 
 describe('reminder preferences', () => {
   it('starts with no prompt and no opt-ins', async () => {
-    expect(await readReminderPreferences(memoryStorage())).toEqual({ permissionAsked: false, rituals: {} })
+    expect(await readReminderPreferences(memoryStorage())).toEqual({ masterEnabled: true, permissionAsked: false, rituals: {} })
   })
   it('round trips consent and zero-based stamped weeks independently per ritual', async () => {
     const storage = memoryStorage()
-    const value = { permissionAsked: true, rituals: { A: { enabled: true, stampedWeeks: [0, 15] }, B: { enabled: false, stampedWeeks: [] } } }
+    const value = { masterEnabled: true, permissionAsked: true, rituals: { A: { enabled: true, stampedWeeks: [0, 15] }, B: { enabled: false, stampedWeeks: [] } } }
     await writeReminderPreferences(storage, value)
     expect(storage.setItem).toHaveBeenCalledWith(REMINDERS_STORAGE_KEY, JSON.stringify(value))
     expect(await readReminderPreferences(storage)).toEqual(value)

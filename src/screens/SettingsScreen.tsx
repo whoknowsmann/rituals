@@ -1,10 +1,15 @@
 import React from 'react'
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Linking, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import Constants from 'expo-constants'
 import { useCluster } from '../components/cluster/cluster-data-access'
 import { useAuthorization } from '../utils/useAuthorization'
 import { useDevnetFaucet } from '../features/rituals/faucet/useDevnetFaucet'
 import { faucetLine } from '../features/rituals/faucet/devnetFaucet'
+import { useRitualClient } from '../features/rituals/client/useRitualClient'
+import { reminders } from '../features/rituals/reminders/runtime'
+import { restoreRememberedReminders } from '../features/rituals/reminders/restore'
+import { useReminderSettings } from '../features/rituals/reminders/useReminderSettings'
+import { notificationPermissionLine, openNotificationSettings } from '../features/rituals/reminders/systemSettings'
 import { ActionButton, Footnote } from '../components/crew'
 import { WalletChoiceButtons } from '../components/wallet/WalletChoiceButtons'
 import { RITUALS_PROGRAM_ID } from '../data/rituals/programIds'
@@ -22,6 +27,13 @@ export function SettingsScreen() {
   const version = Constants.expoConfig?.version ?? '0.1.0'
   const { selectedAccount } = useAuthorization()
   const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null)
+  const client = useRitualClient()
+  const notificationSettings = useReminderSettings()
+  const setRemindMe = (enabled: boolean) => { void notificationSettings.update(async () => {
+    const saved = await reminders.setMasterEnabled(enabled)
+    if (!saved || !enabled) return saved
+    return client.status === 'ready' ? restoreRememberedReminders(client.client) : false
+  }) }
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
@@ -29,6 +41,15 @@ export function SettingsScreen() {
         <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={!selectedAccount || faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" style={s.explorerButton} />
         {selectedAccount ? <Text style={s.muted}>Sends 50 tSKR and 0.05 devnet SOL. No approval needed.</Text> : <View><Text style={s.muted}>Set your wallet to Devnet.</Text><WalletChoiceButtons failureCopy="Connection not completed. Try again." /></View>}
         {faucet.status === 'done' && faucet.result && <Text style={s.muted} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
+      </View>
+      <View style={s.card} accessibilityLabel="Notifications">
+        <Text style={s.value} accessibilityRole="header">Notifications</Text>
+        <Text style={s.muted} accessibilityLiveRegion="polite">{notificationSettings.error ?? notificationPermissionLine(notificationSettings.permission, Platform.OS)}</Text>
+        <ActionButton tone="quiet" label="Notification settings" onPress={() => { void openNotificationSettings() }} style={s.explorerButton} />
+        <View style={s.switchRow}>
+          <Text style={s.muted}>Remind me</Text>
+          <Switch accessibilityLabel="Remind me" value={notificationSettings.preferences?.masterEnabled ?? false} onValueChange={setRemindMe} disabled={!notificationSettings.preferences || notificationSettings.busy} />
+        </View>
       </View>
       <View style={s.card} accessibilityLabel="Network information">
         <Text style={s.label}>NETWORK</Text>
@@ -54,5 +75,6 @@ const useS = themedStyles((color) => StyleSheet.create({
   value: { ...type.heading, color: color.fg, marginTop: space.xs },
   muted: { ...type.body, color: color.muted },
   explorerButton: { marginTop: space.md },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.xs },
   version: { ...type.caption, color: color.faint, textAlign: 'center' },
 }))
