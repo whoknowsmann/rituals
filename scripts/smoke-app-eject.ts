@@ -65,6 +65,10 @@ async function main(): Promise<void> {
   await refuseMainnetFundedPayer(url, owner)
   const creatorToken = new PublicKey(requiredOption(args, 'creator-token-account') as string)
   const settleFirst = args['settle-week-1'] !== undefined
+  // --miss-week-1: leave week 1 unstamped, end during week 2 without opening the ritual screen,
+  // so the eject itself must settle week 1 to the destination (the reviewer's forfeit proof).
+  const missFirst = args['miss-week-1'] !== undefined
+  if (missFirst && settleFirst) throw new Error('--miss-week-1 and --settle-week-1 are exclusive')
   const connection = new Connection(url, 'confirmed')
   const transport: RitualClientTransport & RitualWalletSubmissionTransport = makeRitualTransport(connection, async (transaction: Transaction, minContextSlot: number) => {
     if (!transaction.feePayer?.equals(owner.publicKey)) throw new Error('prepared fee payer is not the local signer')
@@ -104,11 +108,13 @@ async function main(): Promise<void> {
   console.log('PASS create:', created.result.signature, ritualAddress.toBase58())
   const [week1, week2] = active.account.schedule
 
-  await sleepUntil(Number(week1.opens), 'week 1 to open')
-  console.log('\n[hold to stamp week 1] (SoloRitualScreen HOLD path)')
-  const claimed = await runLifecycleAction(buildRitualActionDeps({ client, ritualAddress, actor: owner.publicKey, kind: 'claim', eventIndex: 0, claimant: owner.publicKey, authorizedActor: () => owner.publicKey }), stateRunner().dispatch)
-  if (!claimed.ok) throw new Error(`stamp failed in ${claimed.category}`)
-  console.log('PASS stamp week 1:', claimed.result.signature)
+  if (!missFirst) {
+    await sleepUntil(Number(week1.opens), 'week 1 to open')
+    console.log('\n[hold to stamp week 1] (SoloRitualScreen HOLD path)')
+    const claimed = await runLifecycleAction(buildRitualActionDeps({ client, ritualAddress, actor: owner.publicKey, kind: 'claim', eventIndex: 0, claimant: owner.publicKey, authorizedActor: () => owner.publicKey }), stateRunner().dispatch)
+    if (!claimed.ok) throw new Error(`stamp failed in ${claimed.category}`)
+    console.log('PASS stamp week 1:', claimed.result.signature)
+  } else console.log('\n[week 1 left unstamped]')
 
   if (settleFirst) {
     await sleepUntil(Number(week1.resolution), 'week 1 to close')
@@ -123,8 +129,13 @@ async function main(): Promise<void> {
   const quote = await client.getEjectQuote(ritualAddress)
   console.log(`quote at chain time ${quote.now}: back to you ${quote.backToYou}, to the destination ${quote.destinationTotal} (this eject ${quote.pendingForfeit}), receipts to create ${quote.missingReceiptCount}`)
   check(quote.now >= week2.opens && quote.now <= week2.deadline, 'week 2 is not open at the quote')
-  check(quote.pendingForfeit === 0n && quote.destinationTotal === 0n, 'nothing should go to the destination: week 1 was stamped and week 2 is still open')
-  check(quote.backToYou === STAKE_PER_WEEK * BigInt(settleFirst ? EVENT_COUNT - 1 : EVENT_COUNT), 'back to you should be every week still in the vault')
+  if (missFirst) {
+    check(quote.pendingForfeit === STAKE_PER_WEEK && quote.destinationTotal === STAKE_PER_WEEK, `exactly week 1 should go to the destination, quote said ${quote.pendingForfeit}/${quote.destinationTotal}`)
+    check(quote.backToYou === STAKE_PER_WEEK * BigInt(EVENT_COUNT - 1), 'back to you should be weeks 2 and 3')
+  } else {
+    check(quote.pendingForfeit === 0n && quote.destinationTotal === 0n, 'nothing should go to the destination: week 1 was stamped and week 2 is still open')
+    check(quote.backToYou === STAKE_PER_WEEK * BigInt(settleFirst ? EVENT_COUNT - 1 : EVENT_COUNT), 'back to you should be every week still in the vault')
+  }
   const creatorBefore = await tokenBalance(creatorToken)
   const lamportsBefore = await connection.getBalance(owner.publicKey, 'confirmed')
   const ejectRunner = stateRunner()
@@ -137,15 +148,16 @@ async function main(): Promise<void> {
   check(ended.account.currentEventIndex === 1 && ended.account.settledEventCount === 1, `expected exactly week 1 settled, got ${ended.account.settledEventCount}`)
   for (const vault of [ended.account.stakeVault, ended.account.feeVault]) check(await connection.getAccountInfo(vault, 'confirmed') === null, `vault ${vault.toBase58()} still exists`)
   const receipt = await client.getEventBundle(ritualAddress, 0)
-  check(receipt.event?.account.status === 'Settled' && receipt.event.account.payoutTotal === STAKE_PER_WEEK && receipt.event.account.forfeitedTotal === 0n, 'week 1 receipt is not KEPT')
+  if (missFirst) check(receipt.event?.account.status === 'Settled' && receipt.event.account.forfeitedTotal === STAKE_PER_WEEK && receipt.event.account.payoutTotal === 0n, 'week 1 receipt is not MISSED with one week forfeited')
+  else check(receipt.event?.account.status === 'Settled' && receipt.event.account.payoutTotal === STAKE_PER_WEEK && receipt.event.account.forfeitedTotal === 0n, 'week 1 receipt is not KEPT')
   for (const index of [1, 2]) check(await connection.getAccountInfo(eventPda(ritualAddress, index, client.programId)[0], 'confirmed') === null, `week ${index + 1} should have no receipt`)
   const creatorAfter = await tokenBalance(creatorToken)
   const destinationAfter = await tokenBalance(destinationAccount)
   check(creatorAfter - creatorBefore === quote.backToYou, `creator received ${creatorAfter - creatorBefore}, expected ${quote.backToYou}`)
-  check(destinationAfter === destinationStart, `destination changed by ${destinationAfter - destinationStart}`)
-  check(creatorAfter === creatorStart, `over the whole ritual the creator's tSKR moved by ${creatorAfter - creatorStart}; expected 0 (every week kept or returned)`)
+  check(destinationAfter - destinationStart === (missFirst ? STAKE_PER_WEEK : 0n), `destination changed by ${destinationAfter - destinationStart}`)
+  check(creatorStart - creatorAfter === (missFirst ? STAKE_PER_WEEK : 0n), `over the whole ritual the creator's tSKR moved by ${creatorAfter - creatorStart}`)
   const lamportsAfter = await connection.getBalance(owner.publicKey, 'confirmed')
-  console.log('PASS balances: every stake back, destination untouched, vault rent returned')
+  console.log(missFirst ? 'PASS balances: missed week 1 to the destination, weeks 2-3 back, vault rent returned' : 'PASS balances: every stake back, destination untouched, vault rent returned')
   console.log(JSON.stringify({
     script: 'smoke-app-eject', ritual: ritualAddress.toBase58(), settledWeek1First: settleFirst, ejectSignature: ejected.result.signature,
     backToYou: quote.backToYou.toString(), destinationDelta: (destinationAfter - destinationStart).toString(), creatorTokenDeltaOverRitual: (creatorAfter - creatorStart).toString(),
