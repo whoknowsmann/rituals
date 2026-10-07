@@ -4,7 +4,7 @@ import { eventPda } from '../../../data/rituals/pdas'
 import { currentWeekCell } from '../../../components/crew/weekStripLogic'
 
 export type HomeWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'current' | 'future'
-type SoloAccount = Readonly<{ kind: 'Group' | 'Solo'; status: string; currentEventIndex: number; schedule: readonly unknown[] }>
+type SoloAccount = Readonly<{ kind: 'Group' | 'Solo'; status: string; currentEventIndex: number; schedule: readonly unknown[]; completedAt?: bigint }>
 
 /** Closed weeks of a solo ritual: every week before the current one, or all of them once it completes. */
 export function closedWeekCount(account: SoloAccount): number {
@@ -51,7 +51,8 @@ export async function readSoloWeekOutcomes(
   programId: PublicKey,
   rituals: readonly Readonly<{ address: PublicKey; account: SoloAccount }>[],
 ): Promise<Map<string, Map<number, 'done' | 'missed'>>> {
-  const wanted = rituals.flatMap((ritual) => Array.from({ length: closedWeekCount(ritual.account) }, (_, index) => ({ ritual: ritual.address, index, key: eventPda(ritual.address, index, programId)[0] })))
+  // Weeks an early end settled carry the ended ritual's timestamp (see decodeRitualEvent).
+  const wanted = rituals.flatMap((ritual) => Array.from({ length: closedWeekCount(ritual.account) }, (_, index) => ({ ritual: ritual.address, index, key: eventPda(ritual.address, index, programId)[0], endedAt: ritual.account.status === 'Ended' ? ritual.account.completedAt : undefined })))
   const result = new Map<string, Map<number, 'done' | 'missed'>>()
   for (let start = 0; start < wanted.length; start += 100) {
     const chunk = wanted.slice(start, start + 100)
@@ -60,7 +61,7 @@ export async function readSoloWeekOutcomes(
       const info = infos[position]
       if (!info) return
       try {
-        const outcome = eventOutcome(decodeRitualEvent({ owner: info.owner, data: info.data }, programId))
+        const outcome = eventOutcome(decodeRitualEvent({ owner: info.owner, data: info.data }, programId, entry.endedAt))
         if (!outcome) return
         const id = entry.ritual.toBase58()
         if (!result.has(id)) result.set(id, new Map())

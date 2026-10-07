@@ -53,7 +53,7 @@ export type PendingActionStore = Readonly<{
 
 // Must list every PreparedRitualAction kind: makePendingActionRecord throws for a
 // missing kind, which aborts the action before the wallet opens.
-const ACTION_KINDS: readonly PendingActionKind[] = ['create', 'create-solo', 'fund', 'fund-and-activate', 'activate', 'cancel', 'close', 'initialize-event', 'claim', 'approve', 'question', 'declare-skip', 'finalize', 'create-and-fund', 'create-solo-fund-and-activate', 'initialize-event-and-claim']
+const ACTION_KINDS: readonly PendingActionKind[] = ['create', 'create-solo', 'fund', 'fund-and-activate', 'activate', 'cancel', 'close', 'initialize-event', 'claim', 'approve', 'question', 'declare-skip', 'finalize', 'create-and-fund', 'create-solo-fund-and-activate', 'initialize-event-and-claim', 'eject']
 const DIGEST = /^[0-9a-f]{64}$/
 const safeHeight = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 const safeCreatedAt = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0

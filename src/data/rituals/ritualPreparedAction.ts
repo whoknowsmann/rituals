@@ -5,11 +5,10 @@ import { ACCOUNT_DATA_LENGTHS, type RitualAccountView } from './accounts'
 import { ComputeBudgetProgram, Message, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js'
 import type { BuildCreateRitualArgs, BuildCreateSoloRitualArgs, BuildDeclareSkipArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs, RitualAccountContext } from './instructionsLifecycle'
 import { buildCreateRitualInstruction, buildCreateSoloRitualInstruction, buildDeclareSkipInstruction, buildFundMemberInstruction, buildActivateRitualInstruction, buildCancelUnactivatedInstruction, deriveCreateRitualAccounts } from './instructionsLifecycle'
-import type { BuildCloseTerminalVaultsArgs, BuildInitializeCurrentEventArgs, BuildClaimCompletionArgs, BuildApproveClaimArgs, BuildQuestionClaimArgs, BuildFinalizeEventArgs, RitualEventAccountContext, CompletionClaimAccountContext } from './instructionsEvents'
-import { buildCloseTerminalVaultsInstruction, buildInitializeCurrentEventInstruction, buildClaimCompletionInstruction, buildApproveClaimInstruction, buildQuestionClaimInstruction, buildFinalizeEventInstruction } from './instructionsEvents'
+import type { BuildCloseTerminalVaultsArgs, BuildInitializeCurrentEventArgs, BuildClaimCompletionArgs, BuildApproveClaimArgs, BuildQuestionClaimArgs, BuildFinalizeEventArgs, BuildEjectRitualArgs, RitualEventAccountContext, CompletionClaimAccountContext } from './instructionsEvents'
+import { buildCloseTerminalVaultsInstruction, buildInitializeCurrentEventInstruction, buildClaimCompletionInstruction, buildApproveClaimInstruction, buildQuestionClaimInstruction, buildFinalizeEventInstruction, buildEjectRitualInstruction } from './instructionsEvents'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { eventPda } from './pdas'
-import { buildEjectRitualInstruction, type BuildEjectRitualArgs } from './instructionsEject'
 import type { PublicKeyText } from '../../domain/rituals/types'
 
 const MAX_SAFE = Number.MAX_SAFE_INTEGER
@@ -100,8 +99,15 @@ type Internal = {
  */
 export const RITUAL_COMPUTE_UNIT_LIMIT = 200_000
 export const RITUAL_COMPUTE_UNIT_PRICE_MICROLAMPORTS = 1_000
+/**
+ * Ending a ritual early can settle up to sixteen weeks in one instruction and
+ * create a receipt for each lapsed week nobody opened. The worst case is
+ * measured on the SBF build (program-tests/tests/eject_compute.rs) and must
+ * stay under this limit.
+ */
+export const EJECT_COMPUTE_UNIT_LIMIT = 400_000
 const budgetInstructions = (kind?: ActionKind): TransactionInstruction[] => [
-  ComputeBudgetProgram.setComputeUnitLimit({ units: kind === 'eject' ? 600_000 : RITUAL_COMPUTE_UNIT_LIMIT }),
+  ComputeBudgetProgram.setComputeUnitLimit({ units: kind === 'eject' ? EJECT_COMPUTE_UNIT_LIMIT : RITUAL_COMPUTE_UNIT_LIMIT }),
   ComputeBudgetProgram.setComputeUnitPrice({ microLamports: RITUAL_COMPUTE_UNIT_PRICE_MICROLAMPORTS }),
 ]
 const fail = (category: PreparationCategory, message: string): never => { throw new RitualPreparationError(category, message) }
@@ -203,6 +209,7 @@ export const MAX_SETTLER_FUNDING_LAMPORTS = 50_000_000n
 export type BuildCreateSoloFundAndActivateArgs = BuildCreateSoloRitualArgs & Readonly<{ memberSource: PublicKey; lockedActivationFee: bigint; settlerFunding?: SettlerFunding | null }>
 export type BuildFundAndActivateArgs = BuildFundMemberArgs
 export type BuildInitializeAndClaimArgs = BuildInitializeCurrentEventArgs & Readonly<{ claimant: PublicKey }>
+/** The quote the creator saw: what comes back now, their balance before, and receipts the program must create. */
 export type PrepareEjectArgs = BuildEjectRitualArgs & Readonly<{ creatorBalanceBefore: bigint; expectedRefund: bigint; missingReceiptCount: number }>
 
 export class RitualActionPreparer {
@@ -264,20 +271,21 @@ export class RitualActionPreparer {
 
   async prepareEject(args: PrepareEjectArgs): Promise<PreparedRitualAction> {
     try {
-      const ritual = ritualSnapshot(args.ritual)
-      const creator = copyKey(args.creator)
-      const destination = copyKey(args.creatorDestination)
-      const expectedForfeit = u64(args.expectedForfeit, 'expectedForfeit')
-      const expectedRefund = u64(args.expectedRefund, 'expectedRefund')
-      const minimumCreatorBalance = addU64(args.creatorBalanceBefore, expectedRefund, 'creator balance')
-      const count = args.missingReceiptCount
-      if (!Number.isSafeInteger(count) || count < 0 || count > ritual.account.schedule.length) fail('input', 'invalid receipt count')
-      const ix = buildEjectRitualInstruction({ programId: args.programId, ritual, creator, creatorDestination: destination, expectedForfeit })
-      return this.prepare('eject', ix, creator, ritual.address, ritual.account.stakeMint,
-        Object.freeze({ kind: 'ejected', creatorDestination: keyText(destination), minimumCreatorBalance }),
-        { token: 0n, stake: 0n, activation: 0n, escrow: 0n, settlement: addU64(expectedRefund, expectedForfeit, 'escrow transfer') },
-        Array.from({ length: count }, () => ACCOUNT_DATA_LENGTHS.RitualEvent), null,
-        count ? Object.freeze({ description: 'settled week receipts', count }) : null)
+      const ritual = ritualSnapshot(inputProperty(args, 'ritual'))
+      const creator = copyKey(inputProperty(args, 'creator') as PublicKey)
+      const creatorDestination = copyKey(inputProperty(args, 'creatorDestination') as PublicKey)
+      const expectedForfeit = u64(inputProperty(args, 'expectedForfeit') as bigint, 'expectedForfeit')
+      const expectedRefund = u64(inputProperty(args, 'expectedRefund') as bigint, 'expectedRefund')
+      const minimumCreatorBalance = addU64(inputProperty(args, 'creatorBalanceBefore') as bigint, expectedRefund, 'minimumCreatorBalance')
+      const count = inputProperty(args, 'missingReceiptCount')
+      if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0 || count > ritual.account.schedule.length - ritual.account.currentEventIndex) fail('input', 'invalid missingReceiptCount')
+      const receipts = count as number
+      const instruction = buildEjectRitualInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, creator, creatorDestination, expectedForfeit })
+      return this.prepare('eject', instruction, creator, ritual.address, ritual.account.stakeMint,
+        Object.freeze({ kind: 'ejected', creatorDestination: keyText(creatorDestination), minimumCreatorBalance }),
+        { token: 0n, stake: 0n, activation: 0n, escrow: 0n, settlement: addU64(expectedRefund, expectedForfeit, 'escrowSettlementTransfer') },
+        Array.from({ length: receipts }, () => ACCOUNT_DATA_LENGTHS.RitualEvent), null,
+        receipts > 0 ? Object.freeze({ description: 'week receipts', count: receipts }) : null)
     } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid End Ritual inputs') }
   }
 

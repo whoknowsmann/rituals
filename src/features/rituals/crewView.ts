@@ -9,7 +9,7 @@ import type { PublicKey } from '@solana/web3.js'
 import { shortRosterAddress } from './create/roster'
 
 type RitualLike = Readonly<{
-  status: 'Funding' | 'Active' | 'Completed' | 'Cancelled'
+  status: 'Funding' | 'Active' | 'Completed' | 'Cancelled' | 'Ended'
   members: readonly PublicKey[]
   fundedMembersBitmap: number
   fundedMemberCount: number
@@ -33,6 +33,7 @@ const KICKER: Record<RitualLike['status'], string> = {
   Active: 'Under way',
   Completed: 'Finished',
   Cancelled: 'Called off',
+  Ended: 'Ended',
 }
 
 export function ritualDetailModel(account: RitualLike, me: PublicKey | null | undefined): RitualDetailModel {

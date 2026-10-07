@@ -184,7 +184,7 @@ function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionEx
   } else if (expectation.kind === 'cancelled') {
     if (account.status !== 'Cancelled' || account.fundedStakeTotal !== 0n || account.fundedFeeTotal !== 0n) mismatch()
   } else if (expectation.kind === 'ejected') {
-    if (account.status !== 'Ended' || account.kind !== 'Solo' || !account.vaultsClosed || account.fundedStakeTotal !== 0n || account.fundedFeeTotal !== 0n) mismatch()
+    if (account.status !== 'Ended' || account.kind !== 'Solo' || !account.vaultsClosed || account.fundedStakeTotal !== 0n) mismatch()
   } else if (expectation.kind === 'event-initialized') {
     if (!bundle.event || bundle.event.account.eventIndex !== expectation.eventIndex || !['Scheduled', 'Claiming', 'Resolving'].includes(bundle.event.account.status)) mismatch()
   } else if (expectation.kind === 'claimed' || expectation.kind === 'approved' || expectation.kind === 'questioned') {

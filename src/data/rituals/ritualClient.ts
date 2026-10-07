@@ -24,9 +24,9 @@ export interface RitualClient {
   /** Authoritative protocol configuration: the only valid source of stake mint and fee recipient. */
   getProtocolConfig(options?: ReadOptions): Promise<Readonly<{ slot: number; address: PublicKey; account: ProtocolConfigAccountView }>>
   readRitual(address: PublicKey, options?: ReadOptions): Promise<RitualRead>
+  /** What ending this ritual early would do with its money, at chain time now. */
   getEjectQuote(address: PublicKey, creatorDestination?: PublicKey): Promise<EjectQuote>
   prepareEject(args: PrepareEjectArgs): Promise<PreparedRitualAction>
-  verifyEjectBalances(ritual: RitualRead, destination: PublicKey, minimumBalance: bigint, minContextSlot: number): Promise<void>
   getRitualBundle(address: PublicKey, options?: ReadOptions): Promise<RitualBundleRead>
   getEventBundle(address: PublicKey, eventIndex: number, options?: ReadOptions): Promise<RitualBundleRead>
   prepareCreate(args: BuildCreateRitualArgs): Promise<PreparedRitualAction>
@@ -62,7 +62,6 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
     getProtocolConfig: reader.getProtocolConfig.bind(reader),
     readRitual: reader.getRitual.bind(reader),
     getEjectQuote: reader.getEjectQuote.bind(reader),
-    verifyEjectBalances: reader.verifyEjectBalances.bind(reader),
     prepareEject: preparer.prepareEject.bind(preparer),
     getRitualBundle: reader.getRitualBundle.bind(reader),
     getEventBundle: reader.getEventBundle.bind(reader),
