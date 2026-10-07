@@ -1,4 +1,4 @@
-export type LifecycleActionKind = 'fund' | 'activate' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'finalize'
+export type LifecycleActionKind = 'fund' | 'activate' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'finalize' | 'eject'
 export type LifecyclePreparedRef = Readonly<{ kind: LifecycleActionKind; messageDigest: string; ritualAddress: string }>
 export type LifecycleSubmittedRef = Readonly<{ id: string }>
 export type LifecycleConfirmedRef = Readonly<{ signature: string; messageDigest: string }>

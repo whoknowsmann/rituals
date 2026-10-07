@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Linking, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import Constants from 'expo-constants'
 import { useCluster } from '../components/cluster/cluster-data-access'
@@ -10,6 +10,7 @@ import { reminders } from '../features/rituals/reminders/runtime'
 import { restoreRememberedReminders } from '../features/rituals/reminders/restore'
 import { useReminderSettings } from '../features/rituals/reminders/useReminderSettings'
 import { notificationPermissionLine, openNotificationSettings } from '../features/rituals/reminders/systemSettings'
+import { EndEarly, YourRituals, type EndingRitual } from '../features/rituals/eject/EndEarly'
 import { ActionButton, Footnote } from '../components/crew'
 import { WalletChoiceButtons } from '../components/wallet/WalletChoiceButtons'
 import { RITUALS_PROGRAM_ID } from '../data/rituals/programIds'
@@ -34,6 +35,15 @@ export function SettingsScreen() {
     if (!saved || !enabled) return saved
     return client.status === 'ready' ? restoreRememberedReminders(client.client) : false
   }) }
+  // Ending a ritual early is the whole screen while it is open.
+  const [ending, setEnding] = useState<EndingRitual | null>(null)
+  if (ending) {
+    return (
+      <ScrollView style={s.screen} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+        <EndEarly ritual={ending} onClose={() => setEnding(null)} />
+      </ScrollView>
+    )
+  }
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
@@ -61,6 +71,7 @@ export function SettingsScreen() {
         <Text style={s.value}>{shortProgramId(programId)}</Text>
         <ActionButton tone="quiet" label="View on Explorer" onPress={() => { void Linking.openURL(explorerUrl).catch(() => {}) }} accessibilityLabel="View program on Solana Explorer" style={s.explorerButton} />
       </View>
+      <YourRituals onEnd={setEnding} />
       <Text style={s.version}>App version {version}</Text>
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
