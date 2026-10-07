@@ -65,3 +65,8 @@ export function faucetLine(result: FaucetResult): string {
     case 'unreachable': return 'Could not reach the faucet. Try again in a minute.'
   }
 }
+
+/** "Already funded" can follow a send that landed after the last balance read: read it again too. */
+export function balanceMayHaveChanged(result: FaucetResult): boolean {
+  return result.kind === 'sent' || result.kind === 'already-funded'
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { faucetLine, interpretFaucetResponse, requestTestTokens } from './devnetFaucet'
+import { balanceMayHaveChanged, faucetLine, interpretFaucetResponse, requestTestTokens } from './devnetFaucet'
 
 const fakeFetch = (status: number, body: unknown) => async () => ({ status, json: async () => body })
 
@@ -24,5 +24,13 @@ describe('devnet faucet client', () => {
     let seen: { url: string; body: string } | null = null
     await requestTestTokens(async (url, init) => { seen = { url, body: init.body }; return { status: 200, json: async () => ({ signature: 's' }) } }, 'addr', 'https://faucet.example')
     expect(seen).toEqual({ url: 'https://faucet.example/api/claim', body: '{"address":"addr"}' })
+  })
+  // "You already have enough to start." next to a stale "You have 0 tSKR"
+  // when an unconfirmed send landed after the 4 s re-read.
+  it('re-reads the balance after a send and after "already funded", not after a refusal', () => {
+    expect(balanceMayHaveChanged({ kind: 'sent', signature: 's', confirmed: false, explorer: null })).toBe(true)
+    expect(balanceMayHaveChanged({ kind: 'already-funded' })).toBe(true)
+    for (const kind of ['disabled', 'limited', 'unreachable'] as const) expect(balanceMayHaveChanged({ kind })).toBe(false)
+    expect(balanceMayHaveChanged({ kind: 'empty', contact: null })).toBe(false)
   })
 })

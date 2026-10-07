@@ -1,9 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
-import { requestTestTokens, type FaucetResult } from './devnetFaucet'
+import { balanceMayHaveChanged, requestTestTokens, type FaucetResult } from './devnetFaucet'
 
 export type FaucetState = Readonly<{ status: 'idle' | 'requesting' | 'done'; result: FaucetResult | null }>
 
-/** Screen-side state for "Get test tokens": one request at a time, result kept until the next tap. */
+/**
+ * Screen-side state for "Get test tokens": one request at a time, result kept
+ * until the next tap. `onSent` re-reads the balance: after a send, and after
+ * "already funded" (an earlier send may have landed after the last read).
+ */
 export function useDevnetFaucet(address: string | null, onSent?: () => void): FaucetState & { request: () => void } {
   const [state, setState] = useState<FaucetState>({ status: 'idle', result: null })
   const inFlight = useRef(false)
@@ -14,7 +18,7 @@ export function useDevnetFaucet(address: string | null, onSent?: () => void): Fa
     void requestTestTokens(fetch, address).then((result) => {
       inFlight.current = false
       setState({ status: 'done', result })
-      if (result.kind === 'sent' && onSent) onSent()
+      if (balanceMayHaveChanged(result) && onSent) onSent()
     })
   }, [address, onSent])
   return { ...state, request }
