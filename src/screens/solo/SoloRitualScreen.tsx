@@ -88,7 +88,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const model: SoloRitualModel | null = state.status === 'ready' && state.bundle && chainNow !== null
     ? soloRitualModel(state.bundle, chainNow, state.bundle.ritual.account.creator, destinationOwner) : null
   const { afterStamp: cancelWeekReminders } = useReminders({ ritualAddress: route.params.ritualId,
-    eventIndex: model?.eventIndex, stamped: Boolean(model?.showedUp),
+    eventIndex: read?.ritual.account.currentEventIndex, stamped: Boolean(model?.showedUp),
+    schedule: read?.ritual.account.schedule, nowSeconds: chainNow ?? undefined,
+    completed: read?.ritual.account.status === 'Completed',
     skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined })
   const makeSharedDeps = useCallback((kind: 'claim' | 'finalize' | 'initialize-event') => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !read || !model) throw new Error('Ritual or wallet is not ready')
@@ -143,7 +145,12 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         refresh()
       }
     }
-    if (skip.state.status === 'confirmed' && handled.current.skip !== skip.state.result.messageDigest) { handled.current.skip = skip.state.result.messageDigest; state.retry(); setReload((value) => value + 1) }
+    if (skip.state.status === 'confirmed' && handled.current.skip !== skip.state.result.messageDigest) {
+      handled.current.skip = skip.state.result.messageDigest
+      const target = actionTargets.current.skip
+      if (target) void cancelWeekReminders(target.ritualAddress, target.eventIndex)
+      state.retry(); setReload((value) => value + 1)
+    }
     if (settle.state.status === 'confirmed' && handled.current.settle !== settle.state.result.messageDigest) {
       handled.current.settle = settle.state.result.messageDigest
       state.retry(); setReload((value) => value + 1)

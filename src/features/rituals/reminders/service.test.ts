@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('expo-notifications', () => ({
   setNotificationChannelAsync: vi.fn(), getPermissionsAsync: vi.fn(), requestPermissionsAsync: vi.fn(),
   scheduleNotificationAsync: vi.fn(), getAllScheduledNotificationsAsync: vi.fn(), cancelScheduledNotificationAsync: vi.fn(),
+  getPresentedNotificationsAsync: vi.fn(), dismissNotificationAsync: vi.fn(),
 }))
 vi.mock('../../../utils/diagnostics', () => ({ logFailure: vi.fn(), logNote: vi.fn() }))
 import * as Notifications from 'expo-notifications'
@@ -20,6 +21,10 @@ const input: CreateReminderInput = {
   schedule: Array.from({ length: 2 }, (_, index) => ({ opens: start + 90 + index * 604800, deadline: start + 90 + index * 604800 + 518400, resolution: start + 90 + index * 604800 + 601200 })),
 }
 const pending = new Map<string, ReminderRequest>()
+const presented = new Set<string>()
+const demoInput: CreateReminderInput = { ...input, schedule: Array.from({ length: 2 }, (_, index) => ({
+  opens: start + 60 + index * 60, deadline: start + 105 + index * 60, resolution: start + 115 + index * 60,
+})) }
 function fixture() {
   const values = new Map<string, string>()
   const storage = { getItem: vi.fn(async (key: string) => values.get(key) ?? null), setItem: vi.fn(async (key: string, value: string) => { values.set(key, value) }) }
@@ -32,6 +37,7 @@ function fixture() {
 beforeEach(() => {
   vi.resetAllMocks()
   pending.clear()
+  presented.clear()
   api.setNotificationChannelAsync.mockResolvedValue(null)
   api.getPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: true })
   api.requestPermissionsAsync.mockImplementation(async () => {
@@ -40,6 +46,8 @@ beforeEach(() => {
   })
   api.getAllScheduledNotificationsAsync.mockImplementation(async () => [...pending.keys()].map((identifier) => ({ identifier })))
   api.cancelScheduledNotificationAsync.mockImplementation(async (identifier) => { pending.delete(identifier) })
+  api.getPresentedNotificationsAsync.mockImplementation(async () => [...presented].map((identifier) => ({ request: { identifier } })))
+  api.dismissNotificationAsync.mockImplementation(async (identifier) => { presented.delete(identifier) })
   api.scheduleNotificationAsync.mockImplementation(async (request) => { pending.set(request.identifier, request); return request.identifier })
 })
 
@@ -208,5 +216,68 @@ describe('local reminder scheduling service', () => {
     await f.service.afterCreate(input)
     for (const week of [-1, 16, NaN, 0.5]) await f.service.afterStamp('A', week)
     expect(pending.size).toBe(6)
+  })
+  it('clears the demo open id on stamp, including an already delivered alert, not the next week or ritual', async () => {
+    const f = fixture()
+    await f.service.afterCreate(demoInput)
+    await f.service.afterCreate({ ...demoInput, ritualAddress: 'A-extra' })
+    const id = `${weekReminderPrefix('A', 0)}open`
+    presented.add(id)
+    presented.add(`${weekReminderPrefix('A-extra', 0)}open`)
+    await f.service.afterStamp('A', 0)
+    expect(pending.has(id)).toBe(false)
+    expect(pending.has(`${weekReminderPrefix('A', 1)}open`)).toBe(true)
+    expect(pending.size).toBe(3)
+    expect([...presented]).toEqual([`${weekReminderPrefix('A-extra', 0)}open`])
+    await createReminderService(f).afterCreate(demoInput)
+    expect(pending.has(id)).toBe(false)
+    expect(pending.size).toBe(3)
+  })
+  it('forget dismisses delivered alerts even after they leave the scheduled queue', async () => {
+    const f = fixture()
+    await f.service.afterCreate(demoInput)
+    for (const id of pending.keys()) presented.add(id)
+    pending.clear()
+    presented.add(`${weekReminderPrefix('B', 0)}open`)
+    await f.service.forget('A')
+    expect([...presented]).toEqual([`${weekReminderPrefix('B', 0)}open`])
+    expect((await readReminderPreferences(f.storage)).rituals.A).toBeUndefined()
+  })
+  it('inspects the tray after cancellation, including an alert delivered while cancellation was pending', async () => {
+    const f = fixture()
+    await f.service.afterCreate(demoInput)
+    api.cancelScheduledNotificationAsync.mockImplementationOnce(async (identifier) => {
+      presented.add(identifier)
+      pending.delete(identifier)
+    })
+    await f.service.afterStamp('A', 0)
+    expect(presented.size).toBe(0)
+    expect(pending.size).toBe(1)
+  })
+  it.each(['schedule-list', 'tray-list', 'dismiss'] as const)('keeps cleanup best effort when %s fails', async (failure) => {
+    const f = fixture()
+    await f.service.afterCreate(input)
+    const ids = ['open', 'day', 'hour'].map((kind) => `${weekReminderPrefix('A', 0)}${kind}`)
+    ids.forEach((id) => presented.add(id))
+    if (failure === 'schedule-list') api.getAllScheduledNotificationsAsync.mockRejectedValueOnce(new Error('unavailable'))
+    if (failure === 'tray-list') api.getPresentedNotificationsAsync.mockRejectedValueOnce(new Error('unavailable'))
+    if (failure === 'dismiss') api.dismissNotificationAsync.mockRejectedValueOnce(new Error('unavailable'))
+    await expect(f.service.afterStamp('A', 0)).resolves.toBeUndefined()
+    if (failure !== 'schedule-list') expect(ids.every((id) => !pending.has(id))).toBe(true)
+    if (failure !== 'tray-list') expect(api.dismissNotificationAsync).toHaveBeenCalledTimes(3)
+    expect(logFailure).toHaveBeenCalled()
+  })
+  it.each([60, 61, 105, 115, 120, 175])('drops demo openings passed during permission at +%s seconds; never delays them', async (elapsed) => {
+    const f = fixture()
+    api.requestPermissionsAsync.mockImplementationOnce(async () => { f.clock.now = start + elapsed; return { granted: true } })
+    await f.service.afterCreate(demoInput)
+    expect([...pending.keys()]).toEqual(elapsed < 120 ? [`${weekReminderPrefix('A', 1)}open`] : [])
+    expect([...pending.values()].every((request) => request.trigger.date.getTime() > f.clock.now * 1000)).toBe(true)
+  })
+  it.each(['stamp', 'forget'] as const)('a missing native module never rejects into %s', async (action) => {
+    const f = fixture()
+    f.loadNotifications.mockRejectedValueOnce(new Error('missing native module'))
+    await expect(action === 'stamp' ? f.service.afterStamp('A', 0) : f.service.forget('A')).resolves.toBeUndefined()
+    expect(logFailure).toHaveBeenCalled()
   })
 })

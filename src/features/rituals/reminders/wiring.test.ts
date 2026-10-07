@@ -36,6 +36,16 @@ describe('reminder integration pins (not native UI tests)', () => {
     expect(ritual).toContain('skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined')
     expect(source('./useReminders.ts')).toContain('void reminders.afterStamp(address, Number(week))')
   })
+  it('clears a confirmed skip immediately using its captured target, without waiting for RPC readback', () => {
+    const ritual = source('../../../screens/solo/SoloRitualScreen.tsx')
+    expect(ritual).toMatch(/skip.state.status === 'confirmed'[\s\S]*?const target = actionTargets.current.skip\s*if \(target\) void cancelWeekReminders\(target.ritualAddress, target.eventIndex\)/)
+  })
+  it('reconciles expiry and completed/advanced weeks from the chain account and chain clock', () => {
+    const ritual = source('../../../screens/solo/SoloRitualScreen.tsx')
+    expect(ritual).toContain('schedule: read?.ritual.account.schedule, nowSeconds: chainNow ?? undefined')
+    expect(ritual).toContain("completed: read?.ritual.account.status === 'Completed'")
+    expect(ritual).toContain('eventIndex: read?.ritual.account.currentEventIndex')
+  })
   it('guards remember, preferences, and scheduling once per read-back address across dependency changes', () => {
     const create = source('../../../screens/solo/SoloCreateScreen.tsx')
     expect(create).toContain('const handledCreateAddresses = useRef(new Set<string>())')

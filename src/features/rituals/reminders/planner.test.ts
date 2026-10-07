@@ -18,6 +18,22 @@ describe('chain schedule reminder planner', () => {
     expect(observedReminderWeeks({ eventIndex: 0, stamped: false })).toEqual([])
     expect(observedReminderWeeks({ eventIndex: 16, stamped: true, skippedEventIndex: -1 })).toEqual([])
   })
+  it('clears expired demo weeks even if settlement has not advanced the current index', () => {
+    const windows = schedule(2, DEMO_SOLO_CADENCE)
+    const observed = { eventIndex: 0, stamped: false, schedule: windows }
+    expect(observedReminderWeeks({ ...observed, nowSeconds: Number(windows[0].deadline) })).toEqual([])
+    expect(observedReminderWeeks({ ...observed, nowSeconds: Number(windows[0].deadline) + 1 })).toEqual([0])
+    expect(observedReminderWeeks({ ...observed, nowSeconds: Number(windows[1].resolution) })).toEqual([0, 1])
+    expect(observedReminderWeeks({ ...observed, nowSeconds: NaN })).toEqual([])
+  })
+  it('clears earlier settled weeks after restart without misidentifying the current unstamped week', () => {
+    expect(observedReminderWeeks({ eventIndex: 1, stamped: false, schedule: schedule(2) })).toEqual([0])
+  })
+  it('clears all completed ritual weeks even with no current model or clock, bounded to sixteen', () => {
+    const windows = schedule(16)
+    expect(observedReminderWeeks({ eventIndex: undefined, stamped: false, completed: true, schedule: [...windows, windows[0]] }))
+      .toEqual(Array.from({ length: 16 }, (_, index) => index))
+  })
   it('uses the exact open, deadline minus a day, and deadline minus an hour for each week', () => {
     const windows = schedule()
     expect(planReminders(windows, options).map((item) => item.at)).toEqual(windows.flatMap((window) => [Number(window.opens), Number(window.deadline) - 86400, Number(window.deadline) - 3600]))

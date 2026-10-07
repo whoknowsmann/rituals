@@ -15,6 +15,8 @@ export function nativeReminderNotifications(): ReminderNotifications {
     requestPermissionsAsync: () => Notifications.requestPermissionsAsync(),
     getAllScheduledNotificationsAsync: () => Notifications.getAllScheduledNotificationsAsync(),
     cancelScheduledNotificationAsync: (id) => Notifications.cancelScheduledNotificationAsync(id),
+    getPresentedNotificationsAsync: () => Notifications.getPresentedNotificationsAsync(),
+    dismissNotificationAsync: (id) => Notifications.dismissNotificationAsync(id),
     scheduleNotificationAsync: (request) => Notifications.scheduleNotificationAsync({ ...request,
       trigger: { ...request.trigger, type: Notifications.SchedulableTriggerInputTypes.DATE },
     }),

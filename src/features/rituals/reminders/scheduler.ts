@@ -14,15 +14,27 @@ export interface ReminderNotifications {
   scheduleNotificationAsync(request: ReminderRequest): Promise<string>
   getAllScheduledNotificationsAsync(): Promise<readonly { identifier: string }[]>
   cancelScheduledNotificationAsync(identifier: string): Promise<void>
+  getPresentedNotificationsAsync(): Promise<readonly { request: { identifier: string } }[]>
+  dismissNotificationAsync(identifier: string): Promise<void>
 }
 
-export async function clearReminderPrefix(notifications: ReminderNotifications, prefix: string): Promise<void> {
-  const scheduled = await notifications.getAllScheduledNotificationsAsync()
-  const results = await Promise.allSettled(scheduled.filter((item) => item.identifier.startsWith(prefix))
-    .map((item) => notifications.cancelScheduledNotificationAsync(item.identifier)))
+async function clearMatching(ids: readonly string[], prefix: string, clear: (id: string) => Promise<void>): Promise<void> {
+  const results = await Promise.allSettled(ids.filter((id) => id.startsWith(prefix)).map(async (id) => clear(id)))
   // Try every matching cancellation even if one fails.
   const failed = results.find((result) => result.status === 'rejected')
   if (failed?.status === 'rejected') throw failed.reason
+}
+
+export async function clearReminderPrefix(notifications: ReminderNotifications, prefix: string): Promise<void> {
+  try {
+    await clearMatching((await notifications.getAllScheduledNotificationsAsync()).map((item) => item.identifier),
+      prefix, (id) => notifications.cancelScheduledNotificationAsync(id))
+  } finally {
+    // Cancel alarms first, then inspect the tray to catch an alert delivered
+    // during cancellation. A failed queue read must not prevent tray cleanup.
+    await clearMatching((await notifications.getPresentedNotificationsAsync()).map((item) => item.request.identifier),
+      prefix, (id) => notifications.dismissNotificationAsync(id))
+  }
 }
 
 export async function scheduleReminderPlan(notifications: ReminderNotifications, plan: readonly Reminder[], nowSeconds: () => number): Promise<number> {

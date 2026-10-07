@@ -24,8 +24,9 @@ Boundary and contract
   scheduler.ts owns only date-trigger mapping and prefix cancellation.
   service.ts owns serialized storage, permission and scheduling operations.
   native.ts is the sole React Native / expo-notifications adapter; runtime.ts
-  requires it lazily within the service error boundary. Tests inject an SDK
-  port and vi.mock expo-notifications; they never evaluate native.ts.
+  requires it lazily within the service error boundary. Service tests inject an
+  SDK port; adapter tests mock React Native and expo-notifications. Hook tests
+  exercise effect bodies/dependencies with mocked React, not a native renderer.
   No backend, push registration, push tokens, credentials or new dependency.
 
 Integration
@@ -43,8 +44,12 @@ Integration
   does not automatically rebuild previously denied sets.
 
   SoloRitualScreen: confirmed claim clears the captured claimEventIndex, not
-  the possibly advanced display week. The hook also clears an observed chain
-  stamp and the account's skipEventIndex on read/recovery. The model's 'skipped'
+  the possibly advanced display week. Confirmed skip clears its captured action
+  target immediately, without waiting for another RPC read. The hook clears an
+  observed chain stamp and the account's skipEventIndex on read/recovery, earlier
+  settled indices, every week after its chain deadline, and all completed weeks.
+  The persisted stampedWeeks list includes these closed/excluded weeks, not just
+  stamps; it must never be used to infer a kept stake. The model's 'skipped'
   state can describe the previous week: never cancel its current eventIndex
   merely because it says 'skipped'. Screen mounting sets up foreground display
   but never requests permission or schedules a set.
@@ -55,7 +60,9 @@ Integration
   Storage: @rituals/reminders/v1 -> { permissionAsked, rituals: {
     [address]: { enabled, stampedWeeks }
   }}. Native identifiers need no parallel local ledger: enumerate scheduled
-  requests and match the exact colon-terminated ritual/week prefix.
+  requests and match the exact colon-terminated ritual/week prefix. Cancellation
+  also dismisses matching delivered tray alerts, after cancelling the alarms.
+  Both collections are attempted even if one cannot be read/cleared.
 
   Serial operations avoid lost preference writes, duplicate prompts and
   create/stamp/remove races. Repeated scheduling replaces only that ritual's

@@ -8,7 +8,7 @@ export type ReminderOptions = Readonly<{
   stakeLabel: string
   causeLabel: string
   nowSeconds: number
-  /** Zero-based on-chain event indices, including declared skips. */
+  /** Zero-based on-chain event indices already stamped, skipped or closed. */
   stampedWeeks?: readonly number[]
 }>
 export type Reminder = Readonly<{ id: string; at: number; title: string; body: string }>
@@ -17,11 +17,26 @@ export const REMINDER_DAY_SECONDS = 86400
 export const reminderPrefix = (address: string): string => `rituals:reminders:v1:${address}:`
 export const weekReminderPrefix = (address: string, eventIndex: number): string => `${reminderPrefix(address)}${eventIndex}:`
 
-export type ReminderObservation = { eventIndex: number | undefined; stamped: boolean; skippedEventIndex?: number }
+export type ReminderObservation = {
+  eventIndex: number | undefined
+  stamped: boolean
+  skippedEventIndex?: number
+  schedule?: readonly ReminderWindow[]
+  nowSeconds?: number
+  completed?: boolean
+}
 /** A skipped result can describe the previous week while the model's current
  * index has already advanced. Only the account's skipEventIndex is safe. */
 export function observedReminderWeeks(observed?: ReminderObservation): readonly number[] {
-  return [...new Set([observed?.stamped ? observed.eventIndex : undefined, observed?.skippedEventIndex])]
+  const weeks = [observed?.stamped ? observed.eventIndex : undefined, observed?.skippedEventIndex]
+  observed?.schedule?.slice(0, MAX_REMINDER_WEEKS).forEach((window, index) => {
+    const advanced = observed.eventIndex !== undefined && Number.isInteger(observed.eventIndex)
+      && observed.eventIndex <= MAX_REMINDER_WEEKS && index < observed.eventIndex
+    const expired = observed.nowSeconds !== undefined && Number.isFinite(observed.nowSeconds)
+      && (isDemoReminderWindow(window) || isRealReminderWindow(window)) && observed.nowSeconds > Number(window.deadline)
+    if (observed.completed || advanced || expired) weeks.push(index)
+  })
+  return [...new Set(weeks)]
     .filter((index): index is number => index !== undefined && Number.isInteger(index) && index >= 0 && index < MAX_REMINDER_WEEKS)
 }
 
