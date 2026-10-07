@@ -44,6 +44,7 @@ export function createReminderService(deps: {
       // Android 13 needs a channel before the permission dialog.
       await ensureReminderChannels(notifications)
       let permission = await notifications.getPermissionsAsync()
+      if (blockedInSession) return true
       if (!restoring && !permission.granted && !preferences.permissionAsked && permission.canAskAgain) {
         preferences.permissionAsked = true
         await writeReminderPreferences(deps.storage, preferences)

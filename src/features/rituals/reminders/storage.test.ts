@@ -10,6 +10,19 @@ describe('reminder preferences', () => {
   it('starts with no prompt and no opt-ins', async () => {
     expect(await readReminderPreferences(memoryStorage())).toEqual({ masterEnabled: true, permissionAsked: false, rituals: {} })
   })
+  it('migrates an existing record without changing consent, stamps or prompt history', () => {
+    const legacy = { permissionAsked: true, rituals: { A: { enabled: false, stampedWeeks: [0, 1] } } }
+    expect(parseReminderPreferences(legacy)).toEqual({ masterEnabled: true, ...legacy })
+  })
+  it('round trips master off instead of treating false as a missing default', async () => {
+    const storage = memoryStorage()
+    const preferences = { masterEnabled: false, permissionAsked: true, rituals: {} }
+    await writeReminderPreferences(storage, preferences)
+    expect(await readReminderPreferences(storage)).toEqual(preferences)
+  })
+  it.each([null, 'false', 0, {}])('fails closed on malformed master value %j', (masterEnabled) => {
+    expect(() => parseReminderPreferences({ masterEnabled, permissionAsked: true, rituals: {} })).toThrow('Invalid')
+  })
   it('round trips consent and zero-based stamped weeks independently per ritual', async () => {
     const storage = memoryStorage()
     const value = { masterEnabled: true, permissionAsked: true, rituals: { A: { enabled: true, stampedWeeks: [0, 15] }, B: { enabled: false, stampedWeeks: [] } } }

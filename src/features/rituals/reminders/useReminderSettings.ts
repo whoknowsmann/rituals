@@ -22,6 +22,7 @@ export function useReminderSettings() {
     setPreferences(nextPreferences ?? null)
     setPermission(nextPermission ?? 'unavailable')
     if (!nextPreferences) setError('Could not read reminders. Try again.')
+    else setError((current) => current === 'Could not read reminders. Try again.' ? null : current)
   }, [])
   useFocusEffect(useCallback(() => {
     active.current = true

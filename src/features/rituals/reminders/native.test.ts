@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
 import { nativeReminderNotifications } from './native'
-import { clearReminderPrefix } from './scheduler'
+import { clearReminderPrefix, ensureReminderChannels } from './scheduler'
 
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }))
 vi.mock('expo-notifications', () => ({
@@ -62,5 +62,21 @@ describe('Expo 0.29 reminder adapter (mocked native modules)', () => {
     Platform.OS = 'ios'
     await adapter.setNotificationChannelAsync('rituals-week-opens', channel)
     expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledTimes(1)
+  })
+  it('uses Expo enum values, not raw Android integers, for four grouped channels', async () => {
+    await ensureReminderChannels(nativeReminderNotifications())
+    expect(Notifications.setNotificationChannelGroupAsync).toHaveBeenCalledExactlyOnceWith('rituals', { name: 'Rituals' })
+    expect(vi.mocked(Notifications.setNotificationChannelAsync).mock.calls).toEqual([
+      ['rituals-week-opens', { name: 'Week opens', importance: 5, groupId: 'rituals', sound: 'default' }],
+      ['rituals-one-day-left', { name: 'One day left', importance: 5, groupId: 'rituals', sound: 'default' }],
+      ['rituals-last-hour', { name: 'Last hour', importance: 5, groupId: 'rituals', sound: 'default' }],
+      ['rituals-demo-weeks', { name: 'Demo weeks', importance: 4, groupId: 'rituals', sound: 'default' }],
+    ])
+  })
+  it('skips groups and channels on non-Android platforms', async () => {
+    Platform.OS = 'ios'
+    await ensureReminderChannels(nativeReminderNotifications())
+    expect(Notifications.setNotificationChannelGroupAsync).not.toHaveBeenCalled()
+    expect(Notifications.setNotificationChannelAsync).not.toHaveBeenCalled()
   })
 })
