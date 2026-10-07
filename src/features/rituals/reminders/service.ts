@@ -25,12 +25,12 @@ export function createReminderService(deps: {
     prepare: (): Promise<void> => run(async () => { await deps.loadNotifications() }),
     afterCreate: (input: CreateReminderInput): Promise<void> => run(async () => {
       const preferences = await readReminderPreferences(deps.storage)
-      const real = input.schedule.slice(0, 16).some((window) => isRealReminderWindow(window) || isDemoReminderWindow(window))
+      const eligible = input.schedule.slice(0, 16).some((window) => isRealReminderWindow(window) || isDemoReminderWindow(window))
       const previous = preferences.rituals[input.ritualAddress]
-      const preference = { enabled: real && input.enabled, stampedWeeks: previous?.stampedWeeks ?? [] }
+      const preference = { enabled: eligible && input.enabled, stampedWeeks: previous?.stampedWeeks ?? [] }
       preferences.rituals[input.ritualAddress] = preference
       await writeReminderPreferences(deps.storage, preferences)
-      // A new Demo/off create never loads the SDK or requests permission.
+      // A new opt-out or invalid schedule never loads the SDK or requests permission.
       if (!preference.enabled) {
         if (previous?.enabled) await clearReminderPrefix(await deps.loadNotifications(), reminderPrefix(input.ritualAddress))
         return

@@ -447,6 +447,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
                 </Pressable>
               </View>
             )}
+            {speed === 'demo' && remindWeekly && <Text style={styles.quiet}>Demo reminders can arrive late. Follow the in-app clock.</Text>}
             <View style={styles.divider} />
             <Text style={styles.label}>TOTAL STAKE</Text>
             <View style={styles.amountBox}>

@@ -18,6 +18,8 @@ describe('reminder integration pins (not native UI tests)', () => {
     expect(create.indexOf('accessibilityLabel="Remind me each week"')).toBeGreaterThan(create.indexOf('SOLO_SPEEDS.map'))
     expect(create).toContain('styles.preset, remindWeekly && styles.presetChosen')
     expect(create).toContain('enabled: remindWeekly')
+    expect(create).toContain("speed === 'demo' && remindWeekly")
+    expect(create).toContain('Demo reminders can arrive late. Follow the in-app clock.')
   })
   it('schedules only after confirmed readback and uses its chain schedule', () => {
     const create = source('../../../screens/solo/SoloCreateScreen.tsx')
@@ -58,6 +60,7 @@ describe('reminder integration pins (not native UI tests)', () => {
   })
   it('registers the native plugin without push registration', () => {
     expect(JSON.parse(source('../../../../app.json')).expo.plugins).toContain('expo-notifications')
+    expect(source('../../../../app.json')).not.toMatch(/SCHEDULE_EXACT_ALARM|USE_EXACT_ALARM/)
     const native = source('./native.ts')
     expect(native).toContain('Notifications.SchedulableTriggerInputTypes.DATE')
     expect(native).toContain('Notifications.AndroidImportance.DEFAULT')

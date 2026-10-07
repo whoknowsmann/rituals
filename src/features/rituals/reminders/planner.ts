@@ -1,4 +1,4 @@
-import { reminderLine, type ReminderKind } from './lines'
+import { demoReminderLine, reminderLine, type ReminderKind } from './lines'
 
 /** Structural match for RitualAccountView.schedule; no native or chain SDK. */
 export type ReminderWindow = Readonly<{ opens: number | bigint; deadline: number | bigint; resolution: number | bigint }>
@@ -75,7 +75,8 @@ export function planReminders(schedule: readonly ReminderWindow[], options: Remi
       if (at <= options.nowSeconds || at < opens || at >= deadline || seen.has(at)) continue
       seen.add(at)
       plan.push({ id: `${weekReminderPrefix(options.ritualAddress, eventIndex)}${kind}`, at, title,
-        body: reminderLine(kind, options.ritualAddress, eventIndex + 1, options.stakeLabel, options.causeLabel) })
+        body: demo ? demoReminderLine(eventIndex + 1, deadline)
+          : reminderLine(kind, options.ritualAddress, eventIndex + 1, options.stakeLabel, options.causeLabel) })
     }
   })
   return plan.sort((left, right) => left.at - right.at)

@@ -1,5 +1,13 @@
 export type ReminderKind = 'open' | 'day' | 'hour'
 
+/** Android may deliver after a short demo window closes. State the immutable
+ * deadline, never that the week is still open. UTC stays unambiguous across
+ * midnight and timezone changes; planner validates the date and week bounds. */
+export function demoReminderLine(week: number, deadlineSeconds: number): string {
+  const deadline = new Date(deadlineSeconds * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC')
+  return `Demo week ${week}: stamp by ${deadline}.`
+}
+
 /** Authored copy only. No random draws: an address/week keeps its voice. */
 export const REMINDER_LINES = {
   open: [

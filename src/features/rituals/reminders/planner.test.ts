@@ -40,9 +40,24 @@ describe('chain schedule reminder planner', () => {
     expect(planReminders(windows, options).every((item) => item.title === 'Read')).toBe(true)
   })
   it('gives Demo speed one reminder per week, when the week opens (Jack, 2026-10-06)', () => {
-    const plan = planReminders(schedule(2, DEMO_SOLO_CADENCE), options)
+    const windows = schedule(2, DEMO_SOLO_CADENCE)
+    const plan = planReminders(windows, options)
     expect(plan).toHaveLength(2)
     expect(plan.every((item) => item.id.endsWith(':open'))).toBe(true)
+    for (const [index, reminder] of plan.entries()) {
+      expect(reminder.at).toBe(Number(windows[index].opens))
+      expect(reminder.body).toContain(new Date(Number(windows[index].deadline) * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC'))
+      expect(reminder.body).not.toContain('is open')
+    }
+    expect(planReminders(windows, options)).toEqual(plan)
+  })
+  it('caps demo reminders at sixteen, preserving open ids when stamped/skipped weeks are excluded', () => {
+    const windows = schedule(16, DEMO_SOLO_CADENCE)
+    const excess = [...windows, windows[0]]
+    const plan = planReminders(excess, { ...options, stampedWeeks: [0, 10] })
+    expect(plan).toHaveLength(14)
+    expect(plan.map((item) => item.id)).toEqual(Array.from({ length: 16 }, (_, index) => index)
+      .filter((index) => index !== 0 && index !== 10).map((index) => `${weekReminderPrefix(options.ritualAddress, index)}open`))
   })
   it('caps at sixteen weeks and three reminders per week', () => {
     const windows = schedule(16)
@@ -67,7 +82,7 @@ describe('chain schedule reminder planner', () => {
     expect(plan).toHaveLength(3)
     expect(plan.every((item) => item.id.startsWith(weekReminderPrefix('ritual-A', 1)))).toBe(true)
   })
-  it('deduplicates the exactly one-day window and excludes shorter windows', () => {
+  it('deduplicates the exactly one-day window and gives shorter windows only an open nudge', () => {
     const opens = nowSeconds + 90
     const window = { opens, deadline: opens + 86400, resolution: opens + 90000 }
     expect(planReminders([window], options).map((item) => item.at)).toEqual([opens, window.deadline - 3600])

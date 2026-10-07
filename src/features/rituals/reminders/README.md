@@ -1,4 +1,4 @@
-Local Real-weeks reminders
+Local Real-weeks and Demo-speed reminders
 
 Boundary and contract
 
@@ -10,16 +10,22 @@ Boundary and contract
   Production creation uses read.account.schedule and its perEventAllocation,
   never a fresh selectSoloSchedule calculation after wallet approval.
 
-  Each eligible unstamped week gets open, deadline minus 86400 seconds, and
-  deadline minus 3600 seconds. Only strictly future dates, at most 16 weeks.
-  Windows shorter than a day, invalid windows, and times after the stamp
-  deadline get nothing. At exactly one day, coincident open/day reminders are
-  deduplicated. No receipt/resolution notifications are created.
+  Each eligible unstamped Real week (window >= one day) gets open, deadline
+  minus 86400 seconds, and deadline minus 3600 seconds. Demo windows (< one day)
+  get exactly one open-stage request at opens, no day/hour requests. Only
+  strictly future dates, at most 16 weeks; invalid windows get nothing. At
+  exactly one day, coincident open/day reminders are deduplicated. No receipt
+  or resolution notifications. Recheck the clock after permission and before
+  each enqueue: a passed opening is dropped, never shifted to "now".
 
   Six authored lines per stage. FNV-1a of address/week/stage selects a line.
   Bodies and titles are bounded to 60 Unicode code points. A long stake/cause
   label gets a generic body rather than a truncated amount or misleading name.
   The banned-word test covers authored copy, not arbitrary user-entered titles.
+  Demo copy is a fixed deadline statement, e.g. "Demo week 2: stamp by
+  2026-10-07 18:30:45 UTC." The full date/time (seconds, explicit UTC) is stable
+  across locale/timezone changes and does not claim a late-delivered week is
+  still open. It is also <= 60 characters, including week 16.
 
   scheduler.ts owns only date-trigger mapping and prefix cancellation.
   service.ts owns serialized storage, permission and scheduling operations.
@@ -32,10 +38,12 @@ Boundary and contract
 Integration
 
   SoloCreateScreen: default-on “Remind me each week” switch under the speed
-  pills, only for speed === 'real'. This is visible step 2 (internal step 3
-  with the existing witness step hidden). Confirmed chain readback invokes
-  afterCreate. Demo and off preferences are recorded but never request access.
-  A real/off retry clears a previously enabled set without requesting access.
+  pills for BOTH speeds. This is visible step 2 (internal step 3 with the
+  existing witness step hidden). Demo opt-in warns that alerts can arrive late
+  and to follow the in-app clock. Confirmed chain readback invokes afterCreate,
+  guarded once per address per screen instance; repeat calls replace the same
+  identifiers. Off preferences are recorded without requesting access; an off
+  retry clears a previously enabled set. Screen remount never schedules a set.
 
   One “Rituals” Android channel, default importance. Create the channel before
   asking permission, check current permission first, persist permissionAsked
@@ -76,11 +84,10 @@ Device verification for the parent (not performed by this branch)
      and a parent-built binary containing expo-notifications and its plugin.
      An OTA update of an older binary cannot add the native module. Preserve
      the user's existing app data; do not clear their real app installation.
-  2. On a clean test profile, enter “Read”, Next. Demo speed has no reminder
-     switch. Select Real weeks: switch appears selected in the existing pill
-     style. Toggle off/on with TalkBack; checked state should be announced.
-     Returning to Demo hides it. Neither speed selection prompts permission.
-  3. Create two Real weeks, 5 TEST each, reminders on. Approve creation; only
+  2. On a clean test profile, enter “Read”, Next. Both speeds have a default-on
+     reminder switch. Toggle off/on with TalkBack; checked state is announced.
+     Demo opt-in warns about late delivery. Neither selection prompts access.
+  3. Create two Real weeks, 5 tSKR each, reminders on. Approve creation; only
      after chain readback should Android ask. Allow promptly. Look for the
      “Rituals” channel at default importance and a reminders Scheduled log.
      Background the app before week one's on-chain opens; expect a notification
@@ -106,7 +113,7 @@ Device verification for the parent (not performed by this branch)
   8. In a separate clean disposable profile, deny the permission prompt after
      a Real-weeks create. Creation still succeeds with no pending reminders.
      Create another and restart: no second prompt. Also create with switch off
-     and create at Demo speed: neither adds requests or asks permission.
+     at either speed: neither adds requests or asks permission.
   9. Leave a separate unstamped Real-weeks ritual for the day/hour reminders.
      Verify delivery at its actual deadline-24h and deadline-1h, no new receipt
      reminder after resolution. This requires waiting; inspecting the queue
@@ -115,6 +122,12 @@ Device verification for the parent (not performed by this branch)
  10. On an old test binary without the native module, open/create/stamp/remove:
      these must still work and log a reminders failure, not crash. Test this
      separately from the new binary; unit injection cannot prove native linkage.
+ 11. Create two Demo weeks, reminders on. Inspect one :open request per future
+     week, deadline copy, no day/hour alarms. Hold the permission dialog past
+     week 1 opens: week 1 must be absent, not delivered on grant. Hold past both
+     openings: no alarms. Stamp/skip: that week's pending AND tray alerts clear.
+     Leave the ritual screen open past deadlines/completion: closed weeks clear.
+     Repeat after process restart; another ritual's requests must remain intact.
 
 Honest limits and rollback
 
@@ -122,7 +135,20 @@ Honest limits and rollback
   when Android denies exact-alarm access (ExpoSchedulingDelegate.kt). This
   branch does not add exact-alarm permissions or claim second-perfect delivery;
   Doze, force-stop, clock changes and OS settings may delay/prevent alerts.
-  No notification tap deep-link or post-create reminder settings UI is added.
+  Android channel importance affects presentation, NOT alarm precision. Date
+  and interval triggers use the same native alarm scheduler; changing trigger
+  type is not a precision fix. No JS handler or native expiry/TTL in this SDK
+  can veto a late local alert while the process is backgrounded/dead. A demo
+  alert may still arrive after its 45-second stamp window or ritual finishes
+  while away; deadline copy plus the create warning disclose that limitation.
+  Screen-event cleanup is best effort, not an atomic background expiry guarantee.
+  If zero late alerts is required, do not enable Demo reminders for that run.
+  No notification tap deep-link or post-create reminder settings UI is added:
+  Expo opens the app; cold start reaches Home, warm start resumes the current
+  navigator. No notification response listener attempts an invalid route.
+  Preferences/ids belong to rituals on this phone, not the selected wallet.
+  Account switching neither duplicates nor cancels another wallet's reminders;
+  "Remove from this phone" cancels them explicitly. No automatic wallet scoping.
   No migration opts existing remembered rituals in, and no background RPC can
   discover stamps made elsewhere while this phone stays closed. Native queues
   normally persist independently of JS, but an app kill mid-schedule, failed
