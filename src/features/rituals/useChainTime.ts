@@ -36,14 +36,14 @@ export function useChainTime(connection: Connection, focused = true): number | n
     }
     setNow(estimate())
     void sync()
-    // A read still in flight across a pause is stale: drop it and read again.
+    // A read in flight across a pause is stale: drop it, and read again on return.
     const listener = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') return
       generation++
+      if (state !== 'active') return
       setNow(estimate())
       void sync()
     })
-    const tick = setInterval(() => { if (alive) setNow(estimate()) }, 1000)
+    const tick = setInterval(() => { if (alive && focused) setNow(estimate()) }, 1000)
     const refresh = setInterval(() => { void sync() }, 15_000)
     return () => { alive = false; listener.remove(); clearInterval(tick); clearInterval(refresh) }
   }, [connection, focused])
