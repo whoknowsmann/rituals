@@ -205,6 +205,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const [autoSettling, setAutoSettling] = useState(false)
   const [autoRun, setAutoRun] = useState(0)
   const autoFailures = useRef(0)
+  useEffect(() => { autoFailures.current = 0 }, [model?.eventIndex])
   const mountedRef = useRef(true)
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; maySettle.current = () => false } }, [])
   const canAutoSettle = Boolean(model && model.state === 'resolving/settle' && settlementVisibleEnough(model, focused, appState) && settler && settlerClient && read && ritualAddress && settlerBalance !== null && settlerCanPay(settlerBalance, model.needsEventInit) && autoFailures.current < 3)
@@ -229,6 +230,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   // on merely opening a week that was already stamped.
   const [celebrate, setCelebrate] = useState(0)
   useEffect(() => {
+    if (!model) return // the week clock re-syncing after a pause is not a new stamp
     if (model?.showedUp && !showedUpBefore.current) {
       haptic.success()
       if (claimEventIndex.current !== null && claimEventIndex.current === model.eventIndex) setCelebrate((value) => value + 1)

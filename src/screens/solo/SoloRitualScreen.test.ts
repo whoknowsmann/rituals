@@ -74,5 +74,11 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('<Confetti fire={celebrate}')
     expect(source).toContain('animate={freshStamp}')
     expect(source).not.toContain("animate={action.state.status !== 'confirmed'}")
+    // A week-clock re-sync (model briefly null) is not a new stamp.
+    expect(source).toMatch(/useEffect\(\(\) => \{\n\s+if \(!model\) return[^\n]*\n\s+if \(model\?\.showedUp && !showedUpBefore\.current\)/)
+  })
+
+  it('gives every week its own three settle-key tries', () => {
+    expect(source).toContain('useEffect(() => { autoFailures.current = 0 }, [model?.eventIndex])')
   })
 })
