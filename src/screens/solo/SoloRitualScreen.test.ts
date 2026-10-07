@@ -75,23 +75,23 @@ describe('SoloRitualScreen proof and witness controls', () => {
     const body = source.slice(source.indexOf('function renderState('))
     const kept = body.indexOf('if (keptWeek !== null) return')
     expect(kept).toBeGreaterThan(0)
+    // Ahead of every card that used to replace the stamp, so those cards only ever show for an unstamped week.
     for (const later of ["if (model.state === 'waiting')", "if (model.state === 'closing')", "if (model.state === 'resolving/settle')"]) expect(kept).toBeLessThan(body.indexOf(later))
-    // The narration cards that replaced the stamp are gone; the unstamped (missed) path keeps its own.
-    expect(source).not.toContain('You showed up. It settles in a moment.')
-    expect(source).not.toContain('Your stake comes back to you.')
-    expect(source).toContain('The check-in window has closed. It settles in a moment.')
+    expect(body.match(/<Stamp kind="showed-up"/g)).toHaveLength(1)
     expect(source).toContain('<WeekStrip cells={punchCardCells(model.weekCells, model.showedUp, keptWeek)}')
-    expect(source).toContain('`Week ${titleWeekIndex(model, keptWeek) + 1}`')
+    expect(source).toContain('`Week ${titleWeekIndex(model, keptWeek, readyBundle.ritual.account.skipDeclared ? readyBundle.ritual.account.skipEventIndex : null) + 1}`')
     expect(source.match(/\{nextLine && <Text style=\{s\.muted\}>\{nextLine\}<\/Text>\}/g)).toHaveLength(1)
     // Last week's MISSED paper gives way to this week's stamp.
     expect(source).toContain("model.state !== 'missed' && keptWeek === null && <View style={s.paper}")
   })
 
-  it('keeps the one declared skip available while valid, as a quiet link out of the main flow that names its week (Jack, 2026-10-07)', () => {
+  it('keeps the one declared skip available while valid, as a quiet link that names its week (Jack, 2026-10-07)', () => {
     expect(source).toContain("{model.canSkip && <ActionButton tone=\"link\" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start}")
     expect(source).not.toContain('Skip next week')
     expect(source).not.toMatch(/tone="(quiet|dark|go)"[^\n]*skip\.start/)
-    // After the other secondary controls, never between the hero and them.
-    expect(source.indexOf('tone="link" label={skip.isBusy')).toBeGreaterThan(source.indexOf('label={`Reminders: '))
+    // Right under the line that says when that week opens, above the bordered secondary buttons.
+    const link = source.indexOf('tone="link" label={skip.isBusy')
+    expect(link).toBeGreaterThan(source.indexOf('{nextLine && '))
+    expect(link).toBeLessThan(source.indexOf('label={`See week '))
   })
 })

@@ -257,7 +257,7 @@ const useS = themedStyles((color) => StyleSheet.create({
   btnDark: { backgroundColor: color.fg },
   btnQuiet: { backgroundColor: color.card, borderWidth: 1, borderColor: color.line },
   btnText: { ...type.heading, color: color.fg },
-  link: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: space.lg },
+  link: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   linkText: { ...type.bodyStrong, color: color.muted, textDecorationLine: 'underline' },
 
   dock: { position: 'absolute', left: 12, right: 12, bottom: 14, backgroundColor: color.fg, borderRadius: radius.poster, paddingVertical: 14, paddingLeft: space.xl, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 14, elevation: 12, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },

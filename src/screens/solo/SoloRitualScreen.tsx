@@ -289,7 +289,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     <View style={s.root}>
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
       {/* The poster is the hero; the line above it is the week, nothing else. */}
-      <Text style={s.title} accessibilityRole="header">{model.state === 'funding' ? 'Solo ritual' : model.state === 'completed' ? 'Finished' : `Week ${titleWeekIndex(model, keptWeek) + 1}`}</Text>
+      <Text style={s.title} accessibilityRole="header">{model.state === 'funding' ? 'Solo ritual' : model.state === 'completed' ? 'Finished' : `Week ${titleWeekIndex(model, keptWeek, readyBundle.ritual.account.skipDeclared ? readyBundle.ritual.account.skipEventIndex : null) + 1}`}</Text>
       <Poster tint={tint} kicker="YOUR RITUAL" title={ritualTitle ?? 'Your ritual'}>
         {ritualNote ? <Text style={s.posterNote}>{ritualNote}</Text> : null}
         <WeekStrip cells={punchCardCells(model.weekCells, model.showedUp, keptWeek)} tint={tint} onClosedWeekPress={(eventIndex) => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex })} />
@@ -313,12 +313,11 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
       {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
+      {model.canSkip && <ActionButton tone="link" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
       {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to rituals" onPress={() => navigation.navigate('RitualsHome')} />}
       {readyBundle.ritual.account.status === 'Active' && model.state !== 'completed' && <ActionButton tone="quiet" label={`Reminders: ${ritualRemindersOn ? 'on' : 'off'}`} onPress={toggleRitualReminders} disabled={!reminderSettings.preferences?.masterEnabled || reminderSettings.busy || claim.isBusy || skip.isBusy || settle.isBusy} />}
       {reminderSettings.error && <Text style={s.muted} accessibilityLiveRegion="polite">{reminderSettings.error}</Text>}
-      {/* A minor action looks minor (Jack, 2026-10-07): a quiet link, only while the skip is valid. */}
-      {model.canSkip && <ActionButton tone="link" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
       {removalError && <ErrorLine>{removalError}</ErrorLine>}
 
@@ -339,8 +338,8 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   // An open week with no event account yet needs no card either: the HOLD opens it.
   if (model.state === 'open-not-initialized') return null
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>
-  if (model.state === 'closing') return <View style={s.card}><Text style={s.cardTitle}>This week is closing</Text><Text style={s.muted}>The check-in window has closed. It settles in a moment.</Text></View>
-  if (model.state === 'resolving/settle') return <View style={s.card}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.cardTitle}>{settlingByItself ? 'Closing this week…' : 'This week is ready to settle'}</Text><Text style={s.muted}>{`${model.destinationLabel} gets this week's stake.`}</Text></View>
+  if (model.state === 'closing') return <View style={s.card}><Text style={s.cardTitle}>This week is closing</Text><Text style={s.muted}>{model.showedUp ? 'You showed up. It settles in a moment.' : 'The check-in window has closed. It settles in a moment.'}</Text></View>
+  if (model.state === 'resolving/settle') return <View style={s.card}>{!model.showedUp && <Stamp kind="missed" note="That's a week, not a verdict." animate={false} />}<Text style={s.cardTitle}>{settlingByItself ? 'Closing this week…' : 'This week is ready to settle'}</Text><Text style={s.muted}>{model.showedUp ? 'Your stake comes back to you.' : `${model.destinationLabel} gets this week's stake.`}</Text></View>
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>
   if (model.state === 'completed') return null

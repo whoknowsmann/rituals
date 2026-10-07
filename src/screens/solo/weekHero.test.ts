@@ -31,7 +31,9 @@ const screen = (bundle: SoloRitualBundle, now: number, seen: number | null = nul
   const model = soloRitualModel(bundle, now, me)
   const kept = keptWeekOnScreen(model, model.showedUp ? model.eventIndex : seen)
   const cells = punchCardCells(model.weekCells, model.showedUp, kept)
-  return { state: model.state, kept, title: titleWeekIndex(model, kept) + 1, line: nextUpLine(model, schedule, now, kept, settlingByItself), cells: cells.map(weekCellLabel).join(' '), summary: weekSummary(cells) }
+  const account = bundle.ritual.account
+  const title = titleWeekIndex(model, kept, account.skipDeclared ? account.skipEventIndex : null) + 1
+  return { state: model.state, kept, title, line: nextUpLine(model, schedule, now, kept, settlingByItself), cells: cells.map(weekCellLabel).join(' '), summary: weekSummary(cells) }
 }
 
 describe('ritual screen after a stamp (demo speed)', () => {
@@ -66,9 +68,13 @@ describe('ritual screen after a stamp (demo speed)', () => {
     expect(screen(finished, 1117)).toMatchObject({ state: 'completed', kept: 1, line: null, cells: '✓ ✓', summary: 'All 2 weeks done · 2 kept' })
   })
 
-  it('names the week a missed stamp belongs to, and leaves unstamped weeks alone', () => {
+  it('names the week a missed or skipped stamp belongs to, and leaves unstamped weeks alone', () => {
     const missed = read({ currentEventIndex: 1, settledEventCount: 1 }, null, [], [missedWeek1])
     expect(screen(missed, 1057)).toMatchObject({ state: 'missed', kept: null, title: 1, line: 'Week 2 opens in 3s', cells: '✕ 2' })
+    const skippedWeek1 = { ritual: { account: ritual({ skipDeclared: true, skipEventIndex: 0 }), address }, event: event(0, { status: 'Voided', voidReason: 'DeclaredSkip', claimedMembersBitmap: 0, confirmedMembersBitmap: 0 }), claims: [] }
+    expect(screen(read({ currentEventIndex: 1, settledEventCount: 1, skipDeclared: true, skipEventIndex: 0 }, null, [], [skippedWeek1]), 1057)).toMatchObject({ state: 'skipped', kept: null, title: 1, line: 'Week 2 opens in 3s' })
+    // A skip declared for the coming week (week 2, index 1) names that week, never the one before it.
+    expect(titleWeekIndex({ state: 'skipped', eventIndex: 1 }, null, 1)).toBe(1)
     expect(screen(read({}, null, []), 990)).toMatchObject({ state: 'waiting', kept: null, title: 1, line: null, cells: '1 2' })
     expect(screen(read({}, null, []), 1020)).toMatchObject({ state: 'open-not-initialized', kept: null, line: null, cells: 'NOW 2' })
     // A stale memory of an older week never borrows the hero.

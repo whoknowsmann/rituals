@@ -25,10 +25,15 @@ export function keptWeekOnScreen(model: HeroModel, seen: number | null): number 
   return seen === previous || (model.lastClosedOutcome === 'done' && model.lastClosedEventIndex === previous) ? previous : null
 }
 
-/** The week the title names: the one whose stamp is the hero, else the current week. */
-export function titleWeekIndex(model: Pick<SoloRitualModel, 'state' | 'eventIndex'>, keptWeek: number | null): number {
+/**
+ * The week the title names: the one whose stamp is the hero (kept, missed or
+ * skipped), else the current week. `skippedWeek` is the chain's declared skip,
+ * which is the current week or the one before it.
+ */
+export function titleWeekIndex(model: Pick<SoloRitualModel, 'state' | 'eventIndex'>, keptWeek: number | null, skippedWeek: number | null): number {
   if (keptWeek !== null) return keptWeek
-  return (model.state === 'missed' || model.state === 'skipped') && model.eventIndex > 0 ? model.eventIndex - 1 : model.eventIndex
+  if (model.state === 'skipped' && skippedWeek !== null) return skippedWeek
+  return model.state === 'missed' && model.eventIndex > 0 ? model.eventIndex - 1 : model.eventIndex
 }
 
 /**
