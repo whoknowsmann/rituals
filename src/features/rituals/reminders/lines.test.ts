@@ -8,7 +8,8 @@ const banned = /\b(win(?:s|ning)?|beat(?:s|ing)?|pot|jackpot|payout|odds|luck(?:
 describe('reminder voice', () => {
   it('uses an absolute demo stamp deadline, not a claim that an inexact alert is still timely', () => {
     const deadline = Date.parse('2026-10-07T18:30:45Z') / 1000
-    expect(demoReminderLine(2, deadline)).toBe('Demo week 2: stamp by 2026-10-07 18:30:45 UTC.')
+    expect(demoReminderLine(2, deadline)).toMatch(/^Week 2: stamp by \d{1,2}:\d{2}:45 (AM|PM)\.$/)
+    expect(demoReminderLine(2, deadline)).not.toMatch(/UTC|2026/)
     for (let week = 1; week <= 16; week += 1) {
       for (const at of [deadline, 0, 8_640_000_000_000]) {
         const line = demoReminderLine(week, at)

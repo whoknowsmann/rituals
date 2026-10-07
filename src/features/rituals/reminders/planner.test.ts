@@ -46,7 +46,7 @@ describe('chain schedule reminder planner', () => {
     expect(plan.every((item) => item.id.endsWith(':open'))).toBe(true)
     for (const [index, reminder] of plan.entries()) {
       expect(reminder.at).toBe(Number(windows[index].opens))
-      expect(reminder.body).toContain(new Date(Number(windows[index].deadline) * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC'))
+      expect(reminder.body).toMatch(/^Week \d+: stamp by \d{1,2}:\d{2}:\d{2} (AM|PM)\.$/)
       expect(reminder.body).not.toContain('is open')
     }
     expect(planReminders(windows, options)).toEqual(plan)

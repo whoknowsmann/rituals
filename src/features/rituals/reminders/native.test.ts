@@ -38,7 +38,7 @@ describe('Expo 0.29 reminder adapter (mocked native modules)', () => {
   })
   it('preserves demo metadata and absolute date/channel through the native adapter', async () => {
     const request = { identifier: 'rituals:reminders:v1:A:0:open',
-      content: { title: 'Read', body: 'Demo week 1: stamp by 2026-10-07 18:30:45 UTC.', sound: 'default' as const,
+      content: { title: 'Read', body: 'Week 1: stamp by 1:30:45 PM.', sound: 'default' as const,
         data: { ritualReminder: 'demo' as const } },
       trigger: { type: 'date' as const, date: new Date('2026-10-07T18:30:00Z'), channelId: 'rituals-demo-weeks' } }
     await nativeReminderNotifications().scheduleNotificationAsync(request)

@@ -1,11 +1,13 @@
 export type ReminderKind = 'open' | 'day' | 'hour'
 
-/** Android may deliver after a short demo window closes. State the immutable
- * deadline, never that the week is still open. UTC stays unambiguous across
- * midnight and timezone changes; planner validates the date and week bounds. */
+/** Demo weeks last a minute and Android may deliver a local alert late, so
+ * the line names the stamp deadline in the phone's own time, short and
+ * readable ("Week 2: stamp by 6:52:30 PM."; never "is open", which a late alert would get wrong), never "UTC" or a date. */
 export function demoReminderLine(week: number, deadlineSeconds: number): string {
-  const deadline = new Date(deadlineSeconds * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC')
-  return `Demo week ${week}: stamp by ${deadline}.`
+  const at = new Date(deadlineSeconds * 1000)
+  const hours = at.getHours()
+  const time = `${hours % 12 === 0 ? 12 : hours % 12}:${String(at.getMinutes()).padStart(2, '0')}:${String(at.getSeconds()).padStart(2, '0')} ${hours < 12 ? 'AM' : 'PM'}`
+  return `Week ${week}: stamp by ${time}.`
 }
 
 /** Authored copy only. No random draws: an address/week keeps its voice. */

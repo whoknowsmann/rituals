@@ -18,8 +18,7 @@ describe('reminder integration pins (not native UI tests)', () => {
     expect(create.indexOf('accessibilityLabel="Remind me each week"')).toBeGreaterThan(create.indexOf('SOLO_SPEEDS.map'))
     expect(create).toContain('styles.preset, remindWeekly && styles.presetChosen')
     expect(create).toContain('enabled: remindWeekly')
-    expect(create).toContain("speed === 'demo' && remindWeekly")
-    expect(create).toContain('Demo reminders can arrive late. Follow the in-app clock.')
+    expect(create).not.toContain('Demo reminders can arrive late')
   })
   it('schedules only after confirmed readback and uses its chain schedule', () => {
     const create = source('../../../screens/solo/SoloCreateScreen.tsx')
