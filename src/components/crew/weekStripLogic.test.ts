@@ -32,4 +32,15 @@ describe('punch card (week strip)', () => {
   it('has a short form that fits a small tile', () => {
     expect(weekSummaryShort(['done', 'missed', 'now', 'future'])).toBe('1 of 4 kept')
   })
+
+  it('shows a stamped week as ✓ at once: still the current week, counted kept, no receipt until it closes', () => {
+    expect(weekCellLabel('stamped', 0)).toBe('✓')
+    expect(isClosedWeekCell('stamped')).toBe(false)
+    expect(weekSummary(['stamped', 'future'])).toBe('Week 1 of 2 · 1 kept')
+    expect(weekSummary(['done', 'missed', 'stamped'])).toBe('Week 3 of 3 · 2 kept · 1 missed')
+    expect(weekSummaryShort(['done', 'stamped', 'future'])).toBe('2 of 3 kept')
+    const kit = readFileSync(`${__dirname}/index.tsx`, 'utf8')
+    expect(kit).toContain('const kept = isKeptWeekCell(cell)')
+    expect(kit).toContain('kept && s.cellDone')
+  })
 })

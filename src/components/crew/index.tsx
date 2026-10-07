@@ -7,7 +7,7 @@ import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewS
 import * as Haptics from 'expo-haptics'
 import { color, memberColor, radius, space, type, themedStyles, useColors } from '../../theme'
 import { HoldButton } from './HoldButton'
-import { isClosedWeekCell, weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
+import { isClosedWeekCell, isKeptWeekCell, weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
 
 export { HoldButton }
 export { Confetti } from './Confetti'
@@ -78,9 +78,10 @@ export function WeekStrip({ cells, tint, compact = false, summary = true, summar
     <View accessibilityLabel={line}>
       <View style={[s.strip, compact && s.stripCompact]}>
         {cells.map((cell, i) => {
-          if (compact) return <View key={i} style={[s.dot, cell === 'done' && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
-          const cellStyle = [s.cell, cell === 'done' && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]
-          const label = <Text style={[s.cellText, cell === 'done' && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
+          const kept = isKeptWeekCell(cell)
+          if (compact) return <View key={i} style={[s.dot, kept && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
+          const cellStyle = [s.cell, kept && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]
+          const label = <Text style={[s.cellText, kept && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
           return onClosedWeekPress && isClosedWeekCell(cell)
             ? <Pressable key={i} onPress={() => onClosedWeekPress(i)} accessibilityRole="button" accessibilityLabel={`See week ${i + 1} receipt`} hitSlop={{ top: 6, bottom: 6 }} style={({ pressed }) => [...cellStyle, pressed && { opacity: 0.7 }]}>{label}</Pressable>
             : <View key={i} style={cellStyle}>{label}</View>
