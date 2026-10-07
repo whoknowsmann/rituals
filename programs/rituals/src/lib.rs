@@ -1231,6 +1231,296 @@ pub mod rituals {
         config.maximum_fee = maximum_fee;
         Ok(())
     }
+
+    /// End a solo ritual early and give its money back. Remaining accounts are
+    /// the event PDA of every unsettled week, in schedule order (absent ones
+    /// too), so the chain clock decides which weeks are already decided. A week
+    /// whose deadline has passed settles exactly as finalize_event would (no
+    /// event account means nobody stamped: a miss); an open week that is
+    /// already stamped settles as kept. Everything else in both vaults goes to
+    /// the creator and the vaults close. `expected_forfeit` is the forfeit the
+    /// creator was shown: a deadline passing during wallet approval fails the
+    /// transaction instead of sending more than they agreed to.
+    pub fn eject_ritual<'a>(
+        ctx: Context<'_, '_, '_, 'a, EjectRitual<'a>>,
+        expected_forfeit: u64,
+    ) -> Result<()> {
+        let ritual = &ctx.accounts.ritual;
+        let ritual_key = ritual.key();
+        ritual.validate_active_state(ritual_key)?;
+        require!(
+            ctx.accounts.stake_vault.amount >= ritual.funded_stake_total,
+            RitualsError::FinalizeStakeVaultShort
+        );
+        let first = ritual.current_event_index as usize;
+        require!(
+            ctx.remaining_accounts.len() == ritual.schedule.len() - first,
+            RitualsError::EjectEventAccounts
+        );
+        let now = Clock::get()?.unix_timestamp;
+        let mut receipts = Vec::new();
+        let mut forfeited = 0u64;
+        let mut remaining = ritual.funded_stake_total;
+        for (offset, info) in ctx.remaining_accounts.iter().enumerate() {
+            let index = (first + offset) as u8;
+            let window = &ritual.schedule[index as usize];
+            let lapsed = window.deadline < now;
+            let absent = info.owner == &anchor_lang::system_program::ID && info.data_is_empty();
+            // Weeks are chronological: after the first undecided week, none is decided.
+            if !lapsed && absent {
+                break;
+            }
+            let (address, bump) = Pubkey::find_program_address(
+                &[b"event", ritual_key.as_ref(), &[index]],
+                &crate::ID,
+            );
+            require!(
+                info.key == &address && info.is_writable,
+                RitualsError::EjectEventAccounts
+            );
+            let mut event = if absent {
+                RitualEvent {
+                    schema_version: 1,
+                    ritual: ritual_key,
+                    event_index: index,
+                    window: window.clone(),
+                    member_count: 1,
+                    status: EventStatus::Resolving,
+                    claimed_members_bitmap: 0,
+                    confirmed_members_bitmap: 0,
+                    questioned_members_bitmap: 0,
+                    initialized_at: now,
+                    resolved_at: 0,
+                    settlement_version: 0,
+                    void_reason: VoidReason::None,
+                    event_pool: 0,
+                    forfeited_total: 0,
+                    payout_total: 0,
+                    refunded_total: 0,
+                    confirmed_member_count: 0,
+                    remainder_units: 0,
+                    remaining_stake_total_after: 0,
+                    bump,
+                }
+            } else {
+                require!(
+                    info.owner == &crate::ID && info.data_len() == 8 + RitualEvent::INIT_SPACE,
+                    RitualsError::EjectEventAccounts
+                );
+                let event = RitualEvent::try_deserialize(&mut &info.data.borrow()[..])?;
+                require!(
+                    event.schema_version == 1
+                        && event.ritual == ritual_key
+                        && event.event_index == index
+                        && event.window == *window
+                        && event.member_count == 1
+                        && event.bump == bump
+                        && matches!(
+                            event.status,
+                            EventStatus::Scheduled | EventStatus::Claiming | EventStatus::Resolving
+                        )
+                        && event.settlement_version == 0
+                        && event.resolved_at == 0
+                        && event.initialized_at <= now
+                        && event.void_reason == VoidReason::None
+                        && event.event_pool == 0
+                        && event.forfeited_total == 0
+                        && event.payout_total == 0
+                        && event.refunded_total == 0
+                        && event.confirmed_member_count == 0
+                        && event.remainder_units == 0
+                        && event.remaining_stake_total_after == 0,
+                    RitualsError::EventStateInconsistent
+                );
+                event
+            };
+            // An open week counts only once it is stamped: then it is kept.
+            if !lapsed && event.confirmed_members_bitmap == 0 {
+                break;
+            }
+            let plan = derive_solo_event_settlement_plan(
+                ritual.per_event_allocation,
+                event.claimed_members_bitmap,
+                event.confirmed_members_bitmap,
+                event.questioned_members_bitmap,
+                ritual.skip_declared && ritual.skip_event_index == index,
+            )?;
+            require!(
+                plan.payout_total
+                    .checked_add(plan.refunded_total)
+                    .and_then(|v| v.checked_add(plan.forfeited_total))
+                    == Some(plan.event_pool),
+                RitualsError::SettlementAccountingOverflow
+            );
+            forfeited = forfeited
+                .checked_add(plan.forfeited_total)
+                .ok_or(RitualsError::SettlementAccountingOverflow)?;
+            remaining = remaining
+                .checked_sub(plan.event_pool)
+                .ok_or(RitualsError::SettlementAccountingOverflow)?;
+            event.status = plan.status;
+            event.void_reason = plan.void_reason;
+            event.settlement_version = 1;
+            event.resolved_at = now;
+            event.event_pool = plan.event_pool;
+            event.forfeited_total = plan.forfeited_total;
+            event.payout_total = plan.payout_total;
+            event.refunded_total = plan.refunded_total;
+            event.confirmed_member_count = plan.confirmed_member_count;
+            event.remainder_units = plan.remainder_units;
+            event.remaining_stake_total_after = remaining;
+            receipts.push((info, event, absent));
+            if !lapsed {
+                break;
+            }
+        }
+        // Consent is amount-bound: a newly lapsed miss requires a fresh review,
+        // never silently taking more than the receipt the creator approved.
+        require!(
+            forfeited == expected_forfeit,
+            RitualsError::EjectQuoteChanged
+        );
+        let refund = ctx
+            .accounts
+            .stake_vault
+            .amount
+            .checked_sub(forfeited)
+            .ok_or(RitualsError::SettlementAccountingOverflow)?;
+        let creator = ritual.creator;
+        let nonce = ritual.nonce.to_le_bytes();
+        let bump = [ritual.bump];
+        let seeds: &[&[u8]] = &[b"ritual", creator.as_ref(), nonce.as_ref(), bump.as_ref()];
+        for (from, to, amount) in [
+            (
+                ctx.accounts.stake_vault.to_account_info(),
+                ctx.accounts.forfeit_destination.to_account_info(),
+                forfeited,
+            ),
+            (
+                ctx.accounts.stake_vault.to_account_info(),
+                ctx.accounts.creator_destination.to_account_info(),
+                refund,
+            ),
+            (
+                ctx.accounts.fee_vault.to_account_info(),
+                ctx.accounts.creator_destination.to_account_info(),
+                ctx.accounts.fee_vault.amount,
+            ),
+        ] {
+            if amount > 0 {
+                token::transfer_checked(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        token::TransferChecked {
+                            from,
+                            to,
+                            mint: ctx.accounts.stake_mint.to_account_info(),
+                            authority: ritual.to_account_info(),
+                        },
+                        &[seeds],
+                    ),
+                    amount,
+                    ritual.stake_decimals,
+                )?;
+            }
+        }
+        // Return rent before allocating missing receipts; the creator can reuse it.
+        for vault in [
+            ctx.accounts.stake_vault.to_account_info(),
+            ctx.accounts.fee_vault.to_account_info(),
+        ] {
+            token::close_account(CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                token::CloseAccount {
+                    account: vault,
+                    destination: ctx.accounts.creator.to_account_info(),
+                    authority: ritual.to_account_info(),
+                },
+                &[seeds],
+            ))?;
+        }
+        let settled = ritual
+            .settled_event_count
+            .checked_add(receipts.len() as u8)
+            .ok_or(RitualsError::SettlementAccountingOverflow)?;
+        for (info, event, absent) in receipts {
+            if absent {
+                // Allocate/assign instead of create_account: unsolicited lamports
+                // at a missing PDA must not prevent its miss from being settled.
+                let size = 8 + RitualEvent::INIT_SPACE;
+                let rent = Rent::get()?
+                    .minimum_balance(size)
+                    .saturating_sub(info.lamports());
+                if rent > 0 {
+                    anchor_lang::system_program::transfer(
+                        CpiContext::new(
+                            ctx.accounts.system_program.to_account_info(),
+                            anchor_lang::system_program::Transfer {
+                                from: ctx.accounts.creator.to_account_info(),
+                                to: info.clone(),
+                            },
+                        ),
+                        rent,
+                    )?;
+                }
+                let index = [event.event_index];
+                let bump = [event.bump];
+                let seeds: &[&[u8]] = &[b"event", ritual_key.as_ref(), &index, &bump];
+                anchor_lang::system_program::allocate(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Allocate {
+                            account_to_allocate: info.clone(),
+                        },
+                        &[seeds],
+                    ),
+                    size as u64,
+                )?;
+                anchor_lang::system_program::assign(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Assign {
+                            account_to_assign: info.clone(),
+                        },
+                        &[seeds],
+                    ),
+                    &crate::ID,
+                )?;
+            }
+            event.try_serialize(&mut &mut info.data.borrow_mut()[..])?;
+        }
+        let ritual = &mut ctx.accounts.ritual;
+        ritual.status = RitualStatus::Ended;
+        ritual.completed_at = now;
+        ritual.current_event_index = settled;
+        ritual.settled_event_count = settled;
+        ritual.funded_stake_total = 0;
+        ritual.vaults_closed = true;
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct EjectRitual<'info> {
+    #[account(mut, seeds = [b"ritual", ritual.creator.as_ref(), &ritual.nonce.to_le_bytes()], bump = ritual.bump,
+        constraint = ritual.status == RitualStatus::Active @ RitualsError::EjectActiveOnly,
+        constraint = ritual.is_solo() @ RitualsError::SoloOnlyInstruction)]
+    pub ritual: Box<Account<'info, Ritual>>,
+    #[account(mut, address = ritual.creator @ RitualsError::EjectCreatorOnly)]
+    pub creator: Signer<'info>,
+    #[account(address = ritual.stake_mint, constraint = stake_mint.decimals == ritual.stake_decimals)]
+    pub stake_mint: Account<'info, Mint>,
+    #[account(mut, address = ritual.stake_vault, seeds = [b"stake-vault", ritual.key().as_ref()], bump = ritual.stake_vault_bump, token::mint = stake_mint, token::authority = ritual)]
+    pub stake_vault: Account<'info, TokenAccount>,
+    #[account(mut, address = ritual.fee_vault, seeds = [b"fee-vault", ritual.key().as_ref()], bump = ritual.fee_vault_bump, token::mint = stake_mint, token::authority = ritual)]
+    pub fee_vault: Account<'info, TokenAccount>,
+    #[account(mut, constraint = creator_destination.owner == ritual.creator && creator_destination.mint == ritual.stake_mint @ RitualsError::InvalidRefundDestination)]
+    pub creator_destination: Account<'info, TokenAccount>,
+    #[account(mut, address = ritual.forfeit_destination @ RitualsError::InvalidFinalizeDestination,
+        constraint = forfeit_destination.mint == ritual.stake_mint && forfeit_destination.key() != creator_destination.key() @ RitualsError::InvalidFinalizeDestination)]
+    pub forfeit_destination: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 /// Shared fee-setting validation for initialize and update. A zero fee
@@ -2172,6 +2462,7 @@ pub enum RitualStatus {
     Active,
     Completed,
     Cancelled,
+    Ended,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Eq, Debug)]
@@ -2788,4 +3079,12 @@ pub enum RitualsError {
     SeasonAccountMismatch,
     #[msg("season check-in counter overflowed")]
     SeasonCheckInOverflow,
+    #[msg("only the creator can end a ritual")]
+    EjectCreatorOnly,
+    #[msg("only an active ritual can be ended; use cancel_unactivated for funding")]
+    EjectActiveOnly,
+    #[msg("pass every unsettled event PDA in schedule order")]
+    EjectEventAccounts,
+    #[msg("the forfeit amount changed; review again")]
+    EjectQuoteChanged,
 }

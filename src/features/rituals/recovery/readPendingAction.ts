@@ -9,6 +9,7 @@ export async function readPendingAction(client: RitualClient, address: PublicKey
     const read = await client.readRitual(address)
     if (record.actor && record.eventIndex !== undefined) {
       if (record.actionKind === 'declare-skip') return { slot: read.slot, actionObserved: read.account.skipDeclared && read.account.skipEventIndex === record.eventIndex }
+      if (record.actionKind === 'eject') return { slot: read.slot, actionObserved: read.account.status === 'Ended' && read.account.creator.toBase58() === record.actor }
       if (['claim', 'initialize-event-and-claim', 'initialize-event', 'finalize'].includes(record.actionKind)) {
         const bundle = await client.getEventBundle(address, record.eventIndex)
         const observed = record.actionKind === 'initialize-event' ? Boolean(bundle.event)

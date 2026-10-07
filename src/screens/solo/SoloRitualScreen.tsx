@@ -101,7 +101,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const { afterStamp: cancelWeekReminders } = useReminders({ ritualAddress: route.params.ritualId,
     eventIndex: read?.ritual.account.currentEventIndex, stamped: Boolean(model?.showedUp),
     schedule: read?.ritual.account.schedule, nowSeconds: chainNow ?? undefined,
-    completed: read?.ritual.account.status === 'Completed',
+    completed: read?.ritual.account.status === 'Completed' || read?.ritual.account.status === 'Ended',
     skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined })
   const makeSharedDeps = useCallback((kind: 'claim' | 'finalize' | 'initialize-event') => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !read || !model) throw new Error('Ritual or wallet is not ready')
@@ -259,7 +259,8 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const readyForWallet = Boolean(selectedAccount && readyBundle.ritual.account.members.some((member) => member.equals(selectedAccount.publicKey)))
   const tint = ritualTintAmong(route.params.ritualId, knownRituals)
   // Only a finished ritual, or one another wallet made, can leave this phone's list; an active ritual of yours stays visible.
-  const removable = model.state === 'completed' || Boolean(selectedAccount && !readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
+  const ended = model.state === 'ended'
+  const removable = model.state === 'completed' || ended || Boolean(selectedAccount && !readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
   const removeFromPhone = () => {
     if (removalOpen.current || removalSaving.current) return
     removalOpen.current = true
@@ -297,14 +298,14 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     <View style={s.root}>
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
       {/* The poster is the hero; the line above it is the week, nothing else. */}
-      <Text style={s.title} accessibilityRole="header">{model.state === 'funding' ? 'Solo ritual' : model.state === 'completed' ? 'Finished' : `Week ${titleWeekIndex(model, keptWeek, readyBundle.ritual.account.skipDeclared ? readyBundle.ritual.account.skipEventIndex : null) + 1}`}</Text>
+      <Text style={s.title} accessibilityRole="header">{model.state === 'funding' ? 'Solo ritual' : model.state === 'completed' ? 'Finished' : ended ? 'Ended' : `Week ${titleWeekIndex(model, keptWeek, readyBundle.ritual.account.skipDeclared ? readyBundle.ritual.account.skipEventIndex : null) + 1}`}</Text>
       <Poster tint={tint} kicker="YOUR RITUAL" title={ritualTitle ?? 'Your ritual'}>
         {ritualNote ? <Text style={s.posterNote}>{ritualNote}</Text> : null}
         <WeekStrip cells={punchCardCells(model.weekCells, model.showedUp, keptWeek)} tint={tint} onClosedWeekPress={(eventIndex) => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex })} />
         <PosterLine label="Stake per week" value={amountLabel} />
       </Poster>
-      {model.demoSpeedNotice && model.state !== 'completed' && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}
-      {!readyForWallet && <Text style={s.muted}>Connect the wallet that created this ritual to stamp it.</Text>}
+      {model.demoSpeedNotice && model.state !== 'completed' && !ended && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}
+      {!readyForWallet && !ended && <Text style={s.muted}>Connect the wallet that created this ritual to stamp it.</Text>}
       {canShareWitness && witness && (
         <View style={s.witnessCard}>
           <Text style={s.cardTitle}>Your witness</Text>
@@ -315,7 +316,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       )}
       {renderState(model, witness, action, actionCopy, weekNote, settlingByItself, celebrate > 0 && model.showedUp, keptSaying(route.params.ritualId, keptWeek ?? model.eventIndex), amountLabel, keptWeek)}
       {nextLine && <Text style={s.muted}>{nextLine}</Text>}
-      {model.lastClosedOutcome === 'missed' && model.state !== 'missed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>}
+      {model.lastClosedOutcome === 'missed' && model.state !== 'missed' && keptWeek === null && !ended && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
@@ -350,7 +351,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'resolving/settle') return <View style={s.card}>{!model.showedUp && !model.weekSkipped && <Stamp kind="missed" note="That's a week, not a verdict." animate={false} />}<Text style={s.cardTitle}>{settlingByItself ? 'Closing this week…' : 'This week is ready to settle'}</Text><Text style={s.muted}>{model.showedUp || model.weekSkipped ? 'Your stake comes back to you.' : `${model.destinationLabel} gets this week's stake.`}</Text></View>
   if (model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>
-  if (model.state === 'completed') return null
+  if (model.state === 'completed' || model.state === 'ended') return null
   if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Reading your stamp…</Text></View>
   // An open week needs no card: the big HOLD button says it all.
   return null

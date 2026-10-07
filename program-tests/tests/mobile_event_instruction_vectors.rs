@@ -152,3 +152,46 @@ fn event_instruction_manifests_are_frozen() {
         assert_eq!(value, expected[i], "vector {i}");
     }
 }
+
+#[test]
+fn eject_instruction_manifest_is_frozen() {
+    // A solo ritual (creator 11, nonce 7) ended during week 2 of 3: the event
+    // PDAs of weeks 2 and 3 follow the named accounts; 500 is the forfeit shown.
+    let program_id = VECTOR_PROGRAM_ID;
+    let creator = key(11);
+    let (ritual, _) = Pubkey::find_program_address(
+        &[b"ritual", creator.as_ref(), &7u64.to_le_bytes()],
+        &program_id,
+    );
+    let accounts = rituals::accounts::EjectRitual {
+        ritual,
+        creator,
+        stake_mint: key(22),
+        stake_vault: Pubkey::find_program_address(&[b"stake-vault", ritual.as_ref()], &program_id)
+            .0,
+        fee_vault: Pubkey::find_program_address(&[b"fee-vault", ritual.as_ref()], &program_id).0,
+        creator_destination: key(31),
+        forfeit_destination: key(33),
+        token_program: anchor_spl::token::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
+    };
+    let metas = accounts
+        .to_account_metas(None)
+        .into_iter()
+        .chain([1u8, 2].into_iter().map(|index| {
+            anchor_lang::solana_program::instruction::AccountMeta::new(
+                Pubkey::find_program_address(&[b"event", ritual.as_ref(), &[index]], &program_id).0,
+                false,
+            )
+        }))
+        .collect::<Vec<_>>();
+    let actual = manifest(
+        program_id,
+        &metas,
+        &rituals::instruction::EjectRitual {
+            expected_forfeit: 500,
+        }
+        .data(),
+    );
+    assert_eq!(actual, "program=8v1Go43dHxxaVHJhT4vxr2h794ETPhtqzQecPBnxmbjB;394425MuGkpJqaXpVNa2MpouYrgK9NCPWP6tExSigTn9:w/n;k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn:w/s;2VDW9dFE1ZXz4zWAbaBDQFynNVdRpQ73HyfSHMzBSL6Z:r/n;9sVTY4gFK7piEre3wE6scUtxqeqsYWXpnwQUbXVdDgFv:w/n;6DqHBBYAkcekni6GR3YBSzscQ75P2bCRGk3wsW7AngRY:w/n;36VASLSKLFD2KokjXG7V28veZvXEsyHRKefLonPaAKzv:w/n;3EKkiwNLWqoUbzFkPrmKbtUB4EweE6f4STzevYUmezeL:w/n;TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA:r/n;11111111111111111111111111111111:r/n;DznsTrZ4UJcXf82fT9HVjymqjjCR4or8sG4WUEXhNUAy:w/n;HrpCEFqhMMgUaiSNzowJSwk416pRT6daWhEeJPgwMxpr:w/n;9675e03dca4a6d3bf401000000000000");
+}

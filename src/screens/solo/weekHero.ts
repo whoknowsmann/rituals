@@ -49,7 +49,7 @@ export function nextUpLine(
   settlingByItself: boolean,
 ): string | null {
   if (model.state === 'missed' || model.state === 'skipped') return model.nextOpensLabel ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : null
-  if (keptWeek === null || model.state === 'completed') return null
+  if (keptWeek === null || model.state === 'completed' || model.state === 'ended') return null
   if (model.state === 'resolving/settle' && !settlingByItself) return null
   const next = schedule[keptWeek + 1]
   if (!next) return stampedWeekClosingLabel(model, now)

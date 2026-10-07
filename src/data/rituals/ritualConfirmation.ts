@@ -26,6 +26,7 @@ export type RitualActionExpectation =
   | Readonly<{ kind: 'funded'; member: PublicKey; expectedFundedMemberCount: number; expectedFundedStakeTotal: bigint; expectedFundedFeeTotal: bigint }>
   | Readonly<{ kind: 'activated' }>
   | Readonly<{ kind: 'cancelled' }>
+  | Readonly<{ kind: 'ejected'; creatorDestination: PublicKey; minimumCreatorBalance: bigint }>
   | Readonly<{ kind: 'vaults-closed' }>
   | Readonly<{ kind: 'event-initialized'; eventIndex: number }>
   | Readonly<{ kind: 'claimed'; claimant: PublicKey; eventIndex: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
@@ -97,6 +98,12 @@ function snapshotExpectation(value: unknown): RitualActionExpectation {
     return Object.freeze({ kind: 'bundle' as const, expectations: Object.freeze(raw.map(snapshotExpectation)) })
   }
   if (kind === 'activated' || kind === 'cancelled' || kind === 'vaults-closed') return Object.freeze({ kind })
+  if (kind === 'ejected') {
+    const creatorDestination = cloneKey(read(value as object, 'creatorDestination'), 'creatorDestination')
+    const minimumCreatorBalance = read<unknown>(value as object, 'minimumCreatorBalance')
+    if (!safeU64(minimumCreatorBalance)) fail('input', 'invalid eject balance expectation')
+    return Object.freeze({ kind, creatorDestination, minimumCreatorBalance: minimumCreatorBalance as bigint })
+  }
   if (kind === 'created') {
     const creator = cloneKey(read<unknown>(value as object, 'creator'), 'creator'); const nonce = read<unknown>(value as object, 'nonce')
     if (!safeU64(nonce)) fail('input', 'nonce is invalid')
@@ -176,6 +183,8 @@ function verifyExpectation(bundle: RitualBundleRead, expectation: RitualActionEx
     if (account.status !== 'Active' || account.activatedAt <= 0n || account.fundedMemberCount !== account.members.length || account.fundedMembersBitmap !== (1 << account.members.length) - 1) mismatch()
   } else if (expectation.kind === 'cancelled') {
     if (account.status !== 'Cancelled' || account.fundedStakeTotal !== 0n || account.fundedFeeTotal !== 0n) mismatch()
+  } else if (expectation.kind === 'ejected') {
+    if (account.status !== 'Ended' || account.kind !== 'Solo' || !account.vaultsClosed || account.fundedStakeTotal !== 0n) mismatch()
   } else if (expectation.kind === 'event-initialized') {
     if (!bundle.event || bundle.event.account.eventIndex !== expectation.eventIndex || !['Scheduled', 'Claiming', 'Resolving'].includes(bundle.event.account.status)) mismatch()
   } else if (expectation.kind === 'claimed' || expectation.kind === 'approved' || expectation.kind === 'questioned') {
@@ -282,6 +291,10 @@ export class RitualConfirmationVerifier {
     }
     if (!bundle || !safeSlot(bundle.slot) || bundle.slot < confirmationSlot) fail('readback', 'Ritual authoritative readback is stale')
     verifyExpectation(bundle, snapshot.expectation)
+    if (snapshot.expectation.kind === 'ejected') {
+      try { await this.#reader.verifyEjectBalances(bundle.ritual, snapshot.expectation.creatorDestination, snapshot.expectation.minimumCreatorBalance, confirmationSlot) }
+      catch { fail('readback', 'Eject balances did not match the submitted action') }
+    }
     return Object.freeze({ signature: snapshot.strategy.signature, confirmationSlot, bundle, ...(nestedEvent ? { indexedBundle: bundle } : {}), expectationKind: snapshot.expectation.kind })
   }
 }

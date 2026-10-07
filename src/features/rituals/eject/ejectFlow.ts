@@ -1,0 +1,34 @@
+import type { PublicKey } from '@solana/web3.js'
+import type { RitualAccountView } from '../../../data/rituals/accounts'
+import type { EjectAmounts } from '../../../data/rituals/ejectQuote'
+import { formatAtomic } from '../displayFormat'
+
+export type EndableRitual = Readonly<{ address: string; title: string }>
+type LoadedRitual = Readonly<{ address: string; title: string; bundle: Readonly<{ ritual: Readonly<{ account: Pick<RitualAccountView, 'kind' | 'status' | 'creator'> }> }> }>
+
+/** Settings lists the active solo rituals on this phone that the connected wallet made. */
+export function endableRituals(loaded: readonly LoadedRitual[], wallet: PublicKey | null): readonly EndableRitual[] {
+  if (!wallet) return Object.freeze([])
+  return Object.freeze(loaded
+    .filter(({ bundle: { ritual: { account } } }) => account.kind === 'Solo' && account.status === 'Active' && account.creator.equals(wallet))
+    .map(({ address, title }) => Object.freeze({ address, title })))
+}
+
+export type EjectRow = Readonly<{ label: string; value: string }>
+
+/** Money only: what comes back now, then (only if any) what the destination gets from this ritual. */
+export function ejectRows(amounts: Pick<EjectAmounts, 'backToYou' | 'destinationTotal'>, destinationLabel: string, decimals: number): readonly EjectRow[] {
+  const destination = destinationLabel.charAt(0).toUpperCase() + destinationLabel.slice(1)
+  return Object.freeze([
+    Object.freeze({ label: 'Back to you', value: formatAtomic(amounts.backToYou, decimals) }),
+    ...(amounts.destinationTotal > 0n ? [Object.freeze({ label: destination, value: formatAtomic(amounts.destinationTotal, decimals) })] : []),
+  ])
+}
+
+export const ejectTitle = (name: string): string => `End ${name} early?`
+
+/** Typing the ritual's name enables the last button; case and outer spaces do not matter. */
+export function nameConfirmed(typed: string, name: string): boolean {
+  const wanted = name.trim().toLocaleLowerCase()
+  return wanted.length > 0 && typed.trim().toLocaleLowerCase() === wanted
+}

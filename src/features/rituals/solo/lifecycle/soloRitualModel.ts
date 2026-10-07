@@ -6,7 +6,7 @@ import { shortRosterAddress } from '../../create/roster'
 import { stampTimeLeftLabel, weekOpensLabel } from '../../displayFormat'
 import { currentWeekCell } from '../../../../components/crew/weekStripLogic'
 
-export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' | 'claimable' | 'awaiting-witness' | 'closing' | 'resolving/settle' | 'skipped' | 'missed' | 'completed'
+export type SoloRitualUiState = 'funding' | 'waiting' | 'open-not-initialized' | 'claimable' | 'awaiting-witness' | 'closing' | 'resolving/settle' | 'skipped' | 'missed' | 'completed' | 'ended'
 export type SoloWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'current' | 'future'
 
 /**
@@ -127,6 +127,8 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
   const account = bundle.ritual.account
   if (account.status === 'Funding') return { state: 'funding', showedUp: false, claimStatus: 'none', message: 'This solo ritual is waiting for funding.' }
   if (account.status === 'Completed') return { state: 'completed', showedUp: false, claimStatus: 'none', message: 'This ritual is complete.' }
+  // Ended early: nothing left to stamp or settle; settled weeks keep their receipts.
+  if (account.status === 'Ended') return { state: 'ended', showedUp: false, claimStatus: 'none', message: 'Ended' }
 
   const current = bundle.event
   const recent = latestTerminal(bundle)

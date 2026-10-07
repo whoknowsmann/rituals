@@ -938,6 +938,145 @@
       ]
     },
     {
+      "name": "eject_ritual",
+      "docs": [
+        "End a solo ritual early and give its money back. Remaining accounts are",
+        "the event PDA of every unsettled week, in schedule order (absent ones",
+        "too), so the chain clock decides which weeks are already decided. A week",
+        "whose deadline has passed settles exactly as finalize_event would (no",
+        "event account means nobody stamped: a miss); an open week that is",
+        "already stamped settles as kept. Everything else in both vaults goes to",
+        "the creator and the vaults close. `expected_forfeit` is the forfeit the",
+        "creator was shown: a deadline passing during wallet approval fails the",
+        "transaction instead of sending more than they agreed to."
+      ],
+      "discriminator": [
+        150,
+        117,
+        224,
+        61,
+        202,
+        74,
+        109,
+        59
+      ],
+      "accounts": [
+        {
+          "name": "ritual",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  116,
+                  117,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual.creator",
+                "account": "Ritual"
+              },
+              {
+                "kind": "account",
+                "path": "ritual.nonce",
+                "account": "Ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stake_mint"
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ritual"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator_destination",
+          "writable": true
+        },
+        {
+          "name": "forfeit_destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "expected_forfeit",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "finalize_event",
       "discriminator": [
         88,
@@ -2004,6 +2143,26 @@
       "code": 6075,
       "name": "SeasonCheckInOverflow",
       "msg": "season check-in counter overflowed"
+    },
+    {
+      "code": 6076,
+      "name": "EjectCreatorOnly",
+      "msg": "only the creator can end a ritual"
+    },
+    {
+      "code": 6077,
+      "name": "EjectActiveOnly",
+      "msg": "only an active ritual can be ended; use cancel_unactivated for funding"
+    },
+    {
+      "code": 6078,
+      "name": "EjectEventAccounts",
+      "msg": "pass every unsettled event PDA in schedule order"
+    },
+    {
+      "code": 6079,
+      "name": "EjectQuoteChanged",
+      "msg": "the forfeit amount changed; review again"
     }
   ],
   "types": [
@@ -2527,6 +2686,9 @@
           },
           {
             "name": "Cancelled"
+          },
+          {
+            "name": "Ended"
           }
         ]
       }

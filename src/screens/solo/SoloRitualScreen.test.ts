@@ -100,7 +100,7 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('`Week ${titleWeekIndex(model, keptWeek, readyBundle.ritual.account.skipDeclared ? readyBundle.ritual.account.skipEventIndex : null) + 1}`')
     expect(source.match(/\{nextLine && <Text style=\{s\.muted\}>\{nextLine\}<\/Text>\}/g)).toHaveLength(1)
     // Last week's MISSED paper gives way to this week's stamp.
-    expect(source).toContain("model.state !== 'missed' && keptWeek === null && <View style={s.paper}")
+    expect(source).toContain("model.state !== 'missed' && keptWeek === null && !ended && <View style={s.paper}")
   })
 
   it('keeps the one declared skip available while valid, as a quiet link that names its week (Jack, 2026-10-07)', () => {

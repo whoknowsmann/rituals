@@ -5,8 +5,8 @@ import { ACCOUNT_DATA_LENGTHS, type RitualAccountView } from './accounts'
 import { ComputeBudgetProgram, Message, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js'
 import type { BuildCreateRitualArgs, BuildCreateSoloRitualArgs, BuildDeclareSkipArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs, RitualAccountContext } from './instructionsLifecycle'
 import { buildCreateRitualInstruction, buildCreateSoloRitualInstruction, buildDeclareSkipInstruction, buildFundMemberInstruction, buildActivateRitualInstruction, buildCancelUnactivatedInstruction, deriveCreateRitualAccounts } from './instructionsLifecycle'
-import type { BuildCloseTerminalVaultsArgs, BuildInitializeCurrentEventArgs, BuildClaimCompletionArgs, BuildApproveClaimArgs, BuildQuestionClaimArgs, BuildFinalizeEventArgs, RitualEventAccountContext, CompletionClaimAccountContext } from './instructionsEvents'
-import { buildCloseTerminalVaultsInstruction, buildInitializeCurrentEventInstruction, buildClaimCompletionInstruction, buildApproveClaimInstruction, buildQuestionClaimInstruction, buildFinalizeEventInstruction } from './instructionsEvents'
+import type { BuildCloseTerminalVaultsArgs, BuildInitializeCurrentEventArgs, BuildClaimCompletionArgs, BuildApproveClaimArgs, BuildQuestionClaimArgs, BuildFinalizeEventArgs, BuildEjectRitualArgs, RitualEventAccountContext, CompletionClaimAccountContext } from './instructionsEvents'
+import { buildCloseTerminalVaultsInstruction, buildInitializeCurrentEventInstruction, buildClaimCompletionInstruction, buildApproveClaimInstruction, buildQuestionClaimInstruction, buildFinalizeEventInstruction, buildEjectRitualInstruction } from './instructionsEvents'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { eventPda } from './pdas'
 import type { PublicKeyText } from '../../domain/rituals/types'
@@ -23,13 +23,14 @@ export type RitualPreparationTransport = {
   getFeeForMessage: (message: Message, config: Readonly<{ commitment: 'confirmed'; minContextSlot: number }>) => Promise<unknown>
   getMinimumBalanceForRentExemption: (dataLength: number, commitment: 'confirmed') => Promise<unknown>
 }
-type ActionKind = 'create' | 'create-solo' | 'fund' | 'fund-and-activate' | 'activate' | 'cancel' | 'close' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'declare-skip' | 'finalize' | 'create-and-fund' | 'create-solo-fund-and-activate' | 'initialize-event-and-claim'
+type ActionKind = 'create' | 'create-solo' | 'fund' | 'fund-and-activate' | 'activate' | 'cancel' | 'close' | 'initialize-event' | 'claim' | 'approve' | 'question' | 'declare-skip' | 'finalize' | 'create-and-fund' | 'create-solo-fund-and-activate' | 'initialize-event-and-claim' | 'eject'
 export type PreparedExpectation =
   | Readonly<{ kind: 'created'; creator: PublicKeyText; nonce: bigint }>
   | Readonly<{ kind: 'skip-declared'; eventIndex: number }>
   | Readonly<{ kind: 'funded'; member: PublicKeyText; expectedFundedMemberCount: number; expectedFundedStakeTotal: bigint; expectedFundedFeeTotal: bigint }>
   | Readonly<{ kind: 'activated' }>
   | Readonly<{ kind: 'cancelled' }>
+  | Readonly<{ kind: 'ejected'; creatorDestination: PublicKeyText; minimumCreatorBalance: bigint }>
   | Readonly<{ kind: 'vaults-closed' }>
   | Readonly<{ kind: 'event-initialized'; eventIndex: number }>
   | Readonly<{ kind: 'claimed'; claimant: PublicKeyText; eventIndex: number; expectedClaimStatus: 'Pending' | 'Confirmed' }>
@@ -98,8 +99,15 @@ type Internal = {
  */
 export const RITUAL_COMPUTE_UNIT_LIMIT = 200_000
 export const RITUAL_COMPUTE_UNIT_PRICE_MICROLAMPORTS = 1_000
-const budgetInstructions = (): TransactionInstruction[] => [
-  ComputeBudgetProgram.setComputeUnitLimit({ units: RITUAL_COMPUTE_UNIT_LIMIT }),
+/**
+ * Ending a ritual early can settle up to sixteen weeks in one instruction and
+ * create a receipt for each lapsed week nobody opened. The worst case is
+ * measured on the SBF build (program-tests/tests/eject_compute.rs) and must
+ * stay under this limit.
+ */
+export const EJECT_COMPUTE_UNIT_LIMIT = 400_000
+const budgetInstructions = (kind?: ActionKind): TransactionInstruction[] => [
+  ComputeBudgetProgram.setComputeUnitLimit({ units: kind === 'eject' ? EJECT_COMPUTE_UNIT_LIMIT : RITUAL_COMPUTE_UNIT_LIMIT }),
   ComputeBudgetProgram.setComputeUnitPrice({ microLamports: RITUAL_COMPUTE_UNIT_PRICE_MICROLAMPORTS }),
 ]
 const fail = (category: PreparationCategory, message: string): never => { throw new RitualPreparationError(category, message) }
@@ -201,6 +209,8 @@ export const MAX_SETTLER_FUNDING_LAMPORTS = 50_000_000n
 export type BuildCreateSoloFundAndActivateArgs = BuildCreateSoloRitualArgs & Readonly<{ memberSource: PublicKey; lockedActivationFee: bigint; settlerFunding?: SettlerFunding | null }>
 export type BuildFundAndActivateArgs = BuildFundMemberArgs
 export type BuildInitializeAndClaimArgs = BuildInitializeCurrentEventArgs & Readonly<{ claimant: PublicKey }>
+/** The quote the creator saw: what comes back now, their balance before, and receipts the program must create. */
+export type PrepareEjectArgs = BuildEjectRitualArgs & Readonly<{ creatorBalanceBefore: bigint; expectedRefund: bigint; missingReceiptCount: number }>
 
 export class RitualActionPreparer {
   #snapshots = new WeakMap<object, Internal>()
@@ -230,7 +240,7 @@ export class RitualActionPreparer {
     const latest = await callTransport(this.latest, [{ commitment: 'confirmed' }], 'rpc', 'latest blockhash request failed')
     const latestObject = object(latest, 'latest blockhash response'); const context = object(property(latestObject, 'context'), 'blockhash context'); const value = object(property(latestObject, 'value'), 'blockhash value')
     const slot = safeSlot(property(context, 'slot'), 'blockhash context slot'); const recentBlockhash = blockhash(property(value, 'blockhash')); const lastValidBlockHeight = safeSlot(property(value, 'lastValidBlockHeight'), 'last valid block height')
-    const transaction = new Transaction({ feePayer: payer, blockhash: recentBlockhash, lastValidBlockHeight }); transaction.add(...instructions, ...budgetInstructions()); const message = transaction.compileMessage(); const before = Uint8Array.from(message.serialize())
+    const transaction = new Transaction({ feePayer: payer, blockhash: recentBlockhash, lastValidBlockHeight }); transaction.add(...instructions, ...budgetInstructions(kind)); const message = transaction.compileMessage(); const before = Uint8Array.from(message.serialize())
     const feeResponse = await callTransport(this.fee, [message, { commitment: 'confirmed', minContextSlot: slot }], 'fee', 'fee request failed')
     try { if (!equalBytes(Uint8Array.from(message.serialize()), before)) fail('fee', 'fee transport mutated message') } catch (error) { if (error instanceof RitualPreparationError) throw error; fail('fee', 'fee transport mutated message') }
     const feeObject = object(feeResponse, 'fee response', 'fee'); const feeContext = object(property(feeObject, 'context', 'fee'), 'fee context', 'fee'); const feeSlot = safeSlot(property(feeContext, 'slot', 'fee'), 'fee context slot', 'fee'); if (feeSlot < slot) fail('fee', 'fee context is stale'); const feeValue = property(feeObject, 'value', 'fee'); if (feeValue === null) fail('fee', 'fee is unavailable'); const networkFee = BigInt(amount(feeValue, 'fee'))
@@ -257,6 +267,26 @@ export class RitualActionPreparer {
 
   async prepareDeclareSkip(args: BuildDeclareSkipArgs): Promise<PreparedRitualAction> {
     try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const eventIndex = inputProperty(args, 'eventIndex'); if (typeof eventIndex !== 'number' || !Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15) fail('input', 'invalid eventIndex'); const member = copyKey(inputProperty(args, 'member') as PublicKey); const instruction = buildDeclareSkipInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, member, eventIndex: eventIndex as number }); return this.prepare('declare-skip', instruction, member, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'skip-declared', eventIndex: eventIndex as number }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n }, [], null, null) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Declare Skip inputs') }
+  }
+
+  async prepareEject(args: PrepareEjectArgs): Promise<PreparedRitualAction> {
+    try {
+      const ritual = ritualSnapshot(inputProperty(args, 'ritual'))
+      const creator = copyKey(inputProperty(args, 'creator') as PublicKey)
+      const creatorDestination = copyKey(inputProperty(args, 'creatorDestination') as PublicKey)
+      const expectedForfeit = u64(inputProperty(args, 'expectedForfeit') as bigint, 'expectedForfeit')
+      const expectedRefund = u64(inputProperty(args, 'expectedRefund') as bigint, 'expectedRefund')
+      const minimumCreatorBalance = addU64(inputProperty(args, 'creatorBalanceBefore') as bigint, expectedRefund, 'minimumCreatorBalance')
+      const count = inputProperty(args, 'missingReceiptCount')
+      if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0 || count > ritual.account.schedule.length - ritual.account.currentEventIndex) fail('input', 'invalid missingReceiptCount')
+      const receipts = count as number
+      const instruction = buildEjectRitualInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, creator, creatorDestination, expectedForfeit })
+      return this.prepare('eject', instruction, creator, ritual.address, ritual.account.stakeMint,
+        Object.freeze({ kind: 'ejected', creatorDestination: keyText(creatorDestination), minimumCreatorBalance }),
+        { token: 0n, stake: 0n, activation: 0n, escrow: 0n, settlement: addU64(expectedRefund, expectedForfeit, 'escrowSettlementTransfer') },
+        Array.from({ length: receipts }, () => ACCOUNT_DATA_LENGTHS.RitualEvent), null,
+        receipts > 0 ? Object.freeze({ description: 'week receipts', count: receipts }) : null)
+    } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid End Ritual inputs') }
   }
 
   async prepareCreateAndFund(args: BuildCreateAndFundArgs): Promise<PreparedRitualAction> {
@@ -402,7 +432,7 @@ export class RitualActionPreparer {
     try { const ritual = ritualSnapshot(inputProperty(args, 'ritual')); const event = eventSnapshot(inputProperty(args, 'event')); const raw = inputProperty(args, 'destinationTokenAccounts'); if (!Array.isArray(raw)) fail('input', 'invalid destinationTokenAccounts'); const destinations = Object.freeze((raw as unknown[]).map((item, index) => { try { return copyKey(item as PublicKey) } catch { return fail('input', `invalid destinationTokenAccounts[${index}]`) } })); const payer = copyKey(inputProperty(args, 'feePayer') as PublicKey); if (payer.equals(PublicKey.default)) fail('input', 'feePayer must not be default'); const instruction = buildFinalizeEventInstruction({ programId: inputProperty(args, 'programId') as PublicKey, ritual, event, destinationTokenAccounts: destinations }); const pending = event.account.claimedMembersBitmap & ~(event.account.confirmedMembersBitmap | event.account.questionedMembersBitmap); const confirmedCount = popcount(event.account.confirmedMembersBitmap); const outcome = expectedFinalizeOutcome(ritual.account, event.account, pending, confirmedCount); const expectedEventStatus = outcome.status; const expectedVoidReason = outcome.voidReason; const nextIndex = event.account.eventIndex + 1; if (nextIndex > ritual.account.schedule.length) fail('input', 'expected event index is outside schedule'); const expectedRitualStatus = nextIndex === ritual.account.schedule.length ? 'Completed' : 'Active'; if (!Number.isSafeInteger(ritual.account.settledEventCount) || ritual.account.settledEventCount < 0 || ritual.account.settledEventCount >= 255) fail('input', 'expected settled event count is outside u8'); const settlement = u64(ritual.account.perEventAllocation * BigInt(ritual.account.members.length), 'escrowSettlementTransfer'); return this.prepare('finalize', instruction, payer, ritual.address, ritual.account.stakeMint, Object.freeze({ kind: 'finalized', eventIndex: event.account.eventIndex, expectedEventStatus, expectedVoidReason, expectedRitualStatus, expectedCurrentEventIndex: nextIndex, expectedSettledEventCount: ritual.account.settledEventCount + 1 }), { token: 0n, stake: 0n, activation: 0n, escrow: 0n, settlement }, [], null, null) } catch (error) { if (error instanceof RitualPreparationError) throw error; return fail('input', 'invalid Finalize inputs') }
   }
 
-  getTransactionForWallet(prepared: PreparedRitualAction): WalletRitualTransaction { const snapshot = this.internalFor(prepared); const transaction = new Transaction({ feePayer: copyKey(snapshot.feePayer), blockhash: snapshot.blockhash, lastValidBlockHeight: snapshot.lastValidBlockHeight }); transaction.add(...snapshot.instructions.map(copyInstruction), ...budgetInstructions()); if (!equalBytes(Uint8Array.from(transaction.serializeMessage()), snapshot.messageBytes)) fail('mutation', 'prepared message reconstruction changed'); return Object.freeze({ kind: snapshot.kind, transaction, blockhash: snapshot.blockhash, expectedMessageDigest: snapshot.messageDigest, submittedContextSlot: snapshot.blockhashContextSlot, lastValidBlockHeight: snapshot.lastValidBlockHeight, expectation: snapshot.expectation, ritualAddress: keyText(snapshot.ritualAddress) }) }
+  getTransactionForWallet(prepared: PreparedRitualAction): WalletRitualTransaction { const snapshot = this.internalFor(prepared); const transaction = new Transaction({ feePayer: copyKey(snapshot.feePayer), blockhash: snapshot.blockhash, lastValidBlockHeight: snapshot.lastValidBlockHeight }); transaction.add(...snapshot.instructions.map(copyInstruction), ...budgetInstructions(snapshot.kind)); if (!equalBytes(Uint8Array.from(transaction.serializeMessage()), snapshot.messageBytes)) fail('mutation', 'prepared message reconstruction changed'); return Object.freeze({ kind: snapshot.kind, transaction, blockhash: snapshot.blockhash, expectedMessageDigest: snapshot.messageDigest, submittedContextSlot: snapshot.blockhashContextSlot, lastValidBlockHeight: snapshot.lastValidBlockHeight, expectation: snapshot.expectation, ritualAddress: keyText(snapshot.ritualAddress) }) }
   assertWalletTransactionUnchanged(prepared: PreparedRitualAction, transaction: Transaction): void { const internal = this.internalFor(prepared); try { if (!(transaction instanceof Transaction)) fail('input', 'transaction provenance is invalid') } catch { fail('input', 'transaction provenance is invalid') }; try { if (!(transaction.feePayer instanceof PublicKey) || !transaction.feePayer.equals(internal.feePayer) || transaction.recentBlockhash !== internal.blockhash || transaction.lastValidBlockHeight !== internal.lastValidBlockHeight) fail('mutation', 'wallet transaction strategy was mutated') } catch { fail('mutation', 'wallet transaction strategy was mutated') }; let bytes = new Uint8Array(); try { bytes = Uint8Array.from(transaction.serializeMessage()) } catch { fail('mutation', 'wallet transaction message was mutated') }; if (!equalBytes(bytes, internal.messageBytes) || hex(sha256(bytes)) !== internal.messageDigest) fail('mutation', 'wallet transaction message was mutated') }
 }
 export const createRitualActionPreparer = (transport: RitualPreparationTransport, programId: PublicKey): RitualActionPreparer => new RitualActionPreparer(transport, programId)

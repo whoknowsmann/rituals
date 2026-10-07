@@ -40,6 +40,7 @@ const copyExpectation = (value: PreparedExpectation): PreparedExpectation => val
 function expectation(value: PreparedExpectation): RitualActionExpectation {
   if (value.kind === 'bundle') return Object.freeze({ kind: 'bundle', expectations: Object.freeze(value.expectations.map(expectation)) })
   if (value.kind === 'created') return Object.freeze({ kind: value.kind, creator: copyKey(value.creator, 'creator'), nonce: value.nonce })
+  if (value.kind === 'ejected') return Object.freeze({ kind: value.kind, creatorDestination: copyKey(value.creatorDestination, 'creatorDestination'), minimumCreatorBalance: value.minimumCreatorBalance })
   if (value.kind === 'skip-declared') return Object.freeze({ kind: value.kind, eventIndex: value.eventIndex })
   if (value.kind === 'funded') return Object.freeze({ kind: value.kind, member: copyKey(value.member, 'member'), expectedFundedMemberCount: value.expectedFundedMemberCount, expectedFundedStakeTotal: value.expectedFundedStakeTotal, expectedFundedFeeTotal: value.expectedFundedFeeTotal })
   if (value.kind === 'activated' || value.kind === 'cancelled' || value.kind === 'vaults-closed') return Object.freeze({ kind: value.kind })

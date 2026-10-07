@@ -19,6 +19,7 @@ export const INSTRUCTION_DISCRIMINATORS = Object.freeze({
   initialize_season: frozenDiscriminator([48, 218, 111, 51, 235, 207, 4, 119]),
   question_claim: frozenDiscriminator([50, 41, 214, 168, 245, 45, 251, 152]),
   update_protocol_config: frozenDiscriminator([197, 97, 123, 54, 221, 168, 11, 135]),
+  eject_ritual: frozenDiscriminator([150, 117, 224, 61, 202, 74, 109, 59]),
 })
 
 export class RitualInstructionDataError extends Error {
@@ -136,6 +137,13 @@ function event(name: 'initialize_current_event' | 'finalize_event' | 'claim_comp
 }
 
 export function encodeFundMemberData(): Uint8Array { return empty('fund_member') }
+export function encodeEjectRitualData(expectedForfeit: bigint): Uint8Array {
+  const amount = bigintValue(expectedForfeit, 'expectedForfeit')
+  const w = new Writer(16)
+  w.bytes(INSTRUCTION_DISCRIMINATORS.eject_ritual)
+  w.u64(amount)
+  return w.finish()
+}
 export function encodeActivateRitualData(): Uint8Array { return empty('activate_ritual') }
 export function encodeCancelUnactivatedData(): Uint8Array { return empty('cancel_unactivated') }
 export function encodeCloseTerminalVaultsData(): Uint8Array { return empty('close_terminal_vaults') }

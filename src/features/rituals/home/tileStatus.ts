@@ -29,6 +29,7 @@ export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp:
     case 'missed': return { text: 'Missed last week', act: false }
     case 'skipped': return { text: model.weekSkipped ? 'Skipped this week' : 'Skipped last week', act: false }
     case 'completed': return { text: 'Finished', act: false }
+    case 'ended': return { text: 'Ended', act: false }
     case 'awaiting-witness': return { text: 'Waiting on witness', act: false }
     case 'funding': return { text: 'Not active yet', act: false }
   }
