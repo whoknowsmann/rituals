@@ -81,4 +81,9 @@ describe('SoloRitualScreen proof and witness controls', () => {
   it('gives every week its own three settle-key tries', () => {
     expect(source).toContain('useEffect(() => { autoFailures.current = 0 }, [model?.eventIndex])')
   })
+
+  it('re-reads until a confirmed stamp shows, instead of offering HOLD again', () => {
+    expect(source).toContain('confirmedStampNotYetRead(claim.state, actionTargets.current.claim, model)')
+    expect(source).toContain('setInterval(() => retryRef.current(), 2000)')
+  })
 })

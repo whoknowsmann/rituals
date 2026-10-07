@@ -38,7 +38,7 @@ import { soloRitualModel, type SoloRitualModel } from '../../features/rituals/so
 import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloActionDeps'
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
 import { useSoloDestinationOwner } from '../../features/rituals/solo/lifecycle/useSoloDestinationOwner'
-import { confirmedStampAdvanced, soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
+import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
 
 type Props = { route: { params: { ritualId: string } } }
 
@@ -184,6 +184,12 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     const timer = setInterval(() => { state.retry(); if (--remaining === 0) clearInterval(timer) }, 3000)
     return () => clearInterval(timer)
   }, [unknownAction])
+  const stampNotRead = confirmedStampNotYetRead(claim.state, actionTargets.current.claim, model)
+  useEffect(() => {
+    if (!stampNotRead) return
+    const timer = setInterval(() => retryRef.current(), 2000)
+    return () => clearInterval(timer)
+  }, [stampNotRead])
 
   // The app's own settle key closes finished weeks: no wallet prompt. It is
   // pre-paid inside the create approval; without funds the manual button stays.

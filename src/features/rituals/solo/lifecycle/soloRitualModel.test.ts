@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { soloRitualModel, labelSoloDestination, demoSpeedNotice, type SoloRitualBundle } from './soloRitualModel'
-import { confirmedStampAdvanced, soloActionLanded } from './actionReadback'
+import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded } from './actionReadback'
 import { weekCellLabel } from '../../../../components/crew/weekStripLogic'
 import { lifecycleReducer, lifecycleCanSubmit, lifecycleStatusCopy, type LifecycleState } from '../../lifecycleMachine'
 
@@ -49,6 +49,17 @@ describe('soloRitualModel', () => {
       const unknown: LifecycleState = { status: 'error', category: 'confirmation', submitted: true, retryable: false, message: 'unknown', ritualAddress: address.toBase58() }
       expect(confirmedStampAdvanced(unknown, target, bundle({ currentEventIndex: index + 1 }))).toBe(false)
     }
+  })
+  it('keeps re-reading after a confirmed stamp until the read shows it (a lagging RPC node)', () => {
+    const confirmed: LifecycleState = { status: 'confirmed', ritualAddress: address.toBase58(), result: { signature: 's', messageDigest: 'd' } }
+    const target = { kind: 'claim' as const, ritualAddress: address.toBase58(), eventIndex: 0, actor: me }
+    const stale = soloRitualModel(bundle(), 150, me)
+    expect(stale.state).toBe('open-not-initialized')
+    expect(confirmedStampNotYetRead(confirmed, target, stale)).toBe(true)
+    expect(confirmedStampNotYetRead(confirmed, target, soloRitualModel(bundle({}, event({ status: 'Claiming' }), [claim('Confirmed')]), 150, me))).toBe(false)
+    expect(confirmedStampNotYetRead(confirmed, { ...target, eventIndex: 1 }, stale)).toBe(false)
+    expect(confirmedStampNotYetRead({ status: 'idle' }, target, stale)).toBe(false)
+    expect(confirmedStampNotYetRead(confirmed, target, null)).toBe(false)
   })
   it('clears the non-retryable stamp warning only for the claimed week, even if the read arrived before the error', () => {
     const read = bundle({}, event({ status: 'Claiming' }), [claim('Confirmed')])

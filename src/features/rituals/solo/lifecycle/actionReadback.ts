@@ -1,5 +1,5 @@
 import type { PublicKey } from '@solana/web3.js'
-import type { SoloRitualBundle } from './soloRitualModel'
+import type { SoloRitualBundle, SoloRitualModel } from './soloRitualModel'
 import type { LifecycleState } from '../../lifecycleMachine'
 
 /** A confirmed stamp belongs to one week, not every later HOLD on this screen. */
@@ -7,6 +7,17 @@ export function confirmedStampAdvanced(state: LifecycleState, target: SoloAction
   return state.status === 'confirmed' && target?.kind === 'claim' && Boolean(bundle
     && bundle.ritual.address.toBase58() === target.ritualAddress
     && bundle.ritual.account.currentEventIndex > target.eventIndex)
+}
+
+/**
+ * A stamp the chain confirmed (its readback was verified) that the screen's
+ * own re-read does not show yet: that read came from an RPC node a slot
+ * behind. Nothing else re-reads before the week closes, so the screen would
+ * offer HOLD again, then show the kept week as closing unstamped and MISSED
+ * until the settle key failed and re-read.
+ */
+export function confirmedStampNotYetRead(state: LifecycleState, target: SoloActionTarget | null, model: Pick<SoloRitualModel, 'eventIndex' | 'claimStatus'> | null): boolean {
+  return state.status === 'confirmed' && target?.kind === 'claim' && model !== null && target.eventIndex === model.eventIndex && model.claimStatus === 'none'
 }
 
 export type SoloActionTarget = Readonly<{
