@@ -9,10 +9,15 @@ export async function readChainTime(connection: Pick<Connection, 'getAccountInfo
   return seconds
 }
 
-export type ChainTimeSample = Readonly<{ seconds: number; monotonicMs: number }>
-/** Short-lived estimate for UI ticks; sends are still checked by the program. */
-export function estimatedChainTime(sample: ChainTimeSample | null, monotonicMs: number): number | null {
+export type ChainTimeSample = Readonly<{ seconds: number; monotonicMs: number; wallMs?: number }>
+/**
+ * Short-lived estimate for UI ticks; sends are still checked by the program.
+ * The phone's wall clock only bounds the sample's age (a sleeping phone stops
+ * the monotonic clock, not the wall clock); it never supplies the time.
+ */
+export function estimatedChainTime(sample: ChainTimeSample | null, monotonicMs: number, wallMs?: number): number | null {
   if (!sample) return null
   const age = monotonicMs - sample.monotonicMs
+  if (wallMs !== undefined && sample.wallMs !== undefined && Math.abs(wallMs - sample.wallMs - age) > 2_000) return null
   return age >= 0 && age < 60_000 ? sample.seconds + Math.floor(age / 1000) : null
 }

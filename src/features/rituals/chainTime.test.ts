@@ -19,4 +19,13 @@ describe('week clock', () => {
     expect(estimatedChainTime({ seconds: 100, monotonicMs: 5000 }, 65_000)).toBeNull()
     expect(estimatedChainTime({ seconds: 100, monotonicMs: 5000 }, 0)).toBeNull()
   })
+  // A wallet approval used to blank the clock (and the whole ritual screen) on
+  // every return; the reading now survives a short pause, never a sleep.
+  it('keeps a reading across a short pause, and drops it when the phone slept', () => {
+    const sample = { seconds: 100, monotonicMs: 5_000, wallMs: 1_000_000 }
+    expect(estimatedChainTime(sample, 20_000, 1_015_000)).toBe(115)
+    expect(estimatedChainTime(sample, 20_000, 1_016_500)).toBe(115)
+    expect(estimatedChainTime(sample, 6_000, 1_600_000)).toBeNull()
+    expect(estimatedChainTime(sample, 66_000, 1_061_000)).toBeNull()
+  })
 })
