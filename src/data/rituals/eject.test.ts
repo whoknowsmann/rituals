@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ComputeBudgetProgram, PublicKey } from '@solana/web3.js'
-import { decodeRitual, decodeRitualEvent, RitualAccountDecodeError } from './accounts'
+import { decodeRitual, decodeRitualEvent, RitualAccountDecodeError, type RitualAccountView, type RitualEventAccountView } from './accounts'
 import { accountVectors, hexToBytes } from './__fixtures__/accountVectors'
 import { encodeEjectRitualData, INSTRUCTION_DISCRIMINATORS } from './instructionData'
 import { buildEjectRitualInstruction } from './instructionsEvents'
@@ -83,6 +83,57 @@ describe('Ended ritual and eject receipts decode', () => {
     expect(() => decodeEvent(inGrace, 1051n)).toThrow(/terminal state/)
     expect(decodeEvent(keptEarly, 1010n).payoutTotal).toBe(ALLOCATION)
     expect(decodeEvent(eventBytes(settledEvent(0, 'kept', 1056n, ALLOCATION * 2n))).status).toBe('Settled')
+  })
+
+  it('accepts Ended after a stamped last week settled inside its window (every week settled)', () => {
+    // program-tests eject_in_a_stamped_last_week_settles_every_week: current index == schedule length.
+    expect(decode(ritualBytes(ended({ currentEventIndex: 3, settledEventCount: 3, completedAt: 1130n }))).currentEventIndex).toBe(3)
+    expect(() => decode(ritualBytes(ended({ currentEventIndex: 3, settledEventCount: 3, completedAt: 1110n })))).toThrow(RitualAccountDecodeError) // week 3 had not opened
+  })
+})
+
+/**
+ * Review 2026-10-07: the receipt's numbers are the program's. Each row is a
+ * program-tests/tests/eject_ritual.rs scenario on the same weeks and clock
+ * (week i opens at O + 60i, deadline +45, resolution +55; here O = 1000):
+ * pendingForfeit is the instruction's expected_forfeit (what goes to the
+ * destination), backToYou is the rest of the vault, missingReceiptCount the
+ * receipts the program allocates.
+ */
+describe('the end-early amounts are what eject_ritual moves', () => {
+  const O = 1000n
+  const witnessed: Partial<RitualAccountView> = { witness: ejectKey(50), additionalConfirmationThreshold: 1 }
+  const stamped = (index: number) => soloEvent(index, { claimedMembersBitmap: 1, confirmedMembersBitmap: 1 })
+  const pending = (index: number) => soloEvent(index, { claimedMembersBitmap: 1 })
+  const questioned = (index: number) => soloEvent(index, { status: 'Resolving', claimedMembersBitmap: 1, questionedMembersBitmap: 1 })
+  const opened = (index: number) => soloEvent(index, { status: 'Scheduled', initializedAt: 950n })
+  const weeks16 = Object.freeze(Array.from({ length: 16 }, (_, index) => Object.freeze({ opens: O + 60n * BigInt(index), deadline: O + 45n + 60n * BigInt(index), resolution: O + 55n + 60n * BigInt(index) })))
+  const lastWeek: Partial<RitualAccountView> = { currentEventIndex: 2, settledEventCount: 2, fundedStakeTotal: ALLOCATION }
+  const cases: [string, Partial<RitualAccountView>, (RitualEventAccountView | null)[], bigint, number, number][] = [
+    // name, ritual, events, chain now, weeks to the destination, receipts created
+    ['before week 1 opens', {}, [null, null, null], O - 10n, 0, 0],
+    ['open, unstamped', {}, [null, null, null], O + 1n, 0, 0],
+    ['at the exact deadline', {}, [null, null, null], O + 45n, 0, 0],
+    ['stamped, still open', {}, [stamped(0), null, null], O + 10n, 0, 0],
+    ['stamped, in grace', {}, [stamped(0), null, null], O + 46n, 0, 0],
+    ['nobody opened a lapsed week', {}, [null, null, null], O + 46n, 1, 1],
+    ['a lapsed week opened but not stamped', {}, [opened(0), null, null], O + 46n, 1, 0],
+    ['kept + missed + open', {}, [stamped(0), null, null], O + 125n, 1, 1],
+    ['declared skip, lapsed', { skipDeclared: true, skipEventIndex: 0 }, [null, null, null], O + 46n, 0, 1],
+    ['witness: pending, open', witnessed, [pending(0), null, null], O + 20n, 0, 0],
+    ['witness: pending, lapsed', witnessed, [pending(0), null, null], O + 46n, 0, 0],
+    ['witness: questioned, lapsed', witnessed, [questioned(0), null, null], O + 46n, 0, 0],
+    ['witness: approved, lapsed', witnessed, [stamped(0), null, null], O + 46n, 0, 0],
+    ['stamped last week, still open', lastWeek, [settledEvent(0, 'kept', 1056n, ALLOCATION * 2n), settledEvent(1, 'kept', 1116n, ALLOCATION), stamped(2)], O + 130n, 0, 0],
+    ['sixteen lapsed weeks nobody opened', { schedule: weeks16, memberTotalStake: ALLOCATION * 16n, fundedStakeTotal: ALLOCATION * 16n }, Array.from({ length: 16 }, () => null), O + 16n * 60n, 16, 16],
+  ]
+
+  it.each(cases)('%s', (_name, overrides, events, now, missed, receipts) => {
+    const account = soloAccount(overrides)
+    const amounts = ejectAmounts(account, events, now, account.fundedStakeTotal, 0n)
+    expect(amounts.pendingForfeit).toBe(ALLOCATION * BigInt(missed))
+    expect(amounts.backToYou + amounts.pendingForfeit).toBe(account.fundedStakeTotal)
+    expect(amounts.missingReceiptCount).toBe(receipts)
   })
 })
 
