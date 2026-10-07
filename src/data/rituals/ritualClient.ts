@@ -2,6 +2,8 @@ import { PublicKey } from '@solana/web3.js'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { RitualsRpcReader, type ReadOptions, type RitualRead, type RitualBundleRead, type RitualRpcTransport } from './ritualsRpc'
 import type { ProtocolConfigAccountView } from './accounts'
+import type { EjectQuote } from './ejectQuote'
+import type { PrepareEjectArgs } from './ritualPreparedAction'
 import { RitualActionPreparer, type BuildCreateAndFundArgs, type BuildCreateSoloFundAndActivateArgs, type BuildFundAndActivateArgs, type BuildInitializeAndClaimArgs, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualConfirmationTransport } from './ritualConfirmation'
 import { RitualActionSubmitter, type RitualWalletSubmissionTransport, type RitualSubmissionResult, type SubmittedRitualActionHandle } from './ritualSubmission'
@@ -22,6 +24,9 @@ export interface RitualClient {
   /** Authoritative protocol configuration: the only valid source of stake mint and fee recipient. */
   getProtocolConfig(options?: ReadOptions): Promise<Readonly<{ slot: number; address: PublicKey; account: ProtocolConfigAccountView }>>
   readRitual(address: PublicKey, options?: ReadOptions): Promise<RitualRead>
+  getEjectQuote(address: PublicKey, creatorDestination?: PublicKey): Promise<EjectQuote>
+  prepareEject(args: PrepareEjectArgs): Promise<PreparedRitualAction>
+  verifyEjectBalances(ritual: RitualRead, destination: PublicKey, minimumBalance: bigint, minContextSlot: number): Promise<void>
   getRitualBundle(address: PublicKey, options?: ReadOptions): Promise<RitualBundleRead>
   getEventBundle(address: PublicKey, eventIndex: number, options?: ReadOptions): Promise<RitualBundleRead>
   prepareCreate(args: BuildCreateRitualArgs): Promise<PreparedRitualAction>
@@ -56,6 +61,9 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
   const methods: Partial<Record<keyof RitualClient, (...args: any[]) => unknown>> = {
     getProtocolConfig: reader.getProtocolConfig.bind(reader),
     readRitual: reader.getRitual.bind(reader),
+    getEjectQuote: reader.getEjectQuote.bind(reader),
+    verifyEjectBalances: reader.verifyEjectBalances.bind(reader),
+    prepareEject: preparer.prepareEject.bind(preparer),
     getRitualBundle: reader.getRitualBundle.bind(reader),
     getEventBundle: reader.getEventBundle.bind(reader),
     prepareCreate: preparer.prepareCreate.bind(preparer),

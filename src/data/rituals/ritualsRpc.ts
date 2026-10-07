@@ -1,4 +1,7 @@
-import { PublicKey } from '@solana/web3.js'
+import { PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js'
+import { Buffer } from 'buffer'
+import { getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { classicTokenBalance, ejectAmounts, type EjectQuote } from './ejectQuote'
 import { decodeCompletionClaim, decodeProtocolConfig, decodeRitual, decodeRitualEvent, type CompletionClaimAccountView, type ProtocolConfigAccountView, type RitualAccountView, type RitualEventAccountView, claimShapeMatchesRitual } from './accounts'
 import { claimPda, eventPda, protocolConfigPda, ritualPda, CURRENT_CLAIM_VERSION } from './pdas'
 
@@ -221,7 +224,7 @@ export class RitualsRpcReader {
     if (!Number.isSafeInteger(eventIndex) || eventIndex < 0 || eventIndex > 15) throw failure('input', 'eventIndex must be a safe integer in 0..15')
     const opts = options(readOptions); const effectiveOpts = Object.freeze({ minContextSlot: maxMin(opts.minContextSlot ?? 0, ritual.slot) }); const address = eventPda(ritual.address, eventIndex, this.#programId)[0]
     const fetched = await this.#fetch([address], effectiveOpts)
-    const account = this.#decode(fetched.accounts[0], () => decodeRitualEvent(fetched.accounts[0], this.#programId)) as RitualEventAccountView
+    const account = this.#decode(fetched.accounts[0], () => decodeRitualEvent(fetched.accounts[0], this.#programId, ritual.account.status === 'Ended' ? ritual.account.completedAt : undefined)) as RitualEventAccountView
     const candidate = Object.freeze({ slot: fetched.slot, address, ritualAddress: ritual.address, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, account })
     this.#eventReads.add(candidate)
     this.#checkEvent(candidate, ritual)
@@ -232,7 +235,7 @@ export class RitualsRpcReader {
     const target = key(address, 'ritual address')
     const opts = options(readOptions)
     let discovery = await this.getRitual(target, opts)
-    if (discovery.account.status === 'Funding' || discovery.account.status === 'Cancelled') {
+    if (discovery.account.status === 'Funding' || discovery.account.status === 'Cancelled' || discovery.account.status === 'Ended') {
       return Object.freeze({ slot: discovery.slot, ritual: discovery, event: null, claims: Object.freeze([]) })
     }
 
@@ -255,6 +258,7 @@ export class RitualsRpcReader {
       const nextIndex = account.status === 'Completed' ? account.schedule.length - 1 : account.currentEventIndex
       if (discovery.account.status === 'Active' && nextIndex < discovery.account.currentEventIndex) throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
       if (!sameProtocolConfigIdentity(discoveryProtocolConfig, protocolConfig) || !immutableRitualEqual(discoveryAccount, account)) bundleMismatch()
+      if (account.status === 'Ended') return Object.freeze({ slot: fetched.slot, ritual, event: null, claims: Object.freeze([]) })
       if (account.status === 'Funding' || account.status === 'Cancelled') throw failure('canonical', 'Ritual lifecycle changed across bundle read')
       if (discovery.account.status === 'Completed' && account.status !== 'Completed') throw failure('canonical', 'Ritual lifecycle regressed across bundle read')
       if (discovery.account.status === 'Active' && account.status !== 'Active' && account.status !== 'Completed') throw failure('canonical', 'Ritual lifecycle changed across bundle read')
@@ -338,7 +342,7 @@ export class RitualsRpcReader {
     this.#ritualReads.add(ritual)
     const rawEvent = fetched.accounts[2]
     if (rawEvent === null) throw failure('not-found', 'Ritual event was not found')
-    const eventAccount = this.#decode(rawEvent, () => decodeRitualEvent(rawEvent, this.#programId)) as RitualEventAccountView
+    const eventAccount = this.#decode(rawEvent, () => decodeRitualEvent(rawEvent, this.#programId, account.status === 'Ended' ? account.completedAt : undefined)) as RitualEventAccountView
     const event = Object.freeze({ slot: fetched.slot, address: eventAddress, ritualAddress: target, protocolConfigAddress: ritual.protocolConfigAddress, protocolConfig: ritual.protocolConfig, ritual, account: eventAccount })
     this.#eventReads.add(event)
     this.#checkEvent(event, ritual, eventIndex)
@@ -367,6 +371,42 @@ export class RitualsRpcReader {
 
   async getCurrentRitualBundle(address: PublicKey, readOptions?: ReadOptions): Promise<RitualBundleRead> {
     return this.getRitualBundle(address, readOptions)
+  }
+
+  /** One bank snapshot for the money receipt, including the chain clock. */
+  async getEjectQuote(address: PublicKey, creatorDestination?: PublicKey): Promise<EjectQuote> {
+    const discovered = await this.getRitual(address)
+    const a = discovered.account
+    const destination = creatorDestination ?? getAssociatedTokenAddressSync(a.stakeMint, a.creator)
+    const eventAddresses = a.schedule.map((_, i) => eventPda(address, i, this.#programId)[0])
+    const fetched = await this.#fetch([address, SYSVAR_CLOCK_PUBKEY, a.stakeVault, a.feeVault, destination, a.forfeitDestination, ...eventAddresses], { minContextSlot: discovered.slot })
+    const account = decodeRitual(fetched.accounts[0], this.#programId, a.stakeMint, address)
+    if (!immutableRitualEqual(a, account)) bundleMismatch()
+    const clock = fetched.accounts[1]
+    if (!clock || clock.data.length !== 40) throw failure('decode', 'Clock is unavailable')
+    const now = Buffer.from(clock.data).readBigInt64LE(32)
+    const stake = classicTokenBalance(fetched.accounts[2], a.stakeMint, address)
+    const fee = classicTokenBalance(fetched.accounts[3], a.stakeMint, address)
+    const creatorBalance = classicTokenBalance(fetched.accounts[4], a.stakeMint, a.creator)
+    classicTokenBalance(fetched.accounts[5], a.stakeMint)
+    const events = eventAddresses.map((_, i) => {
+      const raw = fetched.accounts[6 + i]
+      // A prefunded, unallocated PDA is still an absent event.
+      if (raw === null || (raw.owner.equals(PublicKey.default) && raw.data.length === 0)) return null
+      const event = decodeRitualEvent(raw, this.#programId)
+      const window = account.schedule[i]
+      if (!event.ritual.equals(address) || event.eventIndex !== i || event.memberCount !== 1 || event.bump !== eventPda(address, i, this.#programId)[1] || event.window.opens !== window.opens || event.window.deadline !== window.deadline || event.window.resolution !== window.resolution) throw failure('canonical', 'Eject event mismatch')
+      return event
+    })
+    const ritual = Object.freeze({ ...discovered, slot: fetched.slot, account })
+    return Object.freeze({ ritual, creatorDestination: destination, creatorBalance, ...ejectAmounts(account, events, now, stake, fee) })
+  }
+
+  async verifyEjectBalances(ritual: RitualRead, destination: PublicKey, minimumBalance: bigint, minContextSlot: number): Promise<void> {
+    this.#checkRitual(ritual)
+    const a = ritual.account
+    const fetched = await this.#fetch([a.stakeVault, a.feeVault, destination], { minContextSlot: maxMin(ritual.slot, minContextSlot) })
+    if (fetched.accounts[0] !== null || fetched.accounts[1] !== null || classicTokenBalance(fetched.accounts[2], a.stakeMint, a.creator) < minimumBalance) throw failure('canonical', 'Eject balances did not match')
   }
 
   async getClaim(ritual: RitualRead, event: EventRead, claimant: PublicKey, readOptions?: ReadOptions): Promise<ClaimRead> {
