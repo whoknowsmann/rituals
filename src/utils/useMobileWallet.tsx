@@ -7,7 +7,7 @@ import { logFailure } from "./diagnostics";
 import { assertWalletNetwork } from "./walletNetwork";
 import { withWalletSession } from './walletSession';
 import { showNetworkMismatchHint } from './networkMismatchHint';
-import { isWalletCancellation, isWalletTimeout } from './walletErrors';
+import { isWalletCancellation, isWalletRpcError, isWalletTimeout } from './walletErrors';
 import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode, type WalletAssociationConfig } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
 export type MobileWalletErrorCategory = "authorization" | "input" | "wallet";
@@ -75,8 +75,15 @@ export async function authorizeAndSendTransaction(
   try {
     onSignAndSend?.();
     signatures = await wallet.signAndSendTransactions({ transactions: [transaction], minContextSlot, commitment: "confirmed", skipPreflight: false, maxRetries: 3, waitForCommitmentToSendNextTransaction: true });
-  } catch (error) { logFailure("mwa.signAndSend", error); if (isStaleAuthorization(error)) throw new MobileWalletError("authorization", "wallet account changed; reconnect your wallet", false, true); const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected, false, isWalletTimeout(error), isCancellation(error)); }
-  if (!Array.isArray(signatures) || typeof signatures[0] !== "string" || signatures[0].length === 0) throw new MobileWalletError("wallet", "wallet returned no transaction signature");
+  } catch (error) {
+    logFailure("mwa.signAndSend", error);
+    if (isStaleAuthorization(error)) throw new MobileWalletError("authorization", "wallet account changed; reconnect your wallet", false, true);
+    const rejected = isUserRejection(error);
+    // Only the wallet's own answer (a decline, a cancelled sheet, a JSON-RPC error) says nothing was sent.
+    // A timeout, a dropped session or anything else may follow a broadcast.
+    throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected, false, !rejected && !isWalletRpcError(error), isCancellation(error));
+  }
+  if (!Array.isArray(signatures) || typeof signatures[0] !== "string" || signatures[0].length === 0) throw new MobileWalletError("wallet", "wallet returned no transaction signature", false, false, true);
   return signatures[0] as TransactionSignature;
 }
 
@@ -101,9 +108,13 @@ export function useMobileWallet() {
       // Drop the stale token so the next attempt re-authorizes against the wallet's current account.
       if (error instanceof MobileWalletError && error.staleAuthorization) { try { await clearAuthorization(); } catch { /* best effort */ } }
       // Only once the signing sheet was shown: a cancel at connect/authorize, a timeout or a stale token never alerts.
-      if (signAndSendInvoked && (error instanceof MobileWalletError ? error.cancelled : isCancellation(error))) void showNetworkMismatchHint(walletPackage);
-      if (!(error instanceof MobileWalletError) && isWalletTimeout(error)) throw new MobileWalletError('wallet', 'wallet submission failed', false, false, signAndSendInvoked);
-      if (!(error instanceof MobileWalletError) && isUserRejection(error)) throw new MobileWalletError('wallet', 'wallet request was rejected', true);
+      if (signAndSendInvoked && error instanceof MobileWalletError && error.cancelled) void showNetworkMismatchHint(walletPackage);
+      if (error instanceof MobileWalletError) throw error;
+      // Not the wallet's answer: the session failed around a signing call that may
+      // have broadcast (e.g. endSession rejecting after the signature came back).
+      if (signAndSendInvoked) throw new MobileWalletError('wallet', 'wallet submission failed', false, false, true);
+      if (isWalletTimeout(error)) throw new MobileWalletError('wallet', 'wallet submission failed');
+      if (isUserRejection(error)) throw new MobileWalletError('wallet', 'wallet request was rejected', true);
       throw error;
     }
   }, [authorizeSession, clearAuthorization, getCurrentAccount, session, walletPackage]);

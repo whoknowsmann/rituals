@@ -58,3 +58,25 @@ describe('MWA session timeout phases', () => {
     expect(mocks.hint).toHaveBeenCalledExactlyOnceWith('com.solanamobile.wallet')
   })
 })
+
+describe('after sign_and_send, only the wallet\'s own answer means nothing was sent', () => {
+  it.each<[string, () => unknown]>([
+    ['a dropped session (EUNSPECIFIED IOException)', () => mocks.send.mockRejectedValue(Object.assign(new Error('java.io.IOException: session closed'), { code: 'EUNSPECIFIED' }))],
+    ['endSession failing after the signature came back', () => mocks.transact.mockImplementation(async (run) => { await run({ signAndSendTransactions: mocks.send }); throw Object.assign(new Error('java.lang.IllegalStateException'), { code: 'Failed to end session' }) })],
+    ['a reply with no signature in it', () => mocks.send.mockResolvedValue([])],
+  ])('treats %s as possibly sent', async (_case, arrange) => {
+    arrange()
+    await expect(send()).rejects.toMatchObject({ userRejected: false, submitted: true })
+    expect(mocks.send).toHaveBeenCalledOnce()
+    expect(mocks.hint).not.toHaveBeenCalled()
+  })
+  it('keeps a JSON-RPC error from the wallet as nothing sent', async () => {
+    mocks.send.mockRejectedValue(Object.assign(new Error('transaction not submitted'), { code: 'JSON_RPC_ERROR', userInfo: { jsonRpcErrorCode: -4 } }))
+    await expect(send()).rejects.toMatchObject({ userRejected: false, submitted: false })
+  })
+  it('keeps the same session failure before signing as nothing sent', async () => {
+    mocks.authorize.mockRejectedValue(Object.assign(new Error('java.io.IOException: session closed'), { code: 'EUNSPECIFIED' }))
+    await expect(send()).rejects.toMatchObject({ submitted: false })
+    expect(mocks.send).not.toHaveBeenCalled()
+  })
+})
