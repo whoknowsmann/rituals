@@ -29,6 +29,12 @@
   github.com/whoknowsmann/rituals is private until Jack makes it public.
 - Seed Vault reports no network to the app, so the app cannot detect a
   Mainnet setting; the README's "switch Seed Vault to Devnet" step is the guard.
+- 2026-10-08 (unit tests only, not yet on the phone): when Seed Vault Wallet
+  cancels after its signing sheet opened (a decline or its own "Network
+  mismatch" sheet; the app cannot tell which), the app shows "Network
+  mismatch?" / "Rituals runs on Devnet. In Seed Vault Wallet: Settings →
+  Network → Devnet. Then try again." [OK], at most twice per phone. Never on
+  success, a timeout, a cancel before signing, or Phantom.
 - The faucet (Get test tokens) receives the wallet address it pays; nothing else leaves the phone except Solana RPC traffic.
 - Tests: 2,420 TypeScript tests, 206 native program tests (state the numbers
   only if a doc already uses them).
@@ -107,8 +113,8 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
    gets its own tile colour. A finished ritual (or one made by another wallet)
    can be removed from the phone; the chain is untouched.
 8. Only an explicit authorize account chain list excluding Devnet triggers the
-   network popup and blocks sending. Absent/empty chains fail open; cancellation
-   and timeout get a quiet inline line, not a popup. Device proof of Seed Vault's
+   "Switch to Devnet" popup and blocks sending. Absent/empty chains fail open; cancellation
+   and timeout get a quiet inline line. Device proof of Seed Vault's
    `accounts[].chains` is still pending; each authorize logs the selected list.
 
 ## Speeds

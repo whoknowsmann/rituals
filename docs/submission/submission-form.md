@@ -63,9 +63,9 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 ## How to try it
 
 1. Install the APK: <release-url>
-2. In Seed Vault Wallet, switch the network to Devnet. The app cannot see this setting; on Mainnet the wallet shows "Network mismatch".
+2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals, start a ritual, and on step 2 tap Get test tokens (0.05 devnet SOL and 50 tSKR, nothing to sign). If it says it is empty, email <owner-email>.
-4. Keep 2 weeks and Demo speed, tap 20, choose where a missed week goes, tap Lock it in, and approve once.
+4. Keep 2 weeks and Demo speed, tap 20, choose where a missed week goes, tap Lock it in, and approve once. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 5. Week 1 opens 60 seconds after you tap Lock it in. Hold HOLD TO STAMP for 1.4 seconds and approve. You have 45 seconds.
 6. Stay on the ritual screen and leave week 2 alone. It turns MISSED by itself, and the stake goes where you chose.
 

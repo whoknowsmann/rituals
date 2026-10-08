@@ -18,8 +18,8 @@ Devnet only. tSKR tokens have no value.
 
 ## Install
 1. Download `rituals-v0.1.0-clockin.apk` below and install it on a Solana Seeker. Seed Vault Wallet and Phantom are both offered as wallets.
-2. In Seed Vault Wallet, switch the network to Devnet before you open Rituals. The app cannot see this setting; on Mainnet the wallet shows "Network mismatch".
-3. Open Rituals, connect, start a ritual, and tap **Get test tokens** on the create screen (or in Settings) if your wallet is short. Then Lock it in.
+2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
+3. Open Rituals, connect, start a ritual, and tap **Get test tokens** on the create screen (or in Settings) if your wallet is short. Then Lock it in. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 
 sha256: `<sha256 of the APK>`
 Built from commit `<sha>` on `main`. Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` (devnet).
