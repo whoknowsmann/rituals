@@ -73,6 +73,10 @@ Screen padding 18. Sticky primary actions live in a dark bottom **dock**.
   Ended includes the unspent allocation returned at eject. Until outcomes are
   known, "{total} tSKR". This replaces the weekly amount and kept-count line;
   stamped tiles retain their closing-time line.
+  Active tiles stay above a session-only, initially collapsed "Finished · N"
+  row (Completed and Ended); stamp-needed tiles first, new tile last in the
+  active grid. Expanded finished tiles use 0.82 opacity. With no active tiles,
+  "Start a ritual?" and "Start one" remain above Finished.
 - `MemberTile` — colour square + initial; optional ✓ badge.
 - `Chip` — pill; `ok` variant uses go.
 - `Dock` — dark sticky bar with a one-line prompt and one action.

@@ -94,6 +94,8 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
    status pill ("Stamp this week"), "+ New ritual". The home-polish branch
    replaces "1 of 4 kept" and the weekly amount with "{back} of {total} tSKR back"
    (settled returns including skips and eject; total only while unread).
+   Completed/Ended tiles sit under an initially collapsed "Finished · N" row;
+   active tiles needing a stamp come first. Compact misses use ✕, skips −.
    Source/unit verified; this change still needs a phone walk.
 5. **One declared skip per ritual**: call it before the week opens and that
    week's stake comes back to you.
