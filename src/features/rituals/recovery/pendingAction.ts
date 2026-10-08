@@ -94,6 +94,10 @@ export function withPendingActionSignature(record: PendingActionRecord, signatur
 
 /** Blocks past lastValidBlockHeight before a missing status counts as never landed. */
 export const EXPIRY_MARGIN_BLOCKS = 150
+/** Creates leave a unique account behind, so their landing reads back without a signature. */
+const UNSIGNED_CREATE_KINDS: readonly PendingActionKind[] = ['create', 'create-solo', 'create-and-fund', 'create-solo-fund-and-activate']
+/** Kinds readPendingAction can read back for an exact actor and week without a signature. */
+const UNSIGNED_TARGET_KINDS: readonly PendingActionKind[] = ['claim', 'initialize-event-and-claim', 'initialize-event', 'finalize', 'declare-skip', 'eject']
 
 export async function resolvePendingAction(record: PendingActionRecord, transport: PendingActionTransport): Promise<PendingActionResolution> {
   let currentHeight: number | null = null
@@ -131,7 +135,8 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
   // address, so its account is evidence; existence alone cannot prove a stamp.
   // Absence counts only well past lastValidBlockHeight, as on the signed path:
   // a lagging node's not-found must not turn into "Nothing was sent".
-  const hasReadback = ['create', 'create-solo', 'create-and-fund', 'create-solo-fund-and-activate'].includes(record.actionKind) || (record.actor !== undefined && record.eventIndex !== undefined)
+  const hasReadback = UNSIGNED_CREATE_KINDS.includes(record.actionKind)
+    || (record.actor !== undefined && record.eventIndex !== undefined && UNSIGNED_TARGET_KINDS.includes(record.actionKind))
   if (hasReadback) {
     try {
       const readback = await transport.readRitual(new PublicKey(record.ritualAddress), record)
@@ -140,9 +145,9 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
     } catch { /* outage is not evidence of expiry */ }
   }
   // An unsigned journal for an action we cannot read back (legacy stamp
-  // records with no actor/week) never resolves on its own. Once its blockhash
-  // is long dead, stop nagging: the ritual screen shows the chain's truth, and
-  // the program rejects a duplicate stamp anyway.
+  // records with no actor/week; approve, question, fund, activate) never
+  // resolves on its own. Once its blockhash is long dead, stop nagging: the
+  // ritual screen shows the chain's truth, and the program rejects a duplicate.
   if (!hasReadback && currentHeight !== null && currentHeight > record.lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS) {
     return Object.freeze({ status: 'expired' as const, record })
   }

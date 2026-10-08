@@ -135,4 +135,15 @@ describe('resolvePendingAction', () => {
       getSignatureStatus: vi.fn(), readRitual: async () => ({ slot: 120, actionObserved: true }) })
     expect(legacyStamp.status).toBe('expired')
   })
+  it('lets an unsigned approve, question, fund or activate go once its blockhash is long dead: they have no readback', async () => {
+    const { transactionSignature: _ignored, ...unsigned } = base
+    const client = { readRitual: async () => ({ slot: 120, account: {} }), getEventBundle: vi.fn() } as never
+    const transport = (height: number) => ({ getBlockHeight: async () => height, getSignatureStatus: vi.fn(),
+      readRitual: (address: PublicKey, target: PendingActionRecord) => readPendingAction(client, address, target) })
+    for (const actionKind of ['approve', 'question', 'fund', 'activate', 'fund-and-activate'] as const) {
+      const record = parsePendingAction({ ...unsigned, actionKind, actor: ritual, eventIndex: 0 })!
+      expect((await resolvePendingAction(record, transport(100 + 150))).status).toBe('still-unknown')
+      expect((await resolvePendingAction(record, transport(100 + 151))).status).toBe('expired')
+    }
+  })
 })
