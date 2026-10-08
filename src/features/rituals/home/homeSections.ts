@@ -13,6 +13,19 @@ export function homeTilePresentation(bundle: RitualBundleRead, now: number | nul
   return { status: tileStatus(model, laterOpen), closingLine: laterOpen ? null : stampedWeekClosingLabel(model, now) }
 }
 
+/**
+ * Home shows the connected wallet's rituals only (Jack, 2026-10-08: rituals belong
+ * to a wallet, not to the phone). Remembered records are kept on the phone, so
+ * reconnecting the same wallet brings them back. No wallet → nothing.
+ */
+export function ritualsForWallet<T extends { bundle: RitualBundleRead }>(rituals: readonly T[], wallet: { equals(other: unknown): boolean } | null | undefined): T[] {
+  if (!wallet) return []
+  return rituals.filter((ritual) => {
+    const account = ritual.bundle.ritual.account
+    return wallet.equals(account.creator) || account.members.some((member) => wallet.equals(member))
+  })
+}
+
 /** Stable within each section; colour assignment still uses the remembered order. */
 export function homeSections<T extends { bundle: RitualBundleRead }>(rituals: readonly T[], now: number | null): { active: T[]; finished: T[] } {
   const needsStamp: T[] = []

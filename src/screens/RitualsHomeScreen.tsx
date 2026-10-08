@@ -27,7 +27,7 @@ import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { SCOPE } from '../features/rituals/productScope'
 import { readSoloWeekOutcomes, soloHomeCells, type SoloWeekOutcome } from '../features/rituals/home/soloHistory'
 import { tileMoneyLine } from '../features/rituals/home/tileMoney'
-import { homeSections, homeTilePresentation } from '../features/rituals/home/homeSections'
+import { homeSections, homeTilePresentation, ritualsForWallet } from '../features/rituals/home/homeSections'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
 import { PublicKey, type Connection } from '@solana/web3.js'
 import { radius, space, type, useColors, type Palette } from '../theme'
@@ -133,7 +133,7 @@ export function RitualsHomeScreen() {
     return <View style={styles.center} accessibilityLiveRegion="polite"><Text style={styles.errorTitle}>Your rituals are out of reach</Text><Text style={styles.muted}>{homeState.message}</Text><Text style={styles.disclosure}>{view.disclosure}</Text><Button mode="contained" onPress={load} accessibilityLabel="Try again">Try again</Button></View>
   }
 
-  const { active, finished } = homeSections(homeState.rituals, chainNow)
+  const { active, finished } = homeSections(ritualsForWallet(homeState.rituals, selectedAccount?.publicKey), chainNow)
   const onOpen = (ritual: HomeRitual) => openRitual(navigation, ritual)
   return <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Rituals home">
     <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>

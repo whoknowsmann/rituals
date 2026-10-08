@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { soloAccount } from '../../../data/rituals/ejectTestHelpers'
 import type { RitualAccountView } from '../../../data/rituals/accounts'
 import type { RitualBundleRead } from '../../../data/rituals/ritualsRpc'
-import { homeSections, homeTilePresentation } from './homeSections'
+import { homeSections, homeTilePresentation, ritualsForWallet } from './homeSections'
+import { PublicKey } from '@solana/web3.js'
 
 function ritual(id: string, overrides: Partial<RitualAccountView> = {}, stamped = false) {
   const account = soloAccount(overrides)
@@ -66,5 +67,16 @@ describe('Home active and Finished sections', () => {
     expect(screen).toContain('tileFinished: { opacity: 0.82 }')
     expect(screen.indexOf('<EmptySolo')).toBeLessThan(screen.indexOf('Finished · {finished.length}'))
     expect(screen.indexOf('rituals.map((ritual) => <RitualTile')).toBeLessThan(screen.indexOf('accessibilityLabel="Start another ritual"'))
+  })
+})
+
+describe('Home shows the connected wallet only (Jack, 2026-10-08)', () => {
+  it('drops other wallets\' rituals and shows nothing while disconnected', () => {
+    const mine = ritual('mine')
+    const owner = mine.bundle.ritual.account.creator
+    const other = ritual('other', { creator: new PublicKey(new Uint8Array(32).fill(42)), members: [new PublicKey(new Uint8Array(32).fill(42))] })
+    expect(ritualsForWallet([mine, other], owner).map((r) => r.id)).toEqual(['mine'])
+    expect(ritualsForWallet([mine, other], null)).toEqual([])
+    expect(readFileSync('src/screens/RitualsHomeScreen.tsx', 'utf8')).toContain('homeSections(ritualsForWallet(homeState.rituals, selectedAccount?.publicKey), chainNow)')
   })
 })
