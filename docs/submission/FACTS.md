@@ -96,6 +96,9 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
    (settled returns including skips and eject; total only while unread).
    Completed/Ended tiles sit under an initially collapsed "Finished · N" row;
    active tiles needing a stamp come first. Compact misses use ✕, skips −.
+   Home and Settings share batched account reads (up to 100 keys, existing
+   strict decoders/retries). Fake-connection proof: ten active rituals need
+   two account snapshots, ten Ended rituals one; phone latency is unmeasured.
    Source/unit verified; this change still needs a phone walk.
 5. **One declared skip per ritual**: call it before the week opens and that
    week's stake comes back to you.

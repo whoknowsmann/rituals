@@ -5,6 +5,14 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SettingsScreen.tsx'), 'utf8')
 
 describe('SettingsScreen', () => {
+  it('uses the same batched loader as Home and offers a retry instead of hiding RPC failure', () => {
+    const card = readFileSync(resolve(__dirname, '../features/rituals/eject/EndEarly.tsx'), 'utf8')
+    const home = readFileSync(resolve(__dirname, 'RitualsHomeScreen.tsx'), 'utf8')
+    for (const consumer of [card, home]) expect(consumer).toContain('loadKnownRitualBundles(client.client)')
+    expect(card).toContain('setLoadError(true)')
+    expect(card).toContain('label="Try again" onPress={() => setRetryCount((count) => count + 1)}')
+    expect(card).toContain('[client, focused, wallet, retryCount]')
+  })
   it('puts test tokens first and leaves Settings to the navigation title', () => {
     expect(source.indexOf('accessibilityLabel="Test tokens"')).toBeLessThan(source.indexOf('accessibilityLabel="Network information"'))
     expect(source).not.toContain('<Hero>Settings</Hero>')

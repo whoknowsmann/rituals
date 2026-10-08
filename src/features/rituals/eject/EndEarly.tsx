@@ -31,18 +31,22 @@ export function YourRituals({ onEnd }: { onEnd: (ritual: EndingRitual) => void }
   const focused = useIsFocused()
   const wallet = selectedAccount?.publicKey.toBase58() ?? null
   const [rituals, setRituals] = useState<readonly EndingRitual[]>([])
+  const [loadError, setLoadError] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
   useEffect(() => {
+    setLoadError(false)
     if (!focused || client.status !== 'ready' || !wallet) { setRituals([]); return }
     let active = true
     void Promise.all([loadKnownRitualBundles(client.client), listKnownRituals()])
       .then(([loaded, known]) => { if (active) setRituals(endableRituals(loaded, new PublicKey(wallet)).map((ritual) => Object.freeze({ ...ritual, tint: ritualTintAmong(ritual.address, known) }))) })
-      .catch(() => { if (active) setRituals([]) })
+      .catch(() => { if (active) { setRituals([]); setLoadError(true) } })
     return () => { active = false }
-  }, [client, focused, wallet])
-  if (rituals.length === 0) return null
+  }, [client, focused, wallet, retryCount])
+  if (rituals.length === 0 && !loadError) return null
   return (
     <View style={s.card} accessibilityLabel="Your rituals">
       <Text style={s.heading} accessibilityRole="header">Your rituals</Text>
+      {loadError && <ActionButton tone="quiet" label="Try again" onPress={() => setRetryCount((count) => count + 1)} />}
       {rituals.map((ritual) => (
         <View key={ritual.address} style={s.row}>
           <Text style={s.name} numberOfLines={1}>{ritual.title}</Text>

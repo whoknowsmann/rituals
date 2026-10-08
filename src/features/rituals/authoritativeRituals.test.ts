@@ -6,13 +6,45 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem
 vi.mock('./reminders/runtime', () => ({ clearRitualReminders: vi.fn(async () => undefined) }))
 
 import { RitualRpcError, type RitualBundleRead } from '../../data/rituals/ritualsRpc'
-import { forgetRitual, listKnownRituals, rememberRitual, readKnownRitualBundles, type KnownRitual } from './authoritativeRituals'
+import type { RitualClient } from '../../data/rituals/ritualClient'
+import { forgetRitual, listKnownRituals, loadKnownRitualBundles, rememberRitual, readKnownRitualBundles, type KnownRitual } from './authoritativeRituals'
 
 const key = (byte: number) => new PublicKey(new Uint8Array(32).fill(byte)).toBase58()
 const ritual = (byte: number): KnownRitual => ({ address: key(byte), title: `r${byte}`, requirement: 'run' })
 const bundle = { ritual: { account: {} } } as unknown as RitualBundleRead
 
 describe('readKnownRitualBundles (home screen list)', () => {
+  it('routes the shared Home/Settings loader through a single batch, retaining metadata and order', async () => {
+    const known = Array.from({ length: 10 }, (_, i) => ritual(i + 1))
+    vi.mocked(AsyncStorage.getItem).mockResolvedValueOnce(JSON.stringify(known))
+    const read = vi.fn()
+    const readBatch = vi.fn(async () => known.map(() => ({ status: 'fulfilled' as const, value: bundle })))
+    const client = { getRitualBundle: read, getRitualBundles: readBatch } as unknown as RitualClient
+    const loaded = await loadKnownRitualBundles(client)
+    expect(read).not.toHaveBeenCalled()
+    expect(readBatch).toHaveBeenCalledExactlyOnceWith(known.map((item) => new PublicKey(item.address)))
+    expect(loaded).toEqual(known.map((item) => ({ ...item, bundle })))
+  })
+
+  it('skips only permanent errors from a batch, and rejects incomplete batches', async () => {
+    const known = [ritual(1), ritual(2), ritual(3)]
+    const read = vi.fn()
+    const loaded = await readKnownRitualBundles(known, read, async () => [
+      { status: 'rejected', reason: new RitualRpcError('decode', 'old layout') },
+      { status: 'fulfilled', value: bundle },
+      { status: 'rejected', reason: new RitualRpcError('not-found', 'gone') },
+    ])
+    expect(loaded).toEqual([{ ...known[1], bundle }])
+    await expect(readKnownRitualBundles(known, read, async () => [])).rejects.toMatchObject({ category: 'rpc' })
+  })
+
+  it.each(['rpc', 'stale', 'unstable', 'canonical'] as const)('rethrows batch %s failures so a shorter list never masquerades as success', async (category) => {
+    const error = new RitualRpcError(category, 'retry')
+    await expect(readKnownRitualBundles([ritual(1), ritual(2)], vi.fn(), async () => [
+      { status: 'fulfilled', value: bundle }, { status: 'rejected', reason: error },
+    ])).rejects.toBe(error)
+  })
+
   it('persists the typed destination owner per ritual and keeps it through recovery remembers', async () => {
     let stored: string | null = null
     vi.mocked(AsyncStorage.getItem).mockImplementation(async () => stored)
