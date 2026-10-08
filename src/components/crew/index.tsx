@@ -81,7 +81,7 @@ export function WeekStrip({ cells, tint, compact = false, summary = true, summar
           const kept = isKeptWeekCell(cell)
           if (compact) return <View key={i} style={[s.dot, kept && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
           const cellStyle = [s.cell, kept && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]
-          const label = <Text style={[s.cellText, kept && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
+          const label = <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={[s.cellText, kept && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
           return onClosedWeekPress && isClosedWeekCell(cell)
             ? <Pressable key={i} onPress={() => onClosedWeekPress(i)} accessibilityRole="button" accessibilityLabel={`See week ${i + 1} receipt`} hitSlop={{ top: 6, bottom: 6 }} style={({ pressed }) => [...cellStyle, pressed && { opacity: 0.7 }]}>{label}</Pressable>
             : <View key={i} style={cellStyle}>{label}</View>
@@ -226,7 +226,7 @@ const useS = themedStyles((color) => StyleSheet.create({
   cell: { flex: 1, height: 34, borderRadius: 12, backgroundColor: color.scrim, alignItems: 'center', justifyContent: 'center' },
   cellDone: { backgroundColor: color.white },
   cellNow: { backgroundColor: color.glass, borderWidth: 2, borderColor: color.white },
-  cellNowText: { letterSpacing: 1 },
+  cellNowText: { letterSpacing: 0 },
   cellMissed: { backgroundColor: 'rgba(0,0,0,0.28)' },
   cellText: { ...type.caption, fontFamily: type.heading.fontFamily, color: color.white },
   stripCompact: { gap: 5, flexWrap: 'wrap' },
