@@ -7,7 +7,6 @@ vi.mock('react', () => ({ useCallback: (callback: unknown) => callback, useMemo:
 vi.mock('@solana-mobile/mobile-wallet-adapter-protocol-web3js', () => ({ transact: mocks.transact }))
 vi.mock('./useAuthorization', () => ({ useAuthorization: () => ({ authorizeSession: mocks.authorize, getCurrentAccount: mocks.current, walletPackage: 'com.solanamobile.wallet' }) }))
 vi.mock('./walletSession', () => ({ withWalletSession: (run: () => unknown) => run() }))
-vi.mock('./devnetHintOnce', () => ({ withDevnetHintOnce: (_pkg: unknown, run: () => unknown) => run() }))
 vi.mock('./diagnostics', () => ({ logFailure: vi.fn() }))
 
 const payer = new PublicKey(new Uint8Array(32).fill(7))

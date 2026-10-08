@@ -6,7 +6,6 @@ import { associationConfigFor, walletOptionByPackage } from "./walletChoice";
 import { logFailure } from "./diagnostics";
 import { assertWalletNetwork } from "./walletNetwork";
 import { withWalletSession } from './walletSession';
-import { withDevnetHintOnce } from './devnetHintOnce';
 import { isWalletCancellation, isWalletTimeout } from './walletErrors';
 import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode, type WalletAssociationConfig } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
@@ -82,11 +81,7 @@ export function useMobileWallet() {
   // Every session after connect goes back to the wallet the user chose; a
   // Phantom-authorized account must never be sent to Seed Vault Wallet.
   // `walletPackage` is a native extension added by scripts/patch-mwa-wallet-package.mjs; the upstream type only knows baseUri.
-  const session = useCallback(async <T,>(pkg: string | null | undefined, run: (wallet: Web3MobileWallet) => Promise<T>, isTransaction = false): Promise<T> => withWalletSession(() => {
-    const start = () => transact(run, associationConfigFor(pkg) as WalletAssociationConfig);
-    // Hold the existing single-session guard through the popup; never queue a second approval.
-    return isTransaction ? withDevnetHintOnce(pkg, start) : start();
-  }), []);
+  const session = useCallback(async <T,>(pkg: string | null | undefined, run: (wallet: Web3MobileWallet) => Promise<T>): Promise<T> => withWalletSession(() => transact(run, associationConfigFor(pkg) as WalletAssociationConfig)), []);
   /** Connect via a specific wallet app (see WALLET_OPTIONS); omit to let Android choose. */
   const connect = useCallback(async (targetPackage?: string): Promise<Account> => { const pkg = walletOptionByPackage(targetPackage)?.androidPackage ?? null; return session(pkg, async (wallet) => authorizeSession(wallet, pkg)); }, [authorizeSession, session]);
   const signIn = useCallback(async (signInPayload: SignInPayload): Promise<Account> => session(walletPackage, async (wallet) => authorizeSessionWithSignIn(wallet, signInPayload)), [authorizeSessionWithSignIn, session, walletPackage]);
@@ -97,7 +92,7 @@ export function useMobileWallet() {
     const current = getCurrentAccount();
     if (!current || !feePayerOf(transaction)?.equals(current.publicKey)) throw new MobileWalletError('authorization', 'Connect the wallet that started this request.');
     let signAndSendInvoked = false;
-    try { return await session(walletPackage, (wallet) => authorizeAndSendTransaction(wallet, (w) => authorizeSession(w), transaction, minContextSlot, () => { signAndSendInvoked = true; }), true); }
+    try { return await session(walletPackage, (wallet) => authorizeAndSendTransaction(wallet, (w) => authorizeSession(w), transaction, minContextSlot, () => { signAndSendInvoked = true; })); }
     catch (error) {
       // Drop the stale token so the next attempt re-authorizes against the wallet's current account.
       if (error instanceof MobileWalletError && error.staleAuthorization) { try { await clearAuthorization(); } catch { /* best effort */ } }
