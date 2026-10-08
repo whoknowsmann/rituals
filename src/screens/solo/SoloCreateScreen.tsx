@@ -27,6 +27,7 @@ import { WalletChoiceButtons } from '../../components/wallet/WalletChoiceButtons
 import { radius, space, type, themedStyles, useColors } from '../../theme'
 import { buildSoloCreateDeps } from '../../features/rituals/solo/create/buildSoloCreateDeps'
 import { splitTotalStake, atomicDecimalText } from '../../features/rituals/solo/create/stakeSplit'
+import { showCreateBalanceHelp } from '../../features/rituals/solo/create/balanceVisibility'
 import { DEFAULT_SOLO_SPEED, SOLO_SPEEDS, selectSoloSchedule, soloCadenceFor, soloEventCount, soloScheduleSummary, SOLO_MAX_WEEKS, SOLO_MIN_WEEKS, STAKE_PRESETS, DEFAULT_STAKE_TOTAL, stepWeeks, type SoloSpeed } from '../../features/rituals/solo/create/schedule'
 import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/create/navigationGuard'
 import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, soloCreateSteps, type SoloCreateStep } from '../../features/rituals/solo/create/steps'
@@ -258,6 +259,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey, speed, stakeTotal])
 
   const create = useCreateRitual(makeDeps)
+  const showBalanceHelp = showCreateBalanceHelp(create.state)
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
   useDevnetMismatchAlert(create.state.status, create.state.status === 'error' ? create.state.category : null, walletPackage)
   const createComplete = create.state.status === 'confirmed' || create.state.status === 'recovered'
@@ -437,10 +439,12 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
             {stakeSplit.ok && !stakeSplit.split.exact && <Text style={styles.quiet}>{`Locks ${formatAtomic(stakeSplit.split.lockedAtomic, 6)} after rounding.`}</Text>}
-            {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
-            {selectedAccount && (testBalance === null || shortOfTest || testBalance === 0n) && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
-            {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
-            {shortOfTest && neededAtomic !== null && <Text style={styles.quiet} accessibilityLiveRegion="polite">{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</Text>}
+            {showBalanceHelp && <>
+              {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
+              {selectedAccount && (testBalance === null || shortOfTest || testBalance === 0n) && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
+              {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
+              {shortOfTest && neededAtomic !== null && <Text style={styles.quiet} accessibilityLiveRegion="polite">{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</Text>}
+            </>}
           </View>
           {/* Where missed weeks go: the user picks (Jack, 2026-10-06). Three labelled demo causes or a wallet. */}
           <Text style={styles.label}>IF YOU MISS A WEEK, IT GOES TO</Text>

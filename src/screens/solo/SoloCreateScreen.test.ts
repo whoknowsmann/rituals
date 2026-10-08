@@ -5,6 +5,13 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloCreateScreen.tsx'), 'utf8')
 
 describe('SoloCreateScreen transaction and commitment wiring', () => {
+  it('gates every balance and faucet row on the editable-state predicate', () => {
+    expect(source).toContain('const showBalanceHelp = showCreateBalanceHelp(create.state)')
+    const start = source.indexOf('{showBalanceHelp && <>')
+    expect(start).toBeGreaterThan(0)
+    const block = source.slice(start, source.indexOf('</>}', start))
+    for (const text of ['You have', 'Get test tokens', 'faucetLine(faucet.result)', 'Not enough tSKR']) expect(block).toContain(text)
+  })
   it('renders a short starting balance quietly without changing the words or lock gating', () => {
     expect(source).toContain('{shortOfTest && neededAtomic !== null && <Text style={styles.quiet} accessibilityLiveRegion="polite">{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? \' (stake plus the activation fee)\' : \'\'}.`}</Text>}')
     expect(source).not.toMatch(/<ErrorLine>[^\n]*Not enough tSKR/)
