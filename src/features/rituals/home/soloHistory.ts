@@ -1,5 +1,5 @@
 import type { AccountInfo, PublicKey } from '@solana/web3.js'
-import { decodeRitualEvent, type RitualEventAccountView } from '../../../data/rituals/accounts'
+import { decodeRitualEvent, type RitualAccountView, type RitualEventAccountView } from '../../../data/rituals/accounts'
 import { eventPda } from '../../../data/rituals/pdas'
 import { currentWeekCell } from '../../../components/crew/weekStripLogic'
 
@@ -51,22 +51,28 @@ type GetMany = (keys: PublicKey[]) => Promise<readonly (AccountInfo<Buffer> | nu
 export async function readSoloWeekOutcomes(
   getMany: GetMany,
   programId: PublicKey,
-  rituals: readonly Readonly<{ address: PublicKey; account: SoloAccount }>[],
+  rituals: readonly Readonly<{ address: PublicKey; account: RitualAccountView }>[],
 ): Promise<Map<string, Map<number, SoloWeekOutcome>>> {
   // Weeks an early end settled carry the ended ritual's timestamp (see decodeRitualEvent).
-  const wanted = rituals.flatMap((ritual) => Array.from({ length: closedWeekCount(ritual.account) }, (_, index) => ({ ritual: ritual.address, index, key: eventPda(ritual.address, index, programId)[0], endedAt: ritual.account.status === 'Ended' ? ritual.account.completedAt : undefined })))
+  const wanted = rituals.flatMap((ritual) => Array.from({ length: closedWeekCount(ritual.account) }, (_, index) => ({ ritual: ritual.address, account: ritual.account, index, pda: eventPda(ritual.address, index, programId), endedAt: ritual.account.status === 'Ended' ? ritual.account.completedAt : undefined })))
   const result = new Map<string, Map<number, SoloWeekOutcome>>()
+  // An empty map means the read finished with no closed weeks, not "loading".
+  for (const ritual of rituals) if (ritual.account.kind === 'Solo') result.set(ritual.address.toBase58(), new Map())
   for (let start = 0; start < wanted.length; start += 100) {
     const chunk = wanted.slice(start, start + 100)
-    const infos = await getMany(chunk.map((entry) => entry.key))
+    const infos = await getMany(chunk.map((entry) => entry.pda[0]))
     chunk.forEach((entry, position) => {
       const info = infos[position]
       if (!info) return
       try {
-        const outcome = eventOutcome(decodeRitualEvent({ owner: info.owner, data: info.data }, programId, entry.endedAt))
+        const event = decodeRitualEvent({ owner: info.owner, data: info.data }, programId, entry.endedAt)
+        const window = entry.account.schedule[entry.index]
+        if (info.executable || !event.ritual.equals(entry.ritual) || event.eventIndex !== entry.index || event.memberCount !== 1 || event.bump !== entry.pda[1]
+          || event.window.opens !== window.opens || event.window.deadline !== window.deadline || event.window.resolution !== window.resolution
+          || event.eventPool !== entry.account.perEventAllocation) return
+        const outcome = eventOutcome(event)
         if (!outcome) return
         const id = entry.ritual.toBase58()
-        if (!result.has(id)) result.set(id, new Map())
         result.get(id)!.set(entry.index, outcome)
       } catch { /* unreadable week: stays "closed" */ }
     })

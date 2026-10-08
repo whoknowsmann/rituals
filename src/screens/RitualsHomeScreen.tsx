@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { ActionButton, Footnote, Section, WeekStrip, weekSummary, type WeekCell } from '../components/crew'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
-import { listKnownRituals, loadKnownRitualBundles, formatAtomic, statusLabel, type KnownRitual } from '../features/rituals/authoritativeRituals'
+import { listKnownRituals, loadKnownRitualBundles, statusLabel, type KnownRitual } from '../features/rituals/authoritativeRituals'
 import { ritualTintAmong } from '../features/rituals/home/ritualColours'
 import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
 import { homeRitualTarget } from '../features/rituals/home/homeViewModel'
@@ -21,6 +21,7 @@ import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/so
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { SCOPE } from '../features/rituals/productScope'
 import { readSoloWeekOutcomes, soloHomeCells, type SoloWeekOutcome } from '../features/rituals/home/soloHistory'
+import { tileMoneyLine } from '../features/rituals/home/tileMoney'
 import { laterWeekOpenAt, stampedWeekClosingLabel, tileStatus } from '../features/rituals/home/tileStatus'
 import { soloRitualModel } from '../features/rituals/solo/lifecycle/soloRitualModel'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
@@ -60,6 +61,7 @@ export function RitualsHomeScreen() {
     // AUTHORITATIVE CHAIN READS keep ritual cards grounded in current account data.
     const generation = ++requestGeneration.current
     setHomeState(initialState)
+    setOutcomes(new Map())
     if (client.status !== 'ready') {
       setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(client.reason) })
       return
@@ -187,6 +189,7 @@ function seasonCountLine(season: SeasonAccountView): string {
 
 function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { ritual: HomeRitual; known: readonly KnownRitual[]; outcomes: ReadonlyMap<number, SoloWeekOutcome> | undefined; now: number | null; width: number; onPress: () => void; styles: ReturnType<typeof makeStyles> }) {
   const account = ritual.bundle.ritual.account
+  const moneyLine = tileMoneyLine(account, outcomes)
   const tint = ritualTintAmong(ritual.address, known)
   const cells: WeekCell[] = account.kind === 'Solo'
     ? soloHomeCells(account, outcomes, now)
@@ -200,16 +203,16 @@ function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { 
   return <Pressable
     onPress={onPress}
     accessibilityRole="button"
-    accessibilityLabel={`${ritual.title}. ${status.text}. ${closingLine ?? weekSummary(cells)}. ${formatAtomic(account.perEventAllocation, account.stakeDecimals)} a week.`}
+    accessibilityLabel={`${ritual.title}. ${status.text}. ${closingLine ?? weekSummary(cells)}. ${moneyLine}.`}
     style={({ pressed }) => [styles.tile, { width, backgroundColor: tint }, pressed && styles.tilePressed]}
   >
     <View style={styles.tileOrb} />
     <View style={styles.tileHead}>
-      <Text style={styles.tileStake}>{formatAtomic(account.perEventAllocation, account.stakeDecimals)} / wk</Text>
+      <Text style={styles.tileStake}>{moneyLine}</Text>
       <Text style={styles.tileTitle} numberOfLines={3}>{ritual.title}</Text>
     </View>
     <View style={styles.tileFoot}>
-      <WeekStrip cells={cells} tint={tint} compact summaryLabel={closingLine ?? undefined} />
+      <WeekStrip cells={cells} tint={tint} compact summary={closingLine !== null} summaryLabel={closingLine ?? undefined} />
       <View style={[styles.tilePill, status.act && styles.tilePillAct]}><Text style={[styles.tilePillText, status.act && styles.tilePillActText]} numberOfLines={1}>{status.text}</Text></View>
     </View>
   </Pressable>

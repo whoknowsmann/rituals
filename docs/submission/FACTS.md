@@ -90,8 +90,11 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
    Kept → stake back, KEPT receipt (with the note).
    Missed → that week's stake to the cause, MISSED stamp ("That's a week, not a
    verdict."). A wallet button stays as a fallback.
-4. **Home**: two-column tiles, a colour per ritual, punch card ("1 of 4 kept"),
-   status pill ("Stamp this week"), "+ New ritual".
+4. **Home**: two-column tiles, a colour per ritual, compact punch card,
+   status pill ("Stamp this week"), "+ New ritual". The home-polish branch
+   replaces "1 of 4 kept" and the weekly amount with "{back} of {total} tSKR back"
+   (settled returns including skips and eject; total only while unread).
+   Source/unit verified; this change still needs a phone walk.
 5. **One declared skip per ritual**: call it before the week opens and that
    week's stake comes back to you.
 6. **Night mode** follows the phone; sun/moon toggle in the top bar.
