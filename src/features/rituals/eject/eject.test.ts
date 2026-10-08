@@ -5,6 +5,8 @@ import { PublicKey } from '@solana/web3.js'
 import { ejectRows, ejectTitle, endableRituals, nameConfirmed } from './ejectFlow'
 import { buildEjectDeps, EjectAmountsChangedError } from './ejectDeps'
 import { runLifecycleAction } from '../runLifecycleAction'
+import { lifecycleInitialState, lifecycleReducer } from '../lifecycleMachine'
+import { watchActionReconciliation } from '../recovery/reconcilePendingAction'
 import type { RitualClient } from '../../../data/rituals/ritualClient'
 import type { PendingActionRecord } from '../recovery/pendingAction'
 import { tileStatus } from '../home/tileStatus'
@@ -69,6 +71,29 @@ describe('end early through the shared action path', () => {
     expect(onAmountsChanged).toHaveBeenCalledWith(expect.objectContaining({ backToYou: 5n, pendingForfeit: 10n }))
     expect(client.prepareEject).not.toHaveBeenCalled()
     expect(client.submitPrepared).not.toHaveBeenCalled()
+  })
+
+  it('checks the chain after a lost End early reply and reaches Ended without a second send', async () => {
+    vi.useFakeTimers()
+    try {
+      const client = fakeClient(quote(10n, 5n))
+      client.submitPrepared.mockRejectedValue(Object.assign(new Error('wallet submission outcome is unknown'), { submitted: true }))
+      const readRitual = vi.fn(async () => ({ slot: 120, address: ritualAddress, account: { status: 'Ended', creator: me } }))
+      const deps = buildEjectDeps({ client: { ...client, readRitual } as unknown as RitualClient, ritualAddress, actor: me, shown: quote(10n, 5n), getBlockHeight: async () => 10 })
+      let state = lifecycleInitialState()
+      await runLifecycleAction(deps, (event) => { state = lifecycleReducer(state, event) })
+      expect(state).toMatchObject({ status: 'error', retryable: false })
+      const stop = watchActionReconciliation(deps.reconcile!, (event) => { state = lifecycleReducer(state, event) })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(state.status).toBe('recovered')
+      expect(readRitual).toHaveBeenCalledWith(ritualAddress)
+      expect(client.submitPrepared).toHaveBeenCalledOnce()
+      stop()
+    } finally { vi.useRealTimers() }
+    const flow = readFileSync(resolve(__dirname, 'EndEarly.tsx'), 'utf8')
+    expect(flow).toContain("if (eject.state.status === 'confirmed' || eject.state.status === 'recovered') ended()")
+    expect(flow).toContain('getSignatureStatus: async (signature) =>')
+    expect(flow).not.toContain('setInterval(')
   })
 
   it('refuses another wallet and a wallet switch before signing', async () => {

@@ -95,6 +95,10 @@ export function EndEarly({ ritual, onClose }: { ritual: EndingRitual; onClose: (
       authorizedActor: () => accountRef.current?.publicKey ?? null,
       pendingActionStore: asyncStoragePendingActionStore,
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
+      getSignatureStatus: async (signature) => {
+        const value = (await connection.getSignatureStatuses([signature], { searchTransactionHistory: true })).value[0]
+        return value ? { slot: value.slot, err: value.err, confirmationStatus: value.confirmationStatus ?? null } : null
+      },
     })
   }, [address, client, connection, selectedAccount])
   const eject = useRitualAction(makeDeps)
@@ -107,27 +111,19 @@ export function EndEarly({ ritual, onClose }: { ritual: EndingRitual; onClose: (
       navigation.navigate('SoloRitual', { ritualId: ritual.address })
     })
   }, [navigation, ritual.address])
-  useEffect(() => { if (eject.state.status === 'confirmed') ended() }, [eject.state.status, ended])
+  // A lost or cancelled wallet reply is settled by the chain (useRitualAction reconciles it), not by the reply.
+  useEffect(() => { if (eject.state.status === 'confirmed' || eject.state.status === 'recovered') ended() }, [eject.state.status, ended])
   useEffect(() => {
     if (eject.state.status !== 'error') return
     const maybeLanded = eject.state.submitted || eject.state.category === 'confirmation'
     if (moved.current) { setLine('Amounts changed.'); return }
-    if (!maybeLanded) { setLine(eject.state.category === 'network-mismatch' ? eject.copy.body : 'Nothing was sent.'); return }
+    if (!maybeLanded) { setLine(eject.state.category === 'network-mismatch' || eject.state.category === 'transaction-failed' ? eject.copy.body : 'Nothing was sent.'); return }
     setLine(eject.copy.body)
-    if (client.status !== 'ready') return
-    // It may have landed: the chain decides, not the wallet's reply.
-    let tries = 0
-    const timer = setInterval(() => {
-      tries += 1
-      void client.client.readRitual(address).then((read) => { if (read.account.status === 'Ended') ended() }, () => undefined)
-      if (tries >= 4) clearInterval(timer)
-    }, 3000)
-    return () => clearInterval(timer)
-  }, [address, client, eject.copy.body, eject.state, ended])
+  }, [eject.copy.body, eject.state])
 
   const decimals = quote?.ritual.account.stakeDecimals ?? 6
   const rows = quote ? ejectRows(quote, labelSoloDestination(quote.ritual.account.forfeitDestination, undefined, destinationOwner), decimals) : [{ label: 'Back to you', value: '…' }]
-  const busy = eject.isBusy || eject.state.status === 'confirmed'
+  const busy = eject.isBusy || eject.state.status === 'confirmed' || eject.state.status === 'recovered'
   const busyLabel = withWalletHandoff(eject.copy, eject.state.status, walletPackage).title
 
   return (

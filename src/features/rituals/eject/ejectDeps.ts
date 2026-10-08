@@ -3,7 +3,8 @@ import type { RitualClient } from '../../../data/rituals/ritualClient'
 import { sameEjectMoney, type EjectAmounts, type EjectQuote } from '../../../data/rituals/ejectQuote'
 import type { PreparedRitualAction } from '../../../data/rituals/ritualPreparedAction'
 import type { SubmittedRitualActionHandle } from '../../../data/rituals/ritualSubmission'
-import { makePendingActionRecord, withPendingActionSignature, type PendingActionRecord, type PendingActionStore } from '../recovery/pendingAction'
+import { makePendingActionRecord, withPendingActionSignature, type PendingActionRecord, type PendingActionStore, type PendingActionTransport } from '../recovery/pendingAction'
+import { reconcilePendingAction } from '../recovery/reconcilePendingAction'
 import type { LifecycleActionDeps } from '../runLifecycleAction'
 import type { LifecycleConfirmedRef, LifecyclePreparedRef, LifecycleSubmittedRef } from '../lifecycleMachine'
 
@@ -19,6 +20,7 @@ export type EjectDepsParams = Readonly<{
   pendingActionStore?: PendingActionStore
   now?: () => number
   getBlockHeight?: () => Promise<number>
+  getSignatureStatus?: PendingActionTransport['getSignatureStatus']
 }>
 
 export class EjectAmountsChangedError extends Error {
@@ -63,14 +65,13 @@ export function buildEjectDeps(params: EjectDepsParams): LifecycleActionDeps {
         const height = await params.getBlockHeight()
         if (height > prepared.lastValidBlockHeight) throw Object.assign(new Error('prepared blockhash expired before signing'), { blockhashExpired: true })
       }
-      if (params.pendingActionStore) {
-        record = { ...makePendingActionRecord(prepared, params.now?.() ?? Date.now()), actor: params.actor.toBase58(), eventIndex }
-        await params.pendingActionStore.upsert(record)
-      }
+      record = { ...makePendingActionRecord(prepared, params.now?.() ?? Date.now()), actor: params.actor.toBase58(), eventIndex }
+      if (params.pendingActionStore) await params.pendingActionStore.upsert(record)
       try { handle = await params.client.submitPrepared(prepared) } catch (error) {
         const submitted = error as { submitted?: unknown; signature?: unknown } | null
-        if (submitted?.submitted === true && typeof submitted.signature === 'string' && params.pendingActionStore && record) {
-          try { await params.pendingActionStore.upsert(withPendingActionSignature(record, submitted.signature)) } catch { /* the unsigned record still resolves by readback */ }
+        if (submitted?.submitted === true && typeof submitted.signature === 'string' && record) {
+          record = withPendingActionSignature(record, submitted.signature)
+          try { await params.pendingActionStore?.upsert(record) } catch { /* the unsigned record still resolves by readback */ }
         }
         throw error
       }
@@ -87,5 +88,7 @@ export function buildEjectDeps(params: EjectDepsParams): LifecycleActionDeps {
       }
       return { signature: result.signature, messageDigest: result.messageDigest }
     },
+    // The chain decides a lost or cancelled reply: status Ended, made by this creator.
+    reconcile: () => reconcilePendingAction(params.client, record, params.pendingActionStore, params.getBlockHeight, params.getSignatureStatus),
   }
 }
