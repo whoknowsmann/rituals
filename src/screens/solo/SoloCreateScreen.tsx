@@ -474,7 +474,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           {confirmedAddress && readbackError && <ErrorLine>{readbackError}</ErrorLine>}
           {confirmedAddress && readbackError && <ActionButton tone="quiet" label="Check your ritual again" onPress={() => setReadbackAttempt((value) => value + 1)} />}
           {!createComplete && speed === 'demo' && <Text style={styles.quiet}>{DEMO_CLOCK_WARNING}</Text>}
-          {!createComplete && (
+          {!createComplete && selectedAccount && (
             <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}
 

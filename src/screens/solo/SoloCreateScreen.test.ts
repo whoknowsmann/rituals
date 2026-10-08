@@ -37,6 +37,13 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('setTimeout(() => setBalanceTick((value) => value + 1), 4000)')
     expect(source).not.toContain("faucet.status !== 'done'")
   })
+  it('hides Lock it in until connected, retaining the chooser and the exact start handler', () => {
+    expect(source).toMatch(/\{!createComplete && selectedAccount && \(\s*<ActionButton label=\{create.isBusy \? 'Locking in…' : 'Lock it in'\}/)
+    expect(source).toContain('onPress={() => { setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }}')
+    expect(source).toContain('{step === 3 && !selectedAccount && <View><Text style={styles.quiet}>Set your wallet to Devnet.</Text><WalletChoiceButtons failureCopy="Connection not completed. Try again." /></View>}')
+    expect(source.match(/'Lock it in'/g)).toHaveLength(1)
+  })
+
   it('only explains the wallet handoff while the wallet is opening', () => {
     expect(source).not.toContain('walletHandoffNote(')
     expect(source).toContain('withWalletHandoff(')
