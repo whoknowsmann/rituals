@@ -5,6 +5,13 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloRitualScreen.tsx'), 'utf8')
 
 describe('SoloRitualScreen proof and witness controls', () => {
+  it('uses links for minor ritual controls, retaining bordered retry and settlement controls', () => {
+    expect(source).toContain('tone="link" label={`Reminders: ${ritualRemindersOn ? \'on\' : \'off\'}`} onPress={toggleRitualReminders}')
+    expect(source).toContain('tone="link" label={`See week ${model.lastClosedEventIndex + 1} receipt`}')
+    expect(source).toContain('tone="link" label="Remove from this phone" onPress={removeFromPhone}')
+    expect(source).toContain('tone="quiet" label="Try again" onPress={action.reset}')
+    expect(source).toContain('tone="quiet" label={settle.isBusy ? \'Working…\' : model.needsEventInit ? \'Close this week\' : \'Settle this week\'} onPress={settle.start}')
+  })
   it('removes the missed/skipped exit button, while preserving the error-state exit', () => {
     const errorState = source.indexOf('function ErrorState(')
     expect(source.slice(0, errorState)).not.toContain('label="Back to rituals"')
