@@ -231,7 +231,7 @@ describe('create machine: user-facing copy', () => {
     expect(copy.title.toLowerCase()).not.toContain('success')
   })
 
-  it('tells the user not to retry after an unconfirmed submission', () => {
+  it('says only that it is checking after an unconfirmed submission, with Lock it in off', () => {
     const stuck = reduce(
       createMachineInitialState(),
       { type: 'PREPARE' },
@@ -239,7 +239,8 @@ describe('create machine: user-facing copy', () => {
       { type: 'SUBMITTED', handle: HANDLE },
       { type: 'FAILED', category: 'confirmation', message: 'timeout' },
     )
-    expect(createStatusCopy(stuck).body.toLowerCase()).toMatch(/do not|don't|avoid/)
+    expect(createStatusCopy(stuck).body).toBe('Checking whether it went through…')
+    expect(canSubmitCreate(stuck)).toBe(false)
   })
 
   it('provides copy for every reachable status', () => {

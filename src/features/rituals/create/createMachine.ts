@@ -275,9 +275,10 @@ export function createStatusCopy(state: CreateMachineState): CreateStatusCopy {
       })
     case 'error': {
       if (state.submitted || state.category === 'confirmation') {
+        // Lock it in stays off; the background chain check turns this into Done or a safe retry.
         return freeze({
           title: 'Confirmation incomplete',
-          body: "It may already have gone through. Don't try again until you've checked Home.",
+          body: 'Checking whether it went through…',
           tone: 'warning' as const,
         })
       }

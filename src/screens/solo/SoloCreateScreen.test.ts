@@ -126,6 +126,12 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain("navigation.replace('SoloRitual', { ritualId: confirmedAddress })")
   })
 
+  it('shows one checking line while a create is uncertain, never "was sent" next to it', () => {
+    // The hook's chain check owns an uncertain create; the screen reads the ritual only once it is Done.
+    expect(source).toContain("const confirmedAddress = createComplete && 'ritualAddress' in create.state ? create.state.ritualAddress : null")
+    expect(source).not.toContain("(create.state.status === 'error' && !create.state.retryable)")
+  })
+
   it('editing the name never wipes the description the user typed', () => {
     expect(source).toContain("intention: value, title: ''")
     expect(source).not.toContain("intention: value, title: '', requirement: ''")

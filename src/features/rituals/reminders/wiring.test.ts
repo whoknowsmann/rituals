@@ -23,7 +23,8 @@ describe('reminder integration pins (not native UI tests)', () => {
   it('schedules only after confirmed readback and uses its chain schedule', () => {
     const create = source('../../../screens/solo/SoloCreateScreen.tsx')
     expect(create).toContain("create.state.status === 'confirmed' || create.state.status === 'recovered'")
-    expect(create).toContain("create.state.status === 'error' && !create.state.retryable")
+    // An uncertain create is the hook's chain check; the screen reads back (and schedules) only once it is Done.
+    expect(create).toContain("const confirmedAddress = createComplete && 'ritualAddress' in create.state ? create.state.ritualAddress : null")
     expect(create.indexOf('create.observeReadback(confirmedAddress)')).toBeGreaterThan(create.indexOf('read.account.kind !== \'Solo\''))
     expect(create.indexOf('void rememberRitual(')).toBeGreaterThan(create.indexOf('create.observeReadback(confirmedAddress)'))
     expect(create.indexOf('void scheduleReminders(')).toBeGreaterThan(create.indexOf('void rememberRitual('))

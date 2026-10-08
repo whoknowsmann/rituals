@@ -270,7 +270,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
   useDevnetMismatchAlert(create.state.status, create.state.status === 'error' ? create.state.category : null, walletPackage)
   const createComplete = create.state.status === 'confirmed' || create.state.status === 'recovered'
-  const confirmedAddress = createComplete || (create.state.status === 'error' && !create.state.retryable) ? ('ritualAddress' in create.state ? create.state.ritualAddress : null) : null
+  const confirmedAddress = createComplete && 'ritualAddress' in create.state ? create.state.ritualAddress : null
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (event) => {
