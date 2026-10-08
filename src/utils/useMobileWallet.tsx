@@ -6,6 +6,7 @@ import { associationConfigFor, walletOptionByPackage } from "./walletChoice";
 import { logFailure } from "./diagnostics";
 import { assertWalletNetwork } from "./walletNetwork";
 import { withWalletSession } from './walletSession';
+import { showNetworkMismatchHint } from './networkMismatchHint';
 import { isWalletCancellation, isWalletTimeout } from './walletErrors';
 import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode, type WalletAssociationConfig } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
@@ -17,11 +18,14 @@ export class MobileWalletError extends Error {
   readonly staleAuthorization: boolean;
   /** Signing was invoked and a lost response cannot rule out a broadcast. */
   readonly submitted: boolean;
-  constructor(category: MobileWalletErrorCategory, message: string, userRejected = false, staleAuthorization = false, submitted = false) {
+  /** The wallet cancelled its signing sheet. Seed Vault answers a decline and its "Network mismatch" sheet this way. */
+  readonly cancelled: boolean;
+  constructor(category: MobileWalletErrorCategory, message: string, userRejected = false, staleAuthorization = false, submitted = false, cancelled = false) {
     super(message); this.name = "MobileWalletError"; this.category = category; this.userRejected = userRejected; this.staleAuthorization = staleAuthorization;
-    this.submitted = submitted;
+    this.submitted = submitted; this.cancelled = cancelled;
   }
 }
+const isCancellation = (error: unknown): boolean => !isWalletTimeout(error) && isWalletCancellation(error);
 function isUserRejection(error: unknown): boolean {
   if (isWalletTimeout(error)) return false;
   try {
@@ -71,7 +75,7 @@ export async function authorizeAndSendTransaction(
   try {
     onSignAndSend?.();
     signatures = await wallet.signAndSendTransactions({ transactions: [transaction], minContextSlot, commitment: "confirmed", skipPreflight: false, maxRetries: 3, waitForCommitmentToSendNextTransaction: true });
-  } catch (error) { logFailure("mwa.signAndSend", error); if (isStaleAuthorization(error)) throw new MobileWalletError("authorization", "wallet account changed; reconnect your wallet", false, true); const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected, false, isWalletTimeout(error)); }
+  } catch (error) { logFailure("mwa.signAndSend", error); if (isStaleAuthorization(error)) throw new MobileWalletError("authorization", "wallet account changed; reconnect your wallet", false, true); const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected, false, isWalletTimeout(error), isCancellation(error)); }
   if (!Array.isArray(signatures) || typeof signatures[0] !== "string" || signatures[0].length === 0) throw new MobileWalletError("wallet", "wallet returned no transaction signature");
   return signatures[0] as TransactionSignature;
 }
@@ -96,6 +100,8 @@ export function useMobileWallet() {
     catch (error) {
       // Drop the stale token so the next attempt re-authorizes against the wallet's current account.
       if (error instanceof MobileWalletError && error.staleAuthorization) { try { await clearAuthorization(); } catch { /* best effort */ } }
+      // Only once the signing sheet was shown: a cancel at connect/authorize, a timeout or a stale token never alerts.
+      if (signAndSendInvoked && (error instanceof MobileWalletError ? error.cancelled : isCancellation(error))) void showNetworkMismatchHint(walletPackage);
       if (!(error instanceof MobileWalletError) && isWalletTimeout(error)) throw new MobileWalletError('wallet', 'wallet submission failed', false, false, signAndSendInvoked);
       if (!(error instanceof MobileWalletError) && isUserRejection(error)) throw new MobileWalletError('wallet', 'wallet request was rejected', true);
       throw error;

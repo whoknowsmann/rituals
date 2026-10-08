@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Alert } from 'react-native'
 import { PublicKey, Transaction } from '@solana/web3.js'
@@ -72,5 +72,108 @@ describe('Seed Vault Devnet popup: never on an approval that goes through', () =
     }
     expect(source('features/rituals/client/useRitualClient.ts')).toContain('const { signAndSendTransaction } = useMobileWallet()')
     expect(source('features/rituals/client/useRitualClient.ts')).toContain('makeTransport(connection, signAndSendTransaction)')
+  })
+})
+
+const TITLE = 'Network mismatch?'
+const BODY = 'Rituals runs on Devnet. In Seed Vault Wallet: Settings → Network → Devnet. Then try again.'
+const cancellation = () => new Error('java.util.concurrent.CancellationException')
+const timeout = () => Object.assign(new Error('java.util.concurrent.TimeoutException: Timed out waiting for response with id=2'), { name: 'java.util.concurrent.ExecutionException', code: 'Timed out waiting for response' })
+const declined = { category: 'wallet', userRejected: true, submitted: false }
+const sourceFiles = (dir: string): string[] => readdirSync(dir, { withFileTypes: true })
+  .flatMap((entry) => entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : [])
+
+describe('Seed Vault Devnet popup: after a cancelled signing sheet', () => {
+  it('shows the exact native popup once the wallet has closed, and keeps the quiet "nothing sent" result', async () => {
+    const order: string[] = []
+    vi.mocked(transact).mockImplementation(async (run) => { try { return await run(nativeWallet as never) } finally { order.push('wallet closed') } })
+    vi.mocked(Alert.alert).mockImplementation(() => { order.push('popup') })
+    nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
+    await expect(hook.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+    await vi.waitFor(() => expect(Alert.alert).toHaveBeenCalledOnce())
+    expect(Alert.alert).toHaveBeenCalledWith(TITLE, BODY, [{ text: 'OK' }])
+    expect(order).toEqual(['wallet closed', 'popup'])
+    expect(AsyncStorage.setItem).toHaveBeenCalledExactlyOnceWith('@rituals/network-mismatch-hint/v1', '1')
+  })
+
+  it('shows at most twice per phone, including after an app restart', async () => {
+    let stored: string | null = null
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async () => stored)
+    vi.mocked(AsyncStorage.setItem).mockImplementation(async (_key, value) => { stored = value })
+    nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
+    const mobile = hook.useMobileWallet()
+    for (const shown of [1, 2, 2]) {
+      await expect(mobile.signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+      await flush()
+      expect(Alert.alert).toHaveBeenCalledTimes(shown)
+    }
+    expect(stored).toBe('2')
+    vi.resetModules()
+    const restarted = await vi.importActual<typeof import('./useMobileWallet')>('./useMobileWallet')
+    await expect(restarted.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+    await flush()
+    expect(Alert.alert).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['read', 'write', 'both'])('fails open on a storage %s failure: still one popup per failure, and at most two', async (failure) => {
+    if (failure !== 'write') vi.mocked(AsyncStorage.getItem).mockRejectedValue(new Error('unreadable'))
+    if (failure !== 'read') vi.mocked(AsyncStorage.setItem).mockRejectedValue(new Error('unwritable'))
+    nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
+    const mobile = hook.useMobileWallet()
+    for (const shown of [1, 2, 2]) {
+      await expect(mobile.signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+      await flush()
+      expect(Alert.alert).toHaveBeenCalledTimes(shown)
+    }
+  })
+
+  it('keeps the cap when failures overlap', async () => {
+    let stored: string | null = null
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async () => stored)
+    vi.mocked(AsyncStorage.setItem).mockImplementation(async (_key, value) => { stored = value })
+    const { showNetworkMismatchHint } = await vi.importActual<typeof import('./networkMismatchHint')>('./networkMismatchHint')
+    await Promise.all([showNetworkMismatchHint(seedVault), showNetworkMismatchHint(seedVault), showNetworkMismatchHint(seedVault)])
+    expect(Alert.alert).toHaveBeenCalledTimes(2)
+    expect(stored).toBe('2')
+  })
+
+  it.each<[string, () => unknown, Record<string, unknown>]>([
+    ['a timeout after the sheet opened', () => nativeWallet.signAndSendTransactions.mockRejectedValue(timeout()), { submitted: true }],
+    ['a lost response after signing', () => vi.mocked(transact).mockImplementation(async (run) => { await run(nativeWallet as never); throw timeout() }), { submitted: true }],
+    ['a cancel at authorize', () => vi.mocked(authorization.authorizeSession).mockRejectedValue(cancellation()), { category: 'authorization', userRejected: true }],
+    ['a cancel before the wallet opened', () => vi.mocked(transact).mockRejectedValue(new Error('Session not established: Local association cancelled by user')), declined],
+    ['a stale token at signing', () => nativeWallet.signAndSendTransactions.mockRejectedValue(new Error('-1/auth_token not valid for signing')), { category: 'authorization' }],
+    ['a wallet error that is not a cancel', () => nativeWallet.signAndSendTransactions.mockRejectedValue(new Error('boom')), { category: 'wallet', userRejected: false }],
+  ])('no popup on %s', async (_case, arrange, expected) => {
+    arrange()
+    await expect(hook.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(expected)
+    await flush()
+    expect(Alert.alert).not.toHaveBeenCalled()
+    expect(AsyncStorage.getItem).not.toHaveBeenCalled()
+  })
+
+  it.each(['app.phantom', null])('never shows for %s, even on the same cancellation', async (walletPackage) => {
+    authorization = { ...authorization, walletPackage }
+    nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
+    await expect(hook.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+    await flush()
+    expect(Alert.alert).not.toHaveBeenCalled()
+    expect(AsyncStorage.getItem).not.toHaveBeenCalled()
+  })
+
+  it('never shows on a cancelled connect or disconnect', async () => {
+    vi.mocked(authorization.authorizeSession).mockRejectedValue(cancellation())
+    vi.mocked(authorization.deauthorizeSession).mockRejectedValue(cancellation())
+    const mobile = hook.useMobileWallet()
+    await expect(mobile.connect(seedVault)).rejects.toThrow('CancellationException')
+    await expect(mobile.disconnect()).rejects.toThrow('CancellationException')
+    await flush()
+    expect(Alert.alert).not.toHaveBeenCalled()
+  })
+
+  it('is raised from one place: the wallet session every action shares', () => {
+    const src = resolve(__dirname, '..')
+    const callers = sourceFiles(src).filter((file) => !/\.test\.tsx?$/.test(file) && readFileSync(file, 'utf8').includes('showNetworkMismatchHint('))
+    expect(callers.map((file) => relative(src, file)).sort()).toEqual(['utils/networkMismatchHint.ts', 'utils/useMobileWallet.tsx'])
   })
 })

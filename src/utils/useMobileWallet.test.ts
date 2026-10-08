@@ -38,9 +38,9 @@ describe('authorizeAndSendTransaction', () => {
 
   it.each([new Error('java.util.concurrent.CancellationException'), { name: 'java.util.concurrent.CancellationException' }])('keeps a Seed Vault decline pre-submission (%j)', async (error) => {
     const session = wallet()
-    await expect(authorizeAndSendTransaction(session, async () => { throw error }, legacy(), 12)).rejects.toMatchObject({ category: 'authorization', userRejected: true, submitted: false })
+    await expect(authorizeAndSendTransaction(session, async () => { throw error }, legacy(), 12)).rejects.toMatchObject({ category: 'authorization', userRejected: true, submitted: false, cancelled: false })
     session.signAndSendTransactions.mockRejectedValueOnce(error)
-    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 12)).rejects.toMatchObject({ category: 'wallet', userRejected: true, submitted: false })
+    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 12)).rejects.toMatchObject({ category: 'wallet', userRejected: true, submitted: false, cancelled: true })
   })
 
   it.each([
@@ -55,7 +55,7 @@ describe('authorizeAndSendTransaction', () => {
     expect(session.signAndSendTransactions).not.toHaveBeenCalled()
     expect(invoked).not.toHaveBeenCalled()
     session.signAndSendTransactions.mockRejectedValueOnce(error)
-    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 12, invoked)).rejects.toMatchObject({ category: 'wallet', userRejected: false, submitted: true })
+    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 12, invoked)).rejects.toMatchObject({ category: 'wallet', userRejected: false, submitted: true, cancelled: false })
     expect(invoked).toHaveBeenCalledOnce()
   })
 
@@ -100,6 +100,7 @@ describe('authorizeAndSendTransaction', () => {
       category: 'wallet',
       message: 'wallet request was rejected',
       userRejected: true,
+      cancelled: false,
     })
   })
   it('sanitizes malformed authorization account getters before wallet submission', async () => {
