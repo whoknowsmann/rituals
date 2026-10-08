@@ -5,6 +5,11 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloRitualScreen.tsx'), 'utf8')
 
 describe('SoloRitualScreen proof and witness controls', () => {
+  it('removes the missed/skipped exit button, while preserving the error-state exit', () => {
+    const errorState = source.indexOf('function ErrorState(')
+    expect(source.slice(0, errorState)).not.toContain('label="Back to rituals"')
+    expect(source.slice(errorState)).toContain('<ActionButton tone="dark" label="Back to rituals" onPress={onHome} />')
+  })
   it('keeps finished copy to the per-week amount and missed consequence', () => {
     expect(source).toContain('label="Stake per week"')
     expect(source).toContain('{amountLabel} went to {model.destinationLabel}.')

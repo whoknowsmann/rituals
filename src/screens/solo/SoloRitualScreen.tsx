@@ -327,7 +327,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="link" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
-      {(model.state === 'missed' || model.state === 'skipped') && <ActionButton tone="dark" label="Back to rituals" onPress={() => navigation.navigate('RitualsHome')} />}
+
       {readyBundle.ritual.account.status === 'Active' && model.state !== 'completed' && <ActionButton tone="quiet" label={`Reminders: ${ritualRemindersOn ? 'on' : 'off'}`} onPress={toggleRitualReminders} disabled={!reminderSettings.preferences?.masterEnabled || reminderSettings.busy || claim.isBusy || skip.isBusy || settle.isBusy} />}
       {reminderSettings.error && <Text style={s.muted} accessibilityLiveRegion="polite">{reminderSettings.error}</Text>}
       {removable && <ActionButton tone="quiet" label="Remove from this phone" onPress={removeFromPhone} />}
