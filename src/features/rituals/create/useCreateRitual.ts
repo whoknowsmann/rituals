@@ -27,6 +27,7 @@ import {
 } from './createMachine'
 import { runCreateRitual, type CreateRitualDeps } from './runCreateRitual'
 import { watchActionReconciliation } from '../recovery/reconcilePendingAction'
+import { reportChainVerdict } from '../../../utils/chainVerdict'
 
 export type UseCreateRitual = Readonly<{
   state: CreateMachineState
@@ -83,8 +84,10 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
 
   useEffect(() => {
     if (!createAwaitsChain(state) || !attempt.current?.reconcile) return
-    return watchActionReconciliation(attempt.current.reconcile, safeDispatch)
+    // A cancelled sheet's "Network mismatch?" hint waits for this first answer.
+    return watchActionReconciliation(attempt.current.reconcile, safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
   }, [state, safeDispatch])
+  useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
 
   const reset = useCallback(() => {
     if (inFlight.current) return

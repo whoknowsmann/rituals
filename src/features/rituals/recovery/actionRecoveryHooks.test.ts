@@ -28,12 +28,14 @@ vi.mock('react', () => ({
   },
 }))
 vi.mock('../../../utils/diagnostics', () => ({ logFailure: vi.fn() }))
+const verdict = vi.hoisted(() => ({ report: vi.fn() }))
+vi.mock('../../../utils/chainVerdict', () => ({ reportChainVerdict: verdict.report }))
 
 const address = new PublicKey(new Uint8Array(32).fill(7)).toBase58()
 const record: PendingActionRecord = { version: 1, actionKind: 'claim', ritualAddress: address, messageDigest: 'a'.repeat(64), actor: address, eventIndex: 0, blockhash: address, lastValidBlockHeight: 100, createdAt: 1 }
 const flush = async () => { await vi.advanceTimersByTimeAsync(0) }
 const cleanup = () => { for (const cell of harness.cells) cell?.cleanup?.() }
-beforeEach(() => { harness.cells = []; harness.cursor = 0; harness.effects = []; vi.useFakeTimers() })
+beforeEach(() => { harness.cells = []; harness.cursor = 0; harness.effects = []; verdict.report.mockReset(); vi.useFakeTimers() })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery`, () => {
@@ -95,6 +97,9 @@ for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery
     expect(done.copy.tone).toBe('success')
     expect(done.canSubmit).toBe(false)
     expect(deps.submit).toHaveBeenCalledOnce()
+    // The "Network mismatch?" hint waiting on this answer stays silent.
+    expect(verdict.report).toHaveBeenCalledWith(true)
+    expect(verdict.report).not.toHaveBeenCalledWith(false)
   })
 
   it('keeps Try again open while the chain has no answer, and stops checking once expiry is proven', async () => {
@@ -106,6 +111,8 @@ for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery
     await vi.advanceTimersByTimeAsync(6000)
     const waiting = render()
     expect(deps.reconcile.mock.calls.length).toBeGreaterThan(1)
+    // Only the first answer feeds the "Network mismatch?" hint: nothing landed yet, so it may show.
+    expect(verdict.report.mock.calls).toEqual([[false]])
     expect(waiting.canSubmit).toBe(true)
     // A duplicate stamp is rejected by the program; a Create retry reuses the same ritual address, but it never claims nothing was sent.
     expect(waiting.copy.body).toBe(kind === 'claim' ? 'Nothing was sent. Try again.' : 'Try again.')
@@ -118,6 +125,15 @@ for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery
     const reads = deps.reconcile.mock.calls.length
     await vi.advanceTimersByTimeAsync(30_000)
     expect(deps.reconcile).toHaveBeenCalledTimes(reads)
+  })
+
+  it('silences the hint when the screen\'s own read shows the action landed before the background check answers', async () => {
+    const { render } = setup(() => new Promise<PendingActionResolution>(() => undefined), 'cancelled')
+    render().start()
+    await flush()
+    render().observeReadback(address)
+    expect(render().state.status).toBe('recovered')
+    expect(verdict.report.mock.calls).toEqual([[true]])
   })
 
   it('waits for proven expiry and stops its read loop on unmount', async () => {

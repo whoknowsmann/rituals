@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { lifecycleAwaitsChain, lifecycleCanSubmit, lifecycleInitialState, lifecycleIsBusy, lifecycleReducer, lifecycleStatusCopy, type LifecycleEvent, type LifecycleState } from './lifecycleMachine'
 import { runLifecycleAction, type LifecycleActionDeps } from './runLifecycleAction'
 import { watchActionReconciliation } from './recovery/reconcilePendingAction'
+import { reportChainVerdict } from '../../utils/chainVerdict'
 
 export type UseRitualAction = Readonly<{
   state: LifecycleState
@@ -27,8 +28,11 @@ export function useRitualAction(makeDeps: () => LifecycleActionDeps): UseRitualA
   }, [makeDeps, safeDispatch, state])
   useEffect(() => {
     if (!lifecycleAwaitsChain(state) || !attempt.current?.reconcile) return
-    return watchActionReconciliation(attempt.current.reconcile, safeDispatch)
+    // A cancelled sheet's "Network mismatch?" hint waits for this first answer.
+    return watchActionReconciliation(attempt.current.reconcile, safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
   }, [state, safeDispatch])
+  // The screen's own read can show the landing first.
+  useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
   const reset = useCallback(() => { if (!inFlight.current) safeDispatch({ type: 'RESET' }) }, [safeDispatch])
   const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])
   return { state, copy: lifecycleStatusCopy(state), canSubmit: lifecycleCanSubmit(state), isBusy: lifecycleIsBusy(state), start, reset, observeReadback }

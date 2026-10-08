@@ -1,9 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Alert } from 'react-native'
 import { needsDevnetSwitchHint } from './walletChoice'
+import { awaitChainVerdict } from './chainVerdict'
 
 export const NETWORK_MISMATCH_HINT_STORAGE_KEY = '@rituals/network-mismatch-hint/v1'
 const LIMIT = 2
+/** How long the hint waits for the chain to show whether the action went through. */
+const CHAIN_WAIT_MS = 4000
 let shownThisRun = 0
 let queue: Promise<void> = Promise.resolve()
 
@@ -18,12 +21,15 @@ async function showUnderLimit(): Promise<void> {
 }
 
 /**
- * Seed Vault Wallet answers a decline and its own "Network mismatch" sheet with
- * the same cancellation, so after a cancelled Seed Vault signing sheet name the
- * likely cause. At most twice per phone, and at most once per failure.
+ * Seed Vault Wallet answers a decline, its own "Network mismatch" sheet and
+ * Back on its success sheet (after a broadcast) with the same cancellation, so
+ * after a cancelled Seed Vault signing sheet name the likely cause, unless the
+ * chain's first answer (at most 4 s) shows the action went through. At most
+ * twice per phone, and at most once per failure.
  */
 export function showNetworkMismatchHint(walletPackage: string | null | undefined): Promise<void> {
   if (!needsDevnetSwitchHint(walletPackage)) return Promise.resolve()
-  queue = queue.then(showUnderLimit).catch(() => undefined)
+  const landed = awaitChainVerdict(CHAIN_WAIT_MS)
+  queue = queue.then(async () => { if (!(await landed)) await showUnderLimit() }).catch(() => undefined)
   return queue
 }

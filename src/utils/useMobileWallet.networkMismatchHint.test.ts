@@ -19,6 +19,7 @@ const payer = new PublicKey(new Uint8Array(32).fill(7))
 const account = { address: 'test-address', publicKey: payer, chains: ['solana:devnet'] }
 const nativeWallet = { signAndSendTransactions: vi.fn() }
 let hook: typeof import('./useMobileWallet')
+let verdict: typeof import('./chainVerdict')
 let authorization: ReturnType<typeof useAuthorization>
 const transaction = () => { const tx = new Transaction(); tx.feePayer = payer; return tx }
 /** Lets any fire-and-forget storage read and alert finish before asserting. */
@@ -40,6 +41,7 @@ beforeEach(async () => {
   } as unknown as ReturnType<typeof useAuthorization>
   vi.mocked(useAuthorization).mockImplementation(() => authorization)
   hook = await vi.importActual<typeof import('./useMobileWallet')>('./useMobileWallet')
+  verdict = await vi.importActual<typeof import('./chainVerdict')>('./chainVerdict')
 })
 
 describe('Seed Vault Devnet popup: never on an approval that goes through', () => {
@@ -84,16 +86,41 @@ const sourceFiles = (dir: string): string[] => readdirSync(dir, { withFileTypes:
   .flatMap((entry) => entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : [])
 
 describe('Seed Vault Devnet popup: after a cancelled signing sheet', () => {
-  it('shows the exact native popup once the wallet has closed, and keeps the quiet "nothing sent" result', async () => {
+  it('shows the exact native popup once the wallet has closed and the chain shows nothing landed, and keeps the quiet "nothing sent" result', async () => {
     const order: string[] = []
     vi.mocked(transact).mockImplementation(async (run) => { try { return await run(nativeWallet as never) } finally { order.push('wallet closed') } })
     vi.mocked(Alert.alert).mockImplementation(() => { order.push('popup') })
     nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
     await expect(hook.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+    verdict.reportChainVerdict(false)
     await vi.waitFor(() => expect(Alert.alert).toHaveBeenCalledOnce())
     expect(Alert.alert).toHaveBeenCalledWith(TITLE, BODY, [{ text: 'OK' }])
     expect(order).toEqual(['wallet closed', 'popup'])
     expect(AsyncStorage.setItem).toHaveBeenCalledExactlyOnceWith('@rituals/network-mismatch-hint/v1', '1')
+  })
+
+  it('waits for the chain first, and stays silent when the action went through (Back on the success sheet)', async () => {
+    nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
+    await expect(hook.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+    await flush()
+    expect(Alert.alert).not.toHaveBeenCalled()
+    verdict.reportChainVerdict(true)
+    await flush()
+    expect(Alert.alert).not.toHaveBeenCalled()
+    expect(AsyncStorage.getItem).not.toHaveBeenCalled()
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled()
+  })
+
+  it('shows it after 4 s if the chain has not answered', async () => {
+    vi.useFakeTimers()
+    try {
+      nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
+      await expect(hook.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+      await vi.advanceTimersByTimeAsync(3999)
+      expect(Alert.alert).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(Alert.alert).toHaveBeenCalledExactlyOnceWith(TITLE, BODY, [{ text: 'OK' }])
+    } finally { vi.useRealTimers() }
   })
 
   it('shows at most twice per phone, including after an app restart', async () => {
@@ -104,13 +131,16 @@ describe('Seed Vault Devnet popup: after a cancelled signing sheet', () => {
     const mobile = hook.useMobileWallet()
     for (const shown of [1, 2, 2]) {
       await expect(mobile.signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+      verdict.reportChainVerdict(false)
       await flush()
       expect(Alert.alert).toHaveBeenCalledTimes(shown)
     }
     expect(stored).toBe('2')
     vi.resetModules()
     const restarted = await vi.importActual<typeof import('./useMobileWallet')>('./useMobileWallet')
+    const restartedVerdict = await vi.importActual<typeof import('./chainVerdict')>('./chainVerdict')
     await expect(restarted.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+    restartedVerdict.reportChainVerdict(false)
     await flush()
     expect(Alert.alert).toHaveBeenCalledTimes(2)
   })
@@ -122,6 +152,7 @@ describe('Seed Vault Devnet popup: after a cancelled signing sheet', () => {
     const mobile = hook.useMobileWallet()
     for (const shown of [1, 2, 2]) {
       await expect(mobile.signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+      verdict.reportChainVerdict(false)
       await flush()
       expect(Alert.alert).toHaveBeenCalledTimes(shown)
     }
@@ -132,7 +163,9 @@ describe('Seed Vault Devnet popup: after a cancelled signing sheet', () => {
     vi.mocked(AsyncStorage.getItem).mockImplementation(async () => stored)
     vi.mocked(AsyncStorage.setItem).mockImplementation(async (_key, value) => { stored = value })
     const { showNetworkMismatchHint } = await vi.importActual<typeof import('./networkMismatchHint')>('./networkMismatchHint')
-    await Promise.all([showNetworkMismatchHint(seedVault), showNetworkMismatchHint(seedVault), showNetworkMismatchHint(seedVault)])
+    const shown = Promise.all([showNetworkMismatchHint(seedVault), showNetworkMismatchHint(seedVault), showNetworkMismatchHint(seedVault)])
+    verdict.reportChainVerdict(false)
+    await shown
     expect(Alert.alert).toHaveBeenCalledTimes(2)
     expect(stored).toBe('2')
   })

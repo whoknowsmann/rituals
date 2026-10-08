@@ -34,7 +34,9 @@
   mismatch" sheet; the app cannot tell which), the app shows "Network
   mismatch?" / "Rituals runs on Devnet. In Seed Vault Wallet: Settings →
   Network → Devnet. Then try again." [OK], at most twice per phone. Never on
-  success, a timeout, a cancel before signing, or Phantom.
+  success, a timeout, a cancel before signing, or Phantom. It waits up to 4 s
+  for the chain and stays silent if the action went through (Back on Seed
+  Vault's success sheet is the same cancellation).
 - The faucet (Get test tokens) receives the wallet address it pays; nothing else leaves the phone except Solana RPC traffic.
 - Tests: 2,420 TypeScript tests, 206 native program tests (state the numbers
   only if a doc already uses them).

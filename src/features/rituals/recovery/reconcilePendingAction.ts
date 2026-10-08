@@ -25,14 +25,19 @@ export async function reconcilePendingAction(
   return resolution
 }
 
-/** Read immediately, then serialize reads until chain evidence resolves the attempt. */
-export function watchActionReconciliation(reconcile: ActionReconciler, dispatch: (event: ActionRecoveryEvent) => void): () => void {
+/**
+ * Read immediately, then serialize reads until chain evidence resolves the
+ * attempt. `onFirstAnswer` hears once whether the first read showed it landed.
+ */
+export function watchActionReconciliation(reconcile: ActionReconciler, dispatch: (event: ActionRecoveryEvent) => void, onFirstAnswer?: (landed: boolean) => void): () => void {
   let active = true
+  let first = true
   let timer: ReturnType<typeof setTimeout> | undefined
   const check = async () => {
     const result = await reconcile().catch(() => undefined)
     // null: this attempt never reached the journal, so there is nothing to read back.
     if (!active || result === null) return
+    if (first) { first = false; onFirstAnswer?.(result?.status === 'confirmed') }
     if (result?.status === 'confirmed' || result?.status === 'expired') {
       dispatch({ type: result.status === 'confirmed' ? 'READBACK_OBSERVED' : 'EXPIRY_OBSERVED', ritualAddress: result.record.ritualAddress })
       return
