@@ -10,8 +10,10 @@ describe('SoloReceiptScreen proof note', () => {
     expect(source).not.toContain('This week was declared skipped before it opened.')
   })
   it('uses one amount line per outcome beside the stamp, without duplicate headings or rows', () => {
-    expect(source).toContain('{formatAtomic(receipt.amount, decimals)} back to you')
-    expect(source).toContain('{formatAtomic(receipt.amount, decimals)} went to {receipt.destinationLabel}.')
+    expect(source).toContain('soloReceiptMoneyLine(state.bundle, destinationOwner)')
+    expect(source).toContain('useSoloRitualBundle(client, route.params.ritualId, route.params.eventIndex)')
+    expect(source.match(/\{moneyLine && <Text style=\{s\.muted\}>\{moneyLine\}<\/Text>\}/g)).toHaveLength(3)
+    expect(source).not.toContain('formatAtomic(receipt.amount')
     expect(source).toContain('useSoloDestinationOwner(')
     for (const removed of ['Your stake is', 'This week was missed', 'Missed stake', '<Row']) expect(source).not.toContain(removed)
   })

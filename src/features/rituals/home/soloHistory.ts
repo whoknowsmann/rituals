@@ -3,7 +3,7 @@ import { decodeRitualEvent, type RitualAccountView, type RitualEventAccountView 
 import { eventPda } from '../../../data/rituals/pdas'
 import { currentWeekCell } from '../../../components/crew/weekStripLogic'
 import type { RitualBundleRead } from '../../../data/rituals/ritualsRpc'
-import { soloWeekCells } from '../solo/lifecycle/soloRitualModel'
+import { soloWeekCells, type SoloRitualBundle } from '../solo/lifecycle/soloRitualModel'
 
 export type SoloWeekOutcome = 'done' | 'missed' | 'skipped'
 export type HomeWeekCell = SoloWeekOutcome | 'closed' | 'now' | 'current' | 'future' | 'skip-pending'
@@ -45,6 +45,17 @@ export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number
     }
     return 'future'
   })
+}
+
+/** Reuse detail/receipt's confirmed reads; never include projected week cells. */
+export function settledSoloOutcomes(bundle: SoloRitualBundle): ReadonlyMap<number, SoloWeekOutcome> {
+  const outcomes = new Map<number, SoloWeekOutcome>()
+  for (const read of [bundle, ...(bundle.history ?? [])]) {
+    if (!read.event) continue
+    const outcome = eventOutcome(read.event.account)
+    if (outcome) outcomes.set(read.event.account.eventIndex, outcome)
+  }
+  return outcomes
 }
 
 type GetMany = (keys: PublicKey[]) => Promise<readonly (AccountInfo<Buffer> | null)[]>

@@ -21,6 +21,8 @@ import { useRitualAction } from '../../features/rituals/useRitualAction'
 import { withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { forgetRitual, listKnownRituals, type KnownRitual } from '../../features/rituals/authoritativeRituals'
 import { ritualTintAmong } from '../../features/rituals/home/ritualColours'
+import { completedMoneyLine } from '../../features/rituals/home/tileMoney'
+import { settledSoloOutcomes } from '../../features/rituals/home/soloHistory'
 import { notesOffered, readSoloNotes, saveWeekNote, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
 import { SCOPE } from '../../features/rituals/productScope'
 import { keptSaying } from '../../features/rituals/solo/sayings'
@@ -275,6 +277,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const canShareWitness = SCOPE.witness && Boolean(witness && selectedAccount && readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
   const shareAddress = ritualAddress?.toBase58() ?? route.params.ritualId
   const amountLabel = formatAtomic(model.amount, readyBundle.ritual.account.stakeDecimals)
+  const totalsLine = completedMoneyLine(readyBundle.ritual.account, settledSoloOutcomes(readyBundle), model.destinationLabel)
   const ritualRemindersOn = Boolean(reminderSettings.preferences?.masterEnabled && reminderSettings.preferences.rituals[route.params.ritualId]?.enabled)
   const toggleRitualReminders = () => { void reminderSettings.update(async () => {
     if (chainNow === null) return false
@@ -303,8 +306,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         </View>
       )}
       {renderState(model, witness, action, actionCopy, weekNote, stampPending, celebrate > 0 && model.showedUp, keptSaying(route.params.ritualId, keptWeek ?? model.eventIndex), amountLabel, keptWeek)}
+      {model.finishedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" animate={false} /></View>}
+      {totalsLine && <Text style={s.muted}>{totalsLine}</Text>}
       {nextLine && <Text style={s.muted}>{nextLine}</Text>}
-      {model.finishedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" animate={false} />{readyBundle.ritual.account.status === 'Completed' && <Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text>}</View>}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {canRetryAction && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
@@ -340,7 +344,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>
   if (model.weekSkipped || model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
   if (missedWeekOnScreen(model, stampPending) !== null) return <View style={s.paper}><Stamp kind="missed" note={missedWeekOnScreen(model, stampPending) === model.weekCells.length - 1 ? undefined : MISSED_NOTE} animate={false} /></View>
-  if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note={MISSED_NOTE} animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>
+  if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note={model.lastClosedEventIndex === model.weekCells.length - 1 ? undefined : MISSED_NOTE} animate={false} />{model.lastClosedEventIndex !== model.weekCells.length - 1 && <Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text>}</View>
   if (model.state === 'completed' || model.state === 'ended') return null
   if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Reading your stamp…</Text></View>
   // An open week needs no card: the big HOLD button says it all.

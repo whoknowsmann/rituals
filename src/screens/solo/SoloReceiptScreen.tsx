@@ -5,13 +5,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigators/AppNavigator'
 import { useRitualClient } from '../../features/rituals/client/useRitualClient'
 import { useAuthorization } from '../../utils/useAuthorization'
-import { useRitualBundle } from '../../features/rituals/authoritativeRituals'
+import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
 import { readSoloNotes, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
 import { keptSaying } from '../../features/rituals/solo/sayings'
-import { formatAtomic } from '../../features/rituals/displayFormat'
 import { ActionButton, ErrorLine, Footnote, Stamp } from '../../components/crew'
 import { color, fonts, radius, space, type, themedStyles, useColors } from '../../theme'
-import { soloReceiptModel } from '../../features/rituals/solo/lifecycle/soloReceiptModel'
+import { soloReceiptModel, soloReceiptMoneyLine } from '../../features/rituals/solo/lifecycle/soloReceiptModel'
 import { useSoloDestinationOwner } from '../../features/rituals/solo/lifecycle/useSoloDestinationOwner'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SoloReceipt'>
@@ -20,7 +19,7 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
   const navigation = useNavigation()
   const client = useRitualClient()
   const { selectedAccount } = useAuthorization()
-  const state = useRitualBundle(client, route.params.ritualId, route.params.eventIndex)
+  const state = useSoloRitualBundle(client, route.params.ritualId, route.params.eventIndex)
   const destinationOwner = useSoloDestinationOwner(route.params.ritualId, state.bundle?.ritual.account.forfeitDestination, state.bundle?.ritual.account.stakeMint)
   const [soloNotes, setSoloNotes] = useState<SoloNotes | null>(null)
   useFocusEffect(useCallback(() => {
@@ -31,16 +30,16 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
   if (state.status === 'loading') return <Centered>Reading the week…</Centered>
   if (state.status === 'error' || !state.bundle) return <ErrorState message={state.message ?? 'This week could not be read.'} retry={state.retry} onHome={() => navigation.goBack()} />
   const receipt = soloReceiptModel(state.bundle, selectedAccount?.publicKey ?? null, destinationOwner)
-  const decimals = state.bundle.ritual.account.stakeDecimals
+  const moneyLine = soloReceiptMoneyLine(state.bundle, destinationOwner)
   const receiptNote = soloNotes?.notes[String(route.params.eventIndex)] ?? null
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.content} accessibilityLabel="Solo receipt">
       <Text style={s.kicker}>RECEIPT</Text>
       <Text style={s.title} accessibilityRole="header">Week {route.params.eventIndex + 1}</Text>
       {receipt.state === 'pending' ? <View style={s.card}><Text style={s.cardTitle}>Not closed yet</Text><Text style={s.muted}>This week has not settled. Come back after the week closes.</Text></View> : null}
-      {receipt.state === 'kept' ? <View style={s.card}><Stamp kind="kept" note={keptSaying(route.params.ritualId, route.params.eventIndex)} /><Text style={s.muted}>{formatAtomic(receipt.amount, decimals)} back to you</Text>{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}</View> : null}
-      {receipt.state === 'missed' ? <View style={s.card}><Stamp kind="missed" note={route.params.eventIndex + 1 < (state.status === 'ready' ? state.bundle.ritual.account.schedule.length : 0) ? "That's a week, not a verdict." : undefined} animate={false} /><Text style={s.muted}>{formatAtomic(receipt.amount, decimals)} went to {receipt.destinationLabel}.</Text></View> : null}
-      {receipt.state === 'skipped' ? <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View> : null}
+      {receipt.state === 'kept' ? <View style={s.card}><Stamp kind="kept" note={keptSaying(route.params.ritualId, route.params.eventIndex)} />{moneyLine && <Text style={s.muted}>{moneyLine}</Text>}{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}</View> : null}
+      {receipt.state === 'missed' ? <View style={s.card}><Stamp kind="missed" note={route.params.eventIndex + 1 < (state.status === 'ready' ? state.bundle.ritual.account.schedule.length : 0) ? "That's a week, not a verdict." : undefined} animate={false} />{moneyLine && <Text style={s.muted}>{moneyLine}</Text>}</View> : null}
+      {receipt.state === 'skipped' ? <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} />{moneyLine && <Text style={s.muted}>{moneyLine}</Text>}</View> : null}
       <ActionButton tone="link" label="Back to ritual" onPress={() => navigation.goBack()} />
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>

@@ -9,7 +9,8 @@ describe('SoloRitualScreen proof and witness controls', () => {
     const papers = source.split('\n').filter((line) => line.includes('<Stamp kind="missed"'))
     expect(papers).toHaveLength(3)
     expect(papers[0]).toContain("model.finishedOutcome === 'missed' && model.state === 'completed'")
-    expect(papers[0]).toContain("readyBundle.ritual.account.status === 'Completed'")
+    expect(papers[0]).not.toContain('went to')
+    expect(papers[0]).not.toContain('MISSED_NOTE')
     expect(papers[1]).toContain('missedWeekOnScreen(model, stampPending) !== null')
     expect(papers[1]).not.toContain('went to') // current week has not settled yet
     expect(papers[2]).toContain("if (model.state === 'missed')")
@@ -28,7 +29,11 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source.slice(0, errorState)).not.toContain('label="Back to rituals"')
     expect(source.slice(errorState)).toContain('<ActionButton tone="dark" label="Back to rituals" onPress={onHome} />')
   })
-  it('keeps finished copy to the per-week amount and missed consequence', () => {
+  it('puts one shared settled totals line under either finished hero, leaving earlier misses weekly', () => {
+    expect(source).toContain('completedMoneyLine(readyBundle.ritual.account, settledSoloOutcomes(readyBundle), model.destinationLabel)')
+    expect(source.match(/\{totalsLine && <Text style=\{s\.muted\}>\{totalsLine\}<\/Text>\}/g)).toHaveLength(1)
+    expect(source.indexOf('{totalsLine &&')).toBeGreaterThan(source.indexOf("{model.finishedOutcome === 'missed'"))
+    expect(source).toContain('model.lastClosedEventIndex !== model.weekCells.length - 1 && <Text')
     expect(source).toContain('label="Stake per week"')
     expect(source).toContain('{amountLabel} went to {model.destinationLabel}.')
     expect(source).toContain('const MISSED_NOTE = "That\'s a week, not a verdict."')
