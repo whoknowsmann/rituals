@@ -47,7 +47,7 @@ describe('RitualsHomeScreen safety and accessibility structure', () => {
 
   it('offers a retry action wired to the repository loader', () => {
     expect(source).toContain('const load = useCallback')
-    expect(source).toContain('onPress={load}')
+    expect(source).toContain('onPress={() => load()}')
     expect(source).toContain('Try again')
   })
 

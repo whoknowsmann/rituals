@@ -1,22 +1,25 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Keypair, PublicKey } from '@solana/web3.js'
 import { autoSettleWeek } from './autoSettle'
 import { formatSol, settlerBudgetLamports, settlerCanPay } from './settlerBudget'
 import { DEMO_CLOCK_WARNING, settlementVisibleEnough } from './settlementVisibility'
 
-describe('demo misses need a visible ritual, not just a mounted screen', () => {
-  const missed = { demoSpeedNotice: 'Demo speed', showedUp: false, weekSkipped: false }
-  it('blocks a missed demo in background, inactive, unknown, or behind another route', () => {
-    for (const state of ['background', 'inactive', null]) expect(settlementVisibleEnough(missed, true, state)).toBe(false)
+const missed = { demoSpeedNotice: 'Demo speed', showedUp: false, weekSkipped: false }
+describe('demo settlement visibility', () => {
+  it('allows a miss on foreground Home or detail, but not another route or background', () => {
+    for (const state of ['background', 'inactive', null]) {
+      expect(settlementVisibleEnough(missed, true, state)).toBe(false)
+      expect(settlementVisibleEnough(missed, false, state, true)).toBe(false)
+    }
     expect(settlementVisibleEnough(missed, false, 'active')).toBe(false)
     expect(settlementVisibleEnough(missed, true, 'active')).toBe(true)
+    expect(settlementVisibleEnough(missed, false, 'active', true)).toBe(true)
   })
-  it('keeps refunds and real-week settlement independent of demo visibility', () => {
+  it('preserves refund/real-week semantics and the exact warning', () => {
     expect(settlementVisibleEnough({ ...missed, showedUp: true }, false, 'background')).toBe(true)
     expect(settlementVisibleEnough({ ...missed, weekSkipped: true }, false, 'background')).toBe(true)
     expect(settlementVisibleEnough({ ...missed, demoSpeedNotice: null }, false, 'background')).toBe(true)
-    expect(DEMO_CLOCK_WARNING).toContain('keep running while you’re away')
-    expect(DEMO_CLOCK_WARNING).toContain('Unstamped weeks are missed')
+    expect(DEMO_CLOCK_WARNING).toBe('Demo weeks keep running while you’re away. Unstamped weeks are missed.')
   })
 })
 
@@ -33,44 +36,26 @@ describe('settle key budget', () => {
 
 describe('autoSettleWeek', () => {
   const base = { client: {} as never, ritualAddress: new PublicKey(new Uint8Array(32).fill(3)), settler: Keypair.generate().publicKey, eventIndex: 1, destinationTokenAccounts: [] }
-  const ok = (signature: string) => ({ ok: true as const, result: { signature, messageDigest: 'd' } })
-
-  it('does not start off screen, and rechecks visibility between opening and settling', async () => {
-    let visible = false
-    let calls = 0
-    const run = async () => { calls++; visible = false; return ok('opened') }
-    const input = { ...base, needsEventInit: true, mayContinue: () => visible }
-    expect(await autoSettleWeek(input, run as never)).toMatchObject({ ok: false, category: 'not-visible' })
-    expect(calls).toBe(0)
-    visible = true
-    expect(await autoSettleWeek(input, run as never)).toMatchObject({ ok: false, step: 'finalize', category: 'not-visible' })
-    expect(calls).toBe(1)
+  const ok = { ok: true as const, result: { signature: 's', messageDigest: 'd' } }
+  it('does not start when mayContinue is false', async () => {
+    const run = vi.fn(async () => ok)
+    expect(await autoSettleWeek({ ...base, needsEventInit: true, mayContinue: () => false }, run)).toMatchObject({ ok: false, category: 'not-visible' })
+    expect(run).not.toHaveBeenCalled()
   })
-
-  it('opens a week nobody checked in to, then settles it, with no wallet involved', async () => {
-    const calls: string[] = []
-    const run = async (deps: { prepare: () => unknown }) => { calls.push(String((deps as any).kind ?? calls.length)); return ok(`s${calls.length}`) }
-    const result = await autoSettleWeek({ ...base, needsEventInit: true }, run as never, async () => undefined)
-    expect(result).toEqual({ ok: true, signatures: ['s1', 's2'] })
-    expect(calls).toHaveLength(2)
+  it.each([true, false])('uses one lifecycle action with needsEventInit=%s', async (needsEventInit) => {
+    const prepared = { messageDigest: 'd', ritualAddress: 'r' }
+    const client = { readRitual: vi.fn(async () => ({ address: base.ritualAddress, account: {} })), programId: base.ritualAddress,
+      getEventBundle: vi.fn(async () => ({ event: { address: base.ritualAddress, account: {} }, claims: [] })),
+      prepareInitializeAndFinalize: vi.fn(async () => prepared), prepareFinalize: vi.fn(async () => prepared) }
+    const run = vi.fn(async (deps) => { await deps.prepare(); return ok })
+    expect(await autoSettleWeek({ ...base, client: client as never, needsEventInit }, run)).toEqual({ ok: true, signatures: ['s'] })
+    expect(run).toHaveBeenCalledOnce()
+    expect(client.prepareInitializeAndFinalize).toHaveBeenCalledTimes(needsEventInit ? 1 : 0)
+    expect(client.prepareFinalize).toHaveBeenCalledTimes(needsEventInit ? 0 : 1)
   })
-
-  it('only settles when the week is already open', async () => {
-    let count = 0
-    const result = await autoSettleWeek({ ...base, needsEventInit: false }, (async () => { count += 1; return ok('f') }) as never, async () => undefined)
-    expect(result).toEqual({ ok: true, signatures: ['f'] })
-    expect(count).toBe(1)
-  })
-
-  it('retries settle preparation (lagging read right after opening), then reports the step that failed', async () => {
-    let count = 0
-    const result = await autoSettleWeek({ ...base, needsEventInit: false }, (async () => { count += 1; return { ok: false, category: 'preparation' } }) as never, async () => undefined)
-    expect(result).toEqual({ ok: false, step: 'finalize', category: 'preparation' })
-    expect(count).toBe(4)
-  })
-
-  it('stops if opening the week fails', async () => {
-    const result = await autoSettleWeek({ ...base, needsEventInit: true }, (async () => ({ ok: false, category: 'submission' })) as never, async () => undefined)
-    expect(result).toEqual({ ok: false, step: 'initialize-event', category: 'submission' })
+  it('leaves retries to the capped runner', async () => {
+    const run = vi.fn(async () => ({ ok: false as const, category: 'preparation' as const, retryable: true }))
+    expect(await autoSettleWeek({ ...base, needsEventInit: false }, run as never)).toMatchObject({ ok: false, step: 'finalize', category: 'preparation' })
+    expect(run).toHaveBeenCalledOnce()
   })
 })

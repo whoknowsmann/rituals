@@ -8,7 +8,8 @@ describe('SoloRitualScreen proof and witness controls', () => {
   it('keeps last week\'s settled MISSED paper only in the missed gap and on Finished', () => {
     const papers = source.split('\n').filter((line) => line.includes('<Stamp kind="missed"'))
     expect(papers).toHaveLength(3)
-    expect(papers[0]).toContain("model.lastClosedOutcome === 'missed' && model.state === 'completed'")
+    expect(papers[0]).toContain("model.finishedOutcome === 'missed' && model.state === 'completed'")
+    expect(papers[0]).toContain("readyBundle.ritual.account.status === 'Completed'")
     expect(papers[1]).toContain('missedWeekOnScreen(model, stampPending) !== null')
     expect(papers[1]).not.toContain('went to') // current week has not settled yet
     expect(papers[2]).toContain("if (model.state === 'missed')")
@@ -49,7 +50,7 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain("const holdWaiting = holdState === 'waiting'")
     expect(source).toContain('const nextLine = holdWaiting ? null : nextUpLine(')
     expect(source).toContain('holdWaiting ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : model.stampTimeLeftLabel')
-    expect(source).toContain('disabled={holdWaiting || !readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP"')
+    expect(source).toContain('disabled={holdWaiting || model.stampBlocked || !readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP"')
     expect(source).toContain("if (model.state === 'waiting') return null")
     expect(source).not.toContain('<Text style={s.cardTitle}>Week {model.eventIndex + 1} opens')
     const note = source.match(/\{holdVisible && notesOfferedRef.current && <TextInput[^\n]+/g)
@@ -104,9 +105,10 @@ describe('SoloRitualScreen proof and witness controls', () => {
   })
 
   it('closes finished weeks with the app settle key, keeping the wallet button only as a fallback', () => {
-    expect(source).toContain('autoSettleWeek({ client: settlerClient')
-    expect(source).toContain("model.state === 'resolving/settle' && !settlingByItself && <ActionButton")
-    expect(source).toContain('settlerCanPay(settlerBalance, model.needsEventInit)')
+    expect(source).toContain('useCatchup({ connection, rituals: read ? [{ bundle: read }] : []')
+    expect(source).toContain('model.settlementEventIndex !== null && !settlingByItself && <ActionButton')
+    const runner = readFileSync(resolve(__dirname, '../../features/rituals/solo/settler/catchupRunner.ts'), 'utf8')
+    expect(runner).toContain('settlerCanPay(balance, needsEventInit)')
   })
 
   it('names the week a skip applies to and never calls a skipped week missed (skip run, 2026-10-07)', () => {
@@ -127,7 +129,9 @@ describe('SoloRitualScreen proof and witness controls', () => {
   })
 
   it('gives every week its own three settle-key tries', () => {
-    expect(source).toContain('useEffect(() => { autoFailures.current = 0 }, [model?.eventIndex])')
+    const runner = readFileSync(resolve(__dirname, '../../features/rituals/solo/settler/catchupRunner.ts'), 'utf8')
+    expect(runner).toContain('bundle.ritual.account.currentEventIndex}`')
+    expect(runner).toContain('(input.failures.get(key) ?? 0) >= 3')
   })
 
   it('re-reads until a confirmed stamp shows, instead of offering HOLD again', () => {
@@ -146,7 +150,7 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('`Week ${titleWeekIndex(model, keptWeek, readyBundle.ritual.account.skipDeclared ? readyBundle.ritual.account.skipEventIndex : null) + 1}`')
     expect(source.match(/\{nextLine && <Text style=\{s\.muted\}>\{nextLine\}<\/Text>\}/g)).toHaveLength(1)
     // Last week's MISSED paper gives way as soon as this week's HOLD opens, not only after its stamp.
-    expect(source).toContain("model.lastClosedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper}")
+    expect(source).toContain("model.finishedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper}")
   })
 
   it('keeps the one declared skip available while valid, as a quiet link that names its week (Jack, 2026-10-07)', () => {
@@ -167,7 +171,7 @@ describe('SoloRitualScreen proof and witness controls', () => {
     const body = source.slice(source.indexOf('function renderState('))
     expect(body.indexOf('if (action.isBusy || stampPending)')).toBeLessThan(body.indexOf('if (missedWeekOnScreen('))
     for (const removed of ['This week is closing', 'The check-in window has closed.', 'Closing this week…', 'This week is ready to settle', "gets this week's stake."]) expect(body).not.toContain(removed)
-    expect(source).toContain("model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone=\"quiet\"")
+    expect(source).toContain('model.settlementEventIndex !== null && !settlingByItself && <ActionButton tone="quiet"')
     expect(source).toContain("'Settle this week'} onPress={settle.start}")
   })
 })

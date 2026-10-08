@@ -5,7 +5,7 @@ import { readRitualBundlesBatched } from './batchedRitualBundles'
 import type { ProtocolConfigAccountView } from './accounts'
 import type { EjectQuote } from './ejectQuote'
 import type { PrepareEjectArgs } from './ritualPreparedAction'
-import { RitualActionPreparer, type BuildCreateAndFundArgs, type BuildCreateSoloFundAndActivateArgs, type BuildFundAndActivateArgs, type BuildInitializeAndClaimArgs, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
+import { RitualActionPreparer, type BuildCreateAndFundArgs, type BuildCreateSoloFundAndActivateArgs, type BuildFundAndActivateArgs, type BuildInitializeAndClaimArgs, type BuildInitializeAndFinalizeArgs, type PreparedRitualAction, type RitualPreparationTransport } from './ritualPreparedAction'
 import { RitualConfirmationVerifier, type RitualConfirmationTransport } from './ritualConfirmation'
 import { RitualActionSubmitter, type RitualWalletSubmissionTransport, type RitualSubmissionResult, type SubmittedRitualActionHandle } from './ritualSubmission'
 import type { BuildCreateRitualArgs, BuildCreateSoloRitualArgs, BuildDeclareSkipArgs, BuildFundMemberArgs, BuildActivateRitualArgs, BuildCancelUnactivatedArgs } from './instructionsLifecycle'
@@ -44,6 +44,7 @@ export interface RitualClient {
   prepareClose(args: BuildCloseTerminalVaultsArgs & Readonly<{ feePayer: PublicKey }>): Promise<PreparedRitualAction>
   prepareInitializeEvent(args: BuildInitializeCurrentEventArgs): Promise<PreparedRitualAction>
   prepareInitializeAndClaim(args: BuildInitializeAndClaimArgs): Promise<PreparedRitualAction>
+  prepareInitializeAndFinalize(args: BuildInitializeAndFinalizeArgs): Promise<PreparedRitualAction>
   prepareClaim(args: BuildClaimCompletionArgs): Promise<PreparedRitualAction>
   prepareApprove(args: BuildApproveClaimArgs): Promise<PreparedRitualAction>
   prepareQuestion(args: BuildQuestionClaimArgs): Promise<PreparedRitualAction>
@@ -81,6 +82,7 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
     prepareClose: preparer.prepareClose.bind(preparer),
     prepareInitializeEvent: preparer.prepareInitializeEvent.bind(preparer),
     prepareInitializeAndClaim: preparer.prepareInitializeAndClaim.bind(preparer),
+    prepareInitializeAndFinalize: preparer.prepareInitializeAndFinalize.bind(preparer),
     prepareClaim: preparer.prepareClaim.bind(preparer),
     prepareApprove: preparer.prepareApprove.bind(preparer),
     prepareQuestion: preparer.prepareQuestion.bind(preparer),

@@ -96,7 +96,7 @@ describe('ritual screen after a stamp (demo speed)', () => {
     expect(screen(unstamped, 1056, null, false).line).toBeNull()
     expect(screen(unstamped, 1061).line).toBe('Closing…')
     const lastWeek = read({ currentEventIndex: 1 }, null, [], [missedWeek1])
-    expect(screen(lastWeek, 1106).line).toBe('Week closes in 10s')
+    expect(screen(lastWeek, 1106)).toMatchObject({ state: 'completed', line: 'Closing…', cells: '✕ ✕' })
     expect(screen(lastWeek, 1116).line).toBe('Closing…')
   })
 

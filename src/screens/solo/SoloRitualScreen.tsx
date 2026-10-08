@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AppState, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native'
-import { Keypair, PublicKey } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 import * as Clipboard from 'expo-clipboard'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigators/AppNavigator'
@@ -24,11 +24,7 @@ import { ritualTintAmong } from '../../features/rituals/home/ritualColours'
 import { notesOffered, readSoloNotes, saveWeekNote, type SoloNotes } from '../../features/rituals/solo/notes/soloNotes'
 import { SCOPE } from '../../features/rituals/productScope'
 import { keptSaying } from '../../features/rituals/solo/sayings'
-import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
-import { createSettlerClient } from '../../features/rituals/solo/settler/settlerClient'
-import { settlerCanPay } from '../../features/rituals/solo/settler/settlerBudget'
-import { autoSettleWeek } from '../../features/rituals/solo/settler/autoSettle'
-import { DEMO_CLOCK_WARNING, settlementVisibleEnough } from '../../features/rituals/solo/settler/settlementVisibility'
+import { useCatchup } from '../../features/rituals/solo/settler/useCatchup'
 import { shortRosterAddress } from '../../features/rituals/create/roster'
 import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
@@ -109,7 +105,8 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined })
   const makeSharedDeps = useCallback((kind: 'claim' | 'finalize' | 'initialize-event') => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !read || !model) throw new Error('Ritual or wallet is not ready')
-    actionTargets.current[kind === 'claim' ? 'claim' : 'settle'] = { kind, eventIndex: model.eventIndex, actor: selectedAccount.publicKey, ritualAddress: ritualAddress.toBase58() }
+    const eventIndex = kind === 'claim' ? model.eventIndex : read.ritual.account.currentEventIndex
+    actionTargets.current[kind === 'claim' ? 'claim' : 'settle'] = { kind, eventIndex, actor: selectedAccount.publicKey, ritualAddress: ritualAddress.toBase58() }
     const destinationTokenAccounts = kind === 'finalize'
       // The finalize builder appends the locked solo forfeit destination itself.
       ? read.ritual.account.members.map((member) => getAssociatedTokenAddressSync(read.ritual.account.stakeMint, member))
@@ -119,7 +116,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       ritualAddress,
       actor: selectedAccount.publicKey,
       kind,
-      eventIndex: model.eventIndex,
+      eventIndex,
       claimant: selectedAccount.publicKey,
       destinationTokenAccounts,
       pendingActionStore: asyncStoragePendingActionStore,
@@ -135,7 +132,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   }, [client, connection, getSignatureStatus, model, ritualAddress, selectedAccount])
   const claim = useRitualAction(() => makeSharedDeps('claim'))
   const startClaim = useCallback(() => {
-    if (!soloStampAvailable(model)) return
+    if (!soloStampAvailable(model) || model?.stampBlocked) return
     claimEventIndex.current = model?.eventIndex ?? null
     claim.start()
   }, [claim.start, model])
@@ -213,46 +210,12 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
     return () => clearInterval(timer)
   }, [stampNotRead])
 
-  // The app's own settle key closes finished weeks: no wallet prompt. It is
-  // pre-paid inside the create approval; without funds the manual button stays.
-  const [settler, setSettler] = useState<Keypair | null>(null)
-  const [settlerBalance, setSettlerBalance] = useState<number | null>(null)
-  useEffect(() => {
-    let active = true
-    void loadOrCreateSettler().then(async (key) => {
-      if (!active) return
-      setSettler(key)
-      const balance = await connection.getBalance(key.publicKey, 'confirmed')
-      if (active) setSettlerBalance(balance)
-    }).catch(() => { if (active) setSettlerBalance(null) })
-    return () => { active = false }
-  }, [connection, reload])
-  const maySettle = useRef<() => boolean>(() => false)
-  maySettle.current = () => Boolean(model && settlementVisibleEnough(model, navigation.isFocused(), AppState.currentState))
-  const settlerClient = useMemo(() => (settler ? createSettlerClient(connection, settler, () => maySettle.current()) : null), [connection, settler])
-  const [autoSettling, setAutoSettling] = useState(false)
-  const [autoRun, setAutoRun] = useState(0)
-  const autoFailures = useRef(0)
-  useEffect(() => { autoFailures.current = 0 }, [model?.eventIndex])
-  const mountedRef = useRef(true)
-  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; maySettle.current = () => false } }, [])
-  const canAutoSettle = Boolean(model && model.state === 'resolving/settle' && settlementVisibleEnough(model, focused, appState) && settler && settlerClient && read && ritualAddress && settlerBalance !== null && settlerCanPay(settlerBalance, model.needsEventInit) && autoFailures.current < 3)
-  useEffect(() => {
-    if (!canAutoSettle || autoSettling || !model || !settler || !settlerClient || !read || !ritualAddress) return
-    setAutoSettling(true)
-    const destinations = read.ritual.account.members.map((member) => getAssociatedTokenAddressSync(read.ritual.account.stakeMint, member))
-    void autoSettleWeek({ client: settlerClient, ritualAddress, settler: settler.publicKey, eventIndex: model.eventIndex, needsEventInit: model.needsEventInit, destinationTokenAccounts: destinations, getBlockHeight: () => connection.getBlockHeight('confirmed'), mayContinue: () => maySettle.current() })
-      .then((result) => result.ok, () => false)
-      .then((ok) => {
-        if (!mountedRef.current) return
-        if (!ok && maySettle.current()) autoFailures.current += 1
-        setAutoSettling(false)
-        state.retry(); setReload((value) => value + 1)
-        // Up to three tries (e.g. the chain clock is a second behind), then the manual button.
-        if (!ok) setTimeout(() => { if (mountedRef.current) setAutoRun((value) => value + 1) }, 3000)
-      })
-  }, [canAutoSettle, model?.eventIndex, model?.needsEventInit, autoRun])
-  const settlingByItself = autoSettling || canAutoSettle
+  const catchup = useCatchup({ connection, rituals: read ? [{ bundle: read }] : [], now: chainNow,
+    focused: focused && appState === 'active' && !claim.isBusy && !skip.isBusy && !settle.isBusy,
+    scope: 'ritual', wallet: selectedAccount?.publicKey ?? null,
+    onChanged: () => { state.retry(); setReload((value) => value + 1) },
+  })
+  const settlingByItself = catchup.busy || (!catchup.blocked && model?.settlementEventIndex != null && focused && appState === 'active')
   const showedUpBefore = useRef(false)
   // Celebrate only a stamp made on this screen and confirmed on chain, never
   // on merely opening a week that was already stamped.
@@ -271,7 +234,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   if (state.status === 'error' || !state.bundle || !model || chainNow === null) return <ErrorState message={state.message ?? 'This ritual could not be read.'} retry={state.retry} onHome={() => navigation.navigate('RitualsHome')} />
   const readyBundle = state.bundle
   const stampPending = claim.isBusy || stampNotRead
-  const action = stampPending ? claim : model.state === 'resolving/settle' ? settle : model.canSkip ? skip : claim
+  const action = stampPending ? claim : model.settlementEventIndex !== null ? settle : model.canSkip ? skip : claim
   // A stamp in flight is about the person, not the transaction (Jack, 2026-10-06).
   const stamping = action === claim && (stampNotRead || action.state.status === 'submitted' || action.state.status === 'confirming')
   const actionCopy = stamping ? Object.freeze({ title: 'Stamping…', body: '', tone: 'progress' as const }) : withWalletHandoff(action.copy, action.state.status, walletPackage)
@@ -283,7 +246,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const tint = ritualTintAmong(route.params.ritualId, knownRituals)
   // Only a finished ritual, or one another wallet made, can leave this phone's list; an active ritual of yours stays visible.
   const ended = model.state === 'ended'
-  const removable = model.state === 'completed' || ended || Boolean(selectedAccount && !readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
+  const removable = readyBundle.ritual.account.status === 'Completed' || ended || Boolean(selectedAccount && !readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
   const removeFromPhone = () => {
     if (removalOpen.current || removalSaving.current) return
     removalOpen.current = true
@@ -341,12 +304,12 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       )}
       {renderState(model, witness, action, actionCopy, weekNote, stampPending, celebrate > 0 && model.showedUp, keptSaying(route.params.ritualId, keptWeek ?? model.eventIndex), amountLabel, keptWeek)}
       {nextLine && <Text style={s.muted}>{nextLine}</Text>}
-      {model.lastClosedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>}
+      {model.finishedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" animate={false} />{readyBundle.ritual.account.status === 'Completed' && <Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text>}</View>}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {canRetryAction && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
-      {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{holdWaiting ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={holdWaiting || !readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
-      {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
+      {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{holdWaiting ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={holdWaiting || model.stampBlocked || !readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
+      {model.settlementEventIndex !== null && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="link" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="link" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
 

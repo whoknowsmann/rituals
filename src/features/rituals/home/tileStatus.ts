@@ -3,7 +3,7 @@ import { weekOpensLabel } from '../displayFormat'
 
 export type TileStatus = Readonly<{ text: string; act: boolean }>
 
-/** A stamped week is not kept until it settles. Replace the pending count with its close time. */
+/** The stamp is confirmed; its transfer still waits for settlement. */
 export function stampedWeekClosingLabel(model: Pick<SoloRitualModel, 'showedUp' | 'settleOpensAt' | 'demoSpeedNotice'>, chainNow: number): string | null {
   if (!model.showedUp || model.settleOpensAt === null) return null
   return chainNow >= model.settleOpensAt ? 'Closing…'
@@ -16,7 +16,7 @@ export function stampedWeekClosingLabel(model: Pick<SoloRitualModel, 'showedUp' 
  */
 export function tileStatus(model: Readonly<{ state: SoloRitualUiState; showedUp: boolean; nextOpensLabel: string | null; weekSkipped?: boolean }>, laterWeekOpen = false): TileStatus {
   // The chain has moved on to a later week whose window is open, but the last
-  // one has not been settled yet (settling runs on the ritual screen). That
+  // one has not been settled yet. That
   // later week still wants a stamp: say so instead of "Stamped"/"Closing…".
   if (laterWeekOpen && model.state !== 'completed') return { text: 'Stamp this week', act: true }
   switch (model.state) {

@@ -5,6 +5,10 @@ import { soloRitualModel, labelSoloDestination, demoSpeedNotice, type SoloRitual
 import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded, soloActionCanRetry, staleSoloActionError } from './actionReadback'
 import { weekCellLabel } from '../../../../components/crew/weekStripLogic'
 import { lifecycleReducer, lifecycleCanSubmit, lifecycleStatusCopy, type LifecycleState } from '../../lifecycleMachine'
+import { keptWeekOnScreen, nextUpLine } from '../../../../screens/solo/weekHero'
+import { homeSections, homeTilePresentation } from '../../home/homeSections'
+import { soloHomeCells } from '../../home/soloHistory'
+import { tileMoneyLine } from '../../home/tileMoney'
 
 const me = new PublicKey(new Uint8Array(32).fill(7))
 const witness = new PublicKey(new Uint8Array(32).fill(8))
@@ -28,6 +32,32 @@ const event = (overrides: Record<string, unknown> = {}) => ({ account: {
 const claim = (status: 'Pending' | 'Confirmed' | 'Questioned') => ({ member: me, account: { status } })
 
 describe('soloRitualModel', () => {
+  it.each([60n, 604800n])('shows all six outcomes immediately after absence, period=%s', (period) => {
+    const schedule = Array.from({ length: 6 }, (_, index) => ({ opens: 1000n + BigInt(index) * period,
+      deadline: 1000n + BigInt(index) * period + period - 15n, resolution: 1000n + BigInt(index) * period + period - 5n }))
+    const kept = bundle({ schedule }, event({ status: 'Settled', eventIndex: 0, window: schedule[0] }), [claim('Confirmed')])
+    const read = { ...bundle({ schedule, currentEventIndex: 1, settledEventCount: 1 }), history: [kept] }
+    const now = Number(schedule[5].resolution) + 1
+    const model = soloRitualModel(read, now, me)
+    expect(model).toMatchObject({ state: 'completed', eventIndex: 6, settlementEventIndex: 1, finishedOutcome: 'missed', catchupLine: 'Closing weeks 2–6…' })
+    expect(model.weekCells).toEqual(['done', 'missed', 'missed', 'missed', 'missed', 'missed'])
+    expect(keptWeekOnScreen(model, 0)).toBeNull()
+    expect(nextUpLine(model, schedule, now, null, true)).toBe('Closing weeks 2–6…')
+    const settled = new Map([[0, 'done' as const]])
+    expect(soloHomeCells(read.ritual.account, settled, now, read)).toEqual(model.weekCells)
+    expect(homeTilePresentation(read, now)).toEqual({ status: { text: 'Finished', act: false }, closingLine: 'Closing weeks 2–6…' })
+    expect(homeSections([{ bundle: read }], now).finished).toHaveLength(1)
+    expect(tileMoneyLine(read.ritual.account, settled)).toBe('5 of 30 tSKR back')
+    const open = soloRitualModel(read, Number(schedule[5].opens), me)
+    expect(open).toMatchObject({ eventIndex: 5, state: 'open-not-initialized', stampBlocked: true, settlementEventIndex: 1 })
+    expect(open.weekCells).toEqual(['done', 'missed', 'missed', 'missed', 'missed', 'now'])
+  })
+
+  it('does not turn a confirmed but unsettled claim into money already returned', () => {
+    const read = bundle({}, event({ status: 'Claiming' }), [claim('Confirmed')])
+    expect(soloRitualModel(read, 201, me).weekCells).toEqual(['done', 'future'])
+    expect(tileMoneyLine(read.ritual.account, new Map())).toBe('0 of 10 tSKR back')
+  })
   it('counts from chain windows and stops displaying stamp time outside an unstamped open week', () => {
     expect(soloRitualModel(bundle(), 68, me).nextOpensLabel).toBe('in 32s')
     expect(soloRitualModel(bundle(), 69, me).nextOpensLabel).toBe('in 31s')
@@ -161,7 +191,7 @@ describe('soloRitualModel', () => {
           const model = soloRitualModel(bundle({ schedule, skipDeclared: true, skipEventIndex: 0 }, null), now, me)
           expect(model.state).toBe('skipped')
           expect(model.weekSkipped).toBe(true)
-          expect(model.weekCells[0]).toBe('current')
+          expect(model.weekCells[0]).toBe(now > Number(schedule[0].deadline) ? 'closed' : 'current')
           expect(model.nextOpensLabel).toBeNull()
           expect(model.stampTimeLeftLabel).toBeNull()
         }
@@ -197,7 +227,7 @@ describe('soloRitualModel', () => {
 
   it('numbers a not-yet-open current week; NOW lasts only for the open stamp window', () => {
     expect(soloRitualModel(bundle(), 99, me).state).toBe('waiting')
-    for (const [now, label] of [[99, '1'], [100, 'NOW'], [200, 'NOW'], [201, '1']] as const) {
+    for (const [now, label] of [[99, '1'], [100, 'NOW'], [200, 'NOW'], [201, '✕']] as const) {
       const model = soloRitualModel(bundle(), now, me)
       expect(weekCellLabel(model.weekCells[0], 0)).toBe(label)
       expect(model.weekCells[1]).toBe('future')

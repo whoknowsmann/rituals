@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Buffer } from 'buffer'
+import { encodeFinalizeEventData, encodeInitializeCurrentEventData } from './instructionData'
 import { RitualActionPreparer } from './ritualPreparedAction'
 import { EventTransport, eventProgramId, eventSource, sourceCreator, sourceKey, ritualContext } from './ritualPreparedAction.events.test.helpers'
 
@@ -39,6 +40,29 @@ const soloCreateArgs = {
 }
 
 describe('bundled prepared Ritual actions', () => {
+  it.each([false, true])('initializes and finalizes a solo week atomically, skip=%s', async (skipDeclared) => {
+    const ritual = ritualContext({ kind: 'Solo', members: [sourceCreator], fundedMembersBitmap: 1,
+      forfeitDestination: sourceKey(206), skipDeclared, skipEventIndex: 0 })
+    const preparer = new RitualActionPreparer(new EventTransport(), eventProgramId)
+    const action = await preparer.prepareInitializeAndFinalize({ programId: eventProgramId, ritual, eventIndex: 0,
+      payer: sourceKey(210), destinationTokenAccounts: [sourceKey(207)] })
+    const wallet = preparer.getTransactionForWallet(action)
+    const instructions = wallet.transaction.instructions
+    expect(instructions).toHaveLength(4)
+    expect(instructions[0].data).toEqual(Buffer.from(encodeInitializeCurrentEventData(0)))
+    expect(instructions[1].data).toEqual(Buffer.from(encodeFinalizeEventData(0)))
+    expect(instructions[0].keys[1].pubkey.equals(instructions[1].keys[1].pubkey)).toBe(true)
+    expect(instructions[1].keys.at(-1)?.pubkey.equals(ritual.account.forfeitDestination)).toBe(true)
+    expect(wallet.transaction.compileMessage().header.numRequiredSignatures).toBe(1)
+    expect(wallet.transaction.feePayer?.equals(sourceKey(210))).toBe(true)
+    expect(wallet.transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).length).toBeLessThanOrEqual(1232)
+    expect(action.summary.estimatedRentLamports).toBe(139n)
+    expect(action.expectation).toMatchObject({ kind: 'finalized', eventIndex: 0,
+      expectedEventStatus: skipDeclared ? 'Voided' : 'Settled', expectedVoidReason: skipDeclared ? 'DeclaredSkip' : 'None', expectedCurrentEventIndex: 1 })
+    preparer.assertWalletTransactionUnchanged(action, wallet.transaction)
+    await expect(preparer.prepareInitializeAndFinalize({ programId: eventProgramId, ritual, eventIndex: 1,
+      payer: sourceKey(210), destinationTokenAccounts: [sourceKey(207)] })).rejects.toThrow()
+  })
   it('keeps create and host funding in one exact-message action', async () => {
     const preparer = new RitualActionPreparer(new EventTransport(), eventProgramId)
     const action = await preparer.prepareCreateAndFund({ ...createArgs, memberSource: sourceKey(202), lockedActivationFee: eventSource.lockedActivationFee })

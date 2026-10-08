@@ -28,15 +28,17 @@ export type SoloActionTarget = Readonly<{
 }>
 
 export function soloStampAvailable(model: SoloRitualModel | null): boolean {
-  return Boolean(model && !model.weekSkipped && !model.showedUp && model.claimStatus === 'none'
+  return Boolean(model && !model.stampBlocked && !model.weekSkipped && !model.showedUp && model.claimStatus === 'none'
     && (model.state === 'claimable' || model.state === 'open-not-initialized'))
 }
 
 function actionAvailable(target: SoloActionTarget | null, model: SoloRitualModel | null): boolean {
-  if (!target || !model || model.eventIndex !== target.eventIndex) return false
+  if (!target || !model) return false
+  if (target.kind === 'initialize-event' || target.kind === 'finalize') return model.settlementEventIndex === target.eventIndex && (target.kind === 'initialize-event' ? model.needsEventInit : !model.needsEventInit)
+  if (model.eventIndex !== target.eventIndex) return false
   if (target.kind === 'claim') return soloStampAvailable(model)
   if (target.kind === 'skip') return model.canSkip
-  return model.state === 'resolving/settle' && (target.kind === 'initialize-event' ? model.needsEventInit : !model.needsEventInit)
+  return false
 }
 
 export function soloActionCanRetry(state: LifecycleState, target: SoloActionTarget | null, model: SoloRitualModel | null, bundle: SoloRitualBundle | null | undefined): boolean {

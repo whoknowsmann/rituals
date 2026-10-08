@@ -30,6 +30,8 @@ export type RitualActionDepsParams = Readonly<{
   getUnixTimestamp?: () => Promise<number>
   /** Token-account raw amount reader used to check activation vault preconditions. */
   getTokenAccountAmount?: (address: PublicKey) => Promise<bigint>
+  /** Permissionless settle-key path: open an absent event in the finalize transaction. */
+  initializeBeforeFinalize?: boolean
 }>
 
 const sameActor = (expected: PublicKey, actual: PublicKey | null): boolean => actual !== null && actual.equals(expected)
@@ -73,7 +75,9 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
           prepared = await client.prepareActivate({ programId: client.programId, ritual: { address: read.address, account: read.account }, feePayer: actor })
         }
       } else {
-        if (kind === 'initialize-event') {
+        if (kind === 'finalize' && params.initializeBeforeFinalize) {
+          prepared = await client.prepareInitializeAndFinalize({ programId: client.programId, ritual: { address: read.address, account: read.account }, eventIndex, payer: actor, destinationTokenAccounts })
+        } else if (kind === 'initialize-event') {
           prepared = await client.prepareInitializeEvent({ programId: client.programId, ritual: { address: read.address, account: read.account }, eventIndex, payer: actor })
         } else {
           // The reader throws 'not-found' for a week nobody has opened yet. Only a

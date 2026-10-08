@@ -2,6 +2,8 @@ import type { AccountInfo, PublicKey } from '@solana/web3.js'
 import { decodeRitualEvent, type RitualAccountView, type RitualEventAccountView } from '../../../data/rituals/accounts'
 import { eventPda } from '../../../data/rituals/pdas'
 import { currentWeekCell } from '../../../components/crew/weekStripLogic'
+import type { RitualBundleRead } from '../../../data/rituals/ritualsRpc'
+import { soloWeekCells } from '../solo/lifecycle/soloRitualModel'
 
 export type SoloWeekOutcome = 'done' | 'missed' | 'skipped'
 export type HomeWeekCell = SoloWeekOutcome | 'closed' | 'now' | 'current' | 'future' | 'skip-pending'
@@ -26,8 +28,13 @@ export function eventOutcome(event: Pick<RitualEventAccountView, 'status' | 'for
  * read, and a neutral "closed" mark until then (or if the read failed),
  * never a guessed tick.
  */
-export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number, SoloWeekOutcome> | undefined, now: number | null = null): HomeWeekCell[] {
+export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number, SoloWeekOutcome> | undefined, now: number | null = null, bundle?: RitualBundleRead): HomeWeekCell[] {
   const closed = closedWeekCount(account)
+  if (bundle && now !== null) return soloWeekCells(bundle, now).map((cell, index) => {
+    if (index < closed) return outcomes?.get(index) ?? cell
+    if (account.skipDeclared && account.skipEventIndex === index) return cell === 'closed' ? 'skipped' : 'skip-pending'
+    return cell
+  })
   return account.schedule.map((_window, index) => {
     if (index < closed) return outcomes?.get(index) ?? 'closed'
     if (account.status === 'Active' && index === account.currentEventIndex) {

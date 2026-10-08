@@ -29,6 +29,7 @@ import { readSoloWeekOutcomes, soloHomeCells, type SoloWeekOutcome } from '../fe
 import { tileMoneyLine } from '../features/rituals/home/tileMoney'
 import { homeSections, homeTilePresentation, ritualsForWallet } from '../features/rituals/home/homeSections'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
+import { useCatchup } from '../features/rituals/solo/settler/useCatchup'
 import { PublicKey, type Connection } from '@solana/web3.js'
 import { radius, space, type, useColors, type Palette } from '../theme'
 
@@ -63,11 +64,10 @@ export function RitualsHomeScreen() {
   const mounted = useRef(false)
   const requestGeneration = useRef(0)
 
-  const load = useCallback(() => {
+  const load = useCallback((quiet = false) => {
     // AUTHORITATIVE CHAIN READS keep ritual cards grounded in current account data.
     const generation = ++requestGeneration.current
-    setHomeState(initialState)
-    setOutcomes(new Map())
+    if (!quiet) { setHomeState(initialState); setOutcomes(new Map()) }
     if (client.status !== 'ready') {
       setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(client.reason) })
       return
@@ -104,6 +104,8 @@ export function RitualsHomeScreen() {
   // settle must show the fresh chain state, not the list from app launch.
   const focused = useIsFocused()
   const chainNow = useChainTime(connection, focused)
+  useCatchup({ connection, rituals: homeState.rituals, now: chainNow, focused, scope: 'home',
+    wallet: selectedAccount?.publicKey ?? null, onChanged: () => load(true) })
   const recovery = usePendingRitualRecovery(client, connection, undefined, focused)
   useEffect(() => {
     if (!focused) return
@@ -130,7 +132,7 @@ export function RitualsHomeScreen() {
     return <View style={styles.center} accessibilityRole="progressbar" accessibilityLiveRegion="polite"><ActivityIndicator accessibilityLabel="Loading your rituals" /><Text style={styles.muted}>Loading rituals…</Text><Text style={styles.disclosure}>{view.disclosure}</Text></View>
   }
   if (homeState.status === 'error') {
-    return <View style={styles.center} accessibilityLiveRegion="polite"><Text style={styles.errorTitle}>Your rituals are out of reach</Text><Text style={styles.muted}>{homeState.message}</Text><Text style={styles.disclosure}>{view.disclosure}</Text><Button mode="contained" onPress={load} accessibilityLabel="Try again">Try again</Button></View>
+    return <View style={styles.center} accessibilityLiveRegion="polite"><Text style={styles.errorTitle}>Your rituals are out of reach</Text><Text style={styles.muted}>{homeState.message}</Text><Text style={styles.disclosure}>{view.disclosure}</Text><Button mode="contained" onPress={() => load()} accessibilityLabel="Try again">Try again</Button></View>
   }
 
   const { active, finished } = homeSections(ritualsForWallet(homeState.rituals, selectedAccount?.publicKey), chainNow)
@@ -148,7 +150,7 @@ export function RitualsHomeScreen() {
       </Pressable>
       {finishedExpanded && <RitualGrid rituals={finished} known={homeState.known} outcomes={outcomes} now={chainNow} onOpen={onOpen} muted styles={styles} />}
     </View>}
-    {SCOPE.seasons && <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={load} onOpen={() => {
+    {SCOPE.seasons && <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={() => load()} onOpen={() => {
       if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
     }} styles={styles} />}
 
@@ -224,7 +226,7 @@ function RitualTile({ ritual, known, outcomes, now, width, onPress, muted, style
   const moneyLine = tileMoneyLine(account, outcomes)
   const tint = ritualTintAmong(ritual.address, known)
   const cells: WeekCell[] = account.kind === 'Solo'
-    ? soloHomeCells(account, outcomes, now)
+    ? soloHomeCells(account, outcomes, now, ritual.bundle)
     : weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
   const { status, closingLine } = homeTilePresentation(ritual.bundle, now)
   return <Pressable

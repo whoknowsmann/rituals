@@ -26,6 +26,11 @@ export type SoloRitualBundle = RitualBundleRead & Readonly<{ history?: readonly 
 export type SoloRitualModel = Readonly<{
   state: SoloRitualUiState
   eventIndex: number
+  /** Chain cursor, independent of the week presented after time away. */
+  settlementEventIndex: number | null
+  catchupLine: string | null
+  stampBlocked: boolean
+  finishedOutcome: 'done' | 'missed' | 'skipped' | null
   weekCells: readonly SoloWeekCell[]
   /** Skip the current week (always the week `eventIndex`, which has not opened). */
   canSkip: boolean
@@ -117,10 +122,30 @@ function weekCells(bundle: SoloRitualBundle, now: number): readonly SoloWeekCell
     const outcome = outcomeOf({ event: historical.event, claims: historical.claims }, account.members[0] ?? null)
     if (outcome) byIndex.set(historical.event.account.eventIndex, outcome === 'missed' ? 'missed' : outcome === 'skipped' ? 'closed' : 'done')
   }
-  const skipped = currentWeekSkipped(account)
+  const displayed = presentationEventIndex(account, now)
   return Object.freeze(account.schedule.map((window, index) => byIndex.get(index)
     ?? (index < account.currentEventIndex || account.status === 'Completed' ? 'closed'
-      : index === account.currentEventIndex && account.status === 'Active' ? (skipped ? 'current' : currentWeekCell(Number(window.opens), Number(window.deadline), now)) : 'future')))
+      : account.status === 'Active' && now > Number(window.deadline)
+        ? account.skipDeclared && account.skipEventIndex === index ? 'closed'
+          : index === account.currentEventIndex && bundle.claims.some((entry) => entry.member.equals(account.creator) && entry.account?.status === 'Confirmed') ? 'done' : 'missed'
+        : index === displayed && account.status === 'Active' ? (account.skipDeclared && account.skipEventIndex === index ? 'current' : currentWeekCell(Number(window.opens), Number(window.deadline), now)) : 'future')))
+}
+
+/** Presentation follows the schedule; transactions must still use the chain cursor. */
+export function presentationEventIndex(account: SoloRitualBundle['ritual']['account'], now: number): number {
+  if (account.status !== 'Active') return account.currentEventIndex
+  const last = account.schedule[account.schedule.length - 1]
+  if (last && now > Number(last.deadline)) return account.schedule.length
+  let index = account.currentEventIndex
+  account.schedule.forEach((window, candidate) => { if (now >= Number(window.opens)) index = Math.max(index, candidate) })
+  return index
+}
+
+export function catchupClosingLine(account: SoloRitualBundle['ritual']['account'], now: number): string | null {
+  if (account.status !== 'Active') return null
+  const expired = account.schedule.filter((window) => now > Number(window.deadline)).length
+  const first = account.currentEventIndex + 1
+  return expired < first ? null : expired === first ? 'Closing…' : `Closing weeks ${first}–${expired}…`
 }
 
 function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null): { state: SoloRitualUiState; showedUp: boolean; claimStatus: SoloRitualModel['claimStatus']; message: string } {
@@ -178,16 +203,30 @@ function modelState(bundle: SoloRitualBundle, now: number, me: PublicKey | null)
 
 export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: PublicKey | null, destinationOwner: PublicKey | null = null): SoloRitualModel {
   const account = bundle.ritual.account
-  const schedule = account.schedule[account.currentEventIndex]
-  const mapped = modelState(bundle, now, me)
-  const weekSkipped = currentWeekSkipped(account)
-  const canSkip = account.schedule.length > 1 && account.status === 'Active' && !account.skipDeclared && Boolean(schedule)
+  const eventIndex = presentationEventIndex(account, now)
+  const presented = eventIndex === account.currentEventIndex ? bundle : {
+    ...bundle, ritual: { ...bundle.ritual, account: { ...account, currentEventIndex: eventIndex } }, event: null, claims: [],
+  }
+  const schedule = account.schedule[eventIndex]
+  const chainWindow = account.schedule[account.currentEventIndex]
+  const mapped = account.status === 'Active' && eventIndex === account.schedule.length
+    ? { state: 'completed' as const, showedUp: false, claimStatus: 'none' as const, message: 'This ritual is complete.' }
+    : modelState(presented, now, me)
+  const cells = weekCells(bundle, now)
+  const lastCell = cells[cells.length - 1]
+  const weekSkipped = currentWeekSkipped(presented.ritual.account)
+  const canSkip = eventIndex === account.currentEventIndex && account.schedule.length > 1 && account.status === 'Active' && !account.skipDeclared && Boolean(schedule)
     && !isDemoSpeedWindow(Number(schedule.opens), Number(schedule.deadline)) && now + SKIP_MIN_LEAD_SECONDS < Number(schedule.opens)
   const witness = account.witness ? (account.witness.equals(me ?? PublicKey.default) ? 'you' : `your friend · ${short(account.witness)}`) : null
   return Object.freeze({
     state: mapped.state,
-    eventIndex: account.currentEventIndex,
-    weekCells: weekCells(bundle, now),
+    eventIndex,
+    settlementEventIndex: account.status === 'Active' && chainWindow && now > Number(chainWindow.resolution) ? account.currentEventIndex : null,
+    catchupLine: catchupClosingLine(account, now),
+    stampBlocked: eventIndex !== account.currentEventIndex,
+    finishedOutcome: mapped.state !== 'completed' ? null : lastCell === 'done' || lastCell === 'missed' ? lastCell
+      : account.skipDeclared && account.skipEventIndex === cells.length - 1 ? 'skipped' : null,
+    weekCells: cells,
     canSkip,
     weekSkipped,
     nextOpensLabel: account.status === 'Active' && schedule && !weekSkipped && now < Number(schedule.opens)
@@ -200,9 +239,9 @@ export function soloRitualModel(bundle: SoloRitualBundle, now: number, me: Publi
     amount: account.perEventAllocation,
     showedUp: mapped.showedUp,
     claimStatus: mapped.claimStatus,
-    eventStatus: bundle.event?.account.status ?? null,
+    eventStatus: presented.event?.account.status ?? null,
     message: mapped.message,
-    needsEventInit: mapped.state === 'resolving/settle' && !bundle.event,
+    needsEventInit: account.status === 'Active' && Boolean(chainWindow) && now > Number(chainWindow.resolution) && !bundle.event,
     lastClosedEventIndex: latestTerminal(bundle)?.event.account.eventIndex ?? null,
     lastClosedOutcome: outcomeOf(latestTerminal(bundle), account.members[0] ?? null),
     settleOpensAt: schedule ? Number(schedule.resolution) + 1 : null,

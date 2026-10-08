@@ -9,7 +9,7 @@ import type { WeekCell } from '../../components/crew/weekStripLogic'
  * next. These pure helpers decide that from the view model and the chain
  * clock; the screen only renders them.
  */
-type HeroModel = Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'lastClosedOutcome' | 'lastClosedEventIndex'>
+type HeroModel = Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'lastClosedOutcome' | 'lastClosedEventIndex'> & Partial<Pick<SoloRitualModel, 'finishedOutcome'>>
 
 /**
  * The kept week whose stamp is on screen, or null. `seen` is the last week this
@@ -21,6 +21,7 @@ export function keptWeekOnScreen(model: HeroModel, seen: number | null): number 
   if (model.state !== 'waiting' && model.state !== 'completed') return null
   const previous = model.eventIndex - 1
   if (previous < 0) return null
+  if (model.state === 'completed' && model.finishedOutcome) return model.finishedOutcome === 'done' ? previous : null
   return seen === previous || (model.lastClosedOutcome === 'done' && model.lastClosedEventIndex === previous) ? previous : null
 }
 
@@ -60,7 +61,7 @@ export function titleWeekIndex(model: Pick<SoloRitualModel, 'state' | 'eventInde
  * Null when nothing happens by itself (the Settle button is then the next step).
  */
 export function nextUpLine(
-  model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel' | 'settleOpensAt' | 'demoSpeedNotice'>,
+  model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel' | 'settleOpensAt' | 'demoSpeedNotice'> & Partial<Pick<SoloRitualModel, 'catchupLine' | 'stampBlocked'>>,
   schedule: readonly Readonly<{ opens: bigint }>[],
   now: number,
   keptWeek: number | null,
@@ -68,6 +69,7 @@ export function nextUpLine(
   stampPending = false,
 ): string | null {
   if (stampPending) return null
+  if (model.catchupLine && (model.stampBlocked || model.state === 'completed' || model.catchupLine.startsWith('Closing weeks'))) return model.catchupLine
   if (model.state === 'missed' || model.state === 'skipped') return model.nextOpensLabel ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : null
   const outcomeWeek = keptWeek ?? missedWeekOnScreen(model, stampPending)
   if (outcomeWeek === null || model.state === 'completed' || model.state === 'ended') return null

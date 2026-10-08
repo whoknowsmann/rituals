@@ -10,7 +10,7 @@ export function homeTilePresentation(bundle: RitualBundleRead, now: number | nul
   if (now === null) return { status: { text: 'Checking time…', act: false }, closingLine: null }
   const model = soloRitualModel(bundle, now, account.members[0] ?? null)
   const laterOpen = laterWeekOpenAt(account.schedule, account.currentEventIndex, now)
-  return { status: tileStatus(model, laterOpen), closingLine: laterOpen ? null : stampedWeekClosingLabel(model, now) }
+  return { status: tileStatus(model, laterOpen), closingLine: model.catchupLine ?? (laterOpen ? null : stampedWeekClosingLabel(model, now)) }
 }
 
 /**
@@ -33,7 +33,7 @@ export function homeSections<T extends { bundle: RitualBundleRead }>(rituals: re
   const finished: T[] = []
   for (const ritual of rituals) {
     const status = ritual.bundle.ritual.account.status
-    if (status === 'Completed' || status === 'Ended') finished.push(ritual)
+    if (status === 'Completed' || status === 'Ended' || homeTilePresentation(ritual.bundle, now).status.text === 'Finished') finished.push(ritual)
     else if (homeTilePresentation(ritual.bundle, now).status.act) needsStamp.push(ritual)
     else otherActive.push(ritual)
   }
