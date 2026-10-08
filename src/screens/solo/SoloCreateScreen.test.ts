@@ -5,6 +5,14 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloCreateScreen.tsx'), 'utf8')
 
 describe('SoloCreateScreen transaction and commitment wiring', () => {
+  it('renders a short starting balance quietly without changing the words or lock gating', () => {
+    expect(source).toContain('{shortOfTest && neededAtomic !== null && <Text style={styles.quiet} accessibilityLiveRegion="polite">{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? \' (stake plus the activation fee)\' : \'\'}.`}</Text>}')
+    expect(source).not.toMatch(/<ErrorLine>[^\n]*Not enough tSKR/)
+    expect(source).toContain("disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || causeUnavailable || shortOfTest}")
+    expect(source).toContain('causeUnavailable && <ErrorLine>This cause is unavailable. Try again later.</ErrorLine>')
+    expect(source).toContain('confirmedAddress && readbackError && <ErrorLine>{readbackError}</ErrorLine>')
+  })
+
   it('keeps wallet validation quiet until typing or attempting to lock, without an empty error row', () => {
     expect(source).toContain('const visiblePersonError = personTouched || triedCreate ? personError : null')
     expect(source).toContain('setPersonTouched(true)')
@@ -29,6 +37,13 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('setTimeout(() => setBalanceTick((value) => value + 1), 4000)')
     expect(source).not.toContain("faucet.status !== 'done'")
   })
+  it('hides Lock it in until connected, retaining the chooser and the exact start handler', () => {
+    expect(source).toMatch(/\{!createComplete && selectedAccount && \(\s*<ActionButton label=\{create.isBusy \? 'Locking in…' : 'Lock it in'\}/)
+    expect(source).toContain('onPress={() => { setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }}')
+    expect(source).toContain('{step === 3 && !selectedAccount && <View><Text style={styles.quiet}>Set your wallet to Devnet.</Text><WalletChoiceButtons failureCopy="Connection not completed. Try again." /></View>}')
+    expect(source.match(/'Lock it in'/g)).toHaveLength(1)
+  })
+
   it('only explains the wallet handoff while the wallet is opening', () => {
     expect(source).not.toContain('walletHandoffNote(')
     expect(source).toContain('withWalletHandoff(')

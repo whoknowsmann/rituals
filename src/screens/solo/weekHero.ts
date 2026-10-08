@@ -1,6 +1,5 @@
 import type { SoloRitualModel } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { weekOpensLabel } from '../../features/rituals/displayFormat'
-import { stampedWeekClosingLabel } from '../../features/rituals/home/tileStatus'
 import type { WeekCell } from '../../components/crew/weekStripLogic'
 
 /**
@@ -25,6 +24,25 @@ export function keptWeekOnScreen(model: HeroModel, seen: number | null): number 
   return seen === previous || (model.lastClosedOutcome === 'done' && model.lastClosedEventIndex === previous) ? previous : null
 }
 
+/** Preview the next HOLD during the lead and gaps, without making it actionable. */
+export function stampHoldState(model: Pick<SoloRitualModel, 'state' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel'>, stampPending: boolean): 'waiting' | 'open' | 'hidden' {
+  if (stampPending || model.showedUp || model.weekSkipped) return 'hidden'
+  if (model.nextOpensLabel && (model.state === 'waiting' || model.state === 'missed' || model.state === 'skipped')) return 'waiting'
+  return model.state === 'claimable' || model.state === 'open-not-initialized' ? 'open' : 'hidden'
+}
+
+/** Demo copy belongs only to the initial lead or an open week still needing a stamp. */
+export function showDemoSpeedNotice(model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel' | 'demoSpeedNotice'>, stampPending: boolean): boolean {
+  const hold = stampHoldState(model, stampPending)
+  return model.demoSpeedNotice !== null && (hold === 'open' || (hold === 'waiting' && model.eventIndex === 0))
+}
+
+/** The deadline decides an unstamped week, but never overrules a stamp still being read. */
+export function missedWeekOnScreen(model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'weekSkipped'>, stampPending: boolean): number | null {
+  if (stampPending || model.showedUp || model.weekSkipped) return null
+  return model.state === 'closing' || model.state === 'resolving/settle' ? model.eventIndex : null
+}
+
 /**
  * The week the title names: the one whose stamp is the hero (kept, missed or
  * skipped), else the current week. `skippedWeek` is the chain's declared skip,
@@ -42,19 +60,23 @@ export function titleWeekIndex(model: Pick<SoloRitualModel, 'state' | 'eventInde
  * Null when nothing happens by itself (the Settle button is then the next step).
  */
 export function nextUpLine(
-  model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'nextOpensLabel' | 'settleOpensAt' | 'demoSpeedNotice'>,
+  model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel' | 'settleOpensAt' | 'demoSpeedNotice'>,
   schedule: readonly Readonly<{ opens: bigint }>[],
   now: number,
   keptWeek: number | null,
   settlingByItself: boolean,
+  stampPending = false,
 ): string | null {
+  if (stampPending) return null
   if (model.state === 'missed' || model.state === 'skipped') return model.nextOpensLabel ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : null
-  if (keptWeek === null || model.state === 'completed' || model.state === 'ended') return null
+  const outcomeWeek = keptWeek ?? missedWeekOnScreen(model, stampPending)
+  if (outcomeWeek === null || model.state === 'completed' || model.state === 'ended') return null
   if (model.state === 'resolving/settle' && !settlingByItself) return null
-  const next = schedule[keptWeek + 1]
-  if (!next) return stampedWeekClosingLabel(model, now)
+  const next = schedule[outcomeWeek + 1]
+  if (!next) return model.settleOpensAt === null ? null : now >= model.settleOpensAt ? 'Closing…'
+    : `Week closes ${weekOpensLabel(model.settleOpensAt, now, model.demoSpeedNotice !== null)}`
   const opens = Number(next.opens)
-  return now < opens ? `Week ${keptWeek + 2} opens ${weekOpensLabel(opens, now, model.demoSpeedNotice !== null)}` : 'Closing…'
+  return now < opens ? `Week ${outcomeWeek + 2} opens ${weekOpensLabel(opens, now, model.demoSpeedNotice !== null)}` : 'Closing…'
 }
 
 /** The punch card as the screen shows it: the stamped week reads ✓ at once. */

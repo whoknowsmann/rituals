@@ -4,6 +4,8 @@ import { ClusterNetwork } from '../../../components/cluster/cluster-data-access'
 import { resolveRitualClientState } from './useRitualClient'
 import { RITUALS_PROGRAM_ID } from '../../../data/rituals/programIds'
 
+vi.mock('react-native', () => ({ Alert: { alert: vi.fn() } }))
+
 const client = Object.freeze({ readRitual: vi.fn() }) as never
 // Only the authorized devnet program id is accepted now that it is deployed.
 const deployed = { deployment: 'deployed' as const, programId: RITUALS_PROGRAM_ID }

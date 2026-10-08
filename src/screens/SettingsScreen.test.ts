@@ -5,6 +5,13 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SettingsScreen.tsx'), 'utf8')
 
 describe('SettingsScreen', () => {
+  it('says the token disclosure once, in the footnote, and leaves test tokens as the real button', () => {
+    expect(source.match(/tSKR is a test token with no real value/g)).toHaveLength(1)
+    expect(source).toContain('<Footnote>Devnet · tSKR is a test token with no real value</Footnote>')
+    expect(source).toContain('tone="link" label="Notification settings"')
+    expect(source).toContain('tone="link" label="View on Explorer"')
+    expect(source).toContain('tone="quiet" label={faucet.status === \'requesting\' ? \'Sending…\' : \'Get test tokens\'} onPress={faucet.request}')
+  })
   it('uses the same batched loader as Home and offers a retry instead of hiding RPC failure', () => {
     const card = readFileSync(resolve(__dirname, '../features/rituals/eject/EndEarly.tsx'), 'utf8')
     const home = readFileSync(resolve(__dirname, 'RitualsHomeScreen.tsx'), 'utf8')

@@ -55,7 +55,7 @@ export function SettingsScreen() {
       <View style={s.card} accessibilityLabel="Notifications">
         <Text style={s.value} accessibilityRole="header">Notifications</Text>
         <Text style={s.muted} accessibilityLiveRegion="polite">{notificationSettings.error ?? notificationPermissionLine(notificationSettings.permission, Platform.OS)}</Text>
-        <ActionButton tone="quiet" label="Notification settings" onPress={() => { void openNotificationSettings() }} style={s.explorerButton} />
+        <ActionButton tone="link" label="Notification settings" onPress={() => { void openNotificationSettings() }} style={s.explorerButton} />
         <View style={s.switchRow}>
           <Text style={s.muted}>Remind me</Text>
           <Switch accessibilityLabel="Remind me" value={notificationSettings.preferences?.masterEnabled ?? false} onValueChange={setRemindMe} disabled={!notificationSettings.preferences || notificationSettings.busy} />
@@ -64,12 +64,11 @@ export function SettingsScreen() {
       <View style={s.card} accessibilityLabel="Network information">
         <Text style={s.label}>NETWORK</Text>
         <Text style={s.value}>Devnet</Text>
-        <Text style={s.muted}>tSKR is a test token with no real value</Text>
       </View>
       <View style={s.card} accessibilityLabel="Program information">
         <Text style={s.label}>PROGRAM</Text>
         <Text style={s.value}>{shortProgramId(programId)}</Text>
-        <ActionButton tone="quiet" label="View on Explorer" onPress={() => { void Linking.openURL(explorerUrl).catch(() => {}) }} accessibilityLabel="View program on Solana Explorer" style={s.explorerButton} />
+        <ActionButton tone="link" label="View on Explorer" onPress={() => { void Linking.openURL(explorerUrl).catch(() => {}) }} accessibilityLabel="View program on Solana Explorer" style={s.explorerButton} />
       </View>
       <YourRituals onEnd={setEnding} />
       <Text style={s.version}>App version {version}</Text>

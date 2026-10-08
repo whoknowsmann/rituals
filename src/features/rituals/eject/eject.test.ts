@@ -9,6 +9,7 @@ import type { RitualClient } from '../../../data/rituals/ritualClient'
 import type { PendingActionRecord } from '../recovery/pendingAction'
 import { tileStatus } from '../home/tileStatus'
 import { soloRitualModel, type SoloRitualBundle } from '../solo/lifecycle/soloRitualModel'
+import { showDemoSpeedNotice } from '../../../screens/solo/weekHero'
 
 const me = new PublicKey(new Uint8Array(32).fill(7))
 const other = new PublicKey(new Uint8Array(32).fill(8))
@@ -90,6 +91,7 @@ describe('an ended ritual on Home and on its screen', () => {
     expect(model.weekCells).toEqual(['done', 'future', 'future'])
     expect(model.lastClosedEventIndex).toBe(0)
     expect(tileStatus(model)).toEqual({ text: 'Ended', act: false })
+    expect(showDemoSpeedNotice({ ...model, demoSpeedNotice: 'Demo speed: a week here is 1 minute.' }, false)).toBe(false)
   })
 
   it('wires the hidden Settings entry, the two confirmations and the Ended screen', () => {
@@ -101,6 +103,6 @@ describe('an ended ritual on Home and on its screen', () => {
     for (const copy of ['>End early<', 'label="Continue"', "'End and get it back'", 'placeholder={ritual.title}', "'Nothing was sent.'", 'clearRitualReminders(ritual.address)', "navigation.navigate('SoloRitual', { ritualId: ritual.address })"]) expect(flow).toContain(copy)
     expect(flow + readFileSync(resolve(__dirname, 'ejectFlow.ts'), 'utf8')).not.toMatch(/missed weeks stay missed/i)
     expect(ritual).toContain("ended ? 'Ended'")
-    expect(ritual).toContain("model.demoSpeedNotice && model.state !== 'completed' && !ended")
+    expect(ritual).toContain('showDemoSpeedNotice(model, stampPending) &&')
   })
 })

@@ -5,11 +5,33 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloRitualScreen.tsx'), 'utf8')
 
 describe('SoloRitualScreen proof and witness controls', () => {
+  it('keeps last week\'s settled MISSED paper only in the missed gap and on Finished', () => {
+    const papers = source.split('\n').filter((line) => line.includes('<Stamp kind="missed"'))
+    expect(papers).toHaveLength(3)
+    expect(papers[0]).toContain("model.lastClosedOutcome === 'missed' && model.state === 'completed'")
+    expect(papers[1]).toContain('missedWeekOnScreen(model, stampPending) !== null')
+    expect(papers[1]).not.toContain('went to') // current week has not settled yet
+    expect(papers[2]).toContain("if (model.state === 'missed')")
+    expect(papers[2]).toContain('{amountLabel} went to {model.destinationLabel}.')
+    expect(source).toContain('onClosedWeekPress={(eventIndex) => navigation.navigate(\'SoloReceipt\'')
+  })
+  it('uses links for minor ritual controls, retaining bordered retry and settlement controls', () => {
+    expect(source).toContain('tone="link" label={`Reminders: ${ritualRemindersOn ? \'on\' : \'off\'}`} onPress={toggleRitualReminders}')
+    expect(source).toContain('tone="link" label={`See week ${model.lastClosedEventIndex + 1} receipt`}')
+    expect(source).toContain('tone="link" label="Remove from this phone" onPress={removeFromPhone}')
+    expect(source).toContain('tone="quiet" label="Try again" onPress={action.reset}')
+    expect(source).toContain('tone="quiet" label={settle.isBusy ? \'Working…\' : model.needsEventInit ? \'Close this week\' : \'Settle this week\'} onPress={settle.start}')
+  })
+  it('removes the missed/skipped exit button, while preserving the error-state exit', () => {
+    const errorState = source.indexOf('function ErrorState(')
+    expect(source.slice(0, errorState)).not.toContain('label="Back to rituals"')
+    expect(source.slice(errorState)).toContain('<ActionButton tone="dark" label="Back to rituals" onPress={onHome} />')
+  })
   it('keeps finished copy to the per-week amount and missed consequence', () => {
     expect(source).toContain('label="Stake per week"')
     expect(source).toContain('{amountLabel} went to {model.destinationLabel}.')
     expect(source).toContain('note="That\'s a week, not a verdict."')
-    expect(source).toContain("model.demoSpeedNotice && model.state !== 'completed'")
+    expect(source).toContain('showDemoSpeedNotice(model, stampPending) && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>')
     expect(source).not.toContain('Every week is settled.')
     expect(source).not.toContain("received that week's stake")
     expect(source).toContain('useSoloDestinationOwner(')
@@ -19,6 +41,23 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('soloRitualModel(state.bundle, chainNow,')
     expect(source).toMatch(/holdVisible && <View[^\n]*model.stampTimeLeftLabel[^\n]*label="HOLD TO STAMP"/)
     expect(source).not.toContain('Date.now(')
+  })
+  it('moves the waiting countdown into a disabled HOLD, keeps the note editable, and drops the waiting card', () => {
+    expect(source).toContain('const holdState = stampHoldState(model, stampPending)')
+    expect(source).toContain("const holdWaiting = holdState === 'waiting'")
+    expect(source).toContain('const nextLine = holdWaiting ? null : nextUpLine(')
+    expect(source).toContain('holdWaiting ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : model.stampTimeLeftLabel')
+    expect(source).toContain('disabled={holdWaiting || !readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP"')
+    expect(source).toContain("if (model.state === 'waiting') return null")
+    expect(source).not.toContain('<Text style={s.cardTitle}>Week {model.eventIndex + 1} opens')
+    const note = source.match(/\{holdVisible && notesOfferedRef.current && <TextInput[^\n]+/g)
+    expect(note).toHaveLength(1)
+    expect(note![0]).toContain('onChangeText={setNoteInput}')
+    expect(note![0]).not.toContain('editable={false}')
+    const hold = readFileSync(resolve(__dirname, '../../components/crew/HoldButton.tsx'), 'utf8')
+    expect(hold).toContain('disabled={disabled}')
+    expect(hold).toContain('if (disabled || done || tapFallback) return')
+    expect(hold).toContain('if (!live.current.mounted || live.current.disabled || live.current.done) return')
   })
   it('guards remove taps, handles failure, and clears removed routes from recents', () => {
     expect(source).toContain('if (removalOpen.current || removalSaving.current) return')
@@ -66,8 +105,8 @@ describe('SoloRitualScreen proof and witness controls', () => {
   it('names the week a skip applies to and never calls a skipped week missed (skip run, 2026-10-07)', () => {
     expect(source).toContain('`Skip week ${model.eventIndex + 1}`')
     expect(source).not.toContain('Skip next week')
-    expect(source).toContain('!model.showedUp && !model.weekSkipped && <Stamp kind="missed"')
-    expect(source).toContain("model.showedUp || model.weekSkipped ? 'Your stake comes back to you.'")
+    expect(source).toContain('if (model.weekSkipped || model.state === \'skipped\') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back."')
+    expect(source).toContain('if (missedWeekOnScreen(model, stampPending) !== null) return <View style={s.paper}><Stamp kind="missed"')
   })
 
   it('celebrates a stamp once: confetti and the stamp animation only for a stamp made here (double pop, 2026-10-04)', () => {
@@ -93,14 +132,14 @@ describe('SoloRitualScreen proof and witness controls', () => {
     const body = source.slice(source.indexOf('function renderState('))
     const kept = body.indexOf('if (keptWeek !== null) return')
     expect(kept).toBeGreaterThan(0)
-    // Ahead of every card that used to replace the stamp, so those cards only ever show for an unstamped week.
-    for (const later of ["if (model.state === 'waiting')", "if (model.state === 'closing')", "if (model.state === 'resolving/settle')"]) expect(kept).toBeLessThan(body.indexOf(later))
+    // Ahead of the waiting and missed states: they never replace a kept stamp.
+    for (const later of ["if (model.state === 'waiting')", 'if (missedWeekOnScreen(model, stampPending)']) expect(kept).toBeLessThan(body.indexOf(later))
     expect(body.match(/<Stamp kind="showed-up"/g)).toHaveLength(1)
     expect(source).toContain('<WeekStrip cells={punchCardCells(model.weekCells, model.showedUp, keptWeek)}')
     expect(source).toContain('`Week ${titleWeekIndex(model, keptWeek, readyBundle.ritual.account.skipDeclared ? readyBundle.ritual.account.skipEventIndex : null) + 1}`')
     expect(source.match(/\{nextLine && <Text style=\{s\.muted\}>\{nextLine\}<\/Text>\}/g)).toHaveLength(1)
-    // Last week's MISSED paper gives way to this week's stamp.
-    expect(source).toContain("model.state !== 'missed' && keptWeek === null && !ended && <View style={s.paper}")
+    // Last week's MISSED paper gives way as soon as this week's HOLD opens, not only after its stamp.
+    expect(source).toContain("model.lastClosedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper}")
   })
 
   it('keeps the one declared skip available while valid, as a quiet link that names its week (Jack, 2026-10-07)', () => {
@@ -111,5 +150,17 @@ describe('SoloRitualScreen proof and witness controls', () => {
     const link = source.indexOf('tone="link" label={skip.isBusy')
     expect(link).toBeGreaterThan(source.indexOf('{nextLine && '))
     expect(link).toBeLessThan(source.indexOf('label={`See week '))
+  })
+
+  it('keeps stamp progress ahead of MISSED and removes the closing narration, not the settlement fallback', () => {
+    expect(source).toContain('const stampPending = claim.isBusy || stampNotRead')
+    expect(source).toContain('const action = stampPending ? claim :')
+    expect(source).toContain("stampNotRead || action.state.status === 'submitted' || action.state.status === 'confirming'")
+    expect(source).toContain("title: 'Stamping…'")
+    const body = source.slice(source.indexOf('function renderState('))
+    expect(body.indexOf('if (action.isBusy || stampPending)')).toBeLessThan(body.indexOf('if (missedWeekOnScreen('))
+    for (const removed of ['This week is closing', 'The check-in window has closed.', 'Closing this week…', 'This week is ready to settle', "gets this week's stake."]) expect(body).not.toContain(removed)
+    expect(source).toContain("model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone=\"quiet\"")
+    expect(source).toContain("'Settle this week'} onPress={settle.start}")
   })
 })

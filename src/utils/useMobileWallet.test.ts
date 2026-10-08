@@ -5,6 +5,7 @@ import type { Account } from './useAuthorization'
 import { getAuthorizationFromAuthorizationResult } from './useAuthorization'
 import type { AuthorizationResult } from '@solana-mobile/mobile-wallet-adapter-protocol'
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: {} }))
+vi.mock('react-native', () => ({ Alert: { alert: vi.fn() } }))
 
 const payer = Key(7)
 function Key(value: number) { return new PublicKey(new Uint8Array(32).fill(value)) }

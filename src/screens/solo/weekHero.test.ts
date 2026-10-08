@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../data/rituals/ritualsRpc'
 import { soloRitualModel, type SoloRitualBundle } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { weekCellLabel, weekSummary } from '../../components/crew/weekStripLogic'
-import { keptWeekOnScreen, nextUpLine, punchCardCells, titleWeekIndex } from './weekHero'
+import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, showDemoSpeedNotice, stampHoldState, titleWeekIndex } from './weekHero'
 
 // Demo speed, two weeks: 45 s to stamp, 10 s grace, the next week 5 s later.
 const me = new PublicKey(new Uint8Array(32).fill(7))
@@ -37,6 +37,76 @@ const screen = (bundle: SoloRitualBundle, now: number, seen: number | null = nul
 }
 
 describe('ritual screen after a stamp (demo speed)', () => {
+  it('shows the unchanged demo notice only in the lead and open unstamped weeks', () => {
+    const lead = soloRitualModel(read({}, null, []), 990, me)
+    expect(lead.demoSpeedNotice).toBe('Demo speed: a week here is 1 minute.')
+    expect(showDemoSpeedNotice(lead, false)).toBe(true)
+    expect(showDemoSpeedNotice(soloRitualModel(read({}, null, []), 1020, me), false)).toBe(true)
+    const later = read({ currentEventIndex: 1, settledEventCount: 1 }, null, [], [missedWeek1])
+    expect(showDemoSpeedNotice(soloRitualModel(later, 1060, me), false)).toBe(true)
+    for (const model of [
+      soloRitualModel(later, 1057, me),
+      soloRitualModel(read({ currentEventIndex: 1, settledEventCount: 1 }, null, [], [keptWeek1]), 1057, me),
+      soloRitualModel(read({}, event(0), [stamped]), 1020, me),
+      soloRitualModel(read({}, null, []), 1046, me),
+      soloRitualModel(read({}, null, []), 1056, me),
+      soloRitualModel(read({ skipDeclared: true, skipEventIndex: 0 }, null, []), 990, me),
+      soloRitualModel(read({ status: 'Completed' }, null, []), 1117, me),
+      soloRitualModel(read({ status: 'Ended' }, null, []), 990, me),
+      { ...lead, demoSpeedNotice: null },
+    ]) expect(showDemoSpeedNotice(model, false)).toBe(false)
+    expect(showDemoSpeedNotice(lead, true)).toBe(false)
+  })
+
+  it('previews a disabled HOLD in the lead and gaps, and enables it only for an open unstamped week', () => {
+    const lead = soloRitualModel(read({}, null, []), 955, me)
+    expect(stampHoldState(lead, false)).toBe('waiting')
+    expect(lead.nextOpensLabel).toBe('in 45s')
+    const skippedWeek1 = { ritual: { account: ritual(), address }, event: event(0, { status: 'Voided', voidReason: 'DeclaredSkip' }), claims: [] }
+    for (const previous of [keptWeek1, missedWeek1, skippedWeek1]) {
+      const bundle = read({ currentEventIndex: 1, settledEventCount: 1 }, null, [], [previous])
+      const gap = soloRitualModel(bundle, 1057, me)
+      expect(stampHoldState(gap, false)).toBe('waiting')
+      expect(gap.nextOpensLabel).toBe('in 3s')
+      expect(stampHoldState(soloRitualModel(bundle, 1060, me), false)).toBe('open')
+    }
+    for (const model of [
+      soloRitualModel(read({}, event(0), [stamped]), 1020, me),
+      soloRitualModel(read({ skipDeclared: true, skipEventIndex: 0 }, null, []), 990, me),
+      soloRitualModel(read({}, null, []), 1046, me),
+      soloRitualModel(read({ status: 'Completed' }, null, []), 1117, me),
+      soloRitualModel(read({ status: 'Ended' }, null, []), 990, me),
+    ]) expect(stampHoldState(model, false)).toBe('hidden')
+    expect(stampHoldState(lead, true)).toBe('hidden')
+    expect(stampHoldState(soloRitualModel(read({}, null, []), 1020, me), true)).toBe('hidden')
+  })
+
+  it('replaces an unstamped deadline with MISSED and the same ticking line, without claiming it settled', () => {
+    const unstamped = read({}, null, [])
+    // The chain accepts stamps through the deadline second; only the closed window is missed.
+    expect(missedWeekOnScreen(soloRitualModel(unstamped, 1045, me), false)).toBeNull()
+    for (const now of [1046, 1050, 1056]) {
+      const model = soloRitualModel(unstamped, now, me)
+      expect(missedWeekOnScreen(model, false)).toBe(0)
+      expect(model.lastClosedOutcome).toBeNull()
+      expect(nextUpLine(model, schedule, now, null, true)).toBe(`Week 2 opens in ${1060 - now}s`)
+      expect(missedWeekOnScreen(model, true)).toBeNull()
+      expect(nextUpLine(model, schedule, now, null, true, true)).toBeNull()
+    }
+    expect(screen(unstamped, 1056, null, false).line).toBeNull()
+    expect(screen(unstamped, 1061).line).toBe('Closing…')
+    const lastWeek = read({ currentEventIndex: 1 }, null, [], [missedWeek1])
+    expect(screen(lastWeek, 1106).line).toBe('Week closes in 10s')
+    expect(screen(lastWeek, 1116).line).toBe('Closing…')
+  })
+
+  it('never calls a stamped or declared-skip week MISSED during grace or settlement', () => {
+    for (const now of [1046, 1056]) {
+      expect(missedWeekOnScreen(soloRitualModel(read({}, event(0), [stamped]), now, me), false)).toBeNull()
+      expect(missedWeekOnScreen(soloRitualModel(read({ skipDeclared: true, skipEventIndex: 0 }, null, []), now, me), false)).toBeNull()
+    }
+  })
+
   it('keeps YOU SHOWED UP! as the hero from the stamp to the next week, with a ticking line saying when it opens', () => {
     const week1Stamped = read({}, event(0), [stamped])
     // Stamp lands 20 s into the window: ✓ at once, and the next thing that happens, with its time.
