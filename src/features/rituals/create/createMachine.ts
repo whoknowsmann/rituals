@@ -40,6 +40,7 @@ export type CreateFailureCategory =
   | 'blockhash-expired'
   | 'submission'
   | 'confirmation'
+  | 'transaction-failed'
 
 export type CreateMachineState =
   | Readonly<{ status: 'idle' }>
@@ -75,6 +76,7 @@ export type CreateMachineEvent =
   | Readonly<{ type: 'RESET' }>
   | Readonly<{ type: 'READBACK_OBSERVED'; ritualAddress: string }>
   | Readonly<{ type: 'EXPIRY_OBSERVED'; ritualAddress: string }>
+  | Readonly<{ type: 'FAILURE_OBSERVED'; ritualAddress: string }>
 
 const freeze = <T extends object>(value: T): Readonly<T> => Object.freeze(value)
 
@@ -152,6 +154,9 @@ export function createMachineReducer(
       ? freeze({ status: 'error' as const, category: state.category, message: state.message, submitted: false, retryable: true, ritualAddress: state.ritualAddress })
       : freeze({ status: 'error' as const, category: 'blockhash-expired' as const, message: 'Nothing was sent.', submitted: false, retryable: true, ritualAddress: state.ritualAddress })
   }
+  // Landed with an error: no ritual was made, and that transaction can never land again.
+  if (event.type === 'FAILURE_OBSERVED') return state.status === 'error' && state.ritualAddress === event.ritualAddress && createAwaitsChain(state)
+    ? freeze({ status: 'error' as const, category: 'transaction-failed' as const, message: "It didn't go through.", submitted: false, retryable: true, ritualAddress: state.ritualAddress }) : state
 
   // A failure can arrive in any active phase.
   if (event.type === 'FAILED') {
@@ -279,6 +284,7 @@ export function createStatusCopy(state: CreateMachineState): CreateStatusCopy {
       // May have gone through: say only what to do. The retry reuses the same
       // ritual address, and a landed first attempt turns this into Done.
       if (state.unresolved) return freeze({ title: 'Try again', body: 'Try again.', tone: 'neutral' as const })
+      if (state.category === 'transaction-failed') return freeze({ title: 'Could not create the ritual', body: "It didn't go through.", tone: 'warning' as const })
       if (state.category === 'wallet-rejected') {
         return freeze({
           title: 'Not sent',

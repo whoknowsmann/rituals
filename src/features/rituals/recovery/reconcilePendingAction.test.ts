@@ -101,6 +101,32 @@ describe('lost signing response reconciliation', () => {
     expect(result.status).toBe('still-unknown')
   })
 
+  it('ends a landed-but-failed transaction at a retryable "It didn\'t go through." and stops polling', async () => {
+    vi.useFakeTimers()
+    const signed: PendingActionRecord = { ...record, transactionSignature: '1'.repeat(64) }
+    const reconcile = vi.fn(() => resolvePendingAction(signed, {
+      getBlockHeight: async () => 90,
+      getSignatureStatus: async () => ({ slot: 110, err: { InstructionError: [0, { Custom: 6000 }] }, confirmationStatus: 'confirmed' as const }),
+      readRitual: async () => ({ slot: 120, actionObserved: false }),
+    }))
+    const unknown = { type: 'FAILED' as const, category: 'confirmation' as const, message: 'unknown' }
+    let lifecycle = lifecycleReducer(lifecycleReducer(lifecycleReducer(lifecycleInitialState(), { type: 'PREPARE' }), { type: 'PREPARED', prepared: { kind: 'claim', messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress } }), unknown)
+    let create = createMachineReducer(createMachineReducer(createMachineReducer(createMachineInitialState(), { type: 'PREPARE' }), { type: 'PREPARED', prepared: { kind: 'create', messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress } }), unknown)
+    expect(lifecycleCanSubmit(lifecycle)).toBe(false)
+    const stop = watchActionReconciliation(reconcile, (event) => { lifecycle = lifecycleReducer(lifecycle, event); create = createMachineReducer(create, event) })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(reconcile).toHaveBeenCalledOnce()
+    expect(vi.getTimerCount()).toBe(0)
+    for (const state of [lifecycle, create]) expect(state).toMatchObject({ status: 'error', category: 'transaction-failed', submitted: false, retryable: true })
+    expect(lifecycleCanSubmit(lifecycle)).toBe(true)
+    expect(canSubmitCreate(create)).toBe(true)
+    for (const copy of [lifecycleStatusCopy(lifecycle), createStatusCopy(create)]) {
+      expect(copy.body).toBe("It didn't go through.")
+      expect(copy.body).not.toContain('Nothing was sent')
+    }
+    stop()
+  })
+
   it('stops polling on cleanup and ignores a read finishing after unmount', async () => {
     vi.useFakeTimers()
     let finish!: (value: PendingActionResolution) => void

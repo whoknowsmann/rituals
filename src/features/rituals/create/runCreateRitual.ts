@@ -67,6 +67,7 @@ const SAFE_MESSAGES: Record<CreateFailureCategory, string> = {
   'blockhash-expired': 'The prepared transaction expired before wallet approval. Nothing was sent; prepare again.',
   submission: 'Could not send the transaction to the network. Nothing was sent; you can try again.',
   confirmation: 'The transaction was sent but could not be confirmed.',
+  'transaction-failed': "It didn't go through.",
 }
 
 export async function runCreateRitual(

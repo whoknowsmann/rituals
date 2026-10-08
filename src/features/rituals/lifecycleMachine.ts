@@ -2,7 +2,7 @@ export type LifecycleActionKind = 'fund' | 'activate' | 'initialize-event' | 'cl
 export type LifecyclePreparedRef = Readonly<{ kind: LifecycleActionKind; messageDigest: string; ritualAddress: string }>
 export type LifecycleSubmittedRef = Readonly<{ id: string }>
 export type LifecycleConfirmedRef = Readonly<{ signature: string; messageDigest: string }>
-export type LifecycleFailureCategory = 'preparation' | 'wallet-rejected' | 'wallet-unavailable' | 'network-mismatch' | 'blockhash-expired' | 'submission' | 'confirmation'
+export type LifecycleFailureCategory = 'preparation' | 'wallet-rejected' | 'wallet-unavailable' | 'network-mismatch' | 'blockhash-expired' | 'submission' | 'confirmation' | 'transaction-failed'
 
 export type LifecycleState =
   | Readonly<{ status: 'idle' }>
@@ -25,6 +25,7 @@ export type LifecycleEvent =
   | Readonly<{ type: 'RESET' }>
   | Readonly<{ type: 'READBACK_OBSERVED'; ritualAddress: string }>
   | Readonly<{ type: 'EXPIRY_OBSERVED'; ritualAddress: string }>
+  | Readonly<{ type: 'FAILURE_OBSERVED'; ritualAddress: string }>
 
 const freeze = <T extends object>(value: T): Readonly<T> => Object.freeze(value)
 export const lifecycleInitialState = (): LifecycleState => freeze({ status: 'idle' as const })
@@ -45,6 +46,9 @@ export function lifecycleReducer(state: LifecycleState, event: LifecycleEvent): 
       ? freeze({ status: 'error' as const, category: state.category, message: state.message, submitted: false, retryable: true, ritualAddress: state.ritualAddress })
       : freeze({ status: 'error' as const, category: 'blockhash-expired' as const, message: 'Nothing was sent.', submitted: false, retryable: true, ritualAddress: state.ritualAddress })
   }
+  // Landed with an error: the action did not happen, and that transaction can never land again.
+  if (event.type === 'FAILURE_OBSERVED') return state.status === 'error' && state.ritualAddress === event.ritualAddress && lifecycleAwaitsChain(state)
+    ? freeze({ status: 'error' as const, category: 'transaction-failed' as const, message: "It didn't go through.", submitted: false, retryable: true, ritualAddress: state.ritualAddress }) : state
   if (event.type === 'FAILED') {
     if (state.status === 'idle' || state.status === 'confirmed' || state.status === 'recovered' || state.status === 'error') return state
     const submitted = state.status === 'submitted' || state.status === 'confirming' || event.category === 'confirmation'
@@ -71,6 +75,7 @@ export function lifecycleStatusCopy(state: LifecycleState): Readonly<{ title: st
   if (state.status === 'submitted' || state.status === 'confirming') return { title: 'Confirming', body: 'Sent. Checking it landed.', tone: 'progress' }
   if (state.status === 'confirmed' || state.status === 'recovered') return { title: 'Done', body: 'Confirmed on chain.', tone: 'success' }
   if (state.submitted || state.category === 'confirmation') return { title: 'Confirmation incomplete', body: 'Your transaction may already have gone through. Do not retry — check the ritual before acting again.', tone: 'warning' }
+  if (state.category === 'transaction-failed') return { title: 'Could not continue', body: "It didn't go through.", tone: 'warning' }
   if (state.category === 'wallet-rejected') return { title: 'Not sent', body: 'Nothing was sent. Try again.', tone: 'neutral' }
   if (state.category === 'network-mismatch') return { title: 'Switch to Devnet', body: 'Nothing was sent. Switch your wallet to Devnet, then try again.', tone: 'neutral' }
   return { title: 'Could not continue', body: 'Nothing was sent to the network. You can safely try again.', tone: 'warning' }

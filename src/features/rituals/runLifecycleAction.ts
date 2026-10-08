@@ -19,6 +19,7 @@ const messageFor: Record<LifecycleFailureCategory, string> = {
   'blockhash-expired': 'The prepared transaction expired before wallet approval. Nothing was sent; prepare again.',
   submission: 'Could not send the transaction to the network. Nothing was sent; you can try again.',
   confirmation: 'The transaction was sent but could not be confirmed.',
+  'transaction-failed': "It didn't go through.",
 }
 const isRejection = (error: unknown): boolean => rejection.some((value) => (error instanceof Error ? error.message : String(error)).toLowerCase().includes(value))
 /** The wallet closed its sheet after signing began: it may have broadcast first. */

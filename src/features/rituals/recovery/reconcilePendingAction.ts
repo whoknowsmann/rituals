@@ -3,7 +3,7 @@ import { readPendingAction } from './readPendingAction'
 import { resolvePendingAction, type PendingActionRecord, type PendingActionResolution, type PendingActionStore, type PendingActionTransport } from './pendingAction'
 
 export type ActionReconciler = () => Promise<PendingActionResolution | null>
-export type ActionRecoveryEvent = Readonly<{ type: 'READBACK_OBSERVED'; ritualAddress: string }> | Readonly<{ type: 'EXPIRY_OBSERVED'; ritualAddress: string }>
+export type ActionRecoveryEvent = Readonly<{ type: 'READBACK_OBSERVED' | 'EXPIRY_OBSERVED' | 'FAILURE_OBSERVED'; ritualAddress: string }>
 
 export async function reconcilePendingAction(
   client: RitualClient,
@@ -38,8 +38,8 @@ export function watchActionReconciliation(reconcile: ActionReconciler, dispatch:
     // null: this attempt never reached the journal, so there is nothing to read back.
     if (!active || result === null) return
     if (first) { first = false; onFirstAnswer?.(result?.status === 'confirmed') }
-    if (result?.status === 'confirmed' || result?.status === 'expired') {
-      dispatch({ type: result.status === 'confirmed' ? 'READBACK_OBSERVED' : 'EXPIRY_OBSERVED', ritualAddress: result.record.ritualAddress })
+    if (result?.status === 'confirmed' || result?.status === 'expired' || result?.status === 'failed') {
+      dispatch({ type: result.status === 'confirmed' ? 'READBACK_OBSERVED' : result.status === 'expired' ? 'EXPIRY_OBSERVED' : 'FAILURE_OBSERVED', ritualAddress: result.record.ritualAddress })
       return
     }
     timer = setTimeout(() => { void check() }, 3000)

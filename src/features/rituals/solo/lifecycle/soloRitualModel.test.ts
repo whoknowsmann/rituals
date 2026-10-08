@@ -105,6 +105,11 @@ describe('soloRitualModel', () => {
     expect(soloActionCanRetry(unknown, target, soloRitualModel(bundle(), 150, me), bundle())).toBe(false)
     expect(staleSoloActionError(unknown, target, soloRitualModel(bundle(), 201, me))).toBe(false)
     expect(lifecycleReducer(unknown, { type: 'RESET' })).toBe(unknown)
+    // Landed but failed on chain: the same window rule as a decline.
+    const failed = lifecycleReducer(unknown, { type: 'FAILURE_OBSERVED', ritualAddress: target.ritualAddress })
+    expect(soloActionCanRetry(failed, target, soloRitualModel(bundle(), 150, me), bundle())).toBe(true)
+    expect(soloActionCanRetry(failed, target, soloRitualModel(bundle(), 201, me), bundle())).toBe(false)
+    expect(staleSoloActionError(failed, target, soloRitualModel(bundle(), 201, me))).toBe(true)
   })
 
   it.each([
