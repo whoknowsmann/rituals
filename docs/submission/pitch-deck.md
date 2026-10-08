@@ -1,87 +1,95 @@
 # Rituals: pitch deck content (CLOCK IN)
 
-Six slides. Every line traces to docs/submission/FACTS.md (2026-10-08, d32+). Rebuilt from the Sonnet deck review (docs/overnight/2026-10-08-deck-review.md): real phone screenshots beside the words. `**Image:**` lines are rendered by scripts/deck/build.py; screenshots get swapped for the d33 recording-run captures.
+Seven slides, one idea each. Every line traces to docs/submission/FACTS.md (2026-10-08, d33). `**Image:**` lines are rendered by scripts/deck/build.py; screenshots are swapped for the d33 recording-run captures and a clean demo Home.
 
 ## Slide 1 — Title
 
-**Image:** artifacts/shots/d32-home.png
+**Image:** artifacts/shots/d27-receipt-w1.png
 
 **On the slide:**
 
 Rituals
 Show up, or pay up.
-Put a stake on a weekly promise. Keep it and you get it back.
-Reminders get ignored. A stake you can lose doesn't.
+A weekly promise with your money on it.
 
-**Say:** Rituals is a commitment app for Solana Seeker. You put a stake on a weekly promise, stamp the week to get it back, and a missed week goes where you chose.
+**Say:** Rituals is a commitment app for Solana Seeker. You put money on a weekly promise. Keep it and the money comes back.
 
-## Slide 2 — How it works
+## Slide 2 — Start
 
-**Image:** artifacts/shots/d29-step1.png, artifacts/shots/now-jack.png
+**Image:** artifacts/shots/d29-step1.png, artifacts/shots/d27-step2.png
 
 **On the slide:**
 
-Lock it in. Hold to stamp.
-Name it. Pick weeks. Set a stake.
-Choose where a miss goes.
-One approval locks it in. One more for each stamp.
-Demo speed: a week is 1 minute. Real weeks: seven days.
+Put money on it.
+Name the ritual. Say what counts.
+Pick the weeks and one total stake.
+Pick where a missed week goes.
+One approval locks it in.
 
-**Say:** Two short steps and one approval lock every week's stake in a vault. Each week you hold the button for a second and a half, approve once, and get YOU SHOWED UP!.
+**Say:** Two short steps. The stake is split across the weeks, and the destination for a missed week is chosen up front, before any money moves.
 
-## Slide 3 — Money is honest
+## Slide 3 — Every week
+
+**Image:** artifacts/shots/now-jack.png
+
+**On the slide:**
+
+Hold to stamp.
+One hold, one approval: double-tap and fingerprint in Seed Vault.
+Week times are written on chain. Nobody clicks ahead.
+Demo weeks last a minute, so the whole loop fits in five.
+
+**Say:** Each week you hold the button and approve once. The program checks every stamp against the chain clock, and demo speed lets anyone see the full loop in a few minutes.
+
+## Slide 4 — Outcomes
 
 **Image:** artifacts/shots/d27-receipt-w1.png, artifacts/shots/d27-receipt-w2.png
 
 **On the slide:**
 
-One promise. Both outcomes.
-Show up: your stake comes back.
-Miss a week: that week's stake goes where you chose.
-End early any time: what you haven't missed comes back.
+Keep it, it comes back.
+Miss it, it goes where you chose.
+Every week ends in a receipt.
 Rituals takes nothing.
 
-**Say:** Show up and your stake comes back. Miss and it goes to the cause or wallet you picked before you started. You can always end early and get back everything you haven't already missed. Rituals takes nothing either way.
+**Say:** A kept week returns that week's stake. A missed week sends it to the cause or wallet picked at the start. No fees, no house, nobody profits from a miss.
 
-## Slide 4 — Why it sticks
+## Slide 5 — Why it sticks
 
-**Image:** artifacts/shots/d32-finished.png
+**Image:** artifacts/shots/d32-home.png
 
 **On the slide:**
 
-A reason to open it every week.
-One job a week: stamp it.
-Home shows how much of your stake is back.
-Every closed week leaves a receipt.
-Real weeks remind you: opens, one day left, last hour.
+One job a week.
+Home counts your stake coming back.
+A reminder when the week opens, and before it closes.
+You choose which reminders you get.
 
-**Say:** One job a week, a receipt for every week that closes, and reminders on real weeks. We have no retention data yet and claim none. A stake that comes back is a reason to return.
+**Say:** Opening the app has a point every week: stamp, watch the money come back, read the receipt. Reminders run on the phone, and every kind can be turned off in Android settings.
 
-## Slide 5 — Built for Seeker
+## Slide 6 — Your money
 
 **Image:** artifacts/shots/d31-end-1.png
 
 **On the slide:**
 
-Built for the Seeker.
-Seed Vault Wallet: double-tap, fingerprint.
-One approval to start, one per stamp.
-Week times are on chain. Nobody clicks through.
-Your stake sits in a vault only the program can move.
+Never trapped.
+The stake sits in a vault only the program can move.
+End early any time: what you haven't missed comes back.
 
-**Say:** Every approval is Seed Vault Wallet's double-tap and fingerprint on a Seeker running Android 16. Each week's times are written on chain, a small capped settle key closes finished weeks, and the stake sits in a vault only the program controls.
+**Say:** The stake lives in a vault that belongs to the ritual, not to us. Life changes, so ending early is always possible, and everything not already missed comes back in one approval.
 
-## Slide 6 — The ask
+## Slide 7 — Try it
 
 **On the slide:**
 
-Publish it on the Solana dApp Store.
-Try it: install the APK, set Seed Vault to Devnet, tap Get test tokens.
+Try it in five minutes.
+Install the APK. Set Seed Vault to Devnet.
+Tap Get test tokens, then Start one.
 Next: friends, a witness, real donation rails.
-rituals.whoknowsman.com
-github.com/whoknowsmann/rituals
+rituals.whoknowsman.com · github.com/whoknowsmann/rituals
 
-**Say:** Friends, a witness and Seasons are built but hidden until they're polished. Donation rails come next, and mainnet stakes in USDC, SOL and SKR come after a legal and security review. We're asking for a place on the Solana dApp Store.
+**Say:** It runs on devnet with a test token, and the app hands out tokens itself. Next come friends and a witness, then real donation rails and mainnet stakes after review. We'd like a place on the Solana dApp Store.
 
 ## Q&A you should expect
 
