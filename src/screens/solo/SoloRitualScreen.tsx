@@ -39,7 +39,7 @@ import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloAct
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
 import { useSoloDestinationOwner } from '../../features/rituals/solo/lifecycle/useSoloDestinationOwner'
 import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
-import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, titleWeekIndex } from './weekHero'
+import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, stampHoldState, titleWeekIndex } from './weekHero'
 
 type Props = { route: { params: { ritualId: string } } }
 
@@ -278,11 +278,13 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       } },
     ], { cancelable: true, onDismiss: release })
   }
-  const holdVisible = (model.state === 'claimable' || model.state === 'open-not-initialized') && !model.showedUp && !stampPending
+  const holdState = stampHoldState(model, stampPending)
+  const holdVisible = holdState !== 'hidden'
+  const holdWaiting = holdState === 'waiting'
   // After a stamp: the stamp stays the hero, its cell reads ✓ at once, and one line says what happens next and when.
   if (model.showedUp) seenStamped.current = { ritualId: route.params.ritualId, week: model.eventIndex }
   const keptWeek = keptWeekOnScreen(model, seenStamped.current?.ritualId === route.params.ritualId ? seenStamped.current.week : null)
-  const nextLine = nextUpLine(model, readyBundle.ritual.account.schedule, chainNow, keptWeek, settlingByItself, stampPending)
+  const nextLine = holdWaiting ? null : nextUpLine(model, readyBundle.ritual.account.schedule, chainNow, keptWeek, settlingByItself, stampPending)
   const weekNote = soloNotes?.notes[String(keptWeek ?? model.eventIndex)] ?? null
   const witness = readyBundle.ritual.account.witness
   const canShareWitness = SCOPE.witness && Boolean(witness && selectedAccount && readyBundle.ritual.account.creator.equals(selectedAccount.publicKey))
@@ -321,7 +323,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
-      {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={!readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
+      {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{holdWaiting ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={holdWaiting || !readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="link" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="quiet" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
@@ -344,7 +346,7 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'funding') return <View style={s.card}><Text style={s.cardTitle}>Waiting for funding</Text><Text style={s.muted}>This solo ritual is not active yet.</Text></View>
   // The stamp stays the hero from the moment it lands until the next week takes over (Jack, 2026-10-07).
   if (keptWeek !== null) return <View style={s.paper}><Stamp kind="showed-up" note={keptLine} animate={freshStamp} />{weekNote ? <Text style={s.weekNote}>{weekNote}</Text> : null}</View>
-  if (model.state === 'waiting') return <View style={s.card}><Text style={s.cardTitle}>Week {model.eventIndex + 1} opens {model.nextOpensLabel}</Text></View>
+  if (model.state === 'waiting') return null
   // An open week with no event account yet needs no card either: the HOLD opens it.
   if (model.state === 'open-not-initialized') return null
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>

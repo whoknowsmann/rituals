@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../data/rituals/ritualsRpc'
 import { soloRitualModel, type SoloRitualBundle } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { weekCellLabel, weekSummary } from '../../components/crew/weekStripLogic'
-import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, titleWeekIndex } from './weekHero'
+import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, stampHoldState, titleWeekIndex } from './weekHero'
 
 // Demo speed, two weeks: 45 s to stamp, 10 s grace, the next week 5 s later.
 const me = new PublicKey(new Uint8Array(32).fill(7))
@@ -37,6 +37,29 @@ const screen = (bundle: SoloRitualBundle, now: number, seen: number | null = nul
 }
 
 describe('ritual screen after a stamp (demo speed)', () => {
+  it('previews a disabled HOLD in the lead and gaps, and enables it only for an open unstamped week', () => {
+    const lead = soloRitualModel(read({}, null, []), 955, me)
+    expect(stampHoldState(lead, false)).toBe('waiting')
+    expect(lead.nextOpensLabel).toBe('in 45s')
+    const skippedWeek1 = { ritual: { account: ritual(), address }, event: event(0, { status: 'Voided', voidReason: 'DeclaredSkip' }), claims: [] }
+    for (const previous of [keptWeek1, missedWeek1, skippedWeek1]) {
+      const bundle = read({ currentEventIndex: 1, settledEventCount: 1 }, null, [], [previous])
+      const gap = soloRitualModel(bundle, 1057, me)
+      expect(stampHoldState(gap, false)).toBe('waiting')
+      expect(gap.nextOpensLabel).toBe('in 3s')
+      expect(stampHoldState(soloRitualModel(bundle, 1060, me), false)).toBe('open')
+    }
+    for (const model of [
+      soloRitualModel(read({}, event(0), [stamped]), 1020, me),
+      soloRitualModel(read({ skipDeclared: true, skipEventIndex: 0 }, null, []), 990, me),
+      soloRitualModel(read({}, null, []), 1046, me),
+      soloRitualModel(read({ status: 'Completed' }, null, []), 1117, me),
+      soloRitualModel(read({ status: 'Ended' }, null, []), 990, me),
+    ]) expect(stampHoldState(model, false)).toBe('hidden')
+    expect(stampHoldState(lead, true)).toBe('hidden')
+    expect(stampHoldState(soloRitualModel(read({}, null, []), 1020, me), true)).toBe('hidden')
+  })
+
   it('replaces an unstamped deadline with MISSED and the same ticking line, without claiming it settled', () => {
     const unstamped = read({}, null, [])
     // The chain accepts stamps through the deadline second; only the closed window is missed.

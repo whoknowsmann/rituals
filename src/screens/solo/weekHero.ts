@@ -24,6 +24,13 @@ export function keptWeekOnScreen(model: HeroModel, seen: number | null): number 
   return seen === previous || (model.lastClosedOutcome === 'done' && model.lastClosedEventIndex === previous) ? previous : null
 }
 
+/** Preview the next HOLD during the lead and gaps, without making it actionable. */
+export function stampHoldState(model: Pick<SoloRitualModel, 'state' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel'>, stampPending: boolean): 'waiting' | 'open' | 'hidden' {
+  if (stampPending || model.showedUp || model.weekSkipped) return 'hidden'
+  if (model.nextOpensLabel && (model.state === 'waiting' || model.state === 'missed' || model.state === 'skipped')) return 'waiting'
+  return model.state === 'claimable' || model.state === 'open-not-initialized' ? 'open' : 'hidden'
+}
+
 /** The deadline decides an unstamped week, but never overrules a stamp still being read. */
 export function missedWeekOnScreen(model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'weekSkipped'>, stampPending: boolean): number | null {
   if (stampPending || model.showedUp || model.weekSkipped) return null
