@@ -57,6 +57,12 @@ export type CreateMachineState =
       submitted: boolean
       retryable: boolean
       ritualAddress: string | null
+      /**
+       * The wallet closed its sheet after signing began: a decline, or Back
+       * after it broadcast. A retry reuses the same ritual address, so it can
+       * never make a second ritual; the chain decides which happened.
+       */
+      unresolved?: boolean
     }>
 
 export type CreateMachineEvent =
@@ -65,7 +71,7 @@ export type CreateMachineEvent =
   | Readonly<{ type: 'SUBMITTED'; handle: CreateSubmittedRef }>
   | Readonly<{ type: 'CONFIRMING' }>
   | Readonly<{ type: 'CONFIRMED'; result: CreateConfirmedRef }>
-  | Readonly<{ type: 'FAILED'; category: CreateFailureCategory; message: string }>
+  | Readonly<{ type: 'FAILED'; category: CreateFailureCategory; message: string; unresolved?: boolean }>
   | Readonly<{ type: 'RESET' }>
   | Readonly<{ type: 'READBACK_OBSERVED'; ritualAddress: string }>
   | Readonly<{ type: 'EXPIRY_OBSERVED'; ritualAddress: string }>
@@ -86,6 +92,11 @@ export function canSubmitCreate(state: CreateMachineState): boolean {
 export function isTerminalCreateState(state: CreateMachineState): boolean {
   if (state.status === 'confirmed' || state.status === 'recovered') return true
   return state.status === 'error' && !state.retryable
+}
+
+/** An attempt only the chain can settle: a lost wallet result, or a sheet cancelled after signing began. */
+export function createAwaitsChain(state: CreateMachineState): boolean {
+  return state.status === 'error' && (!state.retryable || state.unresolved === true)
 }
 
 const inFlightAddress = (state: CreateMachineState): string | null => {
@@ -110,6 +121,7 @@ function failureState(
   state: CreateMachineState,
   category: CreateFailureCategory,
   message: string,
+  unresolved = false,
 ): CreateMachineState {
   const submitted = state.status === 'submitted' || state.status === 'confirming' || category === 'confirmation'
   return freeze({
@@ -119,6 +131,7 @@ function failureState(
     submitted,
     retryable: !submitted,
     ritualAddress: inFlightAddress(state),
+    ...(unresolved ? { unresolved: true } : {}),
   })
 }
 
@@ -128,15 +141,22 @@ export function createMachineReducer(
 ): CreateMachineState {
   if (event === null || typeof event !== 'object' || typeof event.type !== 'string') return state
   // Recover the existing ritual, never reset Create to an enabled submit button.
-  if (event.type === 'READBACK_OBSERVED') return state.status === 'error' && !state.retryable && state.ritualAddress === event.ritualAddress
+  // A retryable error counts too: Back on the wallet's sheet after a broadcast
+  // reads as a cancel.
+  if (event.type === 'READBACK_OBSERVED') return state.status === 'error' && state.ritualAddress === event.ritualAddress
     ? freeze({ status: 'recovered' as const, ritualAddress: event.ritualAddress }) : state
-  if (event.type === 'EXPIRY_OBSERVED') return state.status === 'error' && !state.retryable && state.ritualAddress === event.ritualAddress
-    ? freeze({ ...state, category: 'blockhash-expired' as const, message: 'Nothing was sent.', submitted: false, retryable: true }) : state
+  if (event.type === 'EXPIRY_OBSERVED') {
+    if (state.status !== 'error' || state.ritualAddress !== event.ritualAddress || !createAwaitsChain(state)) return state
+    // Proven expired: nothing from this attempt can land any more.
+    return state.retryable
+      ? freeze({ status: 'error' as const, category: state.category, message: state.message, submitted: false, retryable: true, ritualAddress: state.ritualAddress })
+      : freeze({ status: 'error' as const, category: 'blockhash-expired' as const, message: 'Nothing was sent.', submitted: false, retryable: true, ritualAddress: state.ritualAddress })
+  }
 
   // A failure can arrive in any active phase.
   if (event.type === 'FAILED') {
     if (state.status === 'idle' || state.status === 'confirmed' || state.status === 'recovered' || state.status === 'error') return state
-    return failureState(state, event.category, event.message)
+    return failureState(state, event.category, event.message, event.unresolved === true)
   }
 
   switch (state.status) {
@@ -256,6 +276,9 @@ export function createStatusCopy(state: CreateMachineState): CreateStatusCopy {
           tone: 'warning' as const,
         })
       }
+      // May have gone through: say only what to do. The retry reuses the same
+      // ritual address, and a landed first attempt turns this into Done.
+      if (state.unresolved) return freeze({ title: 'Try again', body: 'Try again.', tone: 'neutral' as const })
       if (state.category === 'wallet-rejected') {
         return freeze({
           title: 'Not sent',

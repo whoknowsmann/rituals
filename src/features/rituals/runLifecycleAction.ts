@@ -21,9 +21,11 @@ const messageFor: Record<LifecycleFailureCategory, string> = {
   confirmation: 'The transaction was sent but could not be confirmed.',
 }
 const isRejection = (error: unknown): boolean => rejection.some((value) => (error instanceof Error ? error.message : String(error)).toLowerCase().includes(value))
+/** The wallet closed its sheet after signing began: it may have broadcast first. */
+const isCancelledAfterSigning = (error: unknown): boolean => error !== null && typeof error === 'object' && (error as { cancelled?: unknown }).cancelled === true
 
 export async function runLifecycleAction(deps: LifecycleActionDeps, dispatch: Dispatch): Promise<LifecycleOutcome> {
-  const fail = (category: LifecycleFailureCategory): LifecycleOutcome => { dispatch({ type: 'FAILED', category, message: messageFor[category] }); return { ok: false, category } }
+  const fail = (category: LifecycleFailureCategory, unresolved = false): LifecycleOutcome => { dispatch({ type: 'FAILED', category, message: messageFor[category], ...(unresolved ? { unresolved } : {}) }); return { ok: false, category } }
   dispatch({ type: 'PREPARE' })
   let prepared: LifecyclePreparedRef
   try { prepared = await deps.prepare() } catch (error) { logFailure('action.prepare', error); return fail('preparation') }
@@ -34,6 +36,7 @@ export async function runLifecycleAction(deps: LifecycleActionDeps, dispatch: Di
     if (error !== null && typeof error === 'object' && (error as { submitted?: unknown }).submitted === true) return fail('confirmation')
     if (error !== null && typeof error === 'object' && (error as { category?: unknown }).category === 'network-mismatch') return fail('network-mismatch')
     if (error !== null && typeof error === 'object' && (error as { blockhashExpired?: unknown }).blockhashExpired === true) return fail('blockhash-expired')
+    if (isCancelledAfterSigning(error)) return fail('wallet-rejected', true)
     return fail(isRejection(error) ? 'wallet-rejected' : 'submission')
   }
   dispatch({ type: 'SUBMITTED', handle })

@@ -102,6 +102,24 @@ describe('Ritual action submission', () => {
     expect(verifier.actions).toHaveLength(0)
   })
 
+  it('keeps a sheet cancelled after signing began unresolved: Try again stays, and Create never says nothing was sent', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    // useMobileWallet marks a cancellation that arrives after sign_and_send: a decline, Seed Vault's network sheet, or Back after a broadcast.
+    const cancelled = Object.assign(new Error('wallet request was rejected'), { category: 'wallet', userRejected: true, submitted: false, cancelled: true })
+    const submitter = new RitualActionSubmitter(preparer, new CapturingVerifier(), { signAndSendTransaction: async () => { throw cancelled } })
+    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ category: 'wallet', submitted: false, cancelled: true })
+    const submit = async () => { await submitter.submitPrepared(prepared); throw new Error('unreachable') }
+    const confirm = async () => { throw new Error('must not confirm') }
+    let lifecycle = lifecycleInitialState()
+    await runLifecycleAction({ prepare: async () => ({ kind: 'claim', messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress }), submit, confirm }, (event) => { lifecycle = lifecycleReducer(lifecycle, event) })
+    let create = createMachineInitialState()
+    await runCreateRitual({ prepare: async () => ({ kind: 'create', messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress }), submit, confirm }, (event) => { create = createMachineReducer(create, event) })
+    for (const state of [lifecycle, create]) expect(state).toMatchObject({ status: 'error', category: 'wallet-rejected', submitted: false, retryable: true, unresolved: true })
+    expect(lifecycleStatusCopy(lifecycle).body).toBe('Nothing was sent. Try again.')
+    expect(createStatusCopy(create).body).toBe('Try again.')
+  })
+
   it('converts every prepared expectation and binds exactly one deterministic signer', async () => {
     const observed: string[] = []
     for (const testCase of actionCases) {

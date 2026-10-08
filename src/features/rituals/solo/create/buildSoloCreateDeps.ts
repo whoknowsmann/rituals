@@ -41,6 +41,8 @@ export type SoloCreateDepsParams = Readonly<{
   pendingActionStore?: PendingActionStore
   /** Save the candidate on this phone before the wallet can broadcast it. */
   rememberBeforeSend?: (address: string) => Promise<void>
+  /** The ritual nonce, fixed by the caller so every retry targets the same ritual address. */
+  nonce?: bigint
   now?: () => number
 }>
 
@@ -142,7 +144,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
         feePayerMode: 'HOST' as const,
       }
       const ruleDigest = soloRuleDigest(rules)
-      const nonce = generateRitualNonce()
+      const nonce = params.nonce ?? generateRitualNonce()
       const action = await client.prepareCreateSoloFundAndActivate({
         programId: client.programId,
         creator,

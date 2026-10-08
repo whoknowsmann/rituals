@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
-import { lifecycleCanSubmit, lifecycleInitialState, lifecycleIsBusy, lifecycleReducer, lifecycleStatusCopy, type LifecycleEvent, type LifecycleState } from './lifecycleMachine'
+import { lifecycleAwaitsChain, lifecycleCanSubmit, lifecycleInitialState, lifecycleIsBusy, lifecycleReducer, lifecycleStatusCopy, type LifecycleEvent, type LifecycleState } from './lifecycleMachine'
 import { runLifecycleAction, type LifecycleActionDeps } from './runLifecycleAction'
 import { watchActionReconciliation } from './recovery/reconcilePendingAction'
 
@@ -26,7 +26,7 @@ export function useRitualAction(makeDeps: () => LifecycleActionDeps): UseRitualA
     void (async () => { try { attempt.current = makeDeps(); await runLifecycleAction(attempt.current, safeDispatch) } catch { safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the action. Nothing was sent.' }) } finally { inFlight.current = false } })()
   }, [makeDeps, safeDispatch, state])
   useEffect(() => {
-    if (state.status !== 'error' || state.retryable || !attempt.current?.reconcile) return
+    if (!lifecycleAwaitsChain(state) || !attempt.current?.reconcile) return
     return watchActionReconciliation(attempt.current.reconcile, safeDispatch)
   }, [state, safeDispatch])
   const reset = useCallback(() => { if (!inFlight.current) safeDispatch({ type: 'RESET' }) }, [safeDispatch])

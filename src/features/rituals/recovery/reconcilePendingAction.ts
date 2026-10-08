@@ -30,8 +30,9 @@ export function watchActionReconciliation(reconcile: ActionReconciler, dispatch:
   let active = true
   let timer: ReturnType<typeof setTimeout> | undefined
   const check = async () => {
-    const result = await reconcile().catch(() => null)
-    if (!active) return
+    const result = await reconcile().catch(() => undefined)
+    // null: this attempt never reached the journal, so there is nothing to read back.
+    if (!active || result === null) return
     if (result?.status === 'confirmed' || result?.status === 'expired') {
       dispatch({ type: result.status === 'confirmed' ? 'READBACK_OBSERVED' : 'EXPIRY_OBSERVED', ritualAddress: result.record.ritualAddress })
       return

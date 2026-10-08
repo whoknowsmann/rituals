@@ -109,6 +109,12 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain("destinationOwner: draft.destination === 'person' ? draft.personAddress : undefined")
   })
 
+  it('keeps one nonce per Create screen, so Try again can never make a second ritual', () => {
+    expect(source).toContain('if (ritualNonce.current === null) ritualNonce.current = generateRitualNonce()')
+    expect(source).toContain('nonce: ritualNonce.current,')
+    expect(source.match(/generateRitualNonce\(\)/g)).toHaveLength(1)
+  })
+
   it('uses the atomic solo create, fund, and activate preparation', () => {
     expect(source).toContain('prepareCreateSoloFundAndActivate')
   })

@@ -31,6 +31,13 @@ describe('create machine: happy path', () => {
     expect(createMachineReducer(recovered, { type: 'PREPARE' })).toBe(recovered)
   })
 
+  it('recovers a ritual the chain shows after a cancelled sheet, even while Try again was open', () => {
+    const cancelled = reduce(createMachineInitialState(), { type: 'PREPARE' }, { type: 'PREPARED', prepared: PREPARED }, { type: 'FAILED', category: 'wallet-rejected', message: 'x', unresolved: true })
+    expect(canSubmitCreate(cancelled)).toBe(true)
+    expect(createMachineReducer(cancelled, { type: 'READBACK_OBSERVED', ritualAddress: 'other' })).toBe(cancelled)
+    expect(createMachineReducer(cancelled, { type: 'READBACK_OBSERVED', ritualAddress: PREPARED.ritualAddress })).toEqual({ status: 'recovered', ritualAddress: PREPARED.ritualAddress })
+  })
+
   it('starts idle with nothing in flight', () => {
     const state = createMachineInitialState()
     expect(state.status).toBe('idle')

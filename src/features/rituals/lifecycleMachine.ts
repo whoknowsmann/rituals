@@ -12,7 +12,8 @@ export type LifecycleState =
   | Readonly<{ status: 'confirming'; prepared: LifecyclePreparedRef; handle: LifecycleSubmittedRef; ritualAddress: string }>
   | Readonly<{ status: 'confirmed'; result: LifecycleConfirmedRef; ritualAddress: string }>
   | Readonly<{ status: 'recovered'; ritualAddress: string }>
-  | Readonly<{ status: 'error'; category: LifecycleFailureCategory; message: string; submitted: boolean; retryable: boolean; ritualAddress: string | null }>
+  /** `unresolved`: the wallet closed its sheet after signing began (a decline, or Back after a broadcast). Retrying stays open; the chain decides. */
+  | Readonly<{ status: 'error'; category: LifecycleFailureCategory; message: string; submitted: boolean; retryable: boolean; ritualAddress: string | null; unresolved?: boolean }>
 
 export type LifecycleEvent =
   | Readonly<{ type: 'PREPARE' }>
@@ -20,7 +21,7 @@ export type LifecycleEvent =
   | Readonly<{ type: 'SUBMITTED'; handle: LifecycleSubmittedRef }>
   | Readonly<{ type: 'CONFIRMING' }>
   | Readonly<{ type: 'CONFIRMED'; result: LifecycleConfirmedRef }>
-  | Readonly<{ type: 'FAILED'; category: LifecycleFailureCategory; message: string }>
+  | Readonly<{ type: 'FAILED'; category: LifecycleFailureCategory; message: string; unresolved?: boolean }>
   | Readonly<{ type: 'RESET' }>
   | Readonly<{ type: 'READBACK_OBSERVED'; ritualAddress: string }>
   | Readonly<{ type: 'EXPIRY_OBSERVED'; ritualAddress: string }>
@@ -29,18 +30,25 @@ const freeze = <T extends object>(value: T): Readonly<T> => Object.freeze(value)
 export const lifecycleInitialState = (): LifecycleState => freeze({ status: 'idle' as const })
 export const lifecycleCanSubmit = (state: LifecycleState): boolean => state.status === 'idle' || (state.status === 'error' && state.retryable)
 export const lifecycleIsBusy = (state: LifecycleState): boolean => !lifecycleCanSubmit(state) && state.status !== 'confirmed' && state.status !== 'recovered' && state.status !== 'error'
+/** An attempt only the chain can settle: a lost wallet result, or a sheet cancelled after signing began. */
+export const lifecycleAwaitsChain = (state: LifecycleState): boolean => state.status === 'error' && (!state.retryable || state.unresolved === true)
 const addressOf = (state: LifecycleState): string | null => state.status === 'awaiting-wallet' || state.status === 'submitted' || state.status === 'confirming' || state.status === 'confirmed' || state.status === 'error' ? state.ritualAddress : null
 
 export function lifecycleReducer(state: LifecycleState, event: LifecycleEvent): LifecycleState {
   // Only the action-specific authoritative reader may clear an unknown result.
   if (event.type === 'READBACK_OBSERVED') return state.status === 'error' && state.ritualAddress === event.ritualAddress
     ? freeze({ status: 'recovered' as const, ritualAddress: event.ritualAddress }) : state
-  if (event.type === 'EXPIRY_OBSERVED') return state.status === 'error' && !state.retryable && state.ritualAddress === event.ritualAddress
-    ? freeze({ ...state, category: 'blockhash-expired' as const, message: 'Nothing was sent.', submitted: false, retryable: true }) : state
+  if (event.type === 'EXPIRY_OBSERVED') {
+    if (state.status !== 'error' || state.ritualAddress !== event.ritualAddress || !lifecycleAwaitsChain(state)) return state
+    // Proven expired: nothing from this attempt can land any more.
+    return state.retryable
+      ? freeze({ status: 'error' as const, category: state.category, message: state.message, submitted: false, retryable: true, ritualAddress: state.ritualAddress })
+      : freeze({ status: 'error' as const, category: 'blockhash-expired' as const, message: 'Nothing was sent.', submitted: false, retryable: true, ritualAddress: state.ritualAddress })
+  }
   if (event.type === 'FAILED') {
     if (state.status === 'idle' || state.status === 'confirmed' || state.status === 'recovered' || state.status === 'error') return state
     const submitted = state.status === 'submitted' || state.status === 'confirming' || event.category === 'confirmation'
-    return freeze({ status: 'error' as const, category: event.category, message: event.message, submitted, retryable: !submitted, ritualAddress: addressOf(state) })
+    return freeze({ status: 'error' as const, category: event.category, message: event.message, submitted, retryable: !submitted, ritualAddress: addressOf(state), ...(event.unresolved ? { unresolved: true } : {}) })
   }
   switch (state.status) {
     case 'idle': return event.type === 'PREPARE' ? freeze({ status: 'preparing' as const }) : state

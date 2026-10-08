@@ -37,10 +37,12 @@ beforeEach(() => { harness.cells = []; harness.cursor = 0; harness.effects = [];
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery`, () => {
-  function setup(reconcile: () => Promise<PendingActionResolution | null>, declined = false) {
+  function setup(reconcile: () => Promise<PendingActionResolution | null>, failure: 'lost' | 'declined' | 'cancelled' = 'lost') {
+    const error = failure === 'lost' ? Object.assign(new Error('wallet submission outcome is unknown'), { submitted: true })
+      : Object.assign(new Error('wallet request was rejected'), { submitted: false, ...(failure === 'cancelled' ? { cancelled: true } : {}) })
     const deps = {
       prepare: vi.fn(async () => ({ kind, messageDigest: record.messageDigest, ritualAddress: address })),
-      submit: vi.fn(async () => { throw Object.assign(new Error(declined ? 'wallet request was rejected' : 'wallet submission outcome is unknown'), { submitted: !declined }) }),
+      submit: vi.fn(async () => { throw error }),
       confirm: vi.fn(),
       reconcile: vi.fn(reconcile),
     }
@@ -73,11 +75,49 @@ for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery
   })
 
   it('does not reconcile a decline, which stays retryable', async () => {
-    const { deps, render } = setup(async () => null, true)
+    const { deps, render } = setup(async () => null, 'declined')
     render().start()
     await flush()
     expect(render().state).toMatchObject({ status: 'error', category: 'wallet-rejected', submitted: false, retryable: true })
     expect(deps.reconcile).not.toHaveBeenCalled()
+  })
+
+  it('checks the chain right away after a sheet cancelled once signing began, and ends at Done if it landed', async () => {
+    const { deps, render } = setup(async () => ({ status: 'confirmed', record, slot: 120 }), 'cancelled')
+    render().start()
+    await flush()
+    const cancelled = render()
+    expect(cancelled.state).toMatchObject({ status: 'error', category: 'wallet-rejected', submitted: false, retryable: true, unresolved: true })
+    expect(deps.reconcile).toHaveBeenCalledOnce()
+    await flush()
+    const done = render()
+    expect(done.state.status).toBe('recovered')
+    expect(done.copy.tone).toBe('success')
+    expect(done.canSubmit).toBe(false)
+    expect(deps.submit).toHaveBeenCalledOnce()
+  })
+
+  it('keeps Try again open while the chain has no answer, and stops checking once expiry is proven', async () => {
+    let expired = false
+    const { deps, render } = setup(async () => ({ status: expired ? 'expired' : 'still-unknown', record }), 'cancelled')
+    render().start()
+    await flush()
+    render()
+    await vi.advanceTimersByTimeAsync(6000)
+    const waiting = render()
+    expect(deps.reconcile.mock.calls.length).toBeGreaterThan(1)
+    expect(waiting.canSubmit).toBe(true)
+    // A duplicate stamp is rejected by the program; a Create retry reuses the same ritual address, but it never claims nothing was sent.
+    expect(waiting.copy.body).toBe(kind === 'claim' ? 'Nothing was sent. Try again.' : 'Try again.')
+    expired = true
+    await vi.advanceTimersByTimeAsync(3000)
+    const settled = render()
+    expect(settled.state).toMatchObject({ status: 'error', category: 'wallet-rejected', retryable: true })
+    expect(settled.state).not.toHaveProperty('unresolved')
+    expect(settled.copy.body).toBe('Nothing was sent. Try again.')
+    const reads = deps.reconcile.mock.calls.length
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(deps.reconcile).toHaveBeenCalledTimes(reads)
   })
 
   it('waits for proven expiry and stops its read loop on unmount', async () => {
@@ -95,5 +135,39 @@ for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery
     const reads = deps.reconcile.mock.calls.length
     await vi.advanceTimersByTimeAsync(30_000)
     expect(deps.reconcile).toHaveBeenCalledTimes(reads)
+  })
+})
+
+describe('create Try again after a cancelled sheet', () => {
+  it('keeps checking the chain through a failed retry, so a first attempt that landed still ends at Done', async () => {
+    let landed = false
+    let attempts = 0
+    const reconcile = vi.fn(async (): Promise<PendingActionResolution> => (landed ? { status: 'confirmed', record, slot: 120 } : { status: 'still-unknown', record }))
+    const makeDeps = () => ({
+      prepare: vi.fn(async () => ({ kind: 'create' as const, messageDigest: record.messageDigest, ritualAddress: address })),
+      // First: Back on the sheet after a broadcast. Second: the wallet refuses the duplicate (same ritual address).
+      submit: vi.fn(async () => { attempts += 1; throw attempts === 1 ? Object.assign(new Error('wallet request was rejected'), { cancelled: true }) : new Error('wallet submission failed') }),
+      confirm: vi.fn(),
+      reconcile,
+    })
+    const render = () => {
+      harness.cursor = 0
+      const result = useCreateRitual(makeDeps as never)
+      for (const effect of harness.effects.splice(0)) effect()
+      return result
+    }
+    render().start()
+    await flush()
+    const first = render()
+    expect(first.canSubmit).toBe(true)
+    first.start()
+    await flush()
+    const retried = render()
+    expect(retried.state).toMatchObject({ status: 'error', category: 'submission', retryable: true, unresolved: true })
+    expect(retried.copy.body).not.toContain('Nothing was sent')
+    landed = true
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(render().state.status).toBe('recovered')
+    expect(attempts).toBe(2)
   })
 })

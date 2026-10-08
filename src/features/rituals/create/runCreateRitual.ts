@@ -73,8 +73,8 @@ export async function runCreateRitual(
   deps: CreateRitualDeps,
   dispatch: Dispatch,
 ): Promise<CreateRitualOutcome> {
-  const failWith = (category: CreateFailureCategory): CreateRitualOutcome => {
-    dispatch({ type: 'FAILED', category, message: SAFE_MESSAGES[category] })
+  const failWith = (category: CreateFailureCategory, unresolved = false): CreateRitualOutcome => {
+    dispatch({ type: 'FAILED', category, message: SAFE_MESSAGES[category], ...(unresolved ? { unresolved } : {}) })
     return { ok: false, category }
   }
 
@@ -99,6 +99,9 @@ export async function runCreateRitual(
     if (error !== null && typeof error === 'object' && (error as { submitted?: unknown }).submitted === true) return failWith('confirmation')
     if (error !== null && typeof error === 'object' && (error as { category?: unknown }).category === 'network-mismatch') return failWith('network-mismatch')
     if (error !== null && typeof error === 'object' && (error as { blockhashExpired?: unknown }).blockhashExpired === true) return failWith('blockhash-expired')
+    // The wallet closed its sheet after signing began: a decline, or Back after
+    // it broadcast. Retrying is allowed (same ritual address); the chain decides.
+    if (error !== null && typeof error === 'object' && (error as { cancelled?: unknown }).cancelled === true) return failWith('wallet-rejected', true)
     // A rejection is a normal user choice, not a fault; both are pre-network so
     // both stay retryable.
     return failWith(isUserRejection(error) ? 'wallet-rejected' : 'submission')

@@ -16,10 +16,12 @@ import { logFailure } from '../../../utils/diagnostics'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import {
   canSubmitCreate,
+  createAwaitsChain,
   createMachineInitialState,
   createMachineReducer,
   createStatusCopy,
   isTerminalCreateState,
+  type CreateMachineEvent,
   type CreateMachineState,
   type CreateStatusCopy,
 } from './createMachine'
@@ -59,16 +61,20 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   const start = useCallback(() => {
     if (inFlight.current) return
     if (!canSubmitCreate(state)) return
+    // Try again after a cancelled sheet: the earlier attempt may still land at
+    // the same ritual address, so a failure of this one keeps the chain check.
+    const carry = state.status === 'error' && state.unresolved === true
+    const dispatchAttempt = (event: CreateMachineEvent) => safeDispatch(carry && event.type === 'FAILED' ? { ...event, unresolved: true } : event)
     inFlight.current = true
     void (async () => {
       try {
         const deps = makeDeps()
         attempt.current = deps
-        await runCreateRitual(deps, safeDispatch)
+        await runCreateRitual(deps, dispatchAttempt)
       } catch (error) {
         logFailure('create.deps', error)
         // makeDeps itself can reject invalid input before any network work.
-        safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the ritual. Nothing was sent.' })
+        dispatchAttempt({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the ritual. Nothing was sent.' })
       } finally {
         inFlight.current = false
       }
@@ -76,7 +82,7 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   }, [makeDeps, safeDispatch, state])
 
   useEffect(() => {
-    if (state.status !== 'error' || state.retryable || !attempt.current?.reconcile) return
+    if (!createAwaitsChain(state) || !attempt.current?.reconcile) return
     return watchActionReconciliation(attempt.current.reconcile, safeDispatch)
   }, [state, safeDispatch])
 

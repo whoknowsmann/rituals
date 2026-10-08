@@ -73,6 +73,21 @@ describe('solo create transaction dependencies', () => {
     expect(args.ritual.memberTotalStake).toBe(20_000_000n)
   })
 
+  it('builds every attempt on the nonce it is given, so a retry targets the same ritual address', async () => {
+    const nonces: bigint[] = []
+    const client = {
+      programId: key(9),
+      getProtocolConfig: async () => ({ slot: 1, address: key(4), account: { allowedStakeMint: key(3), feeRecipient: key(5), feeBasisPoints: 0, minimumFee: 0n, maximumFee: 0n, paused: false } }),
+      prepareCreateSoloFundAndActivate: async (value: { ritual: { nonce: bigint } }) => { nonces.push(value.ritual.nonce); return prepared },
+    } as unknown as RitualClient
+    const schedule = selectSoloSchedule({ cadence: DEMO_CADENCE, referenceSeconds: 1_000, eventCount: 2 })
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await buildSoloCreateDeps({ client, creator: CREATOR, title: 'Run', requirement: 'Run', eventCount: 2, stakePerWeekAtomic: 10_000n,
+        schedule, witnessMode: 'just-me', destination: 'cause', causeTokenAccount: key(7), nonce: 42n }).prepare()
+    }
+    expect(nonces).toEqual([42n, 42n])
+  })
+
   it('refuses an unavailable cause before preparing a wallet action', async () => {
     let preparedCalls = 0
     const client = {

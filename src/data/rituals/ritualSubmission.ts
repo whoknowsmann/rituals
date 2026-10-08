@@ -32,7 +32,13 @@ export class RitualSubmissionError extends Error {
   readonly submitted: boolean
   /** The wallet-returned signature, when it was canonical; lets recovery look it up. */
   readonly signature: string | undefined
-  constructor(category: RitualSubmissionErrorCategory, message: string, submitted = false, signature?: string) { super(message); this.name = 'RitualSubmissionError'; this.category = category; this.submitted = submitted; this.signature = signature }
+  /**
+   * The wallet closed its signing sheet after sign_and_send was invoked. That is
+   * a decline, Seed Vault's network sheet, or Back after it broadcast: retrying
+   * is allowed, but the chain decides whether this attempt landed.
+   */
+  readonly cancelled: boolean
+  constructor(category: RitualSubmissionErrorCategory, message: string, submitted = false, signature?: string, cancelled = false) { super(message); this.name = 'RitualSubmissionError'; this.category = category; this.submitted = submitted; this.signature = signature; this.cancelled = cancelled }
 }
 const fail = (category: RitualSubmissionErrorCategory, message: string): never => { throw new RitualSubmissionError(category, message) }
 const hex = (bytes: Uint8Array): string => Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
@@ -56,6 +62,7 @@ function walletFailure(error: unknown): never {
   let mismatch = false
   let rejected = false
   let submitted = false
+  let cancelled = false
   try {
     if (error !== null && typeof error === 'object') {
       const name = (error as { name?: unknown }).name
@@ -65,11 +72,12 @@ function walletFailure(error: unknown): never {
       const marked = (error as { submitted?: unknown }).submitted
       submitted = marked === true || (marked !== false && isWalletTimeout(error))
       rejected = !isWalletTimeout(error) && (userRejected === true || name === 'UserRejectedRequestError' || code === 4001 || isWalletCancellation(error))
+      cancelled = (error as { cancelled?: unknown }).cancelled === true
     }
   } catch { /* sanitize hostile errors */ }
   if (mismatch) return fail('network-mismatch', 'wallet account does not support the requested network')
   if (submitted) throw new RitualSubmissionError('wallet', 'wallet submission outcome is unknown', true)
-  if (rejected) return fail('wallet', 'wallet request was rejected')
+  if (rejected) throw new RitualSubmissionError('wallet', 'wallet request was rejected', false, undefined, cancelled)
   return fail('wallet', 'wallet submission failed')
 }
 

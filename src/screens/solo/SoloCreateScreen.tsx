@@ -17,6 +17,7 @@ import { readChainTime } from '../../features/rituals/chainTime'
 import { useChainTime } from '../../features/rituals/useChainTime'
 import { withWalletHandoff } from '../../features/rituals/walletHandoff'
 import { rememberRitual } from '../../features/rituals/authoritativeRituals'
+import { generateRitualNonce } from '../../domain/rituals/nonce'
 import { useReminders } from '../../features/rituals/reminders/useReminders'
 import { asyncStoragePendingActionStore } from '../../features/rituals/recovery/pendingAction'
 import { saveProofMode } from '../../features/rituals/solo/notes/soloNotes'
@@ -215,10 +216,15 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   }, [client, connection, selectedAccount, balanceTick]))
   const shortOfTest = testBalance !== null && neededAtomic !== null && testBalance < neededAtomic
 
+  // One nonce per Create screen: every Try again targets the same ritual
+  // address, so a retry after a sheet cancelled post-broadcast cannot make a
+  // second ritual (the program rejects it, and the chain check shows Done).
+  const ritualNonce = useRef<bigint | null>(null)
   const makeDeps = useCallback(() => {
     if (client.status !== 'ready') throw new Error('Rituals are not ready.')
     if (!selectedAccount) throw new Error('Connect your wallet before starting this ritual.')
     if (seasonAddressText && season.status !== 'ready') throw new Error(season.message ?? 'This Season could not be read.')
+    if (ritualNonce.current === null) ritualNonce.current = generateRitualNonce()
     const eventCount = soloEventCount({ seasonWindows: season.account?.schedule.length, picked: pickedEventCount, speed })
     const schedule = async () => selectSoloSchedule({
       cadence: soloCadenceFor(speed),
@@ -251,6 +257,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
         return value ? { slot: value.slot, err: value.err, confirmationStatus: value.confirmationStatus ?? null } : null
       },
       pendingActionStore: asyncStoragePendingActionStore,
+      nonce: ritualNonce.current,
       rememberBeforeSend: async (address) => {
         await rememberRitual({ address, title: draft.title, requirement: draft.requirement, destinationOwner: draft.destination === 'person' ? draft.personAddress : undefined })
         await saveProofMode(address, draft.proofMode)
