@@ -42,6 +42,12 @@ paused); fast-forward `main` + history scan right before. License **MIT**.
   approval; serialized wallet sessions. Rejected its WIP that treated wallet
   timeouts as "submitted" (Seed Vault declines are the same
   CancellationException): `git stash` in ../preflight-break.
+  **REVERSED 10-08** (d34 evidence): a decline is CancellationException, a lost
+  response is ExecutionException/TimeoutException, and Seed Vault held a
+  broadcast answer ≥80 s. After sign_and_send, a timeout/dropped session (and a
+  cancel, which can be Back on a success sheet) is "possibly sent" and the chain
+  decides (ccf1d10, 4dbd530, opus/reconcile a74c8a4: F1 create retries reuse
+  one nonce, F2/F3/F5/F8/F10/F11). Review: docs/overnight/2026-10-08-timeout-fix-review.md.
 - Stale recovery banner fixed (43c3b83): long-dead requests resolve as
   expired, no notice.
 - **Websites (Vercel, team jacks-projects-aba8f24d):** `rituals.whoknowsman.com`
