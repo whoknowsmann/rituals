@@ -74,7 +74,11 @@ describe('lost signing response reconciliation', () => {
     test.setHeight(100)
     await vi.advanceTimersByTimeAsync(3000)
     expect(lifecycleCanSubmit(state)).toBe(false)
-    test.setHeight(101)
+    // A lagging node's not-found is not proof until 150 blocks past the last valid height.
+    test.setHeight(250)
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(lifecycleCanSubmit(state)).toBe(false)
+    test.setHeight(251)
     await vi.advanceTimersByTimeAsync(3000)
     expect(state).toMatchObject({ status: 'error', category: 'blockhash-expired', submitted: false, retryable: true })
     expect(lifecycleStatusCopy(state).body).toContain('Nothing was sent')

@@ -129,12 +129,14 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
 
   // A killed wallet handoff may never return a signature. Creation has a unique
   // address, so its account is evidence; existence alone cannot prove a stamp.
+  // Absence counts only well past lastValidBlockHeight, as on the signed path:
+  // a lagging node's not-found must not turn into "Nothing was sent".
   const hasReadback = ['create', 'create-solo', 'create-and-fund', 'create-solo-fund-and-activate'].includes(record.actionKind) || (record.actor !== undefined && record.eventIndex !== undefined)
   if (hasReadback) {
     try {
       const readback = await transport.readRitual(new PublicKey(record.ritualAddress), record)
       if (readback.actionObserved && safeHeight(readback.slot)) return Object.freeze({ status: 'confirmed' as const, record, slot: readback.slot })
-      if (readback.actionObserved === false && currentHeight !== null && currentHeight > record.lastValidBlockHeight) return Object.freeze({ status: 'expired' as const, record })
+      if (readback.actionObserved === false && currentHeight !== null && currentHeight > record.lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS) return Object.freeze({ status: 'expired' as const, record })
     } catch { /* outage is not evidence of expiry */ }
   }
   // An unsigned journal for an action we cannot read back (legacy stamp

@@ -84,14 +84,26 @@ describe('resolvePendingAction', () => {
     expect(result.status).toBe('failed')
   })
 
-  it('classifies a never-sent record as expired after its blockheight passes', async () => {
+  it('classifies a never-sent record as expired once its blockheight is long past and the readback is empty', async () => {
     const { transactionSignature: _ignored, ...neverSent } = base
     const result = await resolvePendingAction(neverSent, {
       getSignatureStatus: vi.fn(),
-      getBlockHeight: vi.fn(async () => 101),
-      readRitual: vi.fn(async () => ({ slot: 101, actionObserved: false })),
+      getBlockHeight: vi.fn(async () => 100 + 151),
+      readRitual: vi.fn(async () => ({ slot: 251, actionObserved: false })),
     })
     expect(result).toEqual({ status: 'expired', record: neverSent })
+  })
+
+  it('does not trust a lagging node: an unsigned create stays unknown until 150 blocks past its last valid height', async () => {
+    const { transactionSignature: _ignored, ...unsigned } = base
+    const create = { ...unsigned, actionKind: 'create-solo-fund-and-activate' as const }
+    const notFound = async () => ({ slot: 0, actionObserved: false })
+    for (const height of [101, 250]) {
+      expect((await resolvePendingAction(create, { getBlockHeight: async () => height, getSignatureStatus: vi.fn(), readRitual: notFound })).status).toBe('still-unknown')
+    }
+    expect((await resolvePendingAction(create, { getBlockHeight: async () => 251, getSignatureStatus: vi.fn(), readRitual: notFound })).status).toBe('expired')
+    expect((await resolvePendingAction(create, { getBlockHeight: async () => 251, getSignatureStatus: vi.fn(), readRitual: async () => ({ slot: 300, actionObserved: true }) })).status).toBe('confirmed')
+    expect((await resolvePendingAction(create, { getBlockHeight: async () => { throw new Error('RPC unavailable') }, getSignatureStatus: vi.fn(), readRitual: notFound })).status).toBe('still-unknown')
   })
 
   it('keeps a signed but not-yet-landed transaction unknown before expiry', async () => {
