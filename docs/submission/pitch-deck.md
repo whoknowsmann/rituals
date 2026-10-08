@@ -1,101 +1,87 @@
 # Rituals: pitch deck content (CLOCK IN)
 
-Eight slides. Every line traces to docs/submission/FACTS.md (updated 2026-10-06 for d27). Layout is the owner's; the words are here.
+Six slides. Every line traces to docs/submission/FACTS.md (2026-10-08, d32+). Rebuilt from the Sonnet deck review (docs/overnight/2026-10-08-deck-review.md): real phone screenshots beside the words. `**Image:**` lines are rendered by scripts/deck/build.py; screenshots get swapped for the d33 recording-run captures.
 
 ## Slide 1 — Title
+
+**Image:** artifacts/shots/d32-home.png
 
 **On the slide:**
 
 Rituals
 Show up, or pay up.
 Put a stake on a weekly promise. Keep it and you get it back.
+Reminders get ignored. A stake you can lose doesn't.
 
-**Say:**
-Rituals is a commitment app for Solana Seeker. You put a stake behind something you keep skipping. Stamp the week and the stake comes back. Miss it and that week's stake goes where you chose. Rituals takes nothing. Everything you see today runs on devnet with a valueless tSKR token, and I will say that again where it matters.
+**Say:** Rituals is a commitment app for Solana Seeker. You put a stake on a weekly promise, stamp the week to get it back, and a missed week goes where you chose.
 
-## Slide 2 — The problem
+## Slide 2 — How it works
 
-**On the slide:**
-
-You said you would. You didn't.
-A reminder costs nothing, so it gets ignored.
-A stake you can lose does not.
-
-**Say:**
-Everyone has a thing they keep meaning to do: read, train, call someone. Reminders fail because ignoring one costs nothing. The old fix is the forfeitable deposit that StickK and Beeminder use: your own money, returned if you follow through, gone if you don't. Rituals is that idea on chain. You choose where a miss goes, and you choose it before you start.
-
-## Slide 3 — The loop
+**Image:** artifacts/shots/d29-step1.png, artifacts/shots/now-jack.png
 
 **On the slide:**
 
-Start. One approval. Lock it in.
-You choose where a missed week goes.
-Hold to stamp. YOU SHOWED UP!
-Weeks close themselves. Receipts: KEPT, or "That's a week, not a verdict."
-
-**Say:**
-Starting takes two steps and one wallet approval. Name the ritual. Pick the weeks, 1 to 16. Put in one total stake; the app splits it across the weeks. Choose where a missed week goes: a demo cause, or a wallet you pick. That one approval creates the ritual and locks every week's stake in a vault. Stamping a week is one approval too: you hold the button for 1.4 seconds, then you get confetti and a YOU SHOWED UP! stamp. After that the weeks close without asking you again, and every closed week has a receipt. A miss gets a quiet stamp and the line you see here, not a red alarm.
-
-## Slide 4 — Why it is a Seeker app
-
-**On the slide:**
-
-Seed Vault Wallet: double-tap, fingerprint.
-A settle key, so you never sign bookkeeping.
-Real weeks: reminders scheduled on the phone.
-Weeks written on chain. Nobody clicks through.
-
-**Say:**
-Every approval is the Seed Vault Wallet's double-tap on the side button and a fingerprint, proven on a Seeker running Android 16. The wallet names the app: Rituals, at rituals.whoknowsman.com. At create, the app pre-pays its own settle key a small amount, 0.001 SOL plus 0.002 SOL per week, capped at 0.05, so later weeks close with no wallet prompt. On Real weeks, reminders are scheduled on the phone from the on-chain schedule: week opens, one day left, last hour. No server sends them. Each week's open time, deadline and resolution are written on chain when you create the ritual, and the program checks against the chain clock. There is a wallet button as a fallback.
-
-## Slide 5 — Money is honest
-
-**On the slide:**
-
-Show up: your stake comes back.
-Miss a week: that week's stake goes where you chose.
-Rituals takes nothing. No fee, no share of a miss.
-Devnet. tSKR token, no value.
-
-**Say:**
-The stake is yours, and you get it back when you keep the week. You type one total and the app splits it evenly across the weeks. Only a missed week's stake moves, and it goes where you chose before you started: one of three demo causes, or a wallet you pick. Fees on chain are set to 0, 0, 0, and since October 4 there is no activation fee. What you pay is network fees of about 0.000005 SOL per transaction, account rent that returns when the ritual closes, and the settle-key pre-payment. A four-week create comes to roughly 0.01 to 0.02 SOL all in. All of it is devnet, and tSKR has no value.
-
-## Slide 6 — Proof
-
-**On the slide:**
-
-Proven on a Solana Seeker, Android 16, Seed Vault Wallet.
-A missed week, on the phone: 10 tSKR landed in the chosen wallet.
-Anchor program on devnet.
-2,420 TypeScript tests. 206 native program tests.
-
-**Say:**
-The whole loop has been run on a Seeker with Seed Vault Wallet. On one run, week 2 turned MISSED on the screen and 10 tSKR landed in the wallet the user had chosen: 9.125 before, 19.125 after, read from the chain. The program is an Anchor program on devnet at 2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p, upgraded October 4. The app binds the wallet's signature to the exact bytes you reviewed, and in-flight actions are journaled so a killed app recovers after a restart. Three app-path smokes passed on October 4, and the destination choice has since passed devnet smokes for a cause and for a wallet. The test counts are 2,420 TypeScript tests and 206 native program tests.
-
-## Slide 7 — Why it sticks
-
-**On the slide:**
-
-A reason to open the app every week.
-Every closed week gets a receipt: KEPT, or MISSED.
-Real weeks remind you: week opens, one day left, last hour.
+Lock it in. Hold to stamp.
+Name it. Pick weeks. Set a stake.
+Choose where a miss goes.
+One approval locks it in. One more for each stamp.
 Demo speed: a week is 1 minute. Real weeks: seven days.
 
-**Say:**
-A ritual runs for as many weeks as you set, up to 16, and each week has one job: stamp it. When a week closes there is a receipt: KEPT with your note and "10 tSKR back to you", or MISSED with where the stake went. On Real weeks the phone reminds you when a week opens, with one day left, and in the last hour. A reminder alone is easy to ignore, as slide 2 says. This one has a stake behind it. Demo speed exists so judges can watch a whole ritual in minutes; a week there is one minute. Real weeks are seven days, and they are the real product. We have no retention data to show and are not going to claim any. The idea is simple: a stake that comes back is a reason to return.
+**Say:** Two short steps and one approval lock every week's stake in a vault. Each week you hold the button for a second and a half, approve once, and get YOU SHOWED UP!.
 
-## Slide 8 — What's next, and the ask
+## Slide 3 — Money is honest
+
+**Image:** artifacts/shots/d27-receipt-w1.png, artifacts/shots/d27-receipt-w2.png
 
 **On the slide:**
 
-Coming soon: with friends, a witness, Seasons, real donation rails, photo proof.
-Mainnet stake options after review: USDC, SOL and SKR.
-The ask: publish Rituals on the Solana dApp Store.
+One promise. Both outcomes.
+Show up: your stake comes back.
+Miss a week: that week's stake goes where you chose.
+End early any time: what you haven't missed comes back.
+Rituals takes nothing.
 
-**Say:**
-Code for three of these exists but is hidden, because it has rough edges: friends who stake and confirm each other, a witness who confirms without staking, and Seasons with honest public counts. After the hackathon come real donation rails through The Giving Block, and photo proof. Reminders already ship on Real weeks, so they are not on this list. The program is mint-agnostic, so the stake asset is one config value. On mainnet the plan is to offer USDC, SOL and SKR as stake options, after legal and security review. What we are asking for is a place on the Solana dApp Store.
+**Say:** Show up and your stake comes back. Miss and it goes to the cause or wallet you picked before you started. You can always end early and get back everything you haven't already missed. Rituals takes nothing either way.
 
----
+## Slide 4 — Why it sticks
+
+**Image:** artifacts/shots/d32-finished.png
+
+**On the slide:**
+
+A reason to open it every week.
+One job a week: stamp it.
+Home shows how much of your stake is back.
+Every closed week leaves a receipt.
+Real weeks remind you: opens, one day left, last hour.
+
+**Say:** One job a week, a receipt for every week that closes, and reminders on real weeks. We have no retention data yet and claim none. A stake that comes back is a reason to return.
+
+## Slide 5 — Built for Seeker
+
+**Image:** artifacts/shots/d31-end-1.png
+
+**On the slide:**
+
+Built for the Seeker.
+Seed Vault Wallet: double-tap, fingerprint.
+One approval to start, one per stamp.
+Week times are on chain. Nobody clicks through.
+Your stake sits in a vault only the program can move.
+
+**Say:** Every approval is Seed Vault Wallet's double-tap and fingerprint on a Seeker running Android 16. Each week's times are written on chain, a small capped settle key closes finished weeks, and the stake sits in a vault only the program controls.
+
+## Slide 6 — The ask
+
+**On the slide:**
+
+Publish it on the Solana dApp Store.
+Try it: install the APK, set Seed Vault to Devnet, tap Get test tokens.
+Next: friends, a witness, real donation rails.
+rituals.whoknowsman.com
+github.com/whoknowsmann/rituals
+
+**Say:** Friends, a witness and Seasons are built but hidden until they're polished. Donation rails come next, and mainnet stakes in USDC, SOL and SKR come after a legal and security review. We're asking for a place on the Solana dApp Store.
 
 ## Q&A you should expect
 
@@ -103,7 +89,7 @@ Code for three of these exists but is hidden, because it has rough edges: friend
 No. There is no chance in it, no counterparty, and nobody gains from a miss. The outcome depends only on whether you stamped the week. The closest analogue is a forfeitable deposit, as StickK and Beeminder use, here on chain. Today it is also a valueless tSKR token on devnet.
 
 **How do you make money?**
-We don't. Rituals takes no share of stakes or forfeits, and since October 4 there is no activation fee; the on-chain fee settings are 0, 0, 0. Users pay only what the chain charges: network fees, account rent that comes back when the ritual closes, and the small settle-key pre-payment.
+We don't. Rituals takes no share of stakes or forfeits, and since October 4 there is no activation fee; the on-chain fee settings are 0, 0, 0. Users pay only what the chain charges: network fees, account rent, and the small settle-key pre-payment (0.001 SOL plus 0.002 per week, capped at 0.05).
 
 **Where does a missed stake go?**
 Where the user chose before starting: Northside Food Bank, City Animal Shelter or Public Library Fund, or a wallet they pick. The three causes are labelled demo in the app. They are devnet token accounts, not real charities. Real donation rails come after the hackathon, through The Giving Block.
@@ -124,4 +110,10 @@ The clock does not stop. On Demo speed, a week you do not stamp is a missed week
 No. On Real weeks the phone schedules them from the on-chain schedule: week opens, one day left, last hour. Stamping clears that week's alarms. On the Seeker, three alarms were scheduled and "Week 1 is open. Stamp it." arrived on time.
 
 **How do judges get test tokens?**
-In the app. On the create screen, when the wallet is short or empty, there is a Get test tokens button (also in Settings). Our devnet faucet sends 0.05 devnet SOL and 50 tSKR in one transaction it pays itself, so a wallet that holds nothing can start a ritual without signing anything first. It refuses a wallet that already holds enough. tSKR is a valueless devnet token. Seed Vault Wallet must be switched to Devnet first. The app cannot see the wallet's network setting, so nothing warns you; on Mainnet the wallet shows "Network mismatch".
+In the app. A connected wallet with no tSKR sees Get test tokens as the main button on Home (also on the create screen when short, and in Settings). Our devnet faucet sends 0.05 devnet SOL and 50 tSKR in one transaction it pays itself, so a wallet that holds nothing can start a ritual without signing anything first. It refuses a wallet that already holds enough. tSKR is a valueless devnet token. Seed Vault Wallet must be switched to Devnet first. Seed Vault does not tell the app its network, so the app shows a one-time "Set Seed Vault to Devnet" popup before the first approval; on Mainnet the wallet itself shows "Network mismatch".
+
+**Can I get my money out early?**
+Yes. Settings, Your rituals, End early. You see exactly what comes back before you sign, type the ritual's name, and approve once. Everything you have not already missed comes back to your wallet in that same transaction, and the ritual ends. A week whose stamp window already closed unstamped goes where you chose, as it would have anyway. Proven on devnet three ways (stamped week, settled week, missed week).
+
+**What can the settle key do?**
+Only the open and settle steps, which anyone is allowed to run. It is funded with a small capped amount of SOL inside your first approval so finished weeks close without asking your wallet. It cannot move your stake anywhere the program does not already send it.

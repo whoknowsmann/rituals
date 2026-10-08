@@ -42,6 +42,15 @@ h1 {{ font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: 54pt
 .slide.dark .tagline {{ color: #C8F560; }}
 .foot {{ position: absolute; left: 1.1in; right: 1.1in; bottom: 0.5in; display: flex; justify-content: space-between; font-size: 12pt; opacity: 0.55; }}
 .num {{ font-variant-numeric: tabular-nums; }}
+.has-shot {{ display: flex; align-items: center; gap: 0.7in; }}
+.has-shot .text {{ flex: 1; min-width: 0; }}
+.has-shot h1 {{ font-size: 42pt; }}
+.slide.title.has-shot h1 {{ font-size: 88pt; }}
+.has-shot .lines p {{ max-width: none; font-size: 22pt; }}
+.shots {{ display: flex; gap: 0.25in; flex: none; }}
+.shots img {{ height: 5.6in; border: 0.07in solid #1D1A16; border-radius: 0.3in; box-shadow: 0 0.08in 0.3in rgba(0,0,0,0.18); }}
+.two .shots img {{ height: 5.1in; }}
+.slide.dark .shots img {{ border-color: #2B2B2B; }}
 """
 
 
@@ -55,7 +64,9 @@ def parse(md: str) -> list[dict]:
         number, title = int(m.group(1)), m.group(2).strip()
         on = rest.split('**On the slide:**', 1)[1].split('**Say:**', 1)[0] if '**On the slide:**' in rest else ''
         lines = [ln.strip() for ln in on.strip().splitlines() if ln.strip()]
-        slides.append({'n': number, 'title': title, 'lines': lines})
+        im = re.search(r'\*\*Image:\*\*\s*(.+)', rest.split('**On the slide:**', 1)[0])
+        imgs = [os.path.join(ROOT, x.strip()) for x in im.group(1).split(',')] if im else []
+        slides.append({'n': number, 'title': title, 'lines': lines, 'imgs': imgs})
     return slides
 
 
@@ -66,7 +77,9 @@ def render(slides: list[dict]) -> str:
     for s in slides:
         is_title = s['n'] == 1
         cls = 'slide title dark' if is_title else ('slide dark' if s['n'] == total else 'slide')
+        if s['imgs']: cls += ' has-shot' + (' two' if len(s['imgs']) > 1 else '')
         out.append(f'<section class="{cls}">')
+        if s['imgs']: out.append('<div class="text">')
         if is_title:
             name, tag, *rest = s['lines'] + ['', '']
             out.append(f'<h1>{html.escape(name)}</h1><div class="tagline">{html.escape(tag)}</div><div class="lines">')
@@ -82,7 +95,9 @@ def render(slides: list[dict]) -> str:
                 else:
                     out.append(f'<p>{html.escape(ln)}</p>')
             out.append('</div>')
-        out.append(f'<div class="foot"><span>Rituals · CLOCK IN, the Solana Mobile hackathon · devnet</span><span class="num">{s["n"]} / {total}</span></div>')
+        if s['imgs']:
+            out.append('</div><div class="shots">' + ''.join(f'<img src="file://{html.escape(i)}">' for i in s['imgs']) + '</div>')
+        out.append(f'<div class="foot"><span>Rituals · CLOCK IN, the Solana Mobile hackathon · devnet, tSKR has no value</span><span class="num">{s["n"]} / {total}</span></div>')
         out.append('</section>')
     out.append('</body></html>')
     return '\n'.join(out)
@@ -93,6 +108,9 @@ def main() -> int:
     for f in (FONT_HEAD, FONT_BODY, FONT_BODY_BOLD, MD):
         if not os.path.exists(f): print('missing', f, file=sys.stderr); return 2
     slides = parse(open(MD, encoding='utf-8').read())
+    for s in slides:
+        for i in s['imgs']:
+            if not os.path.exists(i): print('missing image', i, file=sys.stderr); return 2
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, 'w', encoding='utf-8') as fh: fh.write(render(slides))
     print(f'{len(slides)} slides -> {args.out}')
