@@ -7,6 +7,7 @@ import { logFailure } from "./diagnostics";
 import { assertWalletNetwork } from "./walletNetwork";
 import { withWalletSession } from './walletSession';
 import { withDevnetHintOnce } from './devnetHintOnce';
+import { isWalletCancellation, isWalletTimeout } from './walletErrors';
 import { SignInPayload, SolanaMobileWalletAdapterProtocolErrorCode, type WalletAssociationConfig } from "@solana-mobile/mobile-wallet-adapter-protocol";
 
 export type MobileWalletErrorCategory = "authorization" | "input" | "wallet";
@@ -15,21 +16,20 @@ export class MobileWalletError extends Error {
   readonly userRejected: boolean;
   /** The wallet no longer honours our saved auth token (e.g. the user switched accounts in Phantom). */
   readonly staleAuthorization: boolean;
-  constructor(category: MobileWalletErrorCategory, message: string, userRejected = false, staleAuthorization = false) {
+  /** Signing was invoked and a lost response cannot rule out a broadcast. */
+  readonly submitted: boolean;
+  constructor(category: MobileWalletErrorCategory, message: string, userRejected = false, staleAuthorization = false, submitted = false) {
     super(message); this.name = "MobileWalletError"; this.category = category; this.userRejected = userRejected; this.staleAuthorization = staleAuthorization;
+    this.submitted = submitted;
   }
 }
 function isUserRejection(error: unknown): boolean {
+  if (isWalletTimeout(error)) return false;
   try {
     if (error && typeof error === "object") {
       const value = error as { name?: unknown; code?: unknown };
       if (value.name === "UserRejectedRequestError" || value.code === 4001 || value.code === SolanaMobileWalletAdapterProtocolErrorCode.ERROR_AUTHORIZATION_FAILED || value.code === SolanaMobileWalletAdapterProtocolErrorCode.ERROR_NOT_SIGNED) return true;
-      // Backing out of the wallet ends the association: the native layer reports
-      // "Local association cancelled by user". That is a choice, not a fault.
-      const message = (error as { message?: unknown }).message;
-      // Seed Vault uses CancellationException for decline, timeout AND its
-      // mismatch sheet. None of these alone proves a network mismatch.
-      return value.name === 'CancellationException' || value.name === 'TimeoutError' || (typeof message === "string" && /cancel{1,2}ed|CancellationException|timed?\s*out|timeout/i.test(message));
+      return isWalletCancellation(error);
     }
   } catch { /* sanitize hostile errors */ }
   return false;
@@ -50,6 +50,7 @@ export async function authorizeAndSendTransaction(
   authorizeSession: (wallet: Web3MobileWallet) => Promise<Account>,
   transaction: Transaction | VersionedTransaction,
   minContextSlot: number,
+  onSignAndSend?: () => void,
 ): Promise<TransactionSignature> {
   if (!Number.isSafeInteger(minContextSlot) || minContextSlot < 0) inputFailure("invalid transaction context slot");
   let payer: PublicKey | undefined;
@@ -69,8 +70,9 @@ export async function authorizeAndSendTransaction(
   assertWalletNetwork(authorized.chains);
   let signatures: unknown;
   try {
+    onSignAndSend?.();
     signatures = await wallet.signAndSendTransactions({ transactions: [transaction], minContextSlot, commitment: "confirmed", skipPreflight: false, maxRetries: 3, waitForCommitmentToSendNextTransaction: true });
-  } catch (error) { logFailure("mwa.signAndSend", error); if (isStaleAuthorization(error)) throw new MobileWalletError("authorization", "wallet account changed; reconnect your wallet", false, true); const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected); }
+  } catch (error) { logFailure("mwa.signAndSend", error); if (isStaleAuthorization(error)) throw new MobileWalletError("authorization", "wallet account changed; reconnect your wallet", false, true); const rejected = isUserRejection(error); throw new MobileWalletError("wallet", rejected ? "wallet request was rejected" : "wallet submission failed", rejected, false, isWalletTimeout(error)); }
   if (!Array.isArray(signatures) || typeof signatures[0] !== "string" || signatures[0].length === 0) throw new MobileWalletError("wallet", "wallet returned no transaction signature");
   return signatures[0] as TransactionSignature;
 }
@@ -94,10 +96,12 @@ export function useMobileWallet() {
     // create/stamp closure still finishing its asynchronous preparation.
     const current = getCurrentAccount();
     if (!current || !feePayerOf(transaction)?.equals(current.publicKey)) throw new MobileWalletError('authorization', 'Connect the wallet that started this request.');
-    try { return await session(walletPackage, (wallet) => authorizeAndSendTransaction(wallet, (w) => authorizeSession(w), transaction, minContextSlot), true); }
+    let signAndSendInvoked = false;
+    try { return await session(walletPackage, (wallet) => authorizeAndSendTransaction(wallet, (w) => authorizeSession(w), transaction, minContextSlot, () => { signAndSendInvoked = true; }), true); }
     catch (error) {
       // Drop the stale token so the next attempt re-authorizes against the wallet's current account.
       if (error instanceof MobileWalletError && error.staleAuthorization) { try { await clearAuthorization(); } catch { /* best effort */ } }
+      if (!(error instanceof MobileWalletError) && isWalletTimeout(error)) throw new MobileWalletError('wallet', 'wallet submission failed', false, false, signAndSendInvoked);
       if (!(error instanceof MobileWalletError) && isUserRejection(error)) throw new MobileWalletError('wallet', 'wallet request was rejected', true);
       throw error;
     }

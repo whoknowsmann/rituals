@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { lifecycleCanSubmit, lifecycleInitialState, lifecycleIsBusy, lifecycleReducer, lifecycleStatusCopy, type LifecycleEvent, type LifecycleState } from './lifecycleMachine'
 import { runLifecycleAction, type LifecycleActionDeps } from './runLifecycleAction'
+import { watchActionReconciliation } from './recovery/reconcilePendingAction'
 
 export type UseRitualAction = Readonly<{
   state: LifecycleState
@@ -15,14 +16,19 @@ export type UseRitualAction = Readonly<{
 export function useRitualAction(makeDeps: () => LifecycleActionDeps): UseRitualAction {
   const [state, dispatch] = useReducer(lifecycleReducer, undefined, lifecycleInitialState)
   const inFlight = useRef(false)
+  const attempt = useRef<LifecycleActionDeps | null>(null)
   const mounted = useRef(true)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const safeDispatch = useCallback((event: LifecycleEvent) => { if (mounted.current) dispatch(event) }, [])
   const start = useCallback(() => {
     if (inFlight.current || !lifecycleCanSubmit(state)) return
     inFlight.current = true
-    void (async () => { try { await runLifecycleAction(makeDeps(), safeDispatch) } catch { safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the action. Nothing was sent.' }) } finally { inFlight.current = false } })()
+    void (async () => { try { attempt.current = makeDeps(); await runLifecycleAction(attempt.current, safeDispatch) } catch { safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the action. Nothing was sent.' }) } finally { inFlight.current = false } })()
   }, [makeDeps, safeDispatch, state])
+  useEffect(() => {
+    if (state.status !== 'error' || state.retryable || !attempt.current?.reconcile) return
+    return watchActionReconciliation(attempt.current.reconcile, safeDispatch)
+  }, [state, safeDispatch])
   const reset = useCallback(() => { if (!inFlight.current) safeDispatch({ type: 'RESET' }) }, [safeDispatch])
   const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])
   return { state, copy: lifecycleStatusCopy(state), canSubmit: lifecycleCanSubmit(state), isBusy: lifecycleIsBusy(state), start, reset, observeReadback }

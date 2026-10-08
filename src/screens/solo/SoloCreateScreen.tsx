@@ -245,6 +245,10 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       settlerFunding: settlerKey ? { to: settlerKey, lamports: settlerBudgetLamports(eventCount) } : null,
       authorizedActor: () => accountRef.current?.publicKey ?? null,
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
+      getSignatureStatus: async (signature) => {
+        const value = (await connection.getSignatureStatuses([signature], { searchTransactionHistory: true })).value[0]
+        return value ? { slot: value.slot, err: value.err, confirmationStatus: value.confirmationStatus ?? null } : null
+      },
       pendingActionStore: asyncStoragePendingActionStore,
       rememberBeforeSend: async (address) => {
         await rememberRitual({ address, title: draft.title, requirement: draft.requirement, destinationOwner: draft.destination === 'person' ? draft.personAddress : undefined })

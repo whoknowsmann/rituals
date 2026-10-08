@@ -87,7 +87,8 @@ describe('SoloRitualScreen proof and witness controls', () => {
 
   it('tracks each action separately and never saves an empty note over a real one (note wiped at settle, 2026-10-02)', () => {
     expect(source).not.toContain('confirmedAction')
-    expect(source).toContain('handled.current.claim !== claim.state.result.messageDigest')
+    expect(source).toContain('handled.current.claim !== stampDigest')
+    expect(source).toContain("claim.state.status === 'recovered'")
     expect(source).toContain('handled.current.settle !== settle.state.result.messageDigest')
     expect(source).toContain('noteInputRef.current.trim().length > 0')
   })
@@ -96,6 +97,10 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('soloActionLanded(read, actionTargets.current[name])')
     expect(source).toContain('action.observeReadback(route.params.ritualId)')
     expect(source).toContain('[read, claim.state, skip.state, settle.state, route.params.ritualId]')
+    expect(source).toContain('staleSoloActionError(action.state, actionTargets.current[name], model)) action.reset()')
+    expect(source).toContain('const actionError = action.state.status === \'error\' && !staleError')
+    expect(source).toContain('soloActionCanRetry(action.state, actionTarget, model, read)')
+    expect(source).toContain('{canRetryAction && <ActionButton tone="quiet" label="Try again"')
   })
 
   it('closes finished weeks with the app settle key, keeping the wallet button only as a fallback', () => {

@@ -38,7 +38,7 @@ import { soloRitualModel, type SoloRitualModel } from '../../features/rituals/so
 import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloActionDeps'
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
 import { useSoloDestinationOwner } from '../../features/rituals/solo/lifecycle/useSoloDestinationOwner'
-import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
+import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded, soloActionCanRetry, soloStampAvailable, staleSoloActionError, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
 import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, showDemoSpeedNotice, stampHoldState, titleWeekIndex } from './weekHero'
 
 type Props = { route: { params: { ritualId: string } } }
@@ -53,6 +53,10 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   }, [])
   const client = useRitualClient()
   const { connection } = useConnection()
+  const getSignatureStatus = useCallback(async (signature: string) => {
+    const value = (await connection.getSignatureStatuses([signature], { searchTransactionHistory: true })).value[0]
+    return value ? { slot: value.slot, err: value.err, confirmationStatus: value.confirmationStatus ?? null } : null
+  }, [connection])
   const { selectedAccount, walletPackage } = useAuthorization()
   const chainNow = useChainTime(connection, focused)
   const state = useSoloRitualBundle(client, route.params.ritualId)
@@ -121,18 +125,20 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       pendingActionStore: asyncStoragePendingActionStore,
       authorizedActor: () => accountRef.current?.publicKey ?? null,
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
+      getSignatureStatus,
     })
-  }, [client, connection, model, read, ritualAddress, selectedAccount])
+  }, [client, connection, getSignatureStatus, model, read, ritualAddress, selectedAccount])
   const makeSkipDeps = useCallback(() => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !model) throw new Error('Ritual or wallet is not ready')
     actionTargets.current.skip = { kind: 'skip', eventIndex: model.eventIndex, actor: selectedAccount.publicKey, ritualAddress: ritualAddress.toBase58() }
-    return buildSoloSkipDeps({ client: client.client, ritualAddress, actor: selectedAccount.publicKey, eventIndex: model.eventIndex, pendingActionStore: asyncStoragePendingActionStore, getBlockHeight: () => connection.getBlockHeight('confirmed'), authorizedActor: () => accountRef.current?.publicKey ?? null })
-  }, [client, connection, model, ritualAddress, selectedAccount])
+    return buildSoloSkipDeps({ client: client.client, ritualAddress, actor: selectedAccount.publicKey, eventIndex: model.eventIndex, pendingActionStore: asyncStoragePendingActionStore, getBlockHeight: () => connection.getBlockHeight('confirmed'), getSignatureStatus, authorizedActor: () => accountRef.current?.publicKey ?? null })
+  }, [client, connection, getSignatureStatus, model, ritualAddress, selectedAccount])
   const claim = useRitualAction(() => makeSharedDeps('claim'))
   const startClaim = useCallback(() => {
+    if (!soloStampAvailable(model)) return
     claimEventIndex.current = model?.eventIndex ?? null
     claim.start()
-  }, [claim.start, model?.eventIndex])
+  }, [claim.start, model])
   const skip = useRitualAction(makeSkipDeps)
   // A week nobody checked in to has no event account yet; the first tap opens it
   // (one approval), the screen re-reads, and the next tap settles it.
@@ -145,8 +151,10 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   // one (phone run 2026-10-02).
   const handled = useRef<{ claim: string | null; skip: string | null; settle: string | null }>({ claim: null, skip: null, settle: null })
   useEffect(() => {
-    if (claim.state.status === 'confirmed' && handled.current.claim !== claim.state.result.messageDigest) {
-      handled.current.claim = claim.state.result.messageDigest
+    const stampDigest = claim.state.status === 'confirmed' ? claim.state.result.messageDigest
+      : claim.state.status === 'recovered' ? `${claim.state.ritualAddress}:${claimEventIndex.current}` : null
+    if (stampDigest && handled.current.claim !== stampDigest) {
+      handled.current.claim = stampDigest
       const eventIndex = claimEventIndex.current
       if (eventIndex !== null && ritualAddress) void cancelWeekReminders(ritualAddress.toBase58(), eventIndex)
       const refresh = () => { setNoteInput(''); state.retry(); setReload((value) => value + 1) }
@@ -168,14 +176,25 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       // Opening a missed week is step one of two; clear it so the same button can settle.
       settle.reset()
     }
+    if (skip.state.status === 'recovered') {
+      const target = actionTargets.current.skip
+      if (target) void cancelWeekReminders(target.ritualAddress, target.eventIndex)
+      state.retry(); skip.reset()
+    }
+    if (settle.state.status === 'recovered') { state.retry(); settle.reset() }
   }, [claim.state, ritualAddress, settle.state, skip.state, cancelWeekReminders])
 
   // Check both arrival orders: readback may precede the late wallet error.
   useEffect(() => {
     for (const [name, action] of [['claim', claim], ['skip', skip], ['settle', settle]] as const) {
-      if (action.state.status === 'error' && !action.state.retryable && soloActionLanded(read, actionTargets.current[name])) action.observeReadback(route.params.ritualId)
+      if (action.state.status === 'error' && soloActionLanded(read, actionTargets.current[name])) action.observeReadback(route.params.ritualId)
     }
   }, [read, claim.state, skip.state, settle.state, route.params.ritualId])
+  useEffect(() => {
+    for (const [name, action] of [['claim', claim], ['skip', skip], ['settle', settle]] as const) {
+      if (!soloActionLanded(read, actionTargets.current[name]) && staleSoloActionError(action.state, actionTargets.current[name], model)) action.reset()
+    }
+  }, [read, model, claim.state, skip.state, settle.state])
   const unknownAction = [claim, skip, settle].some((action) => action.state.status === 'error' && !action.state.retryable)
   useEffect(() => {
     if (confirmedStampAdvanced(claim.state, actionTargets.current.claim, read)) claim.reset()
@@ -256,7 +275,10 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   // A stamp in flight is about the person, not the transaction (Jack, 2026-10-06).
   const stamping = action === claim && (stampNotRead || action.state.status === 'submitted' || action.state.status === 'confirming')
   const actionCopy = stamping ? Object.freeze({ title: 'Stamping…', body: '', tone: 'progress' as const }) : withWalletHandoff(action.copy, action.state.status, walletPackage)
-  const actionError = action.state.status === 'error' ? action.copy.body : null
+  const actionTarget = actionTargets.current[action === claim ? 'claim' : action === skip ? 'skip' : 'settle']
+  const staleError = soloActionLanded(read, actionTarget) || staleSoloActionError(action.state, actionTarget, model)
+  const actionError = action.state.status === 'error' && !staleError ? action.copy.body : null
+  const canRetryAction = soloActionCanRetry(action.state, actionTarget, model, read)
   const readyForWallet = Boolean(selectedAccount && readyBundle.ritual.account.members.some((member) => member.equals(selectedAccount.publicKey)))
   const tint = ritualTintAmong(route.params.ritualId, knownRituals)
   // Only a finished ritual, or one another wallet made, can leave this phone's list; an active ritual of yours stays visible.
@@ -321,7 +343,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       {nextLine && <Text style={s.muted}>{nextLine}</Text>}
       {model.lastClosedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
-      {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
+      {canRetryAction && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
       {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{holdWaiting ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={holdWaiting || !readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
       {model.state === 'resolving/settle' && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}

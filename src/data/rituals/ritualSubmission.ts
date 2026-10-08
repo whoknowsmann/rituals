@@ -7,6 +7,7 @@ import { RitualActionPreparer, type PreparedExpectation, type PreparedRitualActi
 import { RitualConfirmationVerifier, type RitualActionExpectation, type ConfirmedRitualAction, type SubmittedRitualAction } from './ritualConfirmation'
 import { logFailure, logNote } from '../../utils/diagnostics'
 import { landedMessageIsFeeOnlyChange } from './walletFeeChange'
+import { isWalletCancellation, isWalletTimeout } from '../../utils/walletErrors'
 
 export type RitualWalletSubmissionTransport = Readonly<{
   signAndSendTransaction: (transaction: Transaction, minContextSlot: number) => Promise<unknown>
@@ -24,7 +25,7 @@ export type RitualSubmissionErrorCategory = 'input' | 'wallet' | 'signature' | '
 export class RitualSubmissionError extends Error {
   readonly category: RitualSubmissionErrorCategory
   /**
-   * True when the wallet already returned a signature before this failure.
+   * True when a signature returned or a signing response was lost to a timeout.
    * The wallet may have broadcast the transaction, so callers must treat the
    * outcome as unknown (never "nothing was sent") and let recovery check chain.
    */
@@ -54,16 +55,20 @@ function walletFailure(error: unknown): never {
   logFailure('wallet.raw', error)
   let mismatch = false
   let rejected = false
+  let submitted = false
   try {
     if (error !== null && typeof error === 'object') {
       const name = (error as { name?: unknown }).name
       const code = (error as { code?: unknown }).code
       const userRejected = (error as { userRejected?: unknown }).userRejected
       mismatch = (error as { category?: unknown }).category === 'network-mismatch'
-      rejected = userRejected === true || name === 'UserRejectedRequestError' || code === 4001
+      const marked = (error as { submitted?: unknown }).submitted
+      submitted = marked === true || (marked !== false && isWalletTimeout(error))
+      rejected = !isWalletTimeout(error) && (userRejected === true || name === 'UserRejectedRequestError' || code === 4001 || isWalletCancellation(error))
     }
   } catch { /* sanitize hostile errors */ }
   if (mismatch) return fail('network-mismatch', 'wallet account does not support the requested network')
+  if (submitted) throw new RitualSubmissionError('wallet', 'wallet submission outcome is unknown', true)
   if (rejected) return fail('wallet', 'wallet request was rejected')
   return fail('wallet', 'wallet submission failed')
 }

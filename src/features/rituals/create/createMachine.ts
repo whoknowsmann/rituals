@@ -68,6 +68,7 @@ export type CreateMachineEvent =
   | Readonly<{ type: 'FAILED'; category: CreateFailureCategory; message: string }>
   | Readonly<{ type: 'RESET' }>
   | Readonly<{ type: 'READBACK_OBSERVED'; ritualAddress: string }>
+  | Readonly<{ type: 'EXPIRY_OBSERVED'; ritualAddress: string }>
 
 const freeze = <T extends object>(value: T): Readonly<T> => Object.freeze(value)
 
@@ -110,13 +111,13 @@ function failureState(
   category: CreateFailureCategory,
   message: string,
 ): CreateMachineState {
-  const submitted = state.status === 'submitted' || state.status === 'confirming'
+  const submitted = state.status === 'submitted' || state.status === 'confirming' || category === 'confirmation'
   return freeze({
     status: 'error' as const,
     category,
     message,
     submitted,
-    retryable: !submitted && category !== 'confirmation',
+    retryable: !submitted,
     ritualAddress: inFlightAddress(state),
   })
 }
@@ -129,6 +130,8 @@ export function createMachineReducer(
   // Recover the existing ritual, never reset Create to an enabled submit button.
   if (event.type === 'READBACK_OBSERVED') return state.status === 'error' && !state.retryable && state.ritualAddress === event.ritualAddress
     ? freeze({ status: 'recovered' as const, ritualAddress: event.ritualAddress }) : state
+  if (event.type === 'EXPIRY_OBSERVED') return state.status === 'error' && !state.retryable && state.ritualAddress === event.ritualAddress
+    ? freeze({ ...state, category: 'blockhash-expired' as const, message: 'Nothing was sent.', submitted: false, retryable: true }) : state
 
   // A failure can arrive in any active phase.
   if (event.type === 'FAILED') {

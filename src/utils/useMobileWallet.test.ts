@@ -36,11 +36,27 @@ describe('authorizeAndSendTransaction', () => {
     expect(session.signAndSendTransactions).toHaveBeenCalledTimes(1)
   })
 
-  it.each([new Error('java.util.concurrent.CancellationException'), new Error('request timed out')])('keeps cancel/timeout neutral without claiming a network mismatch', async (error) => {
+  it.each([new Error('java.util.concurrent.CancellationException'), { name: 'java.util.concurrent.CancellationException' }])('keeps a Seed Vault decline pre-submission (%j)', async (error) => {
     const session = wallet()
-    await expect(authorizeAndSendTransaction(session, async () => { throw error }, legacy(), 12)).rejects.toMatchObject({ category: 'authorization', userRejected: true })
+    await expect(authorizeAndSendTransaction(session, async () => { throw error }, legacy(), 12)).rejects.toMatchObject({ category: 'authorization', userRejected: true, submitted: false })
     session.signAndSendTransactions.mockRejectedValueOnce(error)
-    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 12)).rejects.toMatchObject({ category: 'wallet', userRejected: true })
+    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 12)).rejects.toMatchObject({ category: 'wallet', userRejected: true, submitted: false })
+  })
+
+  it.each([
+    new Error('java.util.concurrent.TimeoutException: Timed out waiting for response with id=2'),
+    { name: 'java.util.concurrent.ExecutionException', code: 'Timed out waiting for response' },
+    { name: 'TimeoutError' },
+    new Error('request timed out'),
+  ])('marks a timeout uncertain only after signing was invoked (%j)', async (error) => {
+    const session = wallet()
+    const invoked = vi.fn()
+    await expect(authorizeAndSendTransaction(session, async () => { throw error }, legacy(), 12, invoked)).rejects.toMatchObject({ category: 'authorization', userRejected: false, submitted: false })
+    expect(session.signAndSendTransactions).not.toHaveBeenCalled()
+    expect(invoked).not.toHaveBeenCalled()
+    session.signAndSendTransactions.mockRejectedValueOnce(error)
+    await expect(authorizeAndSendTransaction(session, async () => account(payer), legacy(), 12, invoked)).rejects.toMatchObject({ category: 'wallet', userRejected: false, submitted: true })
+    expect(invoked).toHaveBeenCalledOnce()
   })
 
   it('authorizes once and sends the same transaction with explicit safe MWA options', async () => {

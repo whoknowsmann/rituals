@@ -4,6 +4,8 @@ import type { RitualAccountContext } from '../../../../data/rituals/instructions
 import type { PreparedRitualAction } from '../../../../data/rituals/ritualPreparedAction'
 import type { SubmittedRitualActionHandle } from '../../../../data/rituals/ritualSubmission'
 import { makePendingActionRecord, withPendingActionSignature, type PendingActionStore } from '../../recovery/pendingAction'
+import { reconcilePendingAction } from '../../recovery/reconcilePendingAction'
+import type { PendingActionTransport } from '../../recovery/pendingAction'
 import type { LifecycleActionDeps } from '../../runLifecycleAction'
 import type { LifecyclePreparedRef, LifecycleSubmittedRef, LifecycleConfirmedRef } from '../../lifecycleMachine'
 
@@ -16,6 +18,7 @@ export type SoloSkipDepsParams = Readonly<{
   pendingActionStore?: PendingActionStore
   now?: () => number
   getBlockHeight?: () => Promise<number>
+  getSignatureStatus?: PendingActionTransport['getSignatureStatus']
 }>
 
 /** Declare-skip is the one solo write not covered by the shared action-kind union. */
@@ -45,18 +48,20 @@ export function buildSoloSkipDeps(params: SoloSkipDepsParams): LifecycleActionDe
         const height = await params.getBlockHeight()
         if (height > prepared.lastValidBlockHeight) throw Object.assign(new Error('prepared blockhash expired before signing'), { blockhashExpired: true })
       }
-      if (params.pendingActionStore) {
-        record = makePendingActionRecord(prepared, params.now?.() ?? Date.now())
-        await params.pendingActionStore.upsert(record)
-      }
+      record = { ...makePendingActionRecord(prepared, params.now?.() ?? Date.now()), actor: params.actor.toBase58(), eventIndex: params.eventIndex }
+      if (params.pendingActionStore) await params.pendingActionStore.upsert(record)
       try { handle = await params.client.submitPrepared(prepared) } catch (error) {
         const submitted = error as { submitted?: unknown; signature?: unknown } | null
-        if (submitted?.submitted === true && typeof submitted.signature === 'string' && params.pendingActionStore && record) {
-          await params.pendingActionStore.upsert(withPendingActionSignature(record, submitted.signature))
+        if (submitted?.submitted === true && typeof submitted.signature === 'string' && record) {
+          record = withPendingActionSignature(record, submitted.signature)
+          try { await params.pendingActionStore?.upsert(record) } catch { /* keep the uncertain result */ }
         }
         throw error
       }
-      if (params.pendingActionStore && record) await params.pendingActionStore.upsert(withPendingActionSignature(record, handle.signature))
+      if (record) {
+        record = withPendingActionSignature(record, handle.signature)
+        try { await params.pendingActionStore?.upsert(record) } catch { throw Object.assign(new Error('transaction submitted but recovery could not be saved'), { submitted: true }) }
+      }
       return { id: prepared.messageDigest }
     },
     async confirm(_ref: LifecycleSubmittedRef): Promise<LifecycleConfirmedRef> {
@@ -65,6 +70,7 @@ export function buildSoloSkipDeps(params: SoloSkipDepsParams): LifecycleActionDe
       if (params.pendingActionStore && record) await params.pendingActionStore.remove(record)
       return { signature: result.signature, messageDigest: result.messageDigest }
     },
+    reconcile: () => reconcilePendingAction(params.client, record, params.pendingActionStore, params.getBlockHeight, params.getSignatureStatus),
   }
 }
 

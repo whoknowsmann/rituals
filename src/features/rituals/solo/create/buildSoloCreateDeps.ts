@@ -8,6 +8,8 @@ import { generateRitualNonce } from '../../../../domain/rituals/nonce'
 import { RITUAL_FEE_CONFIG } from '../../../rituals/create/draftForm'
 import { CreateDepsError } from '../../../rituals/create/buildCreateDeps'
 import { makePendingActionRecord, withPendingActionSignature, type PendingActionRecord, type PendingActionStore } from '../../../rituals/recovery/pendingAction'
+import { reconcilePendingAction } from '../../recovery/reconcilePendingAction'
+import type { PendingActionTransport } from '../../recovery/pendingAction'
 import type { CreateRitualDeps } from '../../../rituals/create/runCreateRitual'
 import type { SoloScheduleSelection } from './schedule'
 import { scheduleWindows } from './schedule'
@@ -34,6 +36,7 @@ export type SoloCreateDepsParams = Readonly<{
   /** Used to reject a wallet account switch while Phantom is open. */
   authorizedActor?: () => PublicKey | null
   getBlockHeight?: () => Promise<number>
+  getSignatureStatus?: PendingActionTransport['getSignatureStatus']
   /** Durable recovery journal written around the wallet handoff. */
   pendingActionStore?: PendingActionStore
   /** Save the candidate on this phone before the wallet can broadcast it. */
@@ -171,10 +174,8 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
           throw Object.assign(new CreateDepsError('prepared transaction expired before signing'), { blockhashExpired: true })
         }
       }
-      if (pendingActionStore) {
-        pendingRecord = makePendingActionRecord(prepared, now())
-        await pendingActionStore.upsert(pendingRecord)
-      }
+      pendingRecord = makePendingActionRecord(prepared, now())
+      if (pendingActionStore) await pendingActionStore.upsert(pendingRecord)
       try {
         if (rememberBeforeSend) await rememberBeforeSend(prepared.ritualAddress)
         assertAuthorized()
@@ -182,15 +183,16 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
       } catch (error) {
         // The wallet answered but verification failed: it may have broadcast.
         const sig = submittedSignatureOf(error)
-        if (sig && pendingActionStore && pendingRecord) {
-          try { await pendingActionStore.upsert(withPendingActionSignature(pendingRecord, sig)) } catch { /* resolver still has the unsigned record */ }
+        if (sig && pendingRecord) {
+          pendingRecord = withPendingActionSignature(pendingRecord, sig)
+          try { await pendingActionStore?.upsert(pendingRecord) } catch { /* resolver still has the unsigned record */ }
         }
         throw error
       }
-      if (pendingActionStore && pendingRecord) {
+      if (pendingRecord) {
         try {
           pendingRecord = withPendingActionSignature(pendingRecord, handle.signature)
-          await pendingActionStore.upsert(pendingRecord)
+          await pendingActionStore?.upsert(pendingRecord)
         } catch {
           throw new CreateDepsError('transaction submitted but recovery could not be saved', true)
         }
@@ -206,6 +208,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
       }
       return { signature: result.signature, messageDigest: result.messageDigest }
     },
+    reconcile: () => reconcilePendingAction(client, pendingRecord, pendingActionStore, getBlockHeight, params.getSignatureStatus),
   }
 }
 

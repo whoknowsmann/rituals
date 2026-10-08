@@ -132,6 +132,6 @@ describe('Devnet hint at the shared action handoff', () => {
     }
     expect(source('features/rituals/client/useRitualClient.ts')).toContain('const { signAndSendTransaction } = useMobileWallet()')
     expect(source('features/rituals/client/useRitualClient.ts')).toContain('makeTransport(connection, signAndSendTransaction)')
-    expect(source('utils/useMobileWallet.tsx')).toContain('transaction, minContextSlot), true)')
+    expect(source('utils/useMobileWallet.tsx')).toContain('transaction, minContextSlot, () => { signAndSendInvoked = true; }), true)')
   })
 })

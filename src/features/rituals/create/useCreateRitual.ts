@@ -24,6 +24,7 @@ import {
   type CreateStatusCopy,
 } from './createMachine'
 import { runCreateRitual, type CreateRitualDeps } from './runCreateRitual'
+import { watchActionReconciliation } from '../recovery/reconcilePendingAction'
 
 export type UseCreateRitual = Readonly<{
   state: CreateMachineState
@@ -43,6 +44,7 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   // Guards against a second attempt slipping through before the reducer has
   // committed the first. A ref is synchronous; reducer state is not.
   const inFlight = useRef(false)
+  const attempt = useRef<CreateRitualDeps | null>(null)
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -61,6 +63,7 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
     void (async () => {
       try {
         const deps = makeDeps()
+        attempt.current = deps
         await runCreateRitual(deps, safeDispatch)
       } catch (error) {
         logFailure('create.deps', error)
@@ -71,6 +74,11 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
       }
     })()
   }, [makeDeps, safeDispatch, state])
+
+  useEffect(() => {
+    if (state.status !== 'error' || state.retryable || !attempt.current?.reconcile) return
+    return watchActionReconciliation(attempt.current.reconcile, safeDispatch)
+  }, [state, safeDispatch])
 
   const reset = useCallback(() => {
     if (inFlight.current) return

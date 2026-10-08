@@ -19,11 +19,13 @@ import type {
   CreateSubmittedRef,
 } from './createMachine'
 import { logFailure } from '../../../utils/diagnostics'
+import type { ActionReconciler } from '../recovery/reconcilePendingAction'
 
 export type CreateRitualDeps = Readonly<{
   prepare: () => Promise<CreatePreparedRef>
   submit: (prepared: CreatePreparedRef) => Promise<CreateSubmittedRef>
   confirm: (handle: CreateSubmittedRef) => Promise<CreateConfirmedRef>
+  reconcile?: ActionReconciler
 }>
 
 export type CreateRitualOutcome =

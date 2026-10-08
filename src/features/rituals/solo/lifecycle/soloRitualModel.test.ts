@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../../../data/rituals/ritualsRpc'
 import { soloRitualModel, labelSoloDestination, demoSpeedNotice, type SoloRitualBundle } from './soloRitualModel'
-import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded } from './actionReadback'
+import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded, soloActionCanRetry, staleSoloActionError } from './actionReadback'
 import { weekCellLabel } from '../../../../components/crew/weekStripLogic'
 import { lifecycleReducer, lifecycleCanSubmit, lifecycleStatusCopy, type LifecycleState } from '../../lifecycleMachine'
 
@@ -72,8 +72,8 @@ describe('soloRitualModel', () => {
     expect(soloActionLanded(read, { ...target, actor: witness })).toBe(false)
     expect(soloActionLanded(read, target)).toBe(true)
     const recovered = lifecycleReducer(error, { type: 'READBACK_OBSERVED', ritualAddress: target.ritualAddress })
-    expect(recovered.status).toBe('idle')
-    expect(lifecycleCanSubmit(recovered)).toBe(true)
+    expect(recovered.status).toBe('recovered')
+    expect(lifecycleCanSubmit(recovered)).toBe(false)
     expect(lifecycleStatusCopy(recovered).body).not.toContain('may already')
     expect(lifecycleReducer(error, { type: 'READBACK_OBSERVED', ritualAddress: 'another ritual' })).toBe(error)
     const advanced = { ...bundle({ currentEventIndex: 1, settledEventCount: 1 }), history: [read] }
@@ -82,6 +82,29 @@ describe('soloRitualModel', () => {
     expect(soloActionLanded(read, { ...target, kind: 'initialize-event' })).toBe(true)
     expect(soloActionLanded(bundle({ skipDeclared: true, skipEventIndex: 0 }), { ...target, kind: 'skip' })).toBe(true)
     expect(soloActionLanded(bundle(), { ...target, kind: 'skip' })).toBe(false)
+  })
+
+  it('never offers retry for a landed stamp or an expired stamp period, clearing only stale retryable errors', () => {
+    const target = { kind: 'claim' as const, ritualAddress: address.toBase58(), eventIndex: 0, actor: me }
+    const declined: LifecycleState = { status: 'error', category: 'wallet-rejected', message: 'Nothing was sent.', submitted: false, retryable: true, ritualAddress: target.ritualAddress }
+    for (const now of [100, 199, 200]) expect(soloActionCanRetry(declined, target, soloRitualModel(bundle(), now, me), bundle())).toBe(true)
+    for (const now of [99, 201, 300, 301]) {
+      const model = soloRitualModel(bundle(), now, me)
+      expect(soloActionCanRetry(declined, target, model, bundle())).toBe(false)
+      expect(staleSoloActionError(declined, target, model)).toBe(true)
+      expect(lifecycleReducer(declined, { type: 'RESET' }).status).toBe('idle')
+    }
+    const stamped = bundle({}, event(), [claim('Confirmed')])
+    expect(soloActionCanRetry(declined, target, soloRitualModel(stamped, 150, me), stamped)).toBe(false)
+    const recovered = lifecycleReducer(declined, { type: 'READBACK_OBSERVED', ritualAddress: target.ritualAddress })
+    expect(lifecycleStatusCopy(recovered).tone).toBe('success')
+    expect(confirmedStampNotYetRead(recovered, target, soloRitualModel(bundle(), 150, me))).toBe(true)
+    expect(confirmedStampAdvanced(recovered, target, bundle({ currentEventIndex: 1 }))).toBe(true)
+    expect(soloActionCanRetry(declined, target, soloRitualModel(bundle({ currentEventIndex: 1 }), 450, me), bundle())).toBe(false)
+    const unknown: LifecycleState = { ...declined, submitted: true, retryable: false, category: 'confirmation' }
+    expect(soloActionCanRetry(unknown, target, soloRitualModel(bundle(), 150, me), bundle())).toBe(false)
+    expect(staleSoloActionError(unknown, target, soloRitualModel(bundle(), 201, me))).toBe(false)
+    expect(lifecycleReducer(unknown, { type: 'RESET' })).toBe(unknown)
   })
 
   it.each([

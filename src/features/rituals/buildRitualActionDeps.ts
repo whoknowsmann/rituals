@@ -4,6 +4,8 @@ import type { RitualClient } from '../../data/rituals/ritualClient'
 import type { PreparedRitualAction } from '../../data/rituals/ritualPreparedAction'
 import type { SubmittedRitualActionHandle } from '../../data/rituals/ritualSubmission'
 import { makePendingActionRecord, withPendingActionSignature, type PendingActionStore } from './recovery/pendingAction'
+import { reconcilePendingAction } from './recovery/reconcilePendingAction'
+import type { PendingActionTransport } from './recovery/pendingAction'
 import { canBundleFundAndActivate } from './fundActivationSelection'
 import type { LifecycleActionDeps } from './runLifecycleAction'
 import type { LifecycleActionKind } from './lifecycleMachine'
@@ -23,6 +25,7 @@ export type RitualActionDepsParams = Readonly<{
   authorizedActor?: () => PublicKey | null
   /** Optional blockheight reader used to reject stale prepared messages before signing. */
   getBlockHeight?: () => Promise<number>
+  getSignatureStatus?: PendingActionTransport['getSignatureStatus']
   /** Chain clock used to avoid bundling after the first event window opens. */
   getUnixTimestamp?: () => Promise<number>
   /** Token-account raw amount reader used to check activation vault preconditions. */
@@ -104,22 +107,21 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
         const current = await getBlockHeight()
         if (Number.isSafeInteger(current) && current > prepared.lastValidBlockHeight) throw preSubmissionError('prepared blockhash expired before signing', true)
       }
-      if (pendingActionStore) {
-        record = { ...makePendingActionRecord(prepared, now()), actor: actor.toBase58(), eventIndex }
-        await pendingActionStore.upsert(record)
-      }
+      record = { ...makePendingActionRecord(prepared, now()), actor: actor.toBase58(), eventIndex }
+      if (pendingActionStore) await pendingActionStore.upsert(record)
       assertAuthorized()
       try { handle = await client.submitPrepared(prepared) } catch (error) {
         const e = error as { submitted?: unknown; signature?: unknown } | null
-        if (e && typeof e === 'object' && e.submitted === true && typeof e.signature === 'string' && pendingActionStore && record) {
-          try { await pendingActionStore.upsert(withPendingActionSignature(record, e.signature)) } catch { /* resolver still has the unsigned record */ }
+        if (e && typeof e === 'object' && e.submitted === true && typeof e.signature === 'string' && record) {
+          record = withPendingActionSignature(record, e.signature)
+          try { await pendingActionStore?.upsert(record) } catch { /* resolver still has the unsigned record */ }
         }
         throw error
       }
-      if (pendingActionStore && record) {
+      if (record) {
         try {
           record = withPendingActionSignature(record, handle.signature)
-          await pendingActionStore.upsert(record)
+          await pendingActionStore?.upsert(record)
         } catch { throw Object.assign(new Error('transaction submitted but recovery could not be saved'), { submitted: true }) }
       }
       return { id: prepared.messageDigest }
@@ -132,5 +134,6 @@ export function buildRitualActionDeps(params: RitualActionDepsParams): Lifecycle
       }
       return { signature: result.signature, messageDigest: result.messageDigest }
     },
+    reconcile: () => reconcilePendingAction(client, record, pendingActionStore, getBlockHeight, params.getSignatureStatus),
   }
 }

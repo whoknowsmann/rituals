@@ -31,6 +31,16 @@ class FakeReader extends RitualsRpcReader {
 const bundleFor = (account: typeof lifecycleSource, slot = 50): RitualBundleRead => Object.freeze({ slot, ritual: Object.freeze({ slot, address, protocolConfigAddress: address, protocolConfig: {} as never, account: Object.freeze(account) }), event: null, claims: Object.freeze([]) })
 
 describe('Ritual confirmation verifier', () => {
+  it('checks landed signatures after a confirmation timeout without inventing expiry', async () => {
+    const reader = new FakeReader(bundleFor(lifecycleContext().account))
+    const statuses = vi.fn(async () => ({ value: [{ slot: 50, err: null, confirmationStatus: 'confirmed' }] }))
+    const transport = { confirmTransaction: async () => { throw new Error('Timed out waiting for response') }, getSignatureStatuses: statuses }
+    const result = await new RitualConfirmationVerifier(reader, transport).confirmAndReadRitual(action({ kind: 'created', creator: lifecycleSource.creator, nonce: lifecycleSource.nonce }))
+    expect(result.confirmationSlot).toBe(50)
+    expect(statuses).toHaveBeenCalledWith([validSignature], { searchTransactionHistory: true })
+    await expect(new RitualConfirmationVerifier(reader, { ...transport, getSignatureStatuses: async () => ({ value: [null] }) })
+      .confirmAndReadRitual(action({ kind: 'created', creator: lifecycleSource.creator, nonce: lifecycleSource.nonce }))).rejects.toMatchObject({ category: 'confirmation' })
+  })
   it.each(['confirmed', 'finalized'])('reads a landed %s action after the wallet returns past blockhash expiry', async (confirmationStatus) => {
     const reader = new FakeReader(bundleFor(lifecycleContext().account))
     const statuses = vi.fn(async () => ({ value: [{ slot: 50, err: null, confirmationStatus }] }))

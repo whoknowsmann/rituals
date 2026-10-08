@@ -2,6 +2,7 @@ import { PublicKey } from '@solana/web3.js'
 import { RitualRpcError, RitualsRpcReader, type RitualBundleRead } from './ritualsRpc'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { canonicalBase58Signature } from './base58Signature'
+import { isWalletTimeout } from '../../utils/walletErrors'
 
 export type RitualConfirmationErrorCategory = 'deployment' | 'input' | 'confirmation' | 'expired' | 'readback' | 'rpc'
 
@@ -232,7 +233,7 @@ export class RitualConfirmationVerifier {
     this.#confirm = (method as RitualConfirmationTransport['confirmTransaction']).bind(transport)
     try { this.#statuses = transport.getSignatureStatuses?.bind(transport) } catch { fail('input', 'Ritual confirmation transport is invalid') }
   }
-  async #checkExpiredSignature(signature: string): Promise<unknown> {
+  async #checkLandedSignature(signature: string, blockhashExpired: boolean): Promise<unknown> {
     if (!this.#statuses) return fail('confirmation', 'transaction status could not be checked')
     // Seed Vault can hold its Success sheet open beyond the blockhash lifetime.
     // A lagging RPC node can also initially miss a transaction that landed.
@@ -256,7 +257,7 @@ export class RitualConfirmationVerifier {
         }
       }
       if (attempt === 2) {
-        if (status === null) return fail('expired', 'transaction expired before confirmation')
+        if (status === null && blockhashExpired) return fail('expired', 'transaction expired before confirmation')
         return fail('confirmation', 'transaction has not reached confirmation')
       }
       await new Promise((resolve) => setTimeout(resolve, 500))
@@ -267,8 +268,8 @@ export class RitualConfirmationVerifier {
     const snapshot = snapshotAction(action)
     let confirmation: unknown
     try { confirmation = await this.#confirm(snapshot.strategy, 'confirmed') } catch (error) {
-      if (!expired(error)) fail('confirmation', 'transaction confirmation failed')
-      confirmation = await this.#checkExpiredSignature(snapshot.strategy.signature)
+      if (!expired(error) && !isWalletTimeout(error)) fail('confirmation', 'transaction confirmation failed')
+      confirmation = await this.#checkLandedSignature(snapshot.strategy.signature, expired(error))
     }
     if (!isRecord(confirmation)) fail('confirmation', 'transaction confirmation response is malformed')
     const context = readConfirmation<unknown>(confirmation as object, 'context'); const value = readConfirmation<unknown>(confirmation as object, 'value')

@@ -81,6 +81,7 @@ describe('Ritual action submission', () => {
   it.each([
     [new WalletNetworkMismatchError(), 'network-mismatch'],
     [Object.assign(new Error('wallet request was rejected'), { userRejected: true }), 'wallet-rejected'],
+    [new Error('java.util.concurrent.CancellationException'), 'wallet-rejected'],
   ])('preserves wallet evidence through sanitization and both UI machines (%s)', async (error, category) => {
     const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
     const prepared = await preparer.prepareCreate(args)
@@ -316,6 +317,30 @@ describe('Ritual action submission', () => {
 })
 
 describe('post-wallet failures are never reported as "nothing was sent"', () => {
+  it.each([
+    Object.assign(new Error('wallet submission failed'), { submitted: true, userRejected: false }),
+    new Error('java.util.concurrent.TimeoutException: Timed out waiting for response with id=2'),
+    { name: 'java.util.concurrent.ExecutionException', code: 'Timed out waiting for response', userRejected: true },
+  ])('keeps a lost signing response non-retryable in both machines (%j)', async (error) => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    const submitter = new RitualActionSubmitter(preparer, new CapturingVerifier(), { signAndSendTransaction: async () => { throw error } })
+    const submit = async () => { await submitter.submitPrepared(prepared); throw new Error('unreachable') }
+    const confirm = async () => { throw new Error('must not confirm') }
+    let lifecycle = lifecycleInitialState()
+    await runLifecycleAction({ prepare: async () => ({ kind: 'claim', messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress }), submit, confirm }, (event) => { lifecycle = lifecycleReducer(lifecycle, event) })
+    let create = createMachineInitialState()
+    await runCreateRitual({ prepare: async () => ({ kind: 'create', messageDigest: prepared.messageDigest, ritualAddress: prepared.ritualAddress }), submit, confirm }, (event) => { create = createMachineReducer(create, event) })
+    for (const state of [lifecycle, create]) expect(state).toMatchObject({ status: 'error', category: 'confirmation', retryable: false, submitted: true })
+    for (const copy of [lifecycleStatusCopy(lifecycle), createStatusCopy(create)]) expect(copy.body).not.toContain('Nothing was sent')
+  })
+  it('does not turn a known pre-signing timeout into a possible broadcast', async () => {
+    const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)
+    const prepared = await preparer.prepareCreate(args)
+    const error = Object.assign(new Error('request timed out'), { category: 'authorization', submitted: false, userRejected: false })
+    const submitter = new RitualActionSubmitter(preparer, new CapturingVerifier(), { signAndSendTransaction: async () => { throw error } })
+    await expect(submitter.submitPrepared(prepared)).rejects.toMatchObject({ submitted: false, message: 'wallet submission failed' })
+  })
   it('a signature that does not verify our message is marked submitted and carries the signature', async () => {
     // Phantom-style: wallet signs a different (rewritten) message and returns that signature.
     const preparer = new RitualActionPreparer(new PreparationTransport(), LOCAL_PLACEHOLDER_PROGRAM_ID)

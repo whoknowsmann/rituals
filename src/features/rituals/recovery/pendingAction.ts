@@ -104,7 +104,8 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
 
   if (record.transactionSignature !== undefined) {
     let status: PendingActionSignatureStatus | null = null
-    try { status = await transport.getSignatureStatus(record.transactionSignature) } catch { /* retry on a later mount */ }
+    let statusRead = false
+    try { status = await transport.getSignatureStatus(record.transactionSignature); statusRead = true } catch { /* retry on a later mount */ }
     if (status?.err !== null && status?.err !== undefined) return Object.freeze({ status: 'failed' as const, record })
     if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
       try {
@@ -117,7 +118,7 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
     // longer land; if history has no status for it and the action is absent
     // on chain, it never happened (found on the phone 2026-10-06: a stale
     // record kept Home saying "still checking" forever).
-    if (status === null && currentHeight !== null && currentHeight > record.lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS) {
+    if (statusRead && status === null && currentHeight !== null && currentHeight > record.lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS) {
       try {
         const readback = await transport.readRitual(new PublicKey(record.ritualAddress), record)
         if (readback.actionObserved === false) return Object.freeze({ status: 'expired' as const, record })
@@ -128,7 +129,8 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
 
   // A killed wallet handoff may never return a signature. Creation has a unique
   // address, so its account is evidence; existence alone cannot prove a stamp.
-  if (['create', 'create-solo', 'create-and-fund', 'create-solo-fund-and-activate'].includes(record.actionKind) || (record.actor !== undefined && record.eventIndex !== undefined)) {
+  const hasReadback = ['create', 'create-solo', 'create-and-fund', 'create-solo-fund-and-activate'].includes(record.actionKind) || (record.actor !== undefined && record.eventIndex !== undefined)
+  if (hasReadback) {
     try {
       const readback = await transport.readRitual(new PublicKey(record.ritualAddress), record)
       if (readback.actionObserved && safeHeight(readback.slot)) return Object.freeze({ status: 'confirmed' as const, record, slot: readback.slot })
@@ -139,7 +141,7 @@ export async function resolvePendingAction(record: PendingActionRecord, transpor
   // records with no actor/week) never resolves on its own. Once its blockhash
   // is long dead, stop nagging: the ritual screen shows the chain's truth, and
   // the program rejects a duplicate stamp anyway.
-  if (record.transactionSignature === undefined && currentHeight !== null && currentHeight > record.lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS) {
+  if (!hasReadback && currentHeight !== null && currentHeight > record.lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS) {
     return Object.freeze({ status: 'expired' as const, record })
   }
   return Object.freeze({ status: 'still-unknown' as const, record })

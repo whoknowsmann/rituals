@@ -1,10 +1,12 @@
 import { logFailure } from '../../utils/diagnostics'
+import type { ActionReconciler } from './recovery/reconcilePendingAction'
 import type { LifecycleEvent, LifecycleFailureCategory, LifecyclePreparedRef, LifecycleSubmittedRef, LifecycleConfirmedRef } from './lifecycleMachine'
 
 export type LifecycleActionDeps = Readonly<{
   prepare: () => Promise<LifecyclePreparedRef>
   submit: (prepared: LifecyclePreparedRef) => Promise<LifecycleSubmittedRef>
   confirm: (handle: LifecycleSubmittedRef) => Promise<LifecycleConfirmedRef>
+  reconcile?: ActionReconciler
 }>
 export type LifecycleOutcome = Readonly<{ ok: true; result: LifecycleConfirmedRef }> | Readonly<{ ok: false; category: LifecycleFailureCategory }>
 type Dispatch = (event: LifecycleEvent) => void
