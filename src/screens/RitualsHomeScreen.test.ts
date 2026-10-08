@@ -7,7 +7,9 @@ const source = readFileSync(resolve(__dirname, 'RitualsHomeScreen.tsx'), 'utf8')
 describe('RitualsHomeScreen safety and accessibility structure', () => {
   it('drops coming soon and gives stamped tiles a closing-time summary', () => {
     expect(source).not.toContain('COMING_SOON_LINE')
-    expect(source).toContain('stampedWeekClosingLabel(model, now)')
+    const presentation = readFileSync(resolve(__dirname, '../features/rituals/home/homeSections.ts'), 'utf8')
+    expect(presentation).toContain('stampedWeekClosingLabel(model, now)')
+    expect(source).toContain('homeTilePresentation(ritual.bundle, now)')
     expect(source).toContain('summaryLabel={closingLine ?? undefined}')
     expect(source).toContain('closingLine ?? weekSummary(cells)')
   })

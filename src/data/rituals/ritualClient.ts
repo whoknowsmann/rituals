@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js'
 import { RITUALS_CURRENT_CONFIG } from './programIds'
 import { RitualsRpcReader, type ReadOptions, type RitualRead, type RitualBundleRead, type RitualRpcTransport } from './ritualsRpc'
+import { readRitualBundlesBatched } from './batchedRitualBundles'
 import type { ProtocolConfigAccountView } from './accounts'
 import type { EjectQuote } from './ejectQuote'
 import type { PrepareEjectArgs } from './ritualPreparedAction'
@@ -28,6 +29,8 @@ export interface RitualClient {
   getEjectQuote(address: PublicKey, creatorDestination?: PublicKey): Promise<EjectQuote>
   prepareEject(args: PrepareEjectArgs): Promise<PreparedRitualAction>
   getRitualBundle(address: PublicKey, options?: ReadOptions): Promise<RitualBundleRead>
+  /** Shared account snapshots in chunks of at most 100; per-ritual errors retain their categories. */
+  getRitualBundles(addresses: readonly PublicKey[], options?: ReadOptions): Promise<readonly PromiseSettledResult<RitualBundleRead>[]>
   getEventBundle(address: PublicKey, eventIndex: number, options?: ReadOptions): Promise<RitualBundleRead>
   prepareCreate(args: BuildCreateRitualArgs): Promise<PreparedRitualAction>
   prepareCreateSolo(args: BuildCreateSoloRitualArgs): Promise<PreparedRitualAction>
@@ -64,6 +67,7 @@ function makeClient(rpc: RitualClientTransport, wallet: RitualWalletSubmissionTr
     getEjectQuote: reader.getEjectQuote.bind(reader),
     prepareEject: preparer.prepareEject.bind(preparer),
     getRitualBundle: reader.getRitualBundle.bind(reader),
+    getRitualBundles: (addresses: readonly PublicKey[], options?: ReadOptions) => readRitualBundlesBatched(rpc, programId, addresses, options),
     getEventBundle: reader.getEventBundle.bind(reader),
     prepareCreate: preparer.prepareCreate.bind(preparer),
     prepareCreateSolo: preparer.prepareCreateSolo.bind(preparer),

@@ -1,9 +1,10 @@
 import type { AccountInfo, PublicKey } from '@solana/web3.js'
-import { decodeRitualEvent, type RitualEventAccountView } from '../../../data/rituals/accounts'
+import { decodeRitualEvent, type RitualAccountView, type RitualEventAccountView } from '../../../data/rituals/accounts'
 import { eventPda } from '../../../data/rituals/pdas'
 import { currentWeekCell } from '../../../components/crew/weekStripLogic'
 
-export type HomeWeekCell = 'done' | 'missed' | 'closed' | 'now' | 'current' | 'future'
+export type SoloWeekOutcome = 'done' | 'missed' | 'skipped'
+export type HomeWeekCell = SoloWeekOutcome | 'closed' | 'now' | 'current' | 'future' | 'skip-pending'
 type SoloAccount = Readonly<{ kind: 'Group' | 'Solo'; status: string; currentEventIndex: number; schedule: readonly unknown[]; skipDeclared?: boolean; skipEventIndex?: number; completedAt?: bigint }>
 
 /** Closed weeks of a solo ritual: every week before the current one, or all of them once it completes. */
@@ -14,9 +15,9 @@ export function closedWeekCount(account: SoloAccount): number {
 }
 
 /** A solo week's result from its event alone: a forfeit means nobody checked in. A declared skip is neither kept nor missed. */
-export function eventOutcome(event: Pick<RitualEventAccountView, 'status' | 'forfeitedTotal' | 'voidReason'>): 'done' | 'missed' | null {
+export function eventOutcome(event: Pick<RitualEventAccountView, 'status' | 'forfeitedTotal' | 'voidReason'>): SoloWeekOutcome | null {
   if (event.status === 'Settled') return event.forfeitedTotal > 0n ? 'missed' : 'done'
-  if (event.status === 'Voided') return event.voidReason === 'DeclaredSkip' ? null : 'done' // unresolved claim: the stake came back
+  if (event.status === 'Voided') return event.voidReason === 'DeclaredSkip' ? 'skipped' : 'done' // unresolved claim: the stake came back
   return null
 }
 
@@ -25,12 +26,12 @@ export function eventOutcome(event: Pick<RitualEventAccountView, 'status' | 'for
  * read, and a neutral "closed" mark until then (or if the read failed),
  * never a guessed tick.
  */
-export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined, now: number | null = null): HomeWeekCell[] {
+export function soloHomeCells(account: SoloAccount, outcomes: ReadonlyMap<number, SoloWeekOutcome> | undefined, now: number | null = null): HomeWeekCell[] {
   const closed = closedWeekCount(account)
   return account.schedule.map((_window, index) => {
     if (index < closed) return outcomes?.get(index) ?? 'closed'
     if (account.status === 'Active' && index === account.currentEventIndex) {
-      if (account.skipDeclared && account.skipEventIndex === index) return 'current'
+      if (account.skipDeclared && account.skipEventIndex === index) return 'skip-pending'
       const window = _window as { opens?: bigint; deadline?: bigint } | null
       return now !== null && window?.opens !== undefined && window?.deadline !== undefined
         ? currentWeekCell(Number(window.opens), Number(window.deadline), now) : 'current'
@@ -50,22 +51,28 @@ type GetMany = (keys: PublicKey[]) => Promise<readonly (AccountInfo<Buffer> | nu
 export async function readSoloWeekOutcomes(
   getMany: GetMany,
   programId: PublicKey,
-  rituals: readonly Readonly<{ address: PublicKey; account: SoloAccount }>[],
-): Promise<Map<string, Map<number, 'done' | 'missed'>>> {
+  rituals: readonly Readonly<{ address: PublicKey; account: RitualAccountView }>[],
+): Promise<Map<string, Map<number, SoloWeekOutcome>>> {
   // Weeks an early end settled carry the ended ritual's timestamp (see decodeRitualEvent).
-  const wanted = rituals.flatMap((ritual) => Array.from({ length: closedWeekCount(ritual.account) }, (_, index) => ({ ritual: ritual.address, index, key: eventPda(ritual.address, index, programId)[0], endedAt: ritual.account.status === 'Ended' ? ritual.account.completedAt : undefined })))
-  const result = new Map<string, Map<number, 'done' | 'missed'>>()
+  const wanted = rituals.flatMap((ritual) => Array.from({ length: closedWeekCount(ritual.account) }, (_, index) => ({ ritual: ritual.address, account: ritual.account, index, pda: eventPda(ritual.address, index, programId), endedAt: ritual.account.status === 'Ended' ? ritual.account.completedAt : undefined })))
+  const result = new Map<string, Map<number, SoloWeekOutcome>>()
+  // An empty map means the read finished with no closed weeks, not "loading".
+  for (const ritual of rituals) if (ritual.account.kind === 'Solo') result.set(ritual.address.toBase58(), new Map())
   for (let start = 0; start < wanted.length; start += 100) {
     const chunk = wanted.slice(start, start + 100)
-    const infos = await getMany(chunk.map((entry) => entry.key))
+    const infos = await getMany(chunk.map((entry) => entry.pda[0]))
     chunk.forEach((entry, position) => {
       const info = infos[position]
       if (!info) return
       try {
-        const outcome = eventOutcome(decodeRitualEvent({ owner: info.owner, data: info.data }, programId, entry.endedAt))
+        const event = decodeRitualEvent({ owner: info.owner, data: info.data }, programId, entry.endedAt)
+        const window = entry.account.schedule[entry.index]
+        if (info.executable || !event.ritual.equals(entry.ritual) || event.eventIndex !== entry.index || event.memberCount !== 1 || event.bump !== entry.pda[1]
+          || event.window.opens !== window.opens || event.window.deadline !== window.deadline || event.window.resolution !== window.resolution
+          || event.eventPool !== entry.account.perEventAllocation) return
+        const outcome = eventOutcome(event)
         if (!outcome) return
         const id = entry.ritual.toBase58()
-        if (!result.has(id)) result.set(id, new Map())
         result.get(id)!.set(entry.index, outcome)
       } catch { /* unreadable week: stays "closed" */ }
     })

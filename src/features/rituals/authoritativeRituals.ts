@@ -58,7 +58,7 @@ export async function forgetRitual(address: string): Promise<void> {
 }
 
 export async function loadKnownRitualBundles(client: RitualClient): Promise<readonly (KnownRitual & { bundle: RitualBundleRead })[]> {
-  return readKnownRitualBundles(await listKnownRituals(), (address) => client.getRitualBundle(address))
+  return readKnownRitualBundles(await listKnownRituals(), (address) => client.getRitualBundle(address), (addresses) => client.getRitualBundles(addresses))
 }
 
 /**
@@ -67,17 +67,24 @@ export async function loadKnownRitualBundles(client: RitualClient): Promise<read
  * longer decodes) is skipped so it cannot hide the others. Any other failure
  * (RPC, stale or unstable reads) is rethrown so the screen offers a retry
  * instead of quietly showing a shorter list.
+ * Home and Settings use readBatch: shared <=100-account snapshots, with the
+ * same decoders and read retries as a single bundle. Other callers may keep
+ * the bounded single-reader path (for example reminder restoration).
  */
 export async function readKnownRitualBundles(
   known: readonly KnownRitual[],
   read: (address: PublicKey) => Promise<RitualBundleRead>,
+  readBatch?: (addresses: readonly PublicKey[]) => Promise<readonly PromiseSettledResult<RitualBundleRead>[]>,
 ): Promise<readonly (KnownRitual & { bundle: RitualBundleRead })[]> {
   const loaded: (KnownRitual & { bundle: RitualBundleRead })[] = []
-  // A large Home must not fan out every ritual's multi-read bundle at once.
-  for (let start = 0; start < known.length; start += 3) {
-    const settled = await Promise.allSettled(known.slice(start, start + 3).map(async (item) => ({ ...item, bundle: await read(new PublicKey(item.address)) })))
-    for (const result of settled) {
-      if (result.status === 'fulfilled') loaded.push(result.value)
+  const batchSize = readBatch ? Math.max(known.length, 1) : 3
+  for (let start = 0; start < known.length; start += batchSize) {
+    const chunk = known.slice(start, start + batchSize)
+    const addresses = chunk.map((item) => new PublicKey(item.address))
+    const settled = readBatch ? await readBatch(addresses) : await Promise.allSettled(addresses.map((address) => read(address)))
+    if (settled.length !== chunk.length) throw new RitualRpcError('rpc', 'Ritual bundle batch is incomplete')
+    for (const [index, result] of settled.entries()) {
+      if (result.status === 'fulfilled') loaded.push({ ...chunk[index], bundle: result.value })
       else if (!isPermanentlyUnreadable(result.reason)) throw result.reason
     }
   }

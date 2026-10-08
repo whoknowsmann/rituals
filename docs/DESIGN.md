@@ -67,6 +67,16 @@ Screen padding 18. Sticky primary actions live in a dark bottom **dock**.
 - `Poster` — coloured hero card: kicker (uppercase, 12/800), Fraunces title,
   week strip, one money line.
 - `WeekStrip` — N rounded cells; done = white with ✓, now = dashed, future = dim.
+  Compact tiles: kept = white dot, missed = white ✕, upcoming = hollow,
+  current = stronger ring, skipped = hollow with −, unread closed = neutral dark mark.
+  Home money: "{back} of {total} tSKR back" from settled kept/skipped weeks;
+  Ended includes the unspent allocation returned at eject. Until outcomes are
+  known, "{total} tSKR". This replaces the weekly amount and kept-count line;
+  stamped tiles retain their closing-time line.
+  Active tiles stay above a session-only, initially collapsed "Finished · N"
+  row (Completed and Ended); stamp-needed tiles first, new tile last in the
+  active grid. Expanded finished tiles use 0.82 opacity. With no active tiles,
+  "Start a ritual?" and "Start one" remain above Finished.
 - `MemberTile` — colour square + initial; optional ✓ badge.
 - `Chip` — pill; `ok` variant uses go.
 - `Dock` — dark sticky bar with a one-line prompt and one action.

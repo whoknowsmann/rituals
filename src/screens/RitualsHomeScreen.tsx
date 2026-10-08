@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
-import { ActivityIndicator, Button, Text, useTheme, type MD3Theme } from 'react-native-paper'
+import { ActivityIndicator, Button, Icon, Text, useTheme, type MD3Theme } from 'react-native-paper'
 import { useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { ActionButton, Footnote, Section, WeekStrip, weekSummary, type WeekCell } from '../components/crew'
 import { useRitualClient } from '../features/rituals/client/useRitualClient'
-import { listKnownRituals, loadKnownRitualBundles, formatAtomic, statusLabel, type KnownRitual } from '../features/rituals/authoritativeRituals'
+import { listKnownRituals, loadKnownRitualBundles, type KnownRitual } from '../features/rituals/authoritativeRituals'
 import { ritualTintAmong } from '../features/rituals/home/ritualColours'
 import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
 import { homeRitualTarget } from '../features/rituals/home/homeViewModel'
@@ -20,16 +20,16 @@ import { seasonStatusForError } from '../features/rituals/solo/season/seasonStat
 import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/solo/season/seasonViewModel'
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { SCOPE } from '../features/rituals/productScope'
-import { readSoloWeekOutcomes, soloHomeCells } from '../features/rituals/home/soloHistory'
-import { laterWeekOpenAt, stampedWeekClosingLabel, tileStatus } from '../features/rituals/home/tileStatus'
-import { soloRitualModel } from '../features/rituals/solo/lifecycle/soloRitualModel'
+import { readSoloWeekOutcomes, soloHomeCells, type SoloWeekOutcome } from '../features/rituals/home/soloHistory'
+import { tileMoneyLine } from '../features/rituals/home/tileMoney'
+import { homeSections, homeTilePresentation } from '../features/rituals/home/homeSections'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
 import { PublicKey } from '@solana/web3.js'
 import { radius, space, type, useColors, type Palette } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
 type HomeRitual = LoadedRitual & { id: string }
-type WeekOutcomes = ReadonlyMap<string, ReadonlyMap<number, 'done' | 'missed'>>
+type WeekOutcomes = ReadonlyMap<string, ReadonlyMap<number, SoloWeekOutcome>>
 
 type HomeState = Readonly<{
   status: 'loading' | 'ready' | 'error'
@@ -51,6 +51,7 @@ export function RitualsHomeScreen() {
   const client = useRitualClient()
   const { connection } = useConnection()
   const [homeState, setHomeState] = useState<HomeState>(initialState)
+  const [finishedExpanded, setFinishedExpanded] = useState(false)
   // Kept / missed per closed week, read in one batch after the cards render.
   const [outcomes, setOutcomes] = useState<WeekOutcomes>(new Map())
   const mounted = useRef(false)
@@ -60,6 +61,7 @@ export function RitualsHomeScreen() {
     // AUTHORITATIVE CHAIN READS keep ritual cards grounded in current account data.
     const generation = ++requestGeneration.current
     setHomeState(initialState)
+    setOutcomes(new Map())
     if (client.status !== 'ready') {
       setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(client.reason) })
       return
@@ -125,12 +127,21 @@ export function RitualsHomeScreen() {
     return <View style={styles.center} accessibilityLiveRegion="polite"><Text style={styles.errorTitle}>Your rituals are out of reach</Text><Text style={styles.muted}>{homeState.message}</Text><Text style={styles.disclosure}>{view.disclosure}</Text><Button mode="contained" onPress={load} accessibilityLabel="Try again">Try again</Button></View>
   }
 
+  const { active, finished } = homeSections(homeState.rituals, chainNow)
+  const onOpen = (ritual: HomeRitual) => openRitual(navigation, ritual)
   return <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Rituals home">
     <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>
     {recovery && <Text style={styles.muted} accessibilityLiveRegion="polite">{recovery.body}</Text>}
-    {homeState.rituals.length === 0
+    {active.length === 0
       ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
-      : <ActiveRituals rituals={homeState.rituals} known={homeState.known} outcomes={outcomes} now={chainNow} onOpen={(ritual) => openRitual(navigation, ritual)} onPromise={goPromise} styles={styles} />}
+      : <View accessibilityLabel="Your rituals"><Section title="Your rituals" /><RitualGrid rituals={active} known={homeState.known} outcomes={outcomes} now={chainNow} onOpen={onOpen} onPromise={goPromise} styles={styles} /></View>}
+    {finished.length > 0 && <View style={styles.finished}>
+      <Pressable onPress={() => setFinishedExpanded((expanded) => !expanded)} accessibilityRole="button" accessibilityLabel={`Finished · ${finished.length}`} accessibilityState={{ expanded: finishedExpanded }} style={styles.finishedToggle}>
+        <Text style={styles.finishedTitle}>Finished · {finished.length}</Text>
+        <Icon source={finishedExpanded ? 'chevron-up' : 'chevron-down'} color={colors.muted} size={24} />
+      </Pressable>
+      {finishedExpanded && <RitualGrid rituals={finished} known={homeState.known} outcomes={outcomes} now={chainNow} onOpen={onOpen} muted styles={styles} />}
+    </View>}
     {SCOPE.seasons && <SeasonsSection season={homeState.season} status={homeState.seasonStatus} onRetry={load} onOpen={() => {
       if (DEMO_SEASON.address !== null) navigation.navigate('Season', { seasonAddress: DEMO_SEASON.address.toBase58() })
     }} styles={styles} />}
@@ -150,19 +161,16 @@ function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => 
   </View>
 }
 
-function ActiveRituals({ rituals, known, outcomes, now, onOpen, onPromise, styles }: { rituals: readonly HomeRitual[]; known: readonly KnownRitual[]; outcomes: WeekOutcomes; now: number | null; onOpen: (ritual: HomeRitual) => void; onPromise: () => void; styles: ReturnType<typeof makeStyles> }) {
+function RitualGrid({ rituals, known, outcomes, now, onOpen, onPromise, muted = false, styles }: { rituals: readonly HomeRitual[]; known: readonly KnownRitual[]; outcomes: WeekOutcomes; now: number | null; onOpen: (ritual: HomeRitual) => void; onPromise?: () => void; muted?: boolean; styles: ReturnType<typeof makeStyles> }) {
   // Two columns, about four tiles a screen; each ritual in its own colour.
   const { width } = useWindowDimensions()
   const tileWidth = Math.floor((width - space.screen * 2 - space.md) / 2)
-  return <View accessibilityLabel="Your rituals">
-    <Section title="Your rituals" />
-    <View style={styles.grid}>
-      {rituals.map((ritual) => <RitualTile key={ritual.id} ritual={ritual} known={known} outcomes={outcomes.get(ritual.address)} now={now} width={tileWidth} onPress={() => onOpen(ritual)} styles={styles} />)}
-      <Pressable onPress={onPromise} accessibilityRole="button" accessibilityLabel="Start another ritual" style={({ pressed }) => [styles.newTile, { width: tileWidth }, pressed && styles.tilePressed]}>
-        <Text style={styles.newPlus}>+</Text>
-        <Text style={styles.newText}>New ritual</Text>
-      </Pressable>
-    </View>
+  return <View style={styles.grid}>
+    {rituals.map((ritual) => <RitualTile key={ritual.id} ritual={ritual} known={known} outcomes={outcomes.get(ritual.address)} now={now} width={tileWidth} onPress={() => onOpen(ritual)} muted={muted} styles={styles} />)}
+    {onPromise && <Pressable onPress={onPromise} accessibilityRole="button" accessibilityLabel="Start another ritual" style={({ pressed }) => [styles.newTile, { width: tileWidth }, pressed && styles.tilePressed]}>
+      <Text style={styles.newPlus}>+</Text>
+      <Text style={styles.newText}>New ritual</Text>
+    </Pressable>}
   </View>
 }
 
@@ -185,31 +193,27 @@ function seasonCountLine(season: SeasonAccountView): string {
   return `${seasonParticipantLine(season.participantCount)} · ${current.count} checked in this week`
 }
 
-function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { ritual: HomeRitual; known: readonly KnownRitual[]; outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined; now: number | null; width: number; onPress: () => void; styles: ReturnType<typeof makeStyles> }) {
+function RitualTile({ ritual, known, outcomes, now, width, onPress, muted, styles }: { ritual: HomeRitual; known: readonly KnownRitual[]; outcomes: ReadonlyMap<number, SoloWeekOutcome> | undefined; now: number | null; width: number; onPress: () => void; muted: boolean; styles: ReturnType<typeof makeStyles> }) {
   const account = ritual.bundle.ritual.account
+  const moneyLine = tileMoneyLine(account, outcomes)
   const tint = ritualTintAmong(ritual.address, known)
   const cells: WeekCell[] = account.kind === 'Solo'
     ? soloHomeCells(account, outcomes, now)
     : weekCells(account.status, account.schedule.length, account.currentEventIndex, account.settledEventCount)
-  // The solo creator is the only member, so the model can tell "stamped".
-  const model = account.kind === 'Solo' && now !== null ? soloRitualModel(ritual.bundle, now, account.members[0] ?? null) : null
-  const status = account.kind === 'Solo'
-    ? model && now !== null ? tileStatus(model, laterWeekOpenAt(account.schedule, account.currentEventIndex, now)) : { text: 'Checking time…', act: false }
-    : { text: statusLabel(account.status), act: false }
-  const closingLine = model && now !== null && !laterWeekOpenAt(account.schedule, account.currentEventIndex, now) ? stampedWeekClosingLabel(model, now) : null
+  const { status, closingLine } = homeTilePresentation(ritual.bundle, now)
   return <Pressable
     onPress={onPress}
     accessibilityRole="button"
-    accessibilityLabel={`${ritual.title}. ${status.text}. ${closingLine ?? weekSummary(cells)}. ${formatAtomic(account.perEventAllocation, account.stakeDecimals)} a week.`}
-    style={({ pressed }) => [styles.tile, { width, backgroundColor: tint }, pressed && styles.tilePressed]}
+    accessibilityLabel={`${ritual.title}. ${status.text}. ${closingLine ?? weekSummary(cells)}. ${moneyLine}.`}
+    style={({ pressed }) => [styles.tile, { width, backgroundColor: tint }, pressed && styles.tilePressed, muted && styles.tileFinished]}
   >
     <View style={styles.tileOrb} />
     <View style={styles.tileHead}>
-      <Text style={styles.tileStake}>{formatAtomic(account.perEventAllocation, account.stakeDecimals)} / wk</Text>
+      <Text style={styles.tileStake}>{moneyLine}</Text>
       <Text style={styles.tileTitle} numberOfLines={3}>{ritual.title}</Text>
     </View>
     <View style={styles.tileFoot}>
-      <WeekStrip cells={cells} tint={tint} compact summaryLabel={closingLine ?? undefined} />
+      <WeekStrip cells={cells} tint={tint} compact summary={closingLine !== null} summaryLabel={closingLine ?? undefined} />
       <View style={[styles.tilePill, status.act && styles.tilePillAct]}><Text style={[styles.tilePillText, status.act && styles.tilePillActText]} numberOfLines={1}>{status.text}</Text></View>
     </View>
   </Pressable>
@@ -237,7 +241,11 @@ const makeStyles = (theme: MD3Theme, color: Palette) => StyleSheet.create({
   wordmark: { ...type.display, color: color.fg, includeFontPadding: false },
   tagline: { ...type.body, color: color.muted, marginTop: space.xs },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  finished: { marginTop: space.lg },
+  finishedToggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm },
+  finishedTitle: { ...type.section, color: color.muted },
   tile: { minHeight: 196, borderRadius: radius.lg, padding: space.lg, overflow: 'hidden', justifyContent: 'space-between' },
+  tileFinished: { opacity: 0.82 },
   tilePressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   tileOrb: { position: 'absolute', right: -40, top: -40, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.14)' },
   tileHead: { gap: space.xs },
