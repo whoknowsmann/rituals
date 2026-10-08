@@ -11,6 +11,7 @@ import { useAuthorization } from '../../utils/useAuthorization'
 import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatchAlert'
 import { useDevnetFaucet } from '../../features/rituals/faucet/useDevnetFaucet'
 import { faucetLine } from '../../features/rituals/faucet/devnetFaucet'
+import { readTestTokenBalance } from '../../features/rituals/faucet/testTokenBalance'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { readChainTime } from '../../features/rituals/chainTime'
 import { useChainTime } from '../../features/rituals/useChainTime'
@@ -206,11 +207,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     let active = true
     void client.client.getProtocolConfig().then(async (config) => {
       if (active) { try { setLiveFeeConfig(feeConfigFromProtocol(config.account, RITUAL_FEE_CONFIG.tokenDecimals)) } catch { /* keep the constant */ } }
-      const ata = getAssociatedTokenAddressSync(config.account.allowedStakeMint, selectedAccount.publicKey)
-      const balance = await connection.getTokenAccountBalance(ata, 'confirmed').then((read) => BigInt(read.value.amount)).catch((error: unknown) => {
-        if (String((error as Error)?.message ?? error).toLowerCase().includes('could not find account')) return 0n
-        throw error
-      })
+      const balance = await readTestTokenBalance(connection, config.account.allowedStakeMint, selectedAccount.publicKey)
       if (active) setTestBalance(balance)
     }).catch(() => { if (active) setTestBalance(null) }) // unknown: never block on a failed read
     return () => { active = false }

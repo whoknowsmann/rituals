@@ -1,16 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { ActivityIndicator, Button, Icon, Text, useTheme, type MD3Theme } from 'react-native-paper'
-import { useIsFocused, useNavigation } from '@react-navigation/native'
+import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigators/AppNavigator'
 import { ActionButton, Footnote, Section, WeekStrip, weekSummary, type WeekCell } from '../components/crew'
-import { useRitualClient } from '../features/rituals/client/useRitualClient'
+import { useRitualClient, type RitualClientState } from '../features/rituals/client/useRitualClient'
+import { useDevnetFaucet } from '../features/rituals/faucet/useDevnetFaucet'
+import { faucetLine } from '../features/rituals/faucet/devnetFaucet'
+import { readTestTokenBalance } from '../features/rituals/faucet/testTokenBalance'
+import { homePrimaryAction } from '../features/rituals/home/homeFaucet'
 import { listKnownRituals, loadKnownRitualBundles, type KnownRitual } from '../features/rituals/authoritativeRituals'
 import { ritualTintAmong } from '../features/rituals/home/ritualColours'
 import { homeCreateTarget } from '../features/rituals/create/routeHelpers'
 import { homeRitualTarget } from '../features/rituals/home/homeViewModel'
 import { useConnection } from '../utils/ConnectionProvider'
+import { useAuthorization } from '../utils/useAuthorization'
 import { useChainTime } from '../features/rituals/useChainTime'
 import { usePendingRitualRecovery } from '../features/rituals/recovery/usePendingRitualRecovery'
 import { DEMO_SEASON } from '../data/rituals/demoConfig'
@@ -24,7 +29,7 @@ import { readSoloWeekOutcomes, soloHomeCells, type SoloWeekOutcome } from '../fe
 import { tileMoneyLine } from '../features/rituals/home/tileMoney'
 import { homeSections, homeTilePresentation } from '../features/rituals/home/homeSections'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
-import { PublicKey } from '@solana/web3.js'
+import { PublicKey, type Connection } from '@solana/web3.js'
 import { radius, space, type, useColors, type Palette } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
@@ -50,6 +55,7 @@ export function RitualsHomeScreen() {
   const styles = useMemo(() => makeStyles(theme, colors), [theme, colors])
   const client = useRitualClient()
   const { connection } = useConnection()
+  const { selectedAccount } = useAuthorization()
   const [homeState, setHomeState] = useState<HomeState>(initialState)
   const [finishedExpanded, setFinishedExpanded] = useState(false)
   // Kept / missed per closed week, read in one batch after the cards render.
@@ -133,7 +139,7 @@ export function RitualsHomeScreen() {
     <View style={styles.hero}><Text style={styles.wordmark} accessibilityRole="header">Rituals</Text><Text style={styles.tagline}>Show up, or pay up.</Text></View>
     {recovery && <Text style={styles.muted} accessibilityLiveRegion="polite">{recovery.body}</Text>}
     {active.length === 0
-      ? <EmptySolo onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
+      ? <EmptySolo key={selectedAccount?.publicKey.toBase58() ?? 'disconnected'} wallet={selectedAccount?.publicKey ?? null} client={client} connection={connection} onPromise={goPromise} onFriends={goFriends} onJoin={goJoin} styles={styles} />
       : <View accessibilityLabel="Your rituals"><Section title="Your rituals" /><RitualGrid rituals={active} known={homeState.known} outcomes={outcomes} now={chainNow} onOpen={onOpen} onPromise={goPromise} styles={styles} /></View>}
     {finished.length > 0 && <View style={styles.finished}>
       <Pressable onPress={() => setFinishedExpanded((expanded) => !expanded)} accessibilityRole="button" accessibilityLabel={`Finished · ${finished.length}`} accessibilityState={{ expanded: finishedExpanded }} style={styles.finishedToggle}>
@@ -150,11 +156,31 @@ export function RitualsHomeScreen() {
   </ScrollView>
 }
 
-function EmptySolo({ onPromise, onFriends, onJoin, styles }: { onPromise: () => void; onFriends: () => void; onJoin: () => void; styles: ReturnType<typeof makeStyles> }) {
+function EmptySolo({ wallet, client, connection, onPromise, onFriends, onJoin, styles }: { wallet: PublicKey | null; client: RitualClientState; connection: Connection; onPromise: () => void; onFriends: () => void; onJoin: () => void; styles: ReturnType<typeof makeStyles> }) {
+  // Mounted only without active rituals; the wallet key isolates balances and faucet results.
+  const [testBalance, setTestBalance] = useState<bigint | null>(null)
+  const [balanceTick, setBalanceTick] = useState(0)
+  const onFaucetSent = useCallback(() => setBalanceTick((value) => value + 1), [])
+  const faucet = useDevnetFaucet(wallet?.toBase58() ?? null, onFaucetSent)
+  useFocusEffect(useCallback(() => {
+    setTestBalance(null)
+    if (!wallet || client.status !== 'ready') return
+    let active = true
+    void client.client.getProtocolConfig()
+      .then((config) => readTestTokenBalance(connection, config.account.allowedStakeMint, wallet))
+      .then((balance) => { if (active) setTestBalance(balance) })
+      .catch(() => { if (active) setTestBalance(null) })
+    return () => { active = false }
+  }, [client, connection, wallet, balanceTick]))
+  const faucetPrimary = homePrimaryAction({ connected: wallet !== null, hasActiveRituals: false, testBalance, faucetResult: faucet.result }) === 'faucet'
   return <View style={styles.empty}>
     <Text style={styles.emptyTitle}>Start a ritual?</Text>
     <View style={styles.actions}>
-      <ActionButton label="Start one" onPress={onPromise} />
+      {faucetPrimary
+        ? <ActionButton label="Get test tokens" onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} />
+        : <ActionButton label="Start one" onPress={onPromise} />}
+      {faucet.status === 'done' && faucet.result && <Text style={styles.muted} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
+      {faucetPrimary && faucet.status === 'done' && <ActionButton tone="link" label="Start one" onPress={onPromise} />}
       {SCOPE.homeFriends && <ActionButton tone="quiet" label="With friends" onPress={onFriends} />}
       {SCOPE.homeJoin && <ActionButton tone="quiet" label="Join with a link" onPress={onJoin} />}
     </View>

@@ -5,6 +5,33 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'RitualsHomeScreen.tsx'), 'utf8')
 
 describe('RitualsHomeScreen safety and accessibility structure', () => {
+  it('reuses the faucet hook only in the empty state, with the same primary style and quiet result/fallback', () => {
+    expect(source).toContain("import { useDevnetFaucet } from '../features/rituals/faucet/useDevnetFaucet'")
+    expect(source).toMatch(/active.length === 0\s*\? <EmptySolo/)
+    const empty = source.slice(source.indexOf('function EmptySolo('), source.indexOf('function RitualGrid('))
+    expect(empty).toContain('useDevnetFaucet(wallet?.toBase58() ?? null, onFaucetSent)')
+    expect(empty).toContain("homePrimaryAction({ connected: wallet !== null, hasActiveRituals: false, testBalance, faucetResult: faucet.result }) === 'faucet'")
+    expect(empty).toContain('? <ActionButton label="Get test tokens" onPress={faucet.request} disabled={faucet.status === \'requesting\'} loading={faucet.status === \'requesting\'} />')
+    expect(empty).toContain(': <ActionButton label="Start one" onPress={onPromise} />')
+    expect(empty).toContain('<Text style={styles.muted} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>')
+    expect(empty).toContain('{faucetPrimary && faucet.status === \'done\' && <ActionButton tone="link" label="Start one" onPress={onPromise} />}')
+    expect(empty).toContain('<Text style={styles.emptyTitle}>Start a ritual?</Text>')
+  })
+
+  it('shares the create balance reader, refreshes after sending, and discards stale wallet/focus reads', () => {
+    const create = readFileSync(resolve(__dirname, 'solo/SoloCreateScreen.tsx'), 'utf8')
+    expect(create).toContain('readTestTokenBalance(connection, config.account.allowedStakeMint, selectedAccount.publicKey)')
+    expect(source).toContain('readTestTokenBalance(connection, config.account.allowedStakeMint, wallet)')
+    expect(source).toContain("key={selectedAccount?.publicKey.toBase58() ?? 'disconnected'}")
+    expect(source).toContain('const onFaucetSent = useCallback(() => setBalanceTick((value) => value + 1), [])')
+    expect(source).toMatch(/useFocusEffect\(useCallback\(\(\) => \{\s*setTestBalance\(null\)/)
+    expect(source).toContain("if (!wallet || client.status !== 'ready') return")
+    expect(source).toContain('.then((balance) => { if (active) setTestBalance(balance) })')
+    expect(source).toContain('.catch(() => { if (active) setTestBalance(null) })')
+    expect(source).toContain('return () => { active = false }')
+    expect(source).toContain('[client, connection, wallet, balanceTick]))')
+  })
+
   it('drops coming soon and gives stamped tiles a closing-time summary', () => {
     expect(source).not.toContain('COMING_SOON_LINE')
     const presentation = readFileSync(resolve(__dirname, '../features/rituals/home/homeSections.ts'), 'utf8')
