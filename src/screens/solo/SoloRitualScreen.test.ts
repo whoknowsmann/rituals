@@ -5,6 +5,16 @@ import { resolve } from 'node:path'
 const source = readFileSync(resolve(__dirname, 'SoloRitualScreen.tsx'), 'utf8')
 
 describe('SoloRitualScreen proof and witness controls', () => {
+  it('keeps last week\'s settled MISSED paper only in the missed gap and on Finished', () => {
+    const papers = source.split('\n').filter((line) => line.includes('<Stamp kind="missed"'))
+    expect(papers).toHaveLength(3)
+    expect(papers[0]).toContain("model.lastClosedOutcome === 'missed' && model.state === 'completed'")
+    expect(papers[1]).toContain('missedWeekOnScreen(model, stampPending) !== null')
+    expect(papers[1]).not.toContain('went to') // current week has not settled yet
+    expect(papers[2]).toContain("if (model.state === 'missed')")
+    expect(papers[2]).toContain('{amountLabel} went to {model.destinationLabel}.')
+    expect(source).toContain('onClosedWeekPress={(eventIndex) => navigation.navigate(\'SoloReceipt\'')
+  })
   it('uses links for minor ritual controls, retaining bordered retry and settlement controls', () => {
     expect(source).toContain('tone="link" label={`Reminders: ${ritualRemindersOn ? \'on\' : \'off\'}`} onPress={toggleRitualReminders}')
     expect(source).toContain('tone="link" label={`See week ${model.lastClosedEventIndex + 1} receipt`}')
@@ -128,8 +138,8 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('<WeekStrip cells={punchCardCells(model.weekCells, model.showedUp, keptWeek)}')
     expect(source).toContain('`Week ${titleWeekIndex(model, keptWeek, readyBundle.ritual.account.skipDeclared ? readyBundle.ritual.account.skipEventIndex : null) + 1}`')
     expect(source.match(/\{nextLine && <Text style=\{s\.muted\}>\{nextLine\}<\/Text>\}/g)).toHaveLength(1)
-    // Last week's MISSED paper gives way to this week's stamp.
-    expect(source).toContain("model.state !== 'missed' && keptWeek === null && !ended && <View style={s.paper}")
+    // Last week's MISSED paper gives way as soon as this week's HOLD opens, not only after its stamp.
+    expect(source).toContain("model.lastClosedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper}")
   })
 
   it('keeps the one declared skip available while valid, as a quiet link that names its week (Jack, 2026-10-07)', () => {

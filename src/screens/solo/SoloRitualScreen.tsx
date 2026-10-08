@@ -319,7 +319,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       )}
       {renderState(model, witness, action, actionCopy, weekNote, stampPending, celebrate > 0 && model.showedUp, keptSaying(route.params.ritualId, keptWeek ?? model.eventIndex), amountLabel, keptWeek)}
       {nextLine && <Text style={s.muted}>{nextLine}</Text>}
-      {model.lastClosedOutcome === 'missed' && model.state !== 'missed' && keptWeek === null && !ended && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>}
+      {model.lastClosedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
