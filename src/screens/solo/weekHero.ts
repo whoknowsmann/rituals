@@ -31,6 +31,12 @@ export function stampHoldState(model: Pick<SoloRitualModel, 'state' | 'showedUp'
   return model.state === 'claimable' || model.state === 'open-not-initialized' ? 'open' : 'hidden'
 }
 
+/** Demo copy belongs only to the initial lead or an open week still needing a stamp. */
+export function showDemoSpeedNotice(model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel' | 'demoSpeedNotice'>, stampPending: boolean): boolean {
+  const hold = stampHoldState(model, stampPending)
+  return model.demoSpeedNotice !== null && (hold === 'open' || (hold === 'waiting' && model.eventIndex === 0))
+}
+
 /** The deadline decides an unstamped week, but never overrules a stamp still being read. */
 export function missedWeekOnScreen(model: Pick<SoloRitualModel, 'state' | 'eventIndex' | 'showedUp' | 'weekSkipped'>, stampPending: boolean): number | null {
   if (stampPending || model.showedUp || model.weekSkipped) return null

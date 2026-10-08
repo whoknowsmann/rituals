@@ -22,8 +22,8 @@ describe('weeks toggle wiring', () => {
     for (const option of SOLO_SPEEDS) for (const heading of headings) expect(heading.toLowerCase()).not.toContain(option.label.toLowerCase())
   })
 
-  it('the ritual screen shows the demo-speed line from the view model in muted text, above every state card', () => {
-    expect(ritual).toContain("{model.demoSpeedNotice && model.state !== 'completed' && !ended && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}")
+  it('the ritual screen gates the unchanged muted demo-speed line to the lead and open unstamped weeks', () => {
+    expect(ritual).toContain('{showDemoSpeedNotice(model, stampPending) && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}')
     expect(create.indexOf("speed === 'demo' && <Text style={styles.quiet}>{DEMO_CLOCK_WARNING}")).toBeLessThan(create.indexOf("label={create.isBusy ? 'Locking in…'"))
     expect(ritual.indexOf('model.demoSpeedNotice')).toBeLessThan(ritual.indexOf('{renderState(model'))
   })

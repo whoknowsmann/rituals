@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../data/rituals/ritualsRpc'
 import { soloRitualModel, type SoloRitualBundle } from '../../features/rituals/solo/lifecycle/soloRitualModel'
 import { weekCellLabel, weekSummary } from '../../components/crew/weekStripLogic'
-import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, stampHoldState, titleWeekIndex } from './weekHero'
+import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, showDemoSpeedNotice, stampHoldState, titleWeekIndex } from './weekHero'
 
 // Demo speed, two weeks: 45 s to stamp, 10 s grace, the next week 5 s later.
 const me = new PublicKey(new Uint8Array(32).fill(7))
@@ -37,6 +37,27 @@ const screen = (bundle: SoloRitualBundle, now: number, seen: number | null = nul
 }
 
 describe('ritual screen after a stamp (demo speed)', () => {
+  it('shows the unchanged demo notice only in the lead and open unstamped weeks', () => {
+    const lead = soloRitualModel(read({}, null, []), 990, me)
+    expect(lead.demoSpeedNotice).toBe('Demo speed: a week here is 1 minute.')
+    expect(showDemoSpeedNotice(lead, false)).toBe(true)
+    expect(showDemoSpeedNotice(soloRitualModel(read({}, null, []), 1020, me), false)).toBe(true)
+    const later = read({ currentEventIndex: 1, settledEventCount: 1 }, null, [], [missedWeek1])
+    expect(showDemoSpeedNotice(soloRitualModel(later, 1060, me), false)).toBe(true)
+    for (const model of [
+      soloRitualModel(later, 1057, me),
+      soloRitualModel(read({ currentEventIndex: 1, settledEventCount: 1 }, null, [], [keptWeek1]), 1057, me),
+      soloRitualModel(read({}, event(0), [stamped]), 1020, me),
+      soloRitualModel(read({}, null, []), 1046, me),
+      soloRitualModel(read({}, null, []), 1056, me),
+      soloRitualModel(read({ skipDeclared: true, skipEventIndex: 0 }, null, []), 990, me),
+      soloRitualModel(read({ status: 'Completed' }, null, []), 1117, me),
+      soloRitualModel(read({ status: 'Ended' }, null, []), 990, me),
+      { ...lead, demoSpeedNotice: null },
+    ]) expect(showDemoSpeedNotice(model, false)).toBe(false)
+    expect(showDemoSpeedNotice(lead, true)).toBe(false)
+  })
+
   it('previews a disabled HOLD in the lead and gaps, and enables it only for an open unstamped week', () => {
     const lead = soloRitualModel(read({}, null, []), 955, me)
     expect(stampHoldState(lead, false)).toBe('waiting')

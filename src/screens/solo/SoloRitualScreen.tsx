@@ -39,7 +39,7 @@ import { buildSoloSkipDeps } from '../../features/rituals/solo/lifecycle/soloAct
 import { useSoloRitualBundle } from '../../features/rituals/solo/lifecycle/useSoloRitualBundle'
 import { useSoloDestinationOwner } from '../../features/rituals/solo/lifecycle/useSoloDestinationOwner'
 import { confirmedStampAdvanced, confirmedStampNotYetRead, soloActionLanded, type SoloActionTarget } from '../../features/rituals/solo/lifecycle/actionReadback'
-import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, stampHoldState, titleWeekIndex } from './weekHero'
+import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, showDemoSpeedNotice, stampHoldState, titleWeekIndex } from './weekHero'
 
 type Props = { route: { params: { ritualId: string } } }
 
@@ -307,7 +307,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
         <WeekStrip cells={punchCardCells(model.weekCells, model.showedUp, keptWeek)} tint={tint} onClosedWeekPress={(eventIndex) => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex })} />
         <PosterLine label="Stake per week" value={amountLabel} />
       </Poster>
-      {model.demoSpeedNotice && model.state !== 'completed' && !ended && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}
+      {showDemoSpeedNotice(model, stampPending) && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>}
       {!readyForWallet && !ended && <Text style={s.muted}>Connect the wallet that created this ritual to stamp it.</Text>}
       {canShareWitness && witness && (
         <View style={s.witnessCard}>
