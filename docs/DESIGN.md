@@ -67,6 +67,8 @@ Screen padding 18. Sticky primary actions live in a dark bottom **dock**.
 - `Poster` — coloured hero card: kicker (uppercase, 12/800), Fraunces title,
   week strip, one money line.
 - `WeekStrip` — N rounded cells; done = white with ✓, now = dashed, future = dim.
+  Compact tiles: kept = white dot, missed = white ✕, upcoming = hollow,
+  current = stronger ring, skipped = hollow with −, unread closed = neutral dark mark.
 - `MemberTile` — colour square + initial; optional ✓ badge.
 - `Chip` — pill; `ok` variant uses go.
 - `Dock` — dark sticky bar with a one-line prompt and one action.

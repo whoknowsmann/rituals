@@ -7,7 +7,7 @@ import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewS
 import * as Haptics from 'expo-haptics'
 import { color, memberColor, radius, space, type, themedStyles, useColors } from '../../theme'
 import { HoldButton } from './HoldButton'
-import { isClosedWeekCell, isKeptWeekCell, weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
+import { compactWeekMark, isClosedWeekCell, isKeptWeekCell, weekCellAccessibilityLabel, weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
 
 export { HoldButton }
 export { Confetti } from './Confetti'
@@ -79,7 +79,9 @@ export function WeekStrip({ cells, tint, compact = false, summary = true, summar
       <View style={[s.strip, compact && s.stripCompact]}>
         {cells.map((cell, i) => {
           const kept = isKeptWeekCell(cell)
-          if (compact) return <View key={i} style={[s.dot, kept && s.dotDone, (cell === 'now' || cell === 'current') && s.dotNow, (cell === 'missed' || cell === 'closed') && s.dotMissed]} />
+          if (compact) return <View key={i} accessible accessibilityLabel={weekCellAccessibilityLabel(cell, i)} style={[s.dot, kept && s.dotDone, (cell === 'now' || cell === 'current' || cell === 'skip-pending') && s.dotNow, cell === 'closed' && s.dotClosed, cell === 'missed' && s.dotMissed]}>
+            {compactWeekMark(cell) && <Text style={s.dotMark}>{compactWeekMark(cell)}</Text>}
+          </View>
           const cellStyle = [s.cell, kept && s.cellDone, (cell === 'now' || cell === 'current') && s.cellNow, (cell === 'missed' || cell === 'closed') && s.cellMissed]
           const label = <Text style={[s.cellText, kept && { color: tint }, (cell === 'now' || cell === 'current') && s.cellNowText]}>{weekCellLabel(cell, i)}</Text>
           return onClosedWeekPress && isClosedWeekCell(cell)
@@ -230,10 +232,12 @@ const useS = themedStyles((color) => StyleSheet.create({
   cellMissed: { backgroundColor: 'rgba(0,0,0,0.28)' },
   cellText: { ...type.caption, fontFamily: type.heading.fontFamily, color: color.white },
   stripCompact: { gap: 5, flexWrap: 'wrap' },
-  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: color.scrim, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' },
+  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)', alignItems: 'center', justifyContent: 'center' },
   dotDone: { backgroundColor: color.white, borderColor: color.white },
   dotNow: { backgroundColor: 'transparent', borderColor: color.white, borderWidth: 2.5 },
-  dotMissed: { backgroundColor: 'rgba(0,0,0,0.35)', borderColor: 'transparent' },
+  dotClosed: { backgroundColor: 'rgba(0,0,0,0.35)', borderColor: 'transparent' },
+  dotMissed: { borderWidth: 0 },
+  dotMark: { fontFamily: type.bodyStrong.fontFamily, fontSize: 11, lineHeight: 12, includeFontPadding: false, color: color.white, opacity: 0.8 },
   stripSummary: { ...type.caption, fontFamily: type.bodyStrong.fontFamily, color: color.white, opacity: 0.95, marginTop: space.sm },
   stripSummaryCompact: { marginTop: space.xs },
 

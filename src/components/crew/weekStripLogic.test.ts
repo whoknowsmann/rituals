@@ -1,8 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { isClosedWeekCell, weekCellLabel, weekSummary, weekSummaryShort } from './weekStripLogic'
+import { compactWeekMark, isClosedWeekCell, weekCellAccessibilityLabel, weekCellLabel, weekSummary, weekSummaryShort, type WeekCell } from './weekStripLogic'
 
 describe('punch card (week strip)', () => {
+  it('distinguishes compact misses, skips, unknown results and upcoming weeks', () => {
+    const cells: WeekCell[] = ['done', 'missed', 'future', 'current', 'closed', 'skipped', 'skip-pending']
+    expect(cells.map(compactWeekMark)).toEqual([null, '✕', null, null, null, '−', '−'])
+    expect(cells.map(weekCellAccessibilityLabel)).toEqual(['Week 1 kept', 'Week 2 missed', 'Week 3 upcoming', 'Week 4 current', 'Week 5 result pending', 'Week 6 skipped', 'Week 7 skip declared'])
+    expect(isClosedWeekCell('skipped')).toBe(true)
+    expect(isClosedWeekCell('skip-pending')).toBe(false)
+    expect(weekSummary(['skipped', 'skip-pending', 'future'])).toBe('Week 2 of 3')
+    const kit = readFileSync(`${__dirname}/index.tsx`, 'utf8')
+    expect(kit).toContain('accessibilityLabel={weekCellAccessibilityLabel(cell, i)}')
+    expect(kit).toContain("cell === 'closed' && s.dotClosed")
+    expect(kit).toContain('dotMissed: { borderWidth: 0 }')
+    expect(kit.match(/\n  dot: .*/)?.[0]).toContain("backgroundColor: 'transparent'")
+    expect(kit.match(/\n  dotMark: .*/)?.[0]).toContain('opacity: 0.8')
+  })
   it('offers receipts for every closed outcome, never current or future weeks', () => {
     expect(['done', 'missed', 'closed', 'now', 'current', 'future'].map((cell) => isClosedWeekCell(cell as never))).toEqual([true, true, true, false, false, false])
     const kit = readFileSync(`${__dirname}/index.tsx`, 'utf8')

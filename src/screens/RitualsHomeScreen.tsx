@@ -20,7 +20,7 @@ import { seasonStatusForError } from '../features/rituals/solo/season/seasonStat
 import { seasonCountForNow, seasonParticipantLine } from '../features/rituals/solo/season/seasonViewModel'
 import { SeasonCard } from '../features/rituals/solo/season/SeasonCard'
 import { SCOPE } from '../features/rituals/productScope'
-import { readSoloWeekOutcomes, soloHomeCells } from '../features/rituals/home/soloHistory'
+import { readSoloWeekOutcomes, soloHomeCells, type SoloWeekOutcome } from '../features/rituals/home/soloHistory'
 import { laterWeekOpenAt, stampedWeekClosingLabel, tileStatus } from '../features/rituals/home/tileStatus'
 import { soloRitualModel } from '../features/rituals/solo/lifecycle/soloRitualModel'
 import { withReadRetry } from '../features/rituals/client/resilientRead'
@@ -29,7 +29,7 @@ import { radius, space, type, useColors, type Palette } from '../theme'
 
 type LoadedRitual = KnownRitual & { bundle: Awaited<ReturnType<typeof loadKnownRitualBundles>>[number]['bundle'] }
 type HomeRitual = LoadedRitual & { id: string }
-type WeekOutcomes = ReadonlyMap<string, ReadonlyMap<number, 'done' | 'missed'>>
+type WeekOutcomes = ReadonlyMap<string, ReadonlyMap<number, SoloWeekOutcome>>
 
 type HomeState = Readonly<{
   status: 'loading' | 'ready' | 'error'
@@ -185,7 +185,7 @@ function seasonCountLine(season: SeasonAccountView): string {
   return `${seasonParticipantLine(season.participantCount)} · ${current.count} checked in this week`
 }
 
-function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { ritual: HomeRitual; known: readonly KnownRitual[]; outcomes: ReadonlyMap<number, 'done' | 'missed'> | undefined; now: number | null; width: number; onPress: () => void; styles: ReturnType<typeof makeStyles> }) {
+function RitualTile({ ritual, known, outcomes, now, width, onPress, styles }: { ritual: HomeRitual; known: readonly KnownRitual[]; outcomes: ReadonlyMap<number, SoloWeekOutcome> | undefined; now: number | null; width: number; onPress: () => void; styles: ReturnType<typeof makeStyles> }) {
   const account = ritual.bundle.ritual.account
   const tint = ritualTintAmong(ritual.address, known)
   const cells: WeekCell[] = account.kind === 'Solo'
