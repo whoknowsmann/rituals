@@ -197,7 +197,7 @@ value) · mainnet stablecoin after legal and security review.
 ## Hackathon
 
 CLOCK IN — the Solana Mobile Hackathon with RadiantsDAO. Submissions close
-Oct 9, 2026 06:59 UTC (Thu night CDT; we submit **Thu Oct 8 ~6 pm CDT**). Required: a functional Android
+Mon Oct 12, 2026, 6:59 AM CDT (extended; organizer Event Info, seen 10-08). Judging Oct 12–Nov 9; winners announced Nov 10. Required: a functional Android
 APK, the GitHub repository, a demo video, a pitch deck. Judged on: stickiness
 and product-market fit · user experience · innovation · presentation and demo.
 Winners publish on the Solana dApp Store. (SKR integration is optional and a

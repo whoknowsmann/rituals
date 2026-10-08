@@ -10,8 +10,7 @@ pushed; tsc clean; **2,385 tests / 137 files** green. Phone (Seeker) has **d26**
 missed on screen → 10 tSKR landed in the chosen wallet (smoke owner
 `fT9X…Jgo1`, ATA `EKe5…A1R9`: 9.125 → 19.125). Faucet health 200
 (1.897 SOL / 4,900 tSKR, 34 claims).
-Deadline: **2026-10-09 06:59 UTC** (Fri 01:59 CDT) · **target: submit Thu Oct 8
-~6 pm CDT**. Repo **private** until Jack flips it (public cron `cd4e3bd1e174`
+Deadline: **EXTENDED — Mon Oct 12, 2026, 6:59 AM CDT** (organizer site Event Info, seen 10-08 10:30; was Oct 8 23:59 PT). Judging Oct 12–Nov 9, winners Nov 10. Repo **private** until Jack flips it (public cron `cd4e3bd1e174`
 paused); fast-forward `main` + history scan right before. License **MIT**.
 
 ### START HERE (2026-10-06)
