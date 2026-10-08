@@ -319,7 +319,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
       )}
       {renderState(model, witness, action, actionCopy, weekNote, stampPending, celebrate > 0 && model.showedUp, keptSaying(route.params.ritualId, keptWeek ?? model.eventIndex), amountLabel, keptWeek)}
       {nextLine && <Text style={s.muted}>{nextLine}</Text>}
-      {model.lastClosedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>}
+      {model.lastClosedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>}
       {actionError && (action.copy.tone === 'neutral' ? <Text style={s.muted} accessibilityLiveRegion="polite">{actionError}</Text> : <ErrorLine>{actionError}</ErrorLine>)}
       {action.state.status === 'error' && action.canSubmit && <ActionButton tone="quiet" label="Try again" onPress={action.reset} />}
       {holdVisible && notesOfferedRef.current && <TextInput value={noteInput} onChangeText={setNoteInput} placeholder="A line about this week (optional)" placeholderTextColor={color.faint} maxLength={280} style={s.weekNoteInput} accessibilityLabel="Optional note about this week" />}
@@ -340,6 +340,9 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   )
 }
 
+// "That's a week, not a verdict." is for a week with more to come; the last week of a ritual gets no saying (Jack, 2026-10-08).
+const MISSED_NOTE = "That's a week, not a verdict."
+
 function renderState(model: SoloRitualModel, witness: PublicKey | null, action: ReturnType<typeof useRitualAction>, actionCopy: ReturnType<typeof withWalletHandoff>, weekNote: string | null, stampPending: boolean, freshStamp: boolean, keptLine: string, amountLabel: string, keptWeek: number | null) { const s = useS();
   // Handoff progress must also show before an event exists and while skipping.
   if (action.isBusy || stampPending) return <View style={s.card}><Text style={s.cardTitle}>{actionCopy.title}</Text>{actionCopy.body ? <Text style={s.muted}>{actionCopy.body}</Text> : null}</View>
@@ -351,8 +354,8 @@ function renderState(model: SoloRitualModel, witness: PublicKey | null, action: 
   if (model.state === 'open-not-initialized') return null
   if (model.state === 'awaiting-witness') return <View style={s.card}><Text style={s.cardTitle}>Waiting for {witness ? 'your witness' : 'a witness'}</Text><Text style={s.muted}>They decide whether you showed up.</Text></View>
   if (model.weekSkipped || model.state === 'skipped') return <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View>
-  if (missedWeekOnScreen(model, stampPending) !== null) return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /></View>
-  if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>
+  if (missedWeekOnScreen(model, stampPending) !== null) return <View style={s.paper}><Stamp kind="missed" note={missedWeekOnScreen(model, stampPending) === model.weekCells.length - 1 ? undefined : MISSED_NOTE} animate={false} /></View>
+  if (model.state === 'missed') return <View style={s.paper}><Stamp kind="missed" note={MISSED_NOTE} animate={false} /><Text style={s.muted}>{amountLabel} went to {model.destinationLabel}.</Text></View>
   if (model.state === 'completed' || model.state === 'ended') return null
   if (action.state.status === 'confirmed') return <View style={s.card}><Text style={s.cardTitle}>Reading your stamp…</Text></View>
   // An open week needs no card: the big HOLD button says it all.

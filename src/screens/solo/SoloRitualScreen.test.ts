@@ -30,7 +30,9 @@ describe('SoloRitualScreen proof and witness controls', () => {
   it('keeps finished copy to the per-week amount and missed consequence', () => {
     expect(source).toContain('label="Stake per week"')
     expect(source).toContain('{amountLabel} went to {model.destinationLabel}.')
-    expect(source).toContain('note="That\'s a week, not a verdict."')
+    expect(source).toContain('const MISSED_NOTE = "That\'s a week, not a verdict."')
+    // The last week of a ritual gets no saying (Jack, 2026-10-08).
+    expect(source).toContain('=== model.weekCells.length - 1 ? undefined : MISSED_NOTE')
     expect(source).toContain('showDemoSpeedNotice(model, stampPending) && <Text style={s.muted}>{model.demoSpeedNotice} Unstamped weeks are missed.</Text>')
     expect(source).not.toContain('Every week is settled.')
     expect(source).not.toContain("received that week's stake")

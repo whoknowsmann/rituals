@@ -39,7 +39,7 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
       <Text style={s.title} accessibilityRole="header">Week {route.params.eventIndex + 1}</Text>
       {receipt.state === 'pending' ? <View style={s.card}><Text style={s.cardTitle}>Not closed yet</Text><Text style={s.muted}>This week has not settled. Come back after the week closes.</Text></View> : null}
       {receipt.state === 'kept' ? <View style={s.card}><Stamp kind="kept" note={keptSaying(route.params.ritualId, route.params.eventIndex)} /><Text style={s.muted}>{formatAtomic(receipt.amount, decimals)} back to you</Text>{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}</View> : null}
-      {receipt.state === 'missed' ? <View style={s.card}><Stamp kind="missed" note="That's a week, not a verdict." animate={false} /><Text style={s.muted}>{formatAtomic(receipt.amount, decimals)} went to {receipt.destinationLabel}.</Text></View> : null}
+      {receipt.state === 'missed' ? <View style={s.card}><Stamp kind="missed" note={route.params.eventIndex + 1 < (state.status === 'ready' ? state.bundle.ritual.account.schedule.length : 0) ? "That's a week, not a verdict." : undefined} animate={false} /><Text style={s.muted}>{formatAtomic(receipt.amount, decimals)} went to {receipt.destinationLabel}.</Text></View> : null}
       {receipt.state === 'skipped' ? <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} /></View> : null}
       <ActionButton tone="link" label="Back to ritual" onPress={() => navigation.goBack()} />
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
