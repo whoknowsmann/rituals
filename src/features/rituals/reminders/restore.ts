@@ -42,3 +42,38 @@ export async function restoreRememberedReminders(client: Pick<RitualClient, 'get
   }
   return ok
 }
+
+export type WalletReminderPlan = Readonly<{ key: string; silence: readonly string[]; restore: readonly CreateReminderInput[] }>
+
+/**
+ * Reminders act only for the connected wallet, from a read the caller already
+ * holds (Home's), never a new one. Every other wallet's ritual, and every
+ * ritual while none is connected, is silenced but keeps its choice; the
+ * connected wallet's are rescheduled, which also drops weeks stamped, skipped
+ * or closed while their screen was not open. Restore keeps opt-outs and the
+ * master switch, and never asks for permission.
+ */
+export function walletReminderPlan(loaded: readonly (KnownRitual & { bundle: RitualBundleRead })[], wallet: PublicKey | null, nowSeconds: number): WalletReminderPlan {
+  const silence: string[] = []
+  const restore: CreateReminderInput[] = []
+  for (const item of loaded) {
+    if (!wallet || !item.bundle.ritual.account.creator.equals(wallet)) { silence.push(item.address); continue }
+    const input = reminderInputFromBundle(item, item.bundle, nowSeconds)
+    if (input) restore.push(input)
+  }
+  const key = JSON.stringify([wallet?.toBase58() ?? null, silence, restore.map((input) => [input.ritualAddress, input.stampedWeeks])])
+  return Object.freeze({ key, silence: Object.freeze(silence), restore: Object.freeze(restore) })
+}
+
+/** False when the wallet changed part-way; the next plan finishes the job. */
+export async function applyWalletReminderPlan(plan: WalletReminderPlan, mayContinue: () => boolean): Promise<boolean> {
+  for (const address of plan.silence) {
+    if (!mayContinue()) return false
+    await reminders.silence(address)
+  }
+  for (const input of plan.restore) {
+    if (!mayContinue()) return false
+    await reminders.restore(input, mayContinue)
+  }
+  return mayContinue()
+}

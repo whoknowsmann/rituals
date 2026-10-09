@@ -28,4 +28,13 @@ describe('wallet-local screen boundaries', () => {
     expect(receipt).toContain('if (!selectedAccount || !state.bundle.ritual.account.creator.equals(selectedAccount.publicKey)) return')
     expect(receipt.indexOf('if (!selectedAccount ||')).toBeLessThan(receipt.indexOf('const receiptNote ='))
   })
+  it('scopes phone reminders to the connected wallet from Home\'s own read, once the stored wallet has loaded', () => {
+    const home = screen('RitualsHomeScreen')
+    // Home is the stack root, so this also runs for a switch made in Settings or create, and on resume while Home is open.
+    const effect = home.slice(home.indexOf('// Reminders act only for the connected wallet'), home.indexOf('const disclosure ='))
+    expect(effect).toContain("if (homeState.status !== 'ready' || walletLoading) return")
+    expect(effect).toContain('walletReminderPlan(homeState.rituals, walletKey ? new PublicKey(walletKey) : null,')
+    expect(effect).toContain('applyWalletReminderPlan(plan, () => walletKeyRef.current === walletKey)')
+    expect(effect).not.toContain('getRitualBundle')
+  })
 })

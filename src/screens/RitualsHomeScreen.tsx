@@ -18,6 +18,7 @@ import { useConnection } from '../utils/ConnectionProvider'
 import { useAuthorization } from '../utils/useAuthorization'
 import { useChainTime } from '../features/rituals/useChainTime'
 import { usePendingRitualRecovery } from '../features/rituals/recovery/usePendingRitualRecovery'
+import { applyWalletReminderPlan, walletReminderPlan } from '../features/rituals/reminders/restore'
 import { DEMO_SEASON } from '../data/rituals/demoConfig'
 import type { SeasonAccountView } from '../data/rituals/accounts'
 import { readSeason } from '../features/rituals/solo/season/readSeason'
@@ -56,7 +57,7 @@ export function RitualsHomeScreen() {
   const styles = useMemo(() => makeStyles(theme, colors), [theme, colors])
   const client = useRitualClient()
   const { connection } = useConnection()
-  const { selectedAccount } = useAuthorization()
+  const { selectedAccount, isLoading: walletLoading } = useAuthorization()
   const [homeState, setHomeState] = useState<HomeState>(initialState)
   const [finishedExpanded, setFinishedExpanded] = useState(false)
   // Kept / missed per closed week, read in one batch after the cards render.
@@ -121,6 +122,21 @@ export function RitualsHomeScreen() {
       requestGeneration.current += 1
     }
   }, [focused, load])
+
+  // Reminders act only for the connected wallet, from this screen's own read
+  // (no extra RPC): another wallet's are silenced, this one's rescheduled.
+  // Home is the stack root, so a switch made in Settings or create lands here too.
+  const walletKey = selectedAccount?.publicKey.toBase58() ?? null
+  const walletKeyRef = useRef(walletKey); walletKeyRef.current = walletKey
+  const reminderPlanKey = useRef<string | null>(null)
+  useEffect(() => {
+    if (homeState.status !== 'ready' || walletLoading) return
+    const plan = walletReminderPlan(homeState.rituals, walletKey ? new PublicKey(walletKey) : null, Math.floor(Date.now() / 1000))
+    if (reminderPlanKey.current === plan.key) return
+    reminderPlanKey.current = plan.key
+    const retryLater = () => { if (reminderPlanKey.current === plan.key) reminderPlanKey.current = null }
+    void applyWalletReminderPlan(plan, () => walletKeyRef.current === walletKey).then((done) => { if (!done) retryLater() }, retryLater)
+  }, [homeState, walletKey, walletLoading])
 
   const disclosure = 'Devnet · tSKR is a test token with no real value'
   const view = { disclosure }

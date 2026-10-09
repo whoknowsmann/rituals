@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PublicKey } from '@solana/web3.js'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { RitualRpcError, type RitualBundleRead } from '../../../data/rituals/ritualsRpc'
-import { reminderInputFromBundle, restoreRememberedReminders } from './restore'
+import { applyWalletReminderPlan, reminderInputFromBundle, restoreRememberedReminders, walletReminderPlan } from './restore'
 import { reminders } from './runtime'
 
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem: vi.fn(), setItem: vi.fn() } }))
-vi.mock('./runtime', () => ({ clearRitualReminders: vi.fn(), reminders: { getPreferences: vi.fn(), restore: vi.fn() } }))
+vi.mock('./runtime', () => ({ clearRitualReminders: vi.fn(), reminders: { getPreferences: vi.fn(), restore: vi.fn(), silence: vi.fn() } }))
 const key = (n: number) => new PublicKey(new Uint8Array(32).fill(n))
 const known = (n: number) => ({ address: key(n).toBase58(), title: 'Read', requirement: 'Read a page' })
 const start = 1_800_000_000
@@ -100,5 +100,41 @@ describe('chain-backed reminder restoration (mock reader; no RPC)', () => {
     await expect(restoreRememberedReminders({ getRitualBundle }, key(9))).rejects.toThrow('offline')
     vi.mocked(reminders.restore).mockResolvedValueOnce(undefined)
     expect(await restoreRememberedReminders({ getRitualBundle }, key(9))).toBe(false)
+  })
+})
+
+describe('reminders follow the connected wallet: A→none→B→A (Home read; no RPC here)', () => {
+  const walletA = key(9)
+  const walletB = key(7)
+  const loaded = [{ ...known(1), bundle: bundle(1) }, { ...known(2), bundle: bundle(2, { creator: walletB }) }]
+  it('silences every other wallet (all of them while none is connected) and reschedules only the connected wallet', () => {
+    const a = walletReminderPlan(loaded, walletA, start)
+    expect(a.silence).toEqual([known(2).address])
+    expect(a.restore).toEqual([reminderInputFromBundle(known(1), bundle(1), start)])
+    const none = walletReminderPlan(loaded, null, start)
+    expect(none).toMatchObject({ silence: [known(1).address, known(2).address], restore: [] })
+    const b = walletReminderPlan(loaded, walletB, start)
+    expect(b.silence).toEqual([known(1).address])
+    expect(b.restore.map((input) => input.ritualAddress)).toEqual([known(2).address])
+    expect(new Set([a.key, none.key, b.key]).size).toBe(3)
+    // Back to A: the same plan as before, so A's reminders return exactly.
+    expect(walletReminderPlan(loaded, walletA, start)).toEqual(a)
+  })
+  it('changes when a week is stamped away from its screen, so that week is dropped', () => {
+    const before = walletReminderPlan(loaded, walletA, start)
+    const after = walletReminderPlan([{ ...known(1), bundle: bundle(1, {}, event(), claims) }, loaded[1]], walletA, start)
+    expect(after.key).not.toBe(before.key)
+    expect(after.restore[0].stampedWeeks).toEqual([0])
+  })
+  it('applies silences, then restores, and stops once the wallet changes', async () => {
+    expect(await applyWalletReminderPlan(walletReminderPlan(loaded, walletA, start), () => true)).toBe(true)
+    expect(reminders.silence).toHaveBeenCalledExactlyOnceWith(known(2).address)
+    expect(reminders.restore).toHaveBeenCalledExactlyOnceWith(reminderInputFromBundle(known(1), bundle(1), start), expect.any(Function))
+    expect(vi.mocked(reminders.silence).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(reminders.restore).mock.invocationCallOrder[0])
+    vi.mocked(reminders.restore).mockClear()
+    let active = true
+    vi.mocked(reminders.silence).mockImplementationOnce(async () => { active = false })
+    expect(await applyWalletReminderPlan(walletReminderPlan(loaded, walletB, start), () => active)).toBe(false)
+    expect(reminders.restore).not.toHaveBeenCalled()
   })
 })
