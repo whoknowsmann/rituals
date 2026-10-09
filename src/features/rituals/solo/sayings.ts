@@ -38,5 +38,9 @@ export function pickSaying(list: readonly string[], seed: string): string {
   return list[hash(seed) % list.length]
 }
 
-export const keptSaying = (ritualAddress: string, eventIndex: number) => pickSaying(KEPT_SAYINGS, `${ritualAddress}:${eventIndex}:kept`)
+export const keptSaying = (ritualAddress: string, eventIndex: number, weekCount?: number) => {
+  const list = weekCount !== undefined && eventIndex >= weekCount - 1
+    ? KEPT_SAYINGS.filter((line) => line !== 'Same time next week.') : KEPT_SAYINGS
+  return pickSaying(list, `${ritualAddress}:${eventIndex}:kept`)
+}
 export const startedSaying = (ritualAddress: string) => pickSaying(STARTED_SAYINGS, `${ritualAddress}:started`)

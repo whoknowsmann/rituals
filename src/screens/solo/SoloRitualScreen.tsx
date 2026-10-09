@@ -313,7 +313,7 @@ function WalletSoloRitual({ route }: Props) { const s = useS(); const color = us
           <ActionButton tone="quiet" label="Copy address" onPress={() => { void Clipboard.setStringAsync(shareAddress) }} accessibilityLabel="Copy ritual address" />
         </View>
       )}
-      {renderState(model, witness, action, actionCopy, weekNote, stampPending, celebrate > 0 && model.showedUp, keptSaying(route.params.ritualId, keptWeek ?? model.eventIndex), amountLabel, keptWeek)}
+      {renderState(model, witness, action, actionCopy, weekNote, stampPending, celebrate > 0 && model.showedUp, keptSaying(route.params.ritualId, keptWeek ?? model.eventIndex, readyBundle.ritual.account.schedule.length), amountLabel, keptWeek)}
       {model.finishedOutcome === 'missed' && model.state === 'completed' && keptWeek === null && <View style={s.paper} accessibilityLiveRegion="polite"><Stamp kind="missed" animate={false} /></View>}
       {totalsLine && <Text style={s.muted}>{totalsLine}</Text>}
       {nextLine && <Text style={s.muted}>{nextLine}</Text>}
