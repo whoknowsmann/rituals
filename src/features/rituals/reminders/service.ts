@@ -23,7 +23,8 @@ export function createReminderService(deps: {
     queue = result.then(() => undefined)
     return result
   }
-  const schedule = async (input: CreateReminderInput, restoring: boolean): Promise<boolean> => {
+  const schedule = async (input: CreateReminderInput, restoring: boolean, maySchedule: () => boolean = () => true): Promise<boolean> => {
+      if (!maySchedule()) return true
       const preferences = await readReminderPreferences(deps.storage)
       const eligible = input.schedule.slice(0, 16).some((window) => isRealReminderWindow(window) || isDemoReminderWindow(window))
       const previous = preferences.rituals[input.ritualAddress]
@@ -44,19 +45,20 @@ export function createReminderService(deps: {
       // Android 13 needs a channel before the permission dialog.
       await ensureReminderChannels(notifications)
       let permission = await notifications.getPermissionsAsync()
-      if (blockedInSession) return true
+      if (blockedInSession || !maySchedule()) return true
       if (!restoring && !permission.granted && !preferences.permissionAsked && permission.canAskAgain) {
         preferences.permissionAsked = true
         await writeReminderPreferences(deps.storage, preferences)
         permission = { ...permission, ...await notifications.requestPermissionsAsync() }
       }
       if (!permission.granted) { logNote('reminders', 'Permission not granted; no reminders scheduled.'); return true }
-      if (blockedInSession) return true
+      if (blockedInSession || !maySchedule()) return true
       const prefix = reminderPrefix(input.ritualAddress)
       await clearReminderPrefix(notifications, prefix)
       const plan = planReminders(input.schedule, { ...input, nowSeconds: deps.nowSeconds(), stampedWeeks: preference.stampedWeeks })
       try {
-        const count = await scheduleReminderPlan(notifications, plan, deps.nowSeconds, () => !blockedInSession)
+        const count = await scheduleReminderPlan(notifications, plan, deps.nowSeconds, () => !blockedInSession && maySchedule())
+        if (!maySchedule()) await clearReminderPrefix(notifications, prefix)
         logNote('reminders', `Scheduled ${count} local reminders.`)
       } catch (error) {
         // Roll back a partial native set rather than imply all weeks are covered.
@@ -93,7 +95,7 @@ export function createReminderService(deps: {
     },
     // Chain reads happen outside the serialized queue so offline Settings never
     // hold up stamp/removal cleanup. Recheck consent here after every read.
-    restore: (input: CreateReminderInput) => run(() => schedule(input, true)),
+    restore: (input: CreateReminderInput, maySchedule?: () => boolean) => run(() => schedule(input, true, maySchedule)),
     setRitualEnabled: (input: CreateReminderInput) => run(() => schedule(input, false)),
     afterCreate: (input: CreateReminderInput): Promise<void> => run(async () => { await schedule(input, false) }),
     afterStamp: (address: string, eventIndex: number): Promise<void> => run(async () => {

@@ -31,14 +31,15 @@ function WalletSettings() {
   const programId = RITUALS_PROGRAM_ID.toBase58()
   const explorerUrl = getExplorerUrl(`address/${programId}`)
   const version = Constants.expoConfig?.version ?? '0.1.0'
-  const { selectedAccount } = useAuthorization()
+  const { selectedAccount, getCurrentAccount } = useAuthorization()
   const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null)
   const client = useRitualClient()
   const notificationSettings = useReminderSettings()
   const setRemindMe = (enabled: boolean) => { void notificationSettings.update(async () => {
     const saved = await reminders.setMasterEnabled(enabled)
     if (!saved || !enabled) return saved
-    return client.status === 'ready' ? restoreRememberedReminders(client.client) : false
+    return client.status === 'ready' ? restoreRememberedReminders(client.client, selectedAccount?.publicKey ?? null,
+      () => Boolean(selectedAccount && getCurrentAccount()?.publicKey.equals(selectedAccount.publicKey))) : false
   }) }
   // Ending a ritual early is the whole screen while it is open.
   const [ending, setEnding] = useState<EndingRitual | null>(null)

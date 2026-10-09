@@ -70,7 +70,8 @@ describe('system notification settings (mocked Linking; source pins)', () => {
     expect(settings).toContain('<Switch accessibilityLabel="Remind me" value={notificationSettings.preferences?.masterEnabled ?? false}')
     expect(settings).toContain('onValueChange={setRemindMe}')
     expect(settings).toContain('await reminders.setMasterEnabled(enabled)')
-    expect(settings).toContain('restoreRememberedReminders(client.client)')
+    expect(settings).toContain('restoreRememberedReminders(client.client, selectedAccount?.publicKey ?? null,')
+    expect(settings).toContain('getCurrentAccount()?.publicKey.equals(selectedAccount.publicKey)')
     expect(settings.indexOf('accessibilityLabel="Test tokens"')).toBeLessThan(settings.indexOf('accessibilityLabel="Notifications"'))
   })
   it('pins the per-ritual button to its chain bundle and the master guard, without altering stamp/create', () => {

@@ -31,6 +31,19 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('chain-backed reminder restoration (mock reader; no RPC)', () => {
+  it('refuses to restore reminders for another wallet or after disconnect', async () => {
+    const getRitualBundle = vi.fn(async () => bundle())
+    await restoreRememberedReminders({ getRitualBundle }, key(7))
+    expect(reminders.restore).not.toHaveBeenCalled()
+    await restoreRememberedReminders({ getRitualBundle }, null)
+    expect(getRitualBundle).toHaveBeenCalledOnce()
+  })
+  it('does not schedule a result read across a wallet switch', async () => {
+    let active = true
+    const getRitualBundle = vi.fn(async () => { active = false; return bundle() })
+    await restoreRememberedReminders({ getRitualBundle }, key(9), () => active)
+    expect(reminders.restore).not.toHaveBeenCalled()
+  })
   it('keeps exact chain windows, title and allocation rather than synthesizing a schedule', () => {
     const read = bundle()
     const input = reminderInputFromBundle(known(1), read, start)!
@@ -62,30 +75,30 @@ describe('chain-backed reminder restoration (mock reader; no RPC)', () => {
   })
   it('reads only remembered opted-in rituals through the existing bundle reader', async () => {
     const getRitualBundle = vi.fn(async () => bundle())
-    expect(await restoreRememberedReminders({ getRitualBundle })).toBe(true)
+    expect(await restoreRememberedReminders({ getRitualBundle }, key(9))).toBe(true)
     expect(getRitualBundle).toHaveBeenCalledExactlyOnceWith(key(1))
-    expect(reminders.restore).toHaveBeenCalledExactlyOnceWith(reminderInputFromBundle(known(1), bundle(), start))
+    expect(reminders.restore).toHaveBeenCalledExactlyOnceWith(reminderInputFromBundle(known(1), bundle(), start), expect.any(Function))
   })
   it('master off and unreadable preferences never start a chain read', async () => {
     const getRitualBundle = vi.fn()
     vi.mocked(reminders.getPreferences).mockResolvedValueOnce({ masterEnabled: false, permissionAsked: true, rituals: {} })
-    expect(await restoreRememberedReminders({ getRitualBundle })).toBe(true)
+    expect(await restoreRememberedReminders({ getRitualBundle }, key(9))).toBe(true)
     vi.mocked(reminders.getPreferences).mockResolvedValueOnce(undefined)
-    expect(await restoreRememberedReminders({ getRitualBundle })).toBe(false)
+    expect(await restoreRememberedReminders({ getRitualBundle }, key(9))).toBe(false)
     expect(getRitualBundle).not.toHaveBeenCalled()
   })
   it('skips completed and permanently unreadable accounts', async () => {
     const getRitualBundle = vi.fn(async () => bundle(1, { status: 'Completed' }))
-    expect(await restoreRememberedReminders({ getRitualBundle })).toBe(true)
+    expect(await restoreRememberedReminders({ getRitualBundle }, key(9))).toBe(true)
     getRitualBundle.mockRejectedValueOnce(new RitualRpcError('not-found', 'gone'))
-    expect(await restoreRememberedReminders({ getRitualBundle })).toBe(true)
+    expect(await restoreRememberedReminders({ getRitualBundle }, key(9))).toBe(true)
     expect(reminders.restore).not.toHaveBeenCalled()
   })
   it('reports RPC or native failures to the guarded Settings action, not a false restore success', async () => {
     const getRitualBundle = vi.fn(async () => bundle())
     getRitualBundle.mockRejectedValueOnce(new RitualRpcError('rpc', 'offline'))
-    await expect(restoreRememberedReminders({ getRitualBundle })).rejects.toThrow('offline')
+    await expect(restoreRememberedReminders({ getRitualBundle }, key(9))).rejects.toThrow('offline')
     vi.mocked(reminders.restore).mockResolvedValueOnce(undefined)
-    expect(await restoreRememberedReminders({ getRitualBundle })).toBe(false)
+    expect(await restoreRememberedReminders({ getRitualBundle }, key(9))).toBe(false)
   })
 })

@@ -1,4 +1,5 @@
 import type { RitualClient } from '../../../data/rituals/ritualClient'
+import type { PublicKey } from '@solana/web3.js'
 import type { RitualBundleRead } from '../../../data/rituals/ritualsRpc'
 import { listKnownRituals, readKnownRitualBundles, type KnownRitual } from '../authoritativeRituals'
 import { formatAtomic } from '../displayFormat'
@@ -25,7 +26,8 @@ export function reminderInputFromBundle(known: KnownRitual, bundle: RitualBundle
 }
 
 /** Only an explicit master-on action reads the chain; never on mount/resume. */
-export async function restoreRememberedReminders(client: Pick<RitualClient, 'getRitualBundle'>): Promise<boolean> {
+export async function restoreRememberedReminders(client: Pick<RitualClient, 'getRitualBundle'>, wallet: PublicKey | null, mayContinue: () => boolean = () => true): Promise<boolean> {
+  if (!wallet || !mayContinue()) return true
   const preferences = await reminders.getPreferences()
   if (!preferences) return false
   if (!preferences.masterEnabled) return true
@@ -33,8 +35,10 @@ export async function restoreRememberedReminders(client: Pick<RitualClient, 'get
   const loaded = await readKnownRitualBundles(known, (address) => client.getRitualBundle(address))
   let ok = true
   for (const item of loaded) {
+    if (!mayContinue()) return false
+    if (!item.bundle.ritual.account.creator.equals(wallet)) continue
     const input = reminderInputFromBundle(item, item.bundle, Math.floor(Date.now() / 1000))
-    if (input && !await reminders.restore(input)) ok = false
+    if (input && !await reminders.restore(input, mayContinue)) ok = false
   }
   return ok
 }

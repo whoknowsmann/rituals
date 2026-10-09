@@ -52,6 +52,15 @@ beforeEach(() => {
 })
 
 describe('local reminder scheduling service', () => {
+  it('stops restore scheduling when the wallet changes during native permission lookup', async () => {
+    const f = fixture()
+    await f.service.afterCreate(input)
+    api.scheduleNotificationAsync.mockClear()
+    let active = true
+    api.getPermissionsAsync.mockImplementationOnce(async () => { active = false; return { granted: true, canAskAgain: false } })
+    await f.service.restore(input, () => active)
+    expect(api.scheduleNotificationAsync).not.toHaveBeenCalled()
+  })
   it('prepares foreground display without reading preferences or asking permission', async () => {
     const f = fixture()
     await f.service.prepare()
