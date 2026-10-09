@@ -50,6 +50,7 @@ export function buildSoloSkipDeps(params: SoloSkipDepsParams): LifecycleActionDe
       }
       record = { ...makePendingActionRecord(prepared, params.now?.() ?? Date.now()), actor: params.actor.toBase58(), eventIndex: params.eventIndex }
       if (params.pendingActionStore) await params.pendingActionStore.upsert(record)
+      assertActor()
       try { handle = await params.client.submitPrepared(prepared) } catch (error) {
         const submitted = error as { submitted?: unknown; signature?: unknown } | null
         if (submitted?.submitted === true && typeof submitted.signature === 'string' && record) {

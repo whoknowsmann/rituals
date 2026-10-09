@@ -97,6 +97,19 @@ describe('end early through the shared action path', () => {
     expect(flow).not.toContain('setInterval(')
   })
 
+  it.each(['blockheight', 'journal'])('stops End early signing after a wallet switch during %s', async (pause) => {
+    let actor: PublicKey | null = me
+    const client = fakeClient(quote(10n, 0n))
+    const deps = buildEjectDeps({ client, ritualAddress, actor: me, shown: quote(10n, 0n),
+      authorizedActor: () => actor,
+      getBlockHeight: async () => { if (pause === 'blockheight') actor = null; return 10 },
+      pendingActionStore: { list: async () => [], remove: async () => undefined,
+        upsert: async () => { if (pause === 'journal') actor = other } },
+    })
+    await expect(deps.submit(await deps.prepare())).rejects.toThrow(/changed/)
+    expect(client.submitPrepared).not.toHaveBeenCalled()
+  })
+
   it('refuses another wallet and a wallet switch before signing', async () => {
     await expect(buildEjectDeps({ client: fakeClient(quote(10n, 0n)), ritualAddress, actor: other, shown: quote(10n, 0n) }).prepare()).rejects.toThrow(/creator/)
     await expect(buildEjectDeps({ client: fakeClient(quote(10n, 0n)), ritualAddress, actor: me, shown: quote(10n, 0n), authorizedActor: () => other }).prepare()).rejects.toThrow(/changed/)

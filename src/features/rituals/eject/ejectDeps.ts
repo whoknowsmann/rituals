@@ -67,6 +67,7 @@ export function buildEjectDeps(params: EjectDepsParams): LifecycleActionDeps {
       }
       record = { ...makePendingActionRecord(prepared, params.now?.() ?? Date.now()), actor: params.actor.toBase58(), eventIndex }
       if (params.pendingActionStore) await params.pendingActionStore.upsert(record)
+      assertActor()
       try { handle = await params.client.submitPrepared(prepared) } catch (error) {
         const submitted = error as { submitted?: unknown; signature?: unknown } | null
         if (submitted?.submitted === true && typeof submitted.signature === 'string' && record) {

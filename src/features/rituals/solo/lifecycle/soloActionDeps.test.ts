@@ -8,6 +8,22 @@ const key = (byte: number) => new PublicKey(new Uint8Array(32).fill(byte))
 const SIGNATURE = '5'.repeat(88)
 
 describe('solo declare-skip dependencies', () => {
+  it.each(['blockheight', 'journal'])('stops signing after a wallet switch during %s', async (pause) => {
+    let actor: PublicKey | null = key(1)
+    const prepared = { kind: 'declare-skip', ritualAddress: key(10).toBase58(), messageDigest: 'b'.repeat(64), blockhash: key(11).toBase58(), lastValidBlockHeight: 100 }
+    const client = {
+      programId: key(9), readRitual: async () => ({ address: key(10), account: {} }),
+      prepareDeclareSkip: async () => prepared, submitPrepared: vi.fn(async () => ({ signature: SIGNATURE })),
+    } as unknown as RitualClient
+    const deps = buildSoloSkipDeps({ client, ritualAddress: key(10), actor: key(1), eventIndex: 0,
+      authorizedActor: () => actor,
+      getBlockHeight: async () => { if (pause === 'blockheight') actor = null; return 10 },
+      pendingActionStore: { list: async () => [], remove: async () => undefined,
+        upsert: async () => { if (pause === 'journal') actor = key(2) } },
+    })
+    await expect(deps.submit(await deps.prepare())).rejects.toThrow(/changed/)
+    expect(client.submitPrepared).not.toHaveBeenCalled()
+  })
   it('journals the declare-skip action around the wallet handoff and clears it on confirmation', async () => {
     const records = new Map<string, PendingActionRecord>()
     const calls: string[] = []
