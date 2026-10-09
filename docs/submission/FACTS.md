@@ -76,8 +76,7 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
      suggestions optional, deterministic, on-device — **never call them AI**).
    - Step 2: how many weeks (− / +, 1–16), **Demo speed · Real weeks** (Demo is
      the default), ONE total stake (type it or 5 / 10 / 20 / 50; the app splits
-     it evenly across the weeks, rounded down to 0.01 tSKR a week, and says so
-     when that locks a little less), a single schedule summary, and **where
+     it evenly across the weeks), a single schedule summary, and **where
      missed weeks go, chosen by the user**: Northside Food Bank (demo, default),
      City Animal Shelter (demo), Public Library Fund (demo), or a wallet you
      choose (it must already hold a tSKR account). Balance and
@@ -143,6 +142,7 @@ Tagline (pinned by test, never reword): **Show up, or pay up.**
   the destination the user chose (a demo cause or a wallet), locked before you start. **Rituals takes nothing**:
   no share of stakes or forfeits, and since 2026-10-04 **no activation fee**
   (on-chain fee settings 0 / 0 / 0).
+- Amounts on screen are rounded to 2 decimals; the stake splits at full token precision (20 over 6 weeks locks 19.999998 tSKR).
 - What the user pays: network fees (~0.000005 SOL per transaction), account
   rent (vault rent returns when the ritual closes), and the settle-key
   pre-payment above. Create all-in ≈ 0.01–0.02 SOL for a 4-week ritual.

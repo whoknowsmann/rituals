@@ -2,14 +2,23 @@
  * Display formatting for chain values. Pure, no clock reads: callers pass `now`.
  */
 
-/** Exact token amount with trailing zeros dropped ("8 tSKR", "2.5 tSKR"). Never rounds. */
+/** Token amounts on screen show at most this many decimals. */
+const DISPLAY_DECIMALS = 2
+
+/**
+ * The one formatter for every token amount on screen (Jack, 2026-10-09):
+ * rounds half-up to 2 decimals and drops trailing zeros ("3.33 tSKR",
+ * "20 tSKR", "2.5 tSKR"). Add or subtract in atomic units first and round
+ * only here. Under half a cent shows "0"; no stake the create picks make is
+ * that small (the least is 5 over 16 weeks, 0.3125 a week).
+ */
 export function formatAtomic(value: bigint, decimals: number, symbol = 'tSKR'): string {
-  const base = 10n ** BigInt(decimals)
-  const sign = value < 0n ? '-' : ''
-  const abs = value < 0n ? -value : value
-  const whole = abs / base
-  const fraction = decimals === 0 ? '' : (abs % base).toString().padStart(decimals, '0').replace(/0+$/, '')
-  return `${sign}${whole}${fraction ? `.${fraction}` : ''} ${symbol}`
+  const shown = Math.min(decimals, DISPLAY_DECIMALS)
+  const step = 10n ** BigInt(decimals - shown)
+  const rounded = ((value < 0n ? -value : value) + step / 2n) / step
+  const base = 10n ** BigInt(shown)
+  const fraction = shown === 0 ? '' : (rounded % base).toString().padStart(shown, '0').replace(/0+$/, '')
+  return `${value < 0n && rounded > 0n ? '-' : ''}${rounded / base}${fraction ? `.${fraction}` : ''} ${symbol}`
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

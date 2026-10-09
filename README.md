@@ -15,7 +15,7 @@ You start a ritual in two steps. First you type what it is; "to read" becomes "R
 
 - **Weeks:** 1 to 16. The default is 2 on Demo speed and 4 on Real weeks.
 - **Speed:** Demo speed (the default) or Real weeks.
-- **Stake:** one total for the whole ritual. Type it, or tap 5, 10, 20 or 50. The app splits it evenly across the weeks, rounds down to 0.01 tSKR a week, and tells you when that locks a little less than you typed.
+- **Stake:** one total for the whole ritual. Type it, or tap 5, 10, 20 or 50. The app splits it evenly across the weeks at full token precision (20 over 6 weeks locks 19.999998 tSKR). Amounts on screen are rounded to 2 decimals.
 - **Where a missed week goes:** Northside Food Bank (the default), City Animal Shelter, Public Library Fund, or a wallet you choose. The three causes are labelled "(demo)" in the app. They are devnet token accounts, not real charities. A wallet you choose must already hold a tSKR account. The app names it by its owner, for example "the wallet you chose · fT9Xe…LJgo1", never by its token account.
 
 If your balance can't cover the stake, the button is blocked and **Get test tokens** appears. Tap **Lock it in** and approve once. That one approval creates the ritual, locks every week's stake in a vault, activates it, and pre-pays the app's settle key so later weeks can close without asking your wallet again. The app then takes you straight to the ritual screen.

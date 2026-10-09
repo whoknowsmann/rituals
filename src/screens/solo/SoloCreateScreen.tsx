@@ -425,7 +425,6 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               })}
             </View>
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
-            {stakeSplit.ok && !stakeSplit.split.exact && <Text style={styles.quiet}>{`Locks ${formatAtomic(stakeSplit.split.lockedAtomic, 6)} after rounding.`}</Text>}
             {showBalanceHelp && <>
               {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
               {selectedAccount && (testBalance === null || shortOfTest || testBalance === 0n) && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}

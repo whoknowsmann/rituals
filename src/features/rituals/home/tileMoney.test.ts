@@ -40,7 +40,7 @@ describe('Home money returned, not weekly allocation', () => {
     expect(tileMoneyLine(soloAccount({ status: 'Ended', currentEventIndex: 2 }), outcomes('done'))).toBe('15 tSKR')
   })
 
-  it('uses exact formatAtomic values with trailing zeros dropped; never invents group returns', () => {
+  it('uses formatAtomic amounts (2 decimals, trailing zeros dropped); never invents group returns', () => {
     const account = soloAccount({ perEventAllocation: 1_250_000n, currentEventIndex: 1 })
     expect(tileMoneyLine(account, outcomes('done'))).toBe('1.25 of 3.75 tSKR back')
     expect(tileMoneyLine({ ...account, kind: 'Group' }, outcomes('done'))).toBe('3.75 tSKR')

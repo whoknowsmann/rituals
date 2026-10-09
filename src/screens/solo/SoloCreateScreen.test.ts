@@ -29,10 +29,11 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).not.toContain('validatePersonError(')
     expect(source).toMatch(/draft.destination === 'person' && \([\s\S]*?Needs a tSKR account; Get test tokens creates one\./)
   })
-  it('labels the total stake, rounding and one weekly action concretely', () => {
+  it('labels the total stake concretely, with no rounding line: the total locked shows as the total chosen (Jack, 2026-10-09)', () => {
     expect(source).toContain('>TOTAL STAKE</Text>')
     expect(source).toContain('placeholder="Go for a run"')
-    expect(source).toContain('Locks ${formatAtomic(stakeSplit.split.lockedAtomic, 6)} after rounding.')
+    expect(source).not.toContain('after rounding')
+    expect(source).not.toContain('split.exact')
     expect(source).not.toContain('Splits evenly to')
   })
   it('offers the existing wallet chooser inline and refreshes balance on focus and after a faucet send', () => {

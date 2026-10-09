@@ -3,14 +3,45 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { formatAtomic, stampTimeLeftLabel, weekOpensLabel, weekIsOpen } from './displayFormat'
 
-describe('formatAtomic (people read amounts, not 6-decimal fixed point)', () => {
-  it('drops trailing zeros but never rounds', () => {
+describe('formatAtomic: the one display formatter for amounts (2 decimals, half-up; Jack, 2026-10-09)', () => {
+  it('rounds half-up to 2 decimals', () => {
+    expect(formatAtomic(3_333_333n, 6)).toBe('3.33 tSKR')
+    expect(formatAtomic(19_999_998n, 6)).toBe('20 tSKR')
+    expect(formatAtomic(16_666_665n, 6)).toBe('16.67 tSKR')
+    expect(formatAtomic(6_666_666n, 6)).toBe('6.67 tSKR')
+    expect(formatAtomic(9_999_999n, 6)).toBe('10 tSKR')
+    // Exactly half a cent goes up; anything less goes down.
+    expect(formatAtomic(625_000n, 6)).toBe('0.63 tSKR')
+    expect(formatAtomic(624_999n, 6)).toBe('0.62 tSKR')
+  })
+
+  it('drops trailing zeros and leaves short amounts as they are', () => {
     expect(formatAtomic(8_000_000n, 6)).toBe('8 tSKR')
     expect(formatAtomic(2_500_000n, 6)).toBe('2.5 tSKR')
-    expect(formatAtomic(1n, 6)).toBe('0.000001 tSKR')
-    expect(formatAtomic(0n, 6)).toBe('0 tSKR')
     expect(formatAtomic(12_340_000n, 6, 'SKR')).toBe('12.34 SKR')
+    // Rituals made with the old split already hold exact cents.
+    expect(formatAtomic(6_660_000n, 6)).toBe('6.66 tSKR')
+    expect(formatAtomic(19_980_000n, 6)).toBe('19.98 tSKR')
     expect(formatAtomic(7n, 0)).toBe('7 tSKR')
+    expect(formatAtomic(1_234n, 2)).toBe('12.34 tSKR')
+  })
+
+  it('shows 0 for nothing and for anything under half a cent', () => {
+    expect(formatAtomic(0n, 6)).toBe('0 tSKR')
+    expect(formatAtomic(1n, 6)).toBe('0 tSKR')
+    expect(formatAtomic(4n, 6)).toBe('0 tSKR')
+    expect(formatAtomic(4_999n, 6)).toBe('0 tSKR')
+    expect(formatAtomic(5_000n, 6)).toBe('0.01 tSKR')
+  })
+
+  it('rounds a negative amount by its size, never showing "-0"', () => {
+    expect(formatAtomic(-2_500_000n, 6)).toBe('-2.5 tSKR')
+    expect(formatAtomic(-3_333_333n, 6)).toBe('-3.33 tSKR')
+    expect(formatAtomic(-1n, 6)).toBe('0 tSKR')
+  })
+
+  it('stays exact for the largest u64 amount (bigint, no floating point)', () => {
+    expect(formatAtomic(18_446_744_073_709_551_615n, 6)).toBe('18446744073709.55 tSKR')
   })
 })
 
