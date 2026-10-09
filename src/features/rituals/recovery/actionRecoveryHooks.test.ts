@@ -38,19 +38,20 @@ const cleanup = () => { for (const cell of harness.cells) cell?.cleanup?.() }
 beforeEach(() => { harness.cells = []; harness.cursor = 0; harness.effects = []; verdict.report.mockReset(); vi.useFakeTimers() })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
-for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery`, () => {
+for (const kind of ['claim', 'skip', 'initialize-event', 'finalize', 'eject', 'create'] as const) describe(`${kind} hook recovery`, () => {
   function setup(reconcile: () => Promise<PendingActionResolution | null>, failure: 'lost' | 'declined' | 'cancelled' = 'lost') {
     const error = failure === 'lost' ? Object.assign(new Error('wallet submission outcome is unknown'), { submitted: true })
       : Object.assign(new Error('wallet request was rejected'), { submitted: false, ...(failure === 'cancelled' ? { cancelled: true } : {}) })
     const deps = {
-      prepare: vi.fn(async () => ({ kind, messageDigest: record.messageDigest, ritualAddress: address })),
+      // buildSoloSkipDeps uses the shared machine's activate ref for skip.
+      prepare: vi.fn(async () => ({ kind: kind === 'skip' ? 'activate' : kind, messageDigest: record.messageDigest, ritualAddress: address })),
       submit: vi.fn(async () => { throw error }),
       confirm: vi.fn(),
       reconcile: vi.fn(reconcile),
     }
     const render = () => {
       harness.cursor = 0
-      const result = kind === 'claim' ? useRitualAction(() => deps as never) : useCreateRitual(() => deps as never)
+      const result = kind === 'create' ? useCreateRitual(() => deps as never) : useRitualAction(() => deps as never)
       for (const effect of harness.effects.splice(0)) effect()
       return result
     }
@@ -115,7 +116,7 @@ for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery
     expect(verdict.report.mock.calls).toEqual([[false]])
     expect(waiting.canSubmit).toBe(true)
     // A duplicate stamp is rejected by the program; a Create retry reuses the same ritual address, but it never claims nothing was sent.
-    expect(waiting.copy.body).toBe(kind === 'claim' ? 'Nothing was sent. Try again.' : 'Try again.')
+    expect(waiting.copy.body).toBe(kind === 'create' ? 'Try again.' : 'Nothing was sent. Try again.')
     expired = true
     await vi.advanceTimersByTimeAsync(3000)
     const settled = render()
@@ -177,6 +178,37 @@ describe('pre-wallet action refresh', () => {
 })
 
 describe('create Try again after a cancelled sheet', () => {
+  it('reuses the prepared create and its reconciler, even if the next draft or wallet differs', async () => {
+    let landed = false
+    const prepared = { kind: 'create' as const, messageDigest: record.messageDigest, ritualAddress: address }
+    const first = {
+      prepare: vi.fn(async () => prepared),
+      submit: vi.fn(async () => { throw Object.assign(new Error('wallet request was rejected'), { cancelled: true }) }),
+      confirm: vi.fn(),
+      reconcile: vi.fn(async (): Promise<PendingActionResolution> => landed ? { status: 'confirmed', record, slot: 120 } : { status: 'still-unknown', record }),
+    }
+    const replacement = { ...first, prepare: vi.fn(async () => ({ ...prepared, ritualAddress: 'different-ritual' })), submit: vi.fn() }
+    const makeDeps = vi.fn().mockReturnValueOnce(first).mockReturnValue(replacement)
+    const render = () => {
+      harness.cursor = 0
+      const result = useCreateRitual(makeDeps)
+      for (const effect of harness.effects.splice(0)) effect()
+      return result
+    }
+    render().start(); await flush()
+    const unknown = render()
+    expect(unknown.copy.body).toBe('Try again.')
+    unknown.start(); unknown.start(); await flush()
+    expect(makeDeps).toHaveBeenCalledOnce()
+    expect(first.prepare).toHaveBeenCalledOnce()
+    expect(first.submit.mock.calls).toEqual([[prepared], [prepared]])
+    expect(replacement.submit).not.toHaveBeenCalled()
+    render().reset()
+    expect(render().state).toMatchObject({ status: 'error', unresolved: true, ritualAddress: address })
+    landed = true
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(render().state).toMatchObject({ status: 'recovered', ritualAddress: address })
+  })
   it('keeps checking the chain through a failed retry, so a first attempt that landed still ends at Done', async () => {
     let landed = false
     let attempts = 0

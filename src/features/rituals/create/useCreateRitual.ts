@@ -22,6 +22,7 @@ import {
   createStatusCopy,
   isTerminalCreateState,
   type CreateMachineEvent,
+  type CreatePreparedRef,
   type CreateMachineState,
   type CreateStatusCopy,
 } from './createMachine'
@@ -48,6 +49,7 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   // committed the first. A ref is synchronous; reducer state is not.
   const inFlight = useRef(false)
   const attempt = useRef<CreateRitualDeps | null>(null)
+  const prepared = useRef<CreatePreparedRef | null>(null)
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -69,9 +71,13 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
     inFlight.current = true
     void (async () => {
       try {
-        const deps = makeDeps()
+        // Until the old attempt is resolved, keep its exact bytes, owner and
+        // journal. A new dependency builder can choose different terms or a
+        // different wallet even if the screen retained its nonce.
+        const deps = carry && attempt.current ? attempt.current : makeDeps()
+        if (!carry) prepared.current = null
         attempt.current = deps
-        await runCreateRitual(deps, dispatchAttempt)
+        await runCreateRitual({ ...deps, prepare: async () => prepared.current ?? (prepared.current = await deps.prepare()) }, dispatchAttempt)
       } catch (error) {
         logFailure('create.deps', error)
         // makeDeps itself can reject invalid input before any network work.
@@ -90,9 +96,9 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
 
   const reset = useCallback(() => {
-    if (inFlight.current) return
+    if (inFlight.current || createAwaitsChain(state)) return
     safeDispatch({ type: 'RESET' })
-  }, [safeDispatch])
+  }, [safeDispatch, state])
 
   const busy = !canSubmitCreate(state) && !isTerminalCreateState(state)
   const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])
