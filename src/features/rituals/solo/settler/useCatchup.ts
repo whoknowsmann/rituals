@@ -22,6 +22,10 @@ type Input = {
 /** Foreground entry points only; the send guard also checks focus/wallet after awaits. */
 export function useCatchup(input: Input): { busy: boolean; blocked: boolean } {
   const latest = useRef(input); latest.current = input
+  const wallet = input.wallet?.toBase58() ?? null
+  const session = useRef({ wallet })
+  if (session.current.wallet !== wallet) session.current = { wallet }
+  const scope = session.current
   const mounted = useRef(false)
   const lock = useRef(false)
   const queueLock = useRef(false)
@@ -40,9 +44,8 @@ export function useCatchup(input: Input): { busy: boolean; blocked: boolean } {
     queueLock.current = true
     setBusy(true)
     setBlocked(false)
-    const wallet = input.wallet?.toBase58()
     const mayContinue = () => mounted.current && latest.current.focused && AppState.currentState === 'active'
-      && latest.current.connection === input.connection && latest.current.wallet?.toBase58() === wallet
+      && latest.current.connection === input.connection && session.current === scope
     let changed = false
     let failed = false
     let deferred = false
@@ -79,7 +82,7 @@ export function useCatchup(input: Input): { busy: boolean; blocked: boolean } {
       setBlocked(failed)
       if (changed) latest.current.onChanged()
     })
-  }, [input.connection, input.focused, input.now, snapshot])
+  }, [input.connection, input.focused, input.now, snapshot, scope])
   const capped = input.rituals.some(({ bundle }) => overdue(bundle, input.now) && (catchupFailures.get(failureKey(bundle)) ?? 0) >= 3)
   return { busy, blocked: blocked || capped }
 }

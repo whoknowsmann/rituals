@@ -81,6 +81,19 @@ describe('foreground catch-up hook (effect harness, not a device renderer)', () 
     finish({ changed: true, blocked: false }); await flush()
     if (reason === 'unmount') expect(input.onChanged).not.toHaveBeenCalled()
   })
+  it('never revives an earlier A send guard after A→none→B→A', async () => {
+    const input = defaults()
+    let finish!: (value: { changed: boolean; blocked: boolean }) => void
+    vi.mocked(runCatchup).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    render(input); await flush()
+    const send = vi.mocked(createSettlerClient).mock.calls[0][2]!
+    render({ ...input, wallet: null }); render({ ...input, wallet: other }); render(input)
+    expect(send()).toBe(false)
+    finish({ changed: false, blocked: false }); await flush()
+    render({ ...input, now: 1401 }); await flush()
+    expect(runCatchup).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(createSettlerClient).mock.calls[1][2]!()).toBe(true)
+  })
   it('retries a deferred cross-screen lock on the next tick instead of stranding the ritual', async () => {
     const input = defaults()
     vi.mocked(runCatchup).mockResolvedValueOnce({ changed: false, blocked: false, deferred: true })
