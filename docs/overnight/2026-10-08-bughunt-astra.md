@@ -5,16 +5,16 @@ Status: audit in progress. Each fix requires an observed failing regression test
 
 | class | bug | evidence (test or file:line) | severity | fixed (SHA) / not fixed (why) |
 | --- | --- | --- | --- | --- |
-| C1 | Cancel-after-signing still said “Nothing was sent” for stamp/settle/End early | lifecycleMachine.test.ts unresolved cases; actionRecoveryHooks.test.ts; eject.test.ts wiring | high | fixed: b559780 |
+| C1 | Not a bug: b559780 replaced the F1 copy (fd6769a: stamp/skip/settle/End early keep “Nothing was sent. Try again.” while the chain check runs, as the program rejects a duplicate) and turned the suite red | ritualSubmission.test.ts “keeps a sheet cancelled after signing began unresolved” | — | reverted: see revert commit |
 | C1 | Faucet promises unconfirmed credit; timeout misses balance refresh; minimum funding implies any stake fits | devnetFaucet.test.ts uncertain-response regressions | medium | fixed: fd4c640 |
 | C2/C6 | Detail/receipt re-read accepts older slots; route changes show the previous week for one render | authoritativeRituals.transition.test.ts: route identity + slot regressions | medium | fixed: f57f83a |
 | C3 | Detail catch-up settles while disconnected/another wallet is connected | useCatchup.test.ts: never starts detail catch-up (both failed before fix) | high | fixed: 462d4c5 |
 | C3 | Faucet result/request survives A→none→B→A; late A response refreshes old balance | useDevnetFaucet.test.ts: 4 regressions failed before fix | high | fixed: 51fa962 |
 | C3 | Recovery resolves/removes another wallet's journal and shows its notice; creates omit owner | usePendingRitualRecovery.test.ts; both buildCreateDeps journal tests | high | fixed: bf38f28; ownerless legacy journals retained silently |
 | C2/C3 | Settings keeps A's list/end flow while B loads; detail/receipt show A's notes and stamps | walletBoundaries.test.ts source guards (RN device check pending) | high | fixed: d924fab |
-| C3 | Settings master-on restores every wallet; native scheduling ignores switches during permission lookup | restore.test.ts (owner/switch); service.test.ts (permission switch) failed first | high | fixed: f3b41a5 |
-| C3/C7 | Skip and End early check wallet before async height/journal, then still sign after switching | soloActionDeps.test.ts; eject.test.ts: four switch regressions failed first | high | fixed: d89185e |
-| C2/C3 | Create carries A's balance into B; faucet response leaves the pre-credit low-balance line | walletBoundaries.test.ts source guards; SoloCreateScreen.tsx balance state/read callback | medium | fixed: pending commit; amount picker unchanged |
+| C3 | Settings master-on restores every wallet; native scheduling ignores switches during permission lookup | restore.test.ts (owner/switch); service.test.ts (permission switch) failed first | high | fixed: 3dea993 |
+| C3/C7 | Skip and End early check wallet before async height/journal, then still sign after switching | soloActionDeps.test.ts; eject.test.ts: four switch regressions failed first | high | fixed: 952b7bd |
+| C2/C3 | Create carries A's balance into B; faucet response leaves the pre-credit low-balance line | walletBoundaries.test.ts source guards; SoloCreateScreen.tsx balance state/read callback | medium | fixed: d7745cf; amount picker unchanged |
 | C3/C4 | Already-scheduled reminders survive wallet switches; only detail clears observed stamps; restore only runs on Settings master-on | reminders/useReminders.ts:13; reminders/restore.ts:28; reminders/runtime.ts:7 | high | not fixed: needs app-wide ownership/cancellation/resume integration and native checks |
 | C5 | Money audit pending; create amount UI excluded | — | — | not fixed: owner decision pending on create |
 | C6 | Final stamp/receipt still draws “Same time next week.”, including 1-week rituals | sayings.test.ts: final-week regressions failed for 1/2/16 | medium | fixed: 1510922 |

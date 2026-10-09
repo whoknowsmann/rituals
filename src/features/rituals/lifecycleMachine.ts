@@ -75,7 +75,6 @@ export function lifecycleStatusCopy(state: LifecycleState): Readonly<{ title: st
   if (state.status === 'submitted' || state.status === 'confirming') return { title: 'Confirming', body: 'Sent. Checking it landed.', tone: 'progress' }
   if (state.status === 'confirmed' || state.status === 'recovered') return { title: 'Done', body: 'Confirmed on chain.', tone: 'success' }
   if (state.submitted || state.category === 'confirmation') return { title: 'Confirmation incomplete', body: 'Your transaction may already have gone through. Do not retry — check the ritual before acting again.', tone: 'warning' }
-  if (state.unresolved) return { title: 'Checking', body: 'Checking whether it went through…', tone: 'neutral' }
   if (state.category === 'transaction-failed') return { title: 'Could not continue', body: "It didn't go through.", tone: 'warning' }
   if (state.category === 'wallet-rejected') return { title: 'Not sent', body: 'Nothing was sent. Try again.', tone: 'neutral' }
   if (state.category === 'network-mismatch') return { title: 'Switch to Devnet', body: 'Nothing was sent. Switch your wallet to Devnet, then try again.', tone: 'neutral' }

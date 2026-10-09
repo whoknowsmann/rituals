@@ -92,7 +92,6 @@ describe('end early through the shared action path', () => {
     } finally { vi.useRealTimers() }
     const flow = readFileSync(resolve(__dirname, 'EndEarly.tsx'), 'utf8')
     expect(flow).toContain("if (eject.state.status === 'confirmed' || eject.state.status === 'recovered') ended()")
-    expect(flow).toContain('eject.state.submitted || eject.state.unresolved ||')
     expect(flow).toContain('getSignatureStatus: async (signature) =>')
     expect(flow).not.toContain('setInterval(')
   })

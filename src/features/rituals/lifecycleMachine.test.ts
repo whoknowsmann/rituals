@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { lifecycleCanSubmit, lifecycleInitialState, lifecycleReducer, lifecycleStatusCopy, type LifecycleEvent } from './lifecycleMachine'
+import { lifecycleCanSubmit, lifecycleInitialState, lifecycleReducer, type LifecycleEvent } from './lifecycleMachine'
 import { runLifecycleAction, type LifecycleActionDeps } from './runLifecycleAction'
 
 const prepared = { kind: 'fund' as const, messageDigest: 'a'.repeat(64), ritualAddress: 'ritual' }
@@ -13,10 +13,6 @@ const deps = (overrides: Partial<LifecycleActionDeps> = {}): LifecycleActionDeps
 })
 
 describe('runLifecycleAction', () => {
-  it.each(['wallet-rejected', 'submission', 'preparation'] as const)('never calls an unresolved %s outcome not sent', (category) => {
-    const state = { status: 'error' as const, category, message: 'cancelled', submitted: false, retryable: true, unresolved: true, ritualAddress: 'ritual' }
-    expect(lifecycleStatusCopy(state)).toMatchObject({ title: 'Checking', body: 'Checking whether it went through…', tone: 'neutral' })
-  })
   it('drives review through wallet and authoritative confirmation', async () => {
     let state = lifecycleInitialState()
     const events: LifecycleEvent[] = []
