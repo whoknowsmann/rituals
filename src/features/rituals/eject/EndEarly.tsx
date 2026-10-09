@@ -115,7 +115,7 @@ export function EndEarly({ ritual, onClose }: { ritual: EndingRitual; onClose: (
   useEffect(() => { if (eject.state.status === 'confirmed' || eject.state.status === 'recovered') ended() }, [eject.state.status, ended])
   useEffect(() => {
     if (eject.state.status !== 'error') return
-    const maybeLanded = eject.state.submitted || eject.state.category === 'confirmation'
+    const maybeLanded = eject.state.submitted || eject.state.unresolved || eject.state.category === 'confirmation'
     if (moved.current) { setLine('Amounts changed.'); return }
     if (!maybeLanded) { setLine(eject.state.category === 'network-mismatch' || eject.state.category === 'transaction-failed' ? eject.copy.body : 'Nothing was sent.'); return }
     setLine(eject.copy.body)

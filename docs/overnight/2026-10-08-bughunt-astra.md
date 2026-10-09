@@ -5,10 +5,10 @@ Status: audit in progress. Each fix requires an observed failing regression test
 
 | class | bug | evidence (test or file:line) | severity | fixed (SHA) / not fixed (why) |
 | --- | --- | --- | --- | --- |
-| C1 | Wallet/faucet/receipt outcome audit pending | — | — | not fixed: investigating |
+| C1 | Cancel-after-signing still said “Nothing was sent” for stamp/settle/End early | lifecycleMachine.test.ts unresolved cases; actionRecoveryHooks.test.ts; eject.test.ts wiring | high | fixed: pending commit |
 | C2 | Transition-state audit pending | — | — | not fixed: investigating |
 | C3 | Detail catch-up settles while disconnected/another wallet is connected | useCatchup.test.ts: never starts detail catch-up (both failed before fix) | high | fixed: 462d4c5 |
-| C3 | Faucet result/request survives A→none→B→A; late A response refreshes old balance | useDevnetFaucet.test.ts: 4 regressions failed before fix | high | fixed: pending commit |
+| C3 | Faucet result/request survives A→none→B→A; late A response refreshes old balance | useDevnetFaucet.test.ts: 4 regressions failed before fix | high | fixed: 51fa962 |
 | C3 | Recovery, reminders and detail-local data cross wallet boundaries | audit in progress | high | not fixed: investigating |
 | C4 | Resume, reminders and clock audit pending | — | — | not fixed: investigating |
 | C5 | Money audit pending; create amount UI excluded | — | — | not fixed: owner decision pending on create |

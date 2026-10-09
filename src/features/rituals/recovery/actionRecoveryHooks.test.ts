@@ -115,7 +115,7 @@ for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery
     expect(verdict.report.mock.calls).toEqual([[false]])
     expect(waiting.canSubmit).toBe(true)
     // A duplicate stamp is rejected by the program; a Create retry reuses the same ritual address, but it never claims nothing was sent.
-    expect(waiting.copy.body).toBe(kind === 'claim' ? 'Nothing was sent. Try again.' : 'Try again.')
+    expect(waiting.copy.body).toBe(kind === 'claim' ? 'Checking whether it went through…' : 'Try again.')
     expired = true
     await vi.advanceTimersByTimeAsync(3000)
     const settled = render()
