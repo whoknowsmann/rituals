@@ -5,7 +5,7 @@ Verification: `npm run typecheck` clean; full `npm test` 166 files / 2,807 tests
 
 | class | bug | evidence (test or file:line) | severity | fixed (SHA) / not fixed (why) |
 | --- | --- | --- | --- | --- |
-| C1 | Not a bug: b559780 replaced the F1 design (fd6769a: stamp/skip/settle/End early keep “Nothing was sent. Try again.” while the chain check runs, since the program rejects a duplicate; Create says “Try again.” and reuses its prepared create) and left the suite red | ritualSubmission.test.ts “keeps a sheet cancelled after signing began unresolved…”; actionRecoveryHooks.test.ts | — | reverted: d2a1968 |
+| C1 | Not a bug: b559780 replaced the F1 design (fd6769a: stamp/skip/settle/End early keep “Nothing was sent. Try again.” while the chain check runs, since the program rejects a duplicate; Create says “Try again.” and every retry keeps its nonce, so the same ritual address) and left the suite red | ritualSubmission.test.ts “keeps a sheet cancelled after signing began unresolved…”; actionRecoveryHooks.test.ts | — | reverted: d2a1968 |
 | C1 | Faucet promised unconfirmed credit; a timeout skipped the balance refresh; minimum funding implied any stake fits | devnetFaucet.test.ts uncertain-response cases | medium | fixed: fd4c640 |
 | C2/C6 | Detail/receipt re-read accepted older slots; a route change showed the previous week for one render | authoritativeRituals.transition.test.ts | medium | fixed: f57f83a |
 | C3 | Detail catch-up settled while disconnected or under another wallet | useCatchup.test.ts “never starts detail catch-up” | high | fixed: 462d4c5 |
@@ -37,3 +37,23 @@ C5 create numbers, chosen total → weeks: per-week/locked (tSKR; the devnet fee
 - d7745cf: on an empty wallet, create step 3 shows “You have 0 tSKR” and Get test tokens; tap it. Expect “Sent: 50 tSKR and 0.05 SOL.”, then no “Not enough tSKR” line once the credit is read.
 - 1510922: stamp the only week of a 1-week demo ritual. Expect YOU SHOWED UP! without “Same time next week.”; once settled, its receipt reads “20 of 20 tSKR back”.
 - fd4c640/51fa962: on an empty wallet, Home → Get test tokens gives “Sent: 50 tSKR and 0.05 SOL.” and Start one. Disconnect and connect another empty wallet: no carried-over line, and Get test tokens is back.
+
+## Independent review (astra → opus)
+Scope: every commit 2c909c7..17a8e2f against the review brief. Astra wrote bd55932–f417ebe and stopped mid-item; Opus finished. `npm run typecheck` clean; full `npm test` 168 files / 2,852 tests green at 17a8e2f. Each fix's test failed first. Nothing was run on a device.
+Verdict: merge at this commit. Run device checks A–C below on the next build before recording; A covers a create that hung on this branch until 5d84dd8 (feat/solo-screens never had the bug).
+
+| commit | issue | severity | fixed SHA / why not |
+| --- | --- | --- | --- |
+| bf38f28 | Create journals gained the creator and week 0, so readPendingAction threw for one with no signature: a create that landed after Back on Seed Vault's success sheet, or after a wallet timeout, stayed unknown forever (Create stuck on “Try again.” or “Checking whether it went through…”; Home kept “still checking”). The hook tests mocked reconcile, so they passed | high | 5d84dd8 |
+| 73d5fdf | Try again re-signed the first attempt's exact bytes. Seed Vault reports every decline as a cancel, so decline → change the stake → Lock it in signed the old stake; and once that blockhash lapsed (~60 s) every retry failed before the wallet until expiry was proven, ~150 blocks later | high | 20ef107: back to F1 (fresh prepare, same nonce and ritual address); keeps its reset guard and all-kinds tests. The C1 row above now says nonce |
+| uncommitted WIP | termsLocked plus leaving Create on a wallet change: patched 73d5fdf's side effects with input locks and new navigation on the demo path | — | dropped; copy in scratch hunt-review-wip.patch |
+| 9d28fd0 | The reminder plan ran before Home's first read, so a connected wallet's alerts were cancelled at every launch, and none came back if that read failed | medium | 17a8e2f; a disconnect still silences without the RPC |
+| bd55932, be7f6b5, e598dac, f417ebe; 462d4c5…81cfcd9 | Re-checked: correct. d2a1968 is a clean revert; rule (3) holds for every action kind. The source pins left are screen wiring (no renderer installed) | — | — |
+| fd4c640 | An unconfirmed faucet send reads “Checking whether it went through…” and nothing re-checks it (only on a faucet confirm timeout) | low | not fixed: copy, rare |
+| Create, A→none→B | A's unresolved “Try again.” stays; B's Lock it in makes B's own ritual; if A's lands, B sees “not ready to show yet”. No wrong-wallet signing: the fee payer must be the connected account | low | not fixed: needs a screen change on the demo path |
+| F1 limit | A retry that fails before its journal (RPC at prepare) stops the screen's check until the next attempt reaches the wallet; Home recovery still resolves it. The hidden group lobby draws a nonce per prepare | low | not fixed: SOLO_ONLY hides the lobby |
+
+Device checks, add ahead of the list above:
+- A (5d84dd8): Lock it in, approve in Seed Vault, then press Back on its success sheet. Expect “Try again.” for about a second, then the ritual screen opens by itself; Home lists it once, with no “still checking” line.
+- B (20ef107): 4-week demo ritual at 20 tSKR, Lock it in, decline in Seed Vault (OK the “Network mismatch?” popup if it shows), tap 10, Lock it in. Seed Vault asks again; approve. The ritual reads Stake per week 2.5 tSKR, not 5.
+- C (17a8e2f): with Remind me on and a week ahead, force-stop Rituals, turn on airplane mode, open it (Home cannot read), then leave it. The next “Week N: stamp by …” still arrives.
