@@ -16,13 +16,14 @@ export function endableRituals(loaded: readonly LoadedRitual[], wallet: PublicKe
 
 export type EjectRow = Readonly<{ label: string; value: string }>
 
-/** Money only: what comes back now, then (only if any) what the destination gets from this ritual. */
-export function ejectRows(amounts: Pick<EjectAmounts, 'backToYou' | 'destinationTotal'>, destinationLabel: string, decimals: number): readonly EjectRow[] {
-  const destination = destinationLabel.charAt(0).toUpperCase() + destinationLabel.slice(1)
-  return Object.freeze([
-    Object.freeze({ label: 'Back to you', value: formatAtomic(amounts.backToYou, decimals) }),
-    ...(amounts.destinationTotal > 0n ? [Object.freeze({ label: destination, value: formatAtomic(amounts.destinationTotal, decimals) })] : []),
-  ])
+/**
+ * One money fact: what comes back now (Jack, 2026-10-09). A missed week's stake
+ * is that week's history and stays on its receipt, even when this transaction is
+ * what settles it (a lapsed, unstamped week not yet closed); Back to you already
+ * leaves it out.
+ */
+export function ejectRows(amounts: Pick<EjectAmounts, 'backToYou'>, decimals: number): readonly EjectRow[] {
+  return Object.freeze([Object.freeze({ label: 'Back to you', value: formatAtomic(amounts.backToYou, decimals) })])
 }
 
 export const ejectTitle = (name: string): string => `End ${name} early?`

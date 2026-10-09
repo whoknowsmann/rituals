@@ -10,7 +10,11 @@ import { watchActionReconciliation } from '../recovery/reconcilePendingAction'
 import type { RitualClient } from '../../../data/rituals/ritualClient'
 import type { PendingActionRecord } from '../recovery/pendingAction'
 import { tileStatus } from '../home/tileStatus'
+import { completedMoneyLine, tileMoneyLine } from '../home/tileMoney'
+import type { SoloWeekOutcome } from '../home/soloHistory'
+import { soloAccount } from '../../../data/rituals/ejectTestHelpers'
 import { soloRitualModel, type SoloRitualBundle } from '../solo/lifecycle/soloRitualModel'
+import { soloReceiptMoneyLine } from '../solo/lifecycle/soloReceiptModel'
 import { showDemoSpeedNotice } from '../../../screens/solo/weekHero'
 
 const me = new PublicKey(new Uint8Array(32).fill(7))
@@ -25,11 +29,16 @@ describe('end early: what Settings lists and shows', () => {
     expect(endableRituals(rituals, null)).toEqual([])
   })
 
-  it('shows money only: what comes back, and the destination only when it gets anything', () => {
+  it('shows one money fact, what comes back now, and never a destination row (Jack, 2026-10-09)', () => {
     expect(ejectTitle('Run')).toBe('End Run early?')
-    expect(ejectRows({ backToYou: 15_000_000n, destinationTotal: 0n }, 'Northside Food Bank (demo)', 6)).toEqual([{ label: 'Back to you', value: '15 tSKR' }])
-    expect(ejectRows({ backToYou: 10_000_000n, destinationTotal: 5_000_000n }, 'Northside Food Bank (demo)', 6)).toEqual([{ label: 'Back to you', value: '10 tSKR' }, { label: 'Northside Food Bank (demo)', value: '5 tSKR' }])
-    expect(ejectRows({ backToYou: 0n, destinationTotal: 2_500_000n }, 'the wallet you chose · fT9Xe…LJgo1', 6)[1]).toEqual({ label: 'The wallet you chose · fT9Xe…LJgo1', value: '2.5 tSKR' })
+    // A full quote: weeks already missed (destinationTotal) are history, not part of ending early.
+    const amounts = (backToYou: bigint, destinationTotal: bigint) => ({ backToYou, pendingForfeit: 0n, destinationTotal, missingReceiptCount: 0 })
+    expect(ejectRows(amounts(15_000_000n, 0n), 6)).toEqual([{ label: 'Back to you', value: '15 tSKR' }])
+    expect(ejectRows(amounts(10_000_000n, 5_000_000n), 6)).toEqual([{ label: 'Back to you', value: '10 tSKR' }])
+    expect(ejectRows(amounts(13_333_332n, 3_333_333n), 6)).toEqual([{ label: 'Back to you', value: '13.33 tSKR' }])
+    const flow = readFileSync(resolve(__dirname, 'EndEarly.tsx'), 'utf8')
+    expect(flow).toContain('ejectRows(quote, decimals)')
+    for (const gone of ['destinationTotal', 'labelSoloDestination', 'useSoloDestinationOwner', 'forfeitDestination']) expect(flow + readFileSync(resolve(__dirname, 'ejectFlow.ts'), 'utf8')).not.toContain(gone)
   })
 
   it('enables the last button only for the ritual’s own name', () => {
@@ -130,6 +139,18 @@ describe('an ended ritual on Home and on its screen', () => {
     expect(model.lastClosedEventIndex).toBe(0)
     expect(tileStatus(model)).toEqual({ text: 'Ended', act: false })
     expect(showDemoSpeedNotice({ ...model, demoSpeedNotice: 'Demo speed: a week here is 1 minute.' }, false)).toBe(false)
+  })
+
+  it('shows no destination amount after ending, on its screen or on Home; a missed week stays on its receipt', () => {
+    const ended = soloAccount({ status: 'Ended', currentEventIndex: 2, completedAt: 1110n })
+    const outcomes = new Map<number, SoloWeekOutcome>([[0, 'missed'], [1, 'done']])
+    expect(completedMoneyLine(ended, outcomes, 'Northside Food Bank (demo)')).toBeNull()
+    expect(tileMoneyLine(ended, outcomes)).toBe('10 of 15 tSKR back')
+    const missedWeek = { ritual: { address: ritualAddress, account: ended }, claims: [], event: { account: { eventIndex: 0, status: 'Settled', voidReason: 'None', forfeitedTotal: ended.perEventAllocation } } }
+    expect(soloReceiptMoneyLine(missedWeek as unknown as SoloRitualBundle)).toBe('5 tSKR went to the wallet you chose.')
+    const ritual = readFileSync(resolve(__dirname, '../../../screens/solo/SoloRitualScreen.tsx'), 'utf8')
+    expect(ritual).toContain('const totalsLine = completedMoneyLine(readyBundle.ritual.account')
+    expect(ritual).toContain("if (model.state === 'completed' || model.state === 'ended') return null")
   })
 
   it('wires the hidden Settings entry, the two confirmations and the Ended screen', () => {

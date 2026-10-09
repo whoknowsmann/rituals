@@ -14,8 +14,6 @@ import { listKnownRituals, loadKnownRitualBundles } from '../authoritativeRitual
 import { ritualTintAmong } from '../home/ritualColours'
 import { asyncStoragePendingActionStore } from '../recovery/pendingAction'
 import { clearRitualReminders } from '../reminders/runtime'
-import { labelSoloDestination } from '../solo/lifecycle/soloRitualModel'
-import { useSoloDestinationOwner } from '../solo/lifecycle/useSoloDestinationOwner'
 import { useRitualAction } from '../useRitualAction'
 import { withWalletHandoff } from '../walletHandoff'
 import { buildEjectDeps } from './ejectDeps'
@@ -85,7 +83,6 @@ export function EndEarly({ ritual, onClose }: { ritual: EndingRitual; onClose: (
     void client.client.getEjectQuote(address).then((value) => { if (active) setQuote(value) }, () => { if (active) setLine('Could not read this ritual.') })
     return () => { active = false }
   }, [client, address])
-  const destinationOwner = useSoloDestinationOwner(ritual.address, quote?.ritual.account.forfeitDestination, quote?.ritual.account.stakeMint)
 
   const makeDeps = useCallback(() => {
     if (client.status !== 'ready' || !selectedAccount || !quoteRef.current) throw new Error('Ritual or wallet is not ready')
@@ -124,7 +121,7 @@ export function EndEarly({ ritual, onClose }: { ritual: EndingRitual; onClose: (
   }, [eject.copy.body, eject.state])
 
   const decimals = quote?.ritual.account.stakeDecimals ?? 6
-  const rows = quote ? ejectRows(quote, labelSoloDestination(quote.ritual.account.forfeitDestination, undefined, destinationOwner), decimals) : [{ label: 'Back to you', value: '…' }]
+  const rows = quote ? ejectRows(quote, decimals) : [{ label: 'Back to you', value: '…' }]
   const busy = eject.isBusy || eject.state.status === 'confirmed' || eject.state.status === 'recovered'
   const busyLabel = withWalletHandoff(eject.copy, eject.state.status, walletPackage).title
 
