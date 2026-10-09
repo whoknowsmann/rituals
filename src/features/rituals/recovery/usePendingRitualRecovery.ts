@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Connection, PublicKey } from '@solana/web3.js'
 import { AppState } from 'react-native'
 import { readPendingAction } from './readPendingAction'
-import type { RitualClient } from '../../../data/rituals/ritualClient'
+import { useAuthorization } from '../../../utils/useAuthorization'
 import type { RitualClientState } from '../client/useRitualClient'
 import {
   asyncStoragePendingActionStore,
@@ -37,11 +37,18 @@ const copyFor = (resolution: PendingActionResolution): string => {
 export async function resolvePendingActions(
   store: PendingActionStore,
   transport: PendingRecoveryTransport,
+  actor: string | null,
+  mayContinue: () => boolean = () => true,
 ): Promise<readonly PendingActionResolution[]> {
+  if (!actor || !mayContinue()) return []
   const records = await store.list()
   const resolutions: PendingActionResolution[] = []
   for (const record of records) {
+    if (!mayContinue()) break
+    // Legacy journals without an actor remain on disk; never attribute them to this wallet.
+    if (record.actor !== actor) continue
     const resolution = await resolvePendingAction(record, transport)
+    if (!mayContinue()) break
     resolutions.push(resolution)
     if (resolution.status !== 'still-unknown') {
       try { await store.remove(record) } catch { /* leave the record for a later retry */ }
@@ -56,11 +63,17 @@ export function usePendingRitualRecovery(
   store: PendingActionStore = asyncStoragePendingActionStore,
   enabled = true,
 ): PendingRecoveryNotice | null {
-  const [notice, setNotice] = useState<PendingRecoveryNotice | null>(null)
+  const { selectedAccount } = useAuthorization()
+  const actor = selectedAccount?.publicKey.toBase58() ?? null
+  const session = useRef({ actor })
+  if (session.current.actor !== actor) session.current = { actor }
+  const scope = session.current
+  const [notice, setNotice] = useState<{ scope: typeof scope; value: PendingRecoveryNotice | null } | null>(null)
 
   useEffect(() => {
     let mounted = true
-    if (clientState.status !== 'ready' || !enabled) return () => { mounted = false }
+    if (clientState.status !== 'ready' || !enabled || !actor) return () => { mounted = false }
+    const mayContinue = () => mounted && session.current === scope && AppState.currentState === 'active'
     const client = clientState.client
     const transport: PendingRecoveryTransport = {
       getSignatureStatus: async (signature): Promise<PendingActionSignatureStatus | null> => {
@@ -73,20 +86,20 @@ export function usePendingRitualRecovery(
     }
     let running = false
     const recover = () => {
-      if (running || AppState.currentState !== 'active') return
+      if (running || !mayContinue()) return
       running = true
-      void resolvePendingActions(store, transport).then((resolutions) => {
-        if (!mounted) return
-        // An expired request sent nothing: there is nothing to tell the user.
+      void resolvePendingActions(store, transport, actor, mayContinue).then((resolutions) => {
+        if (!mayContinue()) return
+        // Expired records need no banner; the ritual's readback remains the authority.
         const resolution = resolutions.find((item) => item.status === 'still-unknown') ?? resolutions.find((item) => item.status !== 'expired')
-        setNotice(resolution ? Object.freeze({ title: 'Picking up where you left off', body: copyFor(resolution), resolution }) : null)
+        setNotice({ scope, value: resolution ? Object.freeze({ title: 'Picking up where you left off', body: copyFor(resolution), resolution }) : null })
       }).catch(() => { /* journal remains available for retry */ }).finally(() => { running = false })
     }
     recover()
     const listener = AppState.addEventListener('change', recover)
     const timer = setInterval(recover, 15_000)
     return () => { mounted = false; listener.remove(); clearInterval(timer) }
-  }, [clientState, connection, store, enabled])
+  }, [clientState, connection, store, enabled, actor, scope])
 
-  return notice
+  return enabled && actor && notice?.scope === scope ? notice.value : null
 }

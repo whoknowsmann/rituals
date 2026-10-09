@@ -176,7 +176,7 @@ export function buildSoloCreateDeps(params: SoloCreateDepsParams): CreateRitualD
           throw Object.assign(new CreateDepsError('prepared transaction expired before signing'), { blockhashExpired: true })
         }
       }
-      pendingRecord = makePendingActionRecord(prepared, now())
+      pendingRecord = { ...makePendingActionRecord(prepared, now()), actor: creator.toBase58(), eventIndex: 0 }
       if (pendingActionStore) await pendingActionStore.upsert(pendingRecord)
       try {
         if (rememberBeforeSend) await rememberBeforeSend(prepared.ritualAddress)

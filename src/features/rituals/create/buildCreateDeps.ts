@@ -170,7 +170,7 @@ export function buildCreateRitualDeps(params: CreateDepsParams): CreateRitualDep
         if (Number.isSafeInteger(current) && current > action.lastValidBlockHeight) throw Object.assign(new CreateDepsError('prepared blockhash expired before signing'), { blockhashExpired: true })
       }
       if (pendingActionStore) {
-        pendingRecord = makePendingActionRecord(action, now())
+        pendingRecord = { ...makePendingActionRecord(action, now()), actor: creator.toBase58(), eventIndex: 0 }
         await pendingActionStore.upsert(pendingRecord)
       }
       try {

@@ -172,6 +172,7 @@ describe('buildCreateRitualDeps: step ordering', () => {
     const prepared = await deps.prepare()
     const handle = await deps.submit(prepared)
     expect(store.upsert).toHaveBeenCalledTimes(2)
+    expect((store.upsert as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ actor: CREATOR.toBase58(), eventIndex: 0 })
     expect((store.upsert as ReturnType<typeof vi.fn>).mock.calls[0][0]).not.toHaveProperty('transactionSignature')
     expect((store.upsert as ReturnType<typeof vi.fn>).mock.calls[1][0]).toMatchObject({ transactionSignature: '1'.repeat(64), lastValidBlockHeight: 77 })
     await deps.confirm(handle)

@@ -141,6 +141,7 @@ describe('solo create transaction dependencies', () => {
       expect(calls).toEqual(['upsert:unsigned', 'remember', 'submitPrepared', 'upsert:signed'])
       expect(remember).toHaveBeenCalledWith(key(10).toBase58())
       const journaled = [...records.values()][0]
+      expect(journaled).toMatchObject({ actor: CREATOR.toBase58(), eventIndex: 0 })
       expect(journaled.actionKind).toBe('create-solo-fund-and-activate')
       expect(journaled.ritualAddress).toBe(key(10).toBase58())
       expect(journaled.transactionSignature).toBe(SIGNATURE)
