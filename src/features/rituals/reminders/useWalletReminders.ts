@@ -9,12 +9,17 @@ export function useWalletReminders(loaded: Loaded | null, walletKey: string | nu
   const session = useRef({ walletKey })
   if (session.current.walletKey !== walletKey) session.current = { walletKey }
   const scope = session.current
-  const lastRead = useRef<Loaded>([])
+  // Home's last chain read this launch (every ritual on the phone); null until one succeeds.
+  const lastRead = useRef<Loaded | null>(null)
   if (loaded) lastRead.current = loaded
   const applied = useRef<{ scope: typeof scope; key: string } | null>(null)
   useEffect(() => {
     if (walletLoading) return
-    const plan = walletReminderPlan(lastRead.current, walletKey ? new PublicKey(walletKey) : null, Math.floor(Date.now() / 1000))
+    // A disconnect silences every alert without the RPC. A connected wallet's
+    // alerts stay until a read shows which rituals are its own: a plan without
+    // one would silence them all, and a failed launch read would leave none.
+    if (walletKey !== null && lastRead.current === null) return
+    const plan = walletReminderPlan(lastRead.current ?? [], walletKey ? new PublicKey(walletKey) : null, Math.floor(Date.now() / 1000))
     if (applied.current?.scope === scope && applied.current.key === plan.key) return
     let active = true
     const mayContinue = () => active && session.current === scope

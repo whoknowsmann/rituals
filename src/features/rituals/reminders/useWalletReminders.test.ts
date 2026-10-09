@@ -32,11 +32,23 @@ describe('Home wallet reminder effect (no renderer or RPC)', () => {
     expect(applyWalletReminderPlan).toHaveBeenCalledOnce()
     expect(vi.mocked(applyWalletReminderPlan).mock.calls[0][0]).toMatchObject({ restore: [] })
   })
-  it('waits for stored authorization, but not for the RPC', async () => {
+  it('waits for stored authorization; a disconnect needs no RPC', async () => {
     render(null, null, true); await flush()
     expect(applyWalletReminderPlan).not.toHaveBeenCalled()
-    render(a, null); await flush()
+    render(null, null); await flush()
     expect(applyWalletReminderPlan).toHaveBeenCalledOnce()
+  })
+  it('keeps a connected wallet\'s own alerts until Home has read the chain, even when launch reads fail', async () => {
+    // A plan with nothing to restore silences every saved ritual (restore.test.ts): at launch that would be A's own.
+    render(a, null); await flush()
+    render(a, null); await flush()
+    expect(applyWalletReminderPlan).not.toHaveBeenCalled()
+    render(a, []); await flush()
+    expect(applyWalletReminderPlan).toHaveBeenCalledOnce()
+    // After one read, a switch during a failed refresh still silences what B cannot prove is its own.
+    render(b, null); await flush()
+    expect(applyWalletReminderPlan).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(applyWalletReminderPlan).mock.calls[1][0]).toMatchObject({ restore: [] })
   })
   it('invalidates old A work permanently through A→none→B→A and on unmount', async () => {
     vi.mocked(applyWalletReminderPlan).mockImplementation(() => new Promise(() => undefined))
