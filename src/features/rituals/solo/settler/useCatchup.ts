@@ -34,9 +34,9 @@ export function useCatchup(input: Input): { busy: boolean; blocked: boolean } {
     if (!input.focused) completedSnapshot.current = null
     if (queueLock.current || !input.focused || input.now === null || AppState.currentState !== 'active') return
     if (completedSnapshot.current === snapshot) return
-    const owned = input.scope === 'home' ? ritualsForWallet(input.rituals, input.wallet) : input.rituals
+    const owned = ritualsForWallet(input.rituals, input.wallet)
     const candidates = owned.filter(({ bundle }) => overdue(bundle, input.now) && (catchupFailures.get(failureKey(bundle)) ?? 0) < 3)
-    if (!candidates.length || (input.scope === 'home' && !input.wallet)) return
+    if (!candidates.length || !input.wallet) return
     queueLock.current = true
     setBusy(true)
     setBlocked(false)
@@ -57,7 +57,8 @@ export function useCatchup(input: Input): { busy: boolean; blocked: boolean } {
           getBlockHeight: () => input.connection.getBlockHeight('confirmed'),
           mayContinue: (read) => {
             const account = read.ritual.account
-            return mayContinue() && latest.current.rituals.some((item) => item.bundle.ritual.address.equals(read.ritual.address))
+            return mayContinue() && ritualsForWallet([{ bundle: read }], latest.current.wallet).length > 0
+              && latest.current.rituals.some((item) => item.bundle.ritual.address.equals(read.ritual.address))
               && settlementVisibleEnough({ demoSpeedNotice: demoSpeedNotice(account.schedule),
                 showedUp: read.claims.some((claim) => claim.account?.status === 'Confirmed'),
                 weekSkipped: account.skipDeclared && account.skipEventIndex === account.currentEventIndex,

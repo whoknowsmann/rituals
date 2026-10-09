@@ -48,6 +48,13 @@ describe('foreground catch-up hook (effect harness, not a device renderer)', () 
     expect(loadOrCreateSettler).not.toHaveBeenCalled()
     expect(runCatchup).not.toHaveBeenCalled()
   })
+  it.each(['disconnected', 'other-wallet'] as const)('never starts detail catch-up on %s', async (reason) => {
+    const input: Parameters<typeof useCatchup>[0] = { ...defaults(), scope: 'ritual' }
+    input.wallet = reason === 'disconnected' ? null : other
+    render(input); await flush()
+    expect(loadOrCreateSettler).not.toHaveBeenCalled()
+    expect(runCatchup).not.toHaveBeenCalled()
+  })
   it('starts only the connected wallet and refreshes once after the runner, not on every tick', async () => {
     const input = defaults(); input.rituals.push({ bundle: bundle(other) })
     render(input); await flush()
