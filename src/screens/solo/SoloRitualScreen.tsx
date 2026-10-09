@@ -41,7 +41,12 @@ import { keptWeekOnScreen, missedWeekOnScreen, nextUpLine, punchCardCells, showD
 
 type Props = { route: { params: { ritualId: string } } }
 
-export function SoloRitualScreen({ route }: Props) { const s = useS(); const color = useColors();
+export function SoloRitualScreen({ route }: Props) {
+  const { selectedAccount } = useAuthorization()
+  return <WalletSoloRitual key={selectedAccount?.publicKey.toBase58() ?? 'disconnected'} route={route} />
+}
+
+function WalletSoloRitual({ route }: Props) { const s = useS(); const color = useColors();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const focused = useIsFocused()
   const [appState, setAppState] = useState(AppState.currentState)
@@ -60,6 +65,7 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const state = useSoloRitualBundle(client, route.params.ritualId)
   const reminderSettings = useReminderSettings()
   const accountRef = useRef(selectedAccount); accountRef.current = selectedAccount
+  useEffect(() => () => { accountRef.current = null }, [])
   const [reload, setReload] = useState(0)
   const ritualAddress = useMemo(() => { try { return new PublicKey(route.params.ritualId) } catch { return null } }, [route.params.ritualId])
   const [soloNotes, setSoloNotes] = useState<SoloNotes | null>(null)
@@ -97,14 +103,15 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   const retryRef = useRef(state.retry); retryRef.current = state.retry
   useEffect(() => { if (focused && appState === 'active') retryRef.current() }, [focused, appState])
   const read = state.status === 'ready' ? state.bundle : null
+  const ownsRitual = Boolean(selectedAccount && read?.ritual.account.creator.equals(selectedAccount.publicKey))
   const destinationOwner = useSoloDestinationOwner(route.params.ritualId, read?.ritual.account.forfeitDestination, read?.ritual.account.stakeMint)
   const model: SoloRitualModel | null = state.status === 'ready' && state.bundle && chainNow !== null
     ? soloRitualModel(state.bundle, chainNow, state.bundle.ritual.account.creator, destinationOwner) : null
-  const { afterStamp: cancelWeekReminders } = useReminders({ ritualAddress: route.params.ritualId,
+  const { afterStamp: cancelWeekReminders } = useReminders(ownsRitual ? { ritualAddress: route.params.ritualId,
     eventIndex: read?.ritual.account.currentEventIndex, stamped: Boolean(model?.showedUp),
     schedule: read?.ritual.account.schedule, nowSeconds: chainNow ?? undefined,
     completed: read?.ritual.account.status === 'Completed' || read?.ritual.account.status === 'Ended',
-    skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined })
+    skippedEventIndex: read?.ritual.account.skipDeclared ? read.ritual.account.skipEventIndex : undefined } : undefined)
   const makeSharedDeps = useCallback((kind: 'claim' | 'finalize' | 'initialize-event') => {
     if (client.status !== 'ready' || !selectedAccount || !ritualAddress || !read || !model) throw new Error('Ritual or wallet is not ready')
     const eventIndex = kind === 'claim' ? model.eventIndex : read.ritual.account.currentEventIndex
@@ -223,17 +230,18 @@ export function SoloRitualScreen({ route }: Props) { const s = useS(); const col
   // on merely opening a week that was already stamped.
   const [celebrate, setCelebrate] = useState(0)
   useEffect(() => {
-    if (!model) return // the week clock re-syncing after a pause is not a new stamp
+    if (!model || !ownsRitual) return // the week clock re-syncing after a pause is not a new stamp
     if (model?.showedUp && !showedUpBefore.current) {
       haptic.success()
       if (claimEventIndex.current !== null && claimEventIndex.current === model.eventIndex) setCelebrate((value) => value + 1)
     }
     showedUpBefore.current = Boolean(model?.showedUp)
-  }, [model?.showedUp])
+  }, [model?.showedUp, ownsRitual])
 
   if (state.status === 'loading') return <Centered>Reading your ritual…</Centered>
   if (state.status === 'ready' && chainNow === null) return <Centered>Checking the week clock… Check your connection if this takes a while.</Centered>
   if (state.status === 'error' || !state.bundle || !model || chainNow === null) return <ErrorState message={state.message ?? 'This ritual could not be read.'} retry={state.retry} onHome={() => navigation.navigate('RitualsHome')} />
+  if (!ownsRitual) return <Centered>Connect the wallet that created this ritual to stamp it.</Centered>
   const readyBundle = state.bundle
   const stampPending = claim.isBusy || stampNotRead
   const action = stampPending ? claim : model.settlementEventIndex !== null ? settle : model.canSkip ? skip : claim

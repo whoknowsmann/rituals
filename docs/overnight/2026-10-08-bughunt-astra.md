@@ -11,7 +11,8 @@ Status: audit in progress. Each fix requires an observed failing regression test
 | C3 | Detail catch-up settles while disconnected/another wallet is connected | useCatchup.test.ts: never starts detail catch-up (both failed before fix) | high | fixed: 462d4c5 |
 | C3 | Faucet result/request survives A→none→B→A; late A response refreshes old balance | useDevnetFaucet.test.ts: 4 regressions failed before fix | high | fixed: 51fa962 |
 | C3 | Recovery resolves/removes another wallet's journal and shows its notice; creates omit owner | usePendingRitualRecovery.test.ts; both buildCreateDeps journal tests | high | fixed: bf38f28; ownerless legacy journals retained silently |
-| C3 | Reminders and detail-local data cross wallet boundaries | audit in progress | high | not fixed: investigating |
+| C2/C3 | Settings keeps A's list/end flow while B loads; detail/receipt show A's notes and stamps | walletBoundaries.test.ts source guards (RN device check pending) | high | fixed: pending commit |
+| C3/C4 | Reminder ownership/restore audit | audit in progress | high | not fixed: investigating |
 | C4 | Resume, reminders and clock audit pending | — | — | not fixed: investigating |
 | C5 | Money audit pending; create amount UI excluded | — | — | not fixed: owner decision pending on create |
 | C6 | First/final-week audit pending | — | — | not fixed: investigating |

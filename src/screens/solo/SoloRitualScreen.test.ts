@@ -128,7 +128,7 @@ describe('SoloRitualScreen proof and witness controls', () => {
     expect(source).toContain('animate={freshStamp}')
     expect(source).not.toContain("animate={action.state.status !== 'confirmed'}")
     // A week-clock re-sync (model briefly null) is not a new stamp.
-    expect(source).toMatch(/useEffect\(\(\) => \{\n\s+if \(!model\) return[^\n]*\n\s+if \(model\?\.showedUp && !showedUpBefore\.current\)/)
+    expect(source).toMatch(/useEffect\(\(\) => \{\n\s+if \(!model \|\| !ownsRitual\) return[^\n]*\n\s+if \(model\?\.showedUp && !showedUpBefore\.current\)/)
     // A re-mounted stamp (in the gap before the next week, or on the finished ritual) stays still.
     expect(source).toContain('celebrate > 0 && model.showedUp,')
   })

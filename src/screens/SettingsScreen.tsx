@@ -21,6 +21,11 @@ export function shortProgramId(value: string): string {
 }
 
 export function SettingsScreen() {
+  const { selectedAccount } = useAuthorization()
+  return <WalletSettings key={selectedAccount?.publicKey.toBase58() ?? 'disconnected'} />
+}
+
+function WalletSettings() {
   const s = useS()
   const { getExplorerUrl } = useCluster()
   const programId = RITUALS_PROGRAM_ID.toBase58()

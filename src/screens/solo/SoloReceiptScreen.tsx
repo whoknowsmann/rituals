@@ -29,6 +29,7 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
   }, [route.params.eventIndex, route.params.ritualId]))
   if (state.status === 'loading') return <Centered>Reading the week…</Centered>
   if (state.status === 'error' || !state.bundle) return <ErrorState message={state.message ?? 'This week could not be read.'} retry={state.retry} onHome={() => navigation.goBack()} />
+  if (!selectedAccount || !state.bundle.ritual.account.creator.equals(selectedAccount.publicKey)) return <Centered>Connect the wallet that created this ritual.</Centered>
   const receipt = soloReceiptModel(state.bundle, selectedAccount?.publicKey ?? null, destinationOwner)
   const moneyLine = soloReceiptMoneyLine(state.bundle, destinationOwner)
   const receiptNote = soloNotes?.notes[String(route.params.eventIndex)] ?? null

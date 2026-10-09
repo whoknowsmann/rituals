@@ -68,6 +68,7 @@ export function EndEarly({ ritual, onClose }: { ritual: EndingRitual; onClose: (
   const { connection } = useConnection()
   const { selectedAccount, walletPackage } = useAuthorization()
   const accountRef = useRef(selectedAccount); accountRef.current = selectedAccount
+  useEffect(() => () => { accountRef.current = null }, [])
   const address = useMemo(() => new PublicKey(ritual.address), [ritual.address])
   const [quote, setQuote] = useState<EjectQuote | null>(null)
   const quoteRef = useRef<EjectQuote | null>(null); quoteRef.current = quote
@@ -107,6 +108,7 @@ export function EndEarly({ ritual, onClose }: { ritual: EndingRitual; onClose: (
     if (finished.current) return
     finished.current = true
     void clearRitualReminders(ritual.address).catch(() => undefined).finally(() => {
+      if (!accountRef.current) return
       onCloseRef.current()
       navigation.navigate('SoloRitual', { ritualId: ritual.address })
     })
