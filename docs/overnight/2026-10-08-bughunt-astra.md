@@ -13,8 +13,9 @@ Status: audit in progress. Each fix requires an observed failing regression test
 | C3 | Recovery resolves/removes another wallet's journal and shows its notice; creates omit owner | usePendingRitualRecovery.test.ts; both buildCreateDeps journal tests | high | fixed: bf38f28; ownerless legacy journals retained silently |
 | C2/C3 | Settings keeps A's list/end flow while B loads; detail/receipt show A's notes and stamps | walletBoundaries.test.ts source guards (RN device check pending) | high | fixed: d924fab |
 | C3 | Settings master-on restores every wallet; native scheduling ignores switches during permission lookup | restore.test.ts (owner/switch); service.test.ts (permission switch) failed first | high | fixed: f3b41a5 |
-| C3/C7 | Skip and End early check wallet before async height/journal, then still sign after switching | soloActionDeps.test.ts; eject.test.ts: four switch regressions failed first | high | fixed: pending commit |
-| C4 | Resume, reminders and clock audit pending | — | — | not fixed: investigating |
+| C3/C7 | Skip and End early check wallet before async height/journal, then still sign after switching | soloActionDeps.test.ts; eject.test.ts: four switch regressions failed first | high | fixed: d89185e |
+| C2/C3 | Create carries A's balance into B; faucet response leaves the pre-credit low-balance line | walletBoundaries.test.ts source guards; SoloCreateScreen.tsx balance state/read callback | medium | fixed: pending commit; amount picker unchanged |
+| C3/C4 | Already-scheduled reminders survive wallet switches; only detail clears observed stamps; restore only runs on Settings master-on | reminders/useReminders.ts:13; reminders/restore.ts:28; reminders/runtime.ts:7 | high | not fixed: needs app-wide ownership/cancellation/resume integration and native checks |
 | C5 | Money audit pending; create amount UI excluded | — | — | not fixed: owner decision pending on create |
 | C6 | Final stamp/receipt still draws “Same time next week.”, including 1-week rituals | sayings.test.ts: final-week regressions failed for 1/2/16 | medium | fixed: 1510922 |
 | C7 | Retry precondition audit pending | — | — | not fixed: investigating |

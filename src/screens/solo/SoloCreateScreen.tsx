@@ -194,24 +194,30 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       return total > 0n ? total + feeAtomic : null
     } catch { return null }
   })()
-  const [testBalance, setTestBalance] = useState<bigint | null>(null)
+  const walletAddress = selectedAccount?.publicKey.toBase58() ?? null
+  const [balanceRead, setBalanceRead] = useState<{ wallet: string; amount: bigint } | null>(null)
+  const testBalance = balanceRead?.wallet === walletAddress ? balanceRead.amount : null
+  const balanceGeneration = useRef(0)
   const [balanceTick, setBalanceTick] = useState(0)
   // "Get test tokens": the faucet pays; after a send the balance line re-reads a few seconds later.
   const balanceRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (balanceRefreshTimer.current) clearTimeout(balanceRefreshTimer.current) }, [])
   const onFaucetSent = useCallback(() => {
+    balanceGeneration.current += 1
+    setBalanceRead(null)
     if (balanceRefreshTimer.current) clearTimeout(balanceRefreshTimer.current)
     balanceRefreshTimer.current = setTimeout(() => setBalanceTick((value) => value + 1), 4000)
   }, [])
   const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, onFaucetSent)
   useFocusEffect(useCallback(() => {
-    if (client.status !== 'ready' || !selectedAccount) { setTestBalance(null); return }
+    const generation = ++balanceGeneration.current
+    if (client.status !== 'ready' || !selectedAccount) { setBalanceRead(null); return }
     let active = true
     void client.client.getProtocolConfig().then(async (config) => {
       if (active) { try { setLiveFeeConfig(feeConfigFromProtocol(config.account, RITUAL_FEE_CONFIG.tokenDecimals)) } catch { /* keep the constant */ } }
       const balance = await readTestTokenBalance(connection, config.account.allowedStakeMint, selectedAccount.publicKey)
-      if (active) setTestBalance(balance)
-    }).catch(() => { if (active) setTestBalance(null) }) // unknown: never block on a failed read
+      if (active && generation === balanceGeneration.current) setBalanceRead({ wallet: selectedAccount.publicKey.toBase58(), amount: balance })
+    }).catch(() => { if (active && generation === balanceGeneration.current) setBalanceRead(null) }) // unknown: never block on a failed read
     return () => { active = false }
   }, [client, connection, selectedAccount, balanceTick]))
   const shortOfTest = testBalance !== null && neededAtomic !== null && testBalance < neededAtomic
