@@ -130,7 +130,7 @@ async function main(): Promise<void> {
     title: 'App solo proof',
     requirement: 'Check in inside the window.',
     eventCount,
-    stakePerWeekAtomic: 1_000_000n,
+    stakePerWeekAtomic: BigInt(process.env.SMOKE_PER_WEEK_ATOMIC ?? '1000000'),
     schedule,
     witnessMode: 'just-me',
     destination: personText ? 'person' : 'cause',
