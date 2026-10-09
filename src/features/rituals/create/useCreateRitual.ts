@@ -22,7 +22,6 @@ import {
   createStatusCopy,
   isTerminalCreateState,
   type CreateMachineEvent,
-  type CreatePreparedRef,
   type CreateMachineState,
   type CreateStatusCopy,
 } from './createMachine'
@@ -49,7 +48,6 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   // committed the first. A ref is synchronous; reducer state is not.
   const inFlight = useRef(false)
   const attempt = useRef<CreateRitualDeps | null>(null)
-  const prepared = useRef<CreatePreparedRef | null>(null)
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -71,13 +69,12 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
     inFlight.current = true
     void (async () => {
       try {
-        // Until the old attempt is resolved, keep its exact bytes, owner and
-        // journal. A new dependency builder can choose different terms or a
-        // different wallet even if the screen retained its nonce.
-        const deps = carry && attempt.current ? attempt.current : makeDeps()
-        if (!carry) prepared.current = null
+        // Every attempt is prepared from the terms on screen, with a fresh
+        // blockhash. The screen keeps one nonce, so a retry targets the same
+        // ritual address and can never make a second ritual.
+        const deps = makeDeps()
         attempt.current = deps
-        await runCreateRitual({ ...deps, prepare: async () => prepared.current ?? (prepared.current = await deps.prepare()) }, dispatchAttempt)
+        await runCreateRitual(deps, dispatchAttempt)
       } catch (error) {
         logFailure('create.deps', error)
         // makeDeps itself can reject invalid input before any network work.

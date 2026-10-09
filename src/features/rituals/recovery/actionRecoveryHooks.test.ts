@@ -178,36 +178,44 @@ describe('pre-wallet action refresh', () => {
 })
 
 describe('create Try again after a cancelled sheet', () => {
-  it('reuses the prepared create and its reconciler, even if the next draft or wallet differs', async () => {
-    let landed = false
-    const prepared = { kind: 'create' as const, messageDigest: record.messageDigest, ritualAddress: address }
-    const first = {
-      prepare: vi.fn(async () => prepared),
-      submit: vi.fn(async () => { throw Object.assign(new Error('wallet request was rejected'), { cancelled: true }) }),
-      confirm: vi.fn(),
-      reconcile: vi.fn(async (): Promise<PendingActionResolution> => landed ? { status: 'confirmed', record, slot: 120 } : { status: 'still-unknown', record }),
-    }
-    const replacement = { ...first, prepare: vi.fn(async () => ({ ...prepared, ritualAddress: 'different-ritual' })), submit: vi.fn() }
-    const makeDeps = vi.fn().mockReturnValueOnce(first).mockReturnValue(replacement)
-    const render = () => {
-      harness.cursor = 0
-      const result = useCreateRitual(makeDeps)
-      for (const effect of harness.effects.splice(0)) effect()
-      return result
-    }
-    render().start(); await flush()
-    const unknown = render()
+  // Seed Vault answers every decline as a cancelled sheet, so this is also "decline, change the stake, lock it in".
+  const cancelled = async (): Promise<never> => { throw Object.assign(new Error('wallet request was rejected'), { cancelled: true }) }
+  const render = (makeDeps: () => unknown) => {
+    harness.cursor = 0
+    const result = useCreateRitual(makeDeps as never)
+    for (const effect of harness.effects.splice(0)) effect()
+    return result
+  }
+  it('prepares the retry from the terms now on screen, at the same ritual address', async () => {
+    const reconcile = vi.fn(async (): Promise<PendingActionResolution> => ({ status: 'still-unknown', record }))
+    const declined = { prepare: vi.fn(async () => ({ kind: 'create' as const, messageDigest: 'a'.repeat(64), ritualAddress: address })), submit: vi.fn(cancelled), confirm: vi.fn(), reconcile }
+    const editedRef = { kind: 'create' as const, messageDigest: 'b'.repeat(64), ritualAddress: address }
+    const edited = { prepare: vi.fn(async () => editedRef), submit: vi.fn(async () => ({ id: editedRef.messageDigest })),
+      confirm: vi.fn(async () => ({ signature: 'sig', messageDigest: editedRef.messageDigest })), reconcile }
+    const makeDeps = vi.fn().mockReturnValueOnce(declined).mockReturnValue(edited)
+    render(makeDeps).start(); await flush()
+    const unknown = render(makeDeps)
     expect(unknown.copy.body).toBe('Try again.')
+    unknown.reset()
+    expect(render(makeDeps).state).toMatchObject({ status: 'error', unresolved: true, ritualAddress: address })
     unknown.start(); unknown.start(); await flush()
-    expect(makeDeps).toHaveBeenCalledOnce()
-    expect(first.prepare).toHaveBeenCalledOnce()
-    expect(first.submit.mock.calls).toEqual([[prepared], [prepared]])
-    expect(replacement.submit).not.toHaveBeenCalled()
-    render().reset()
-    expect(render().state).toMatchObject({ status: 'error', unresolved: true, ritualAddress: address })
-    landed = true
-    await vi.advanceTimersByTimeAsync(3000)
-    expect(render().state).toMatchObject({ status: 'recovered', ritualAddress: address })
+    expect(makeDeps).toHaveBeenCalledTimes(2)
+    expect(declined.submit).toHaveBeenCalledOnce()
+    expect(edited.submit.mock.calls).toEqual([[editedRef]])
+    expect(render(makeDeps).state).toMatchObject({ status: 'confirmed', ritualAddress: address })
+  })
+  it('opens the wallet again once the first prepared blockhash has lapsed, rather than failing until expiry is proven', async () => {
+    const reconcile = vi.fn(async (): Promise<PendingActionResolution> => ({ status: 'still-unknown', record }))
+    const ref = { kind: 'create' as const, messageDigest: record.messageDigest, ritualAddress: address }
+    const lapsed = Object.assign(new Error('prepared transaction expired before signing'), { blockhashExpired: true })
+    const first = { prepare: vi.fn(async () => ref), submit: vi.fn().mockImplementationOnce(cancelled).mockRejectedValue(lapsed), confirm: vi.fn(), reconcile }
+    const fresh = { prepare: vi.fn(async () => ref), submit: vi.fn(async () => ({ id: ref.messageDigest })), confirm: vi.fn(async () => ({ signature: 'sig', messageDigest: ref.messageDigest })), reconcile }
+    const makeDeps = vi.fn().mockReturnValueOnce(first).mockReturnValue(fresh)
+    render(makeDeps).start(); await flush()
+    render(makeDeps).start(); await flush()
+    expect(first.submit).toHaveBeenCalledOnce()
+    expect(fresh.prepare).toHaveBeenCalledOnce()
+    expect(render(makeDeps).state).toMatchObject({ status: 'confirmed', ritualAddress: address })
   })
   it('keeps checking the chain through a failed retry, so a first attempt that landed still ends at Done', async () => {
     let landed = false
