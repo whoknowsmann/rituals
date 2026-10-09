@@ -99,6 +99,8 @@ The program was last upgraded on 2026-10-04 at slot 507505707.
 
 Several things are built but hidden, and none of them is in the app today. Rituals with friends (two to six people who stake and confirm each other) has a program on devnet and a built flow that needs a UI pass. A witness who confirms without staking and Seasons of shared public rituals with honest counts are in the same state. After the hackathon come real donation rails through The Giving Block, and photo proof.
 
+Daily rituals come first: the program already takes any window length (demo weeks are one minute), so daily is the same mechanics with shorter windows. A home-screen widget is designed and follows.
+
 The program is mint-agnostic, so the stake asset is one config value. On mainnet the plan is to offer USDC, SOL and SKR as stake options, after legal and security review.
 
 ## Repository map
