@@ -234,6 +234,19 @@ Demo timing (devnet only): a "week" is 6.5 min — opens ~2 min after create,
 
 ### Next actions, in order (owner · when)
 
+**2026-10-08 night (Opus 5.5 main; subagents Astra gpt-6-astra max, Opus/Sonnet 5.5 max):**
+d39 installed on the Seeker (318f3c4, 2,852 tests). Since d34: wallet-timeout/cancel
+reconcile (ccf1d10, 4dbd530, a74c8a4), post-cancel "Network mismatch?" popup max 2
+(fede7e8), Home scoped to the connected wallet (5798700), catch-up + one-tx missed-week
+close + finished totals (6e481ec, 0bd3534; devnet smoke PASS), class bug hunt C1–C7
+(astra/bughunt-2026-10-08, 25 fixes; docs/overnight/2026-10-08-bughunt-astra.md).
+Widget: AFTER JUDGING (docs/overnight/2026-10-08-widget-design.md).
+Pending Jack: (1) rounding — full-precision split, 2-decimal display ("20 tSKR · 3.33 a
+week"); (2) End early — drop the all-time destination row. Then: device checks (report
+§device checks + review A–C), fresh "test 4" recording, 7 demo rituals for the deck,
+doc pass (catch-up line, totals, popup, widget what's-next), merge to main, release APK,
+Jack: voiceover/captions, repo public, submit Sat. Codex resets: limit hit again ~22:00, resets 03:02.
+
 **2026-10-05 (today):** Jack's UI/UX pass landed (e7a5544, 929e727, 414c7b6):
 one colour per remembered ritual; "Remove from this phone" on finished /
 other-wallet rituals (the Phantom-Account-3 "Call mom" is gone from the demo
