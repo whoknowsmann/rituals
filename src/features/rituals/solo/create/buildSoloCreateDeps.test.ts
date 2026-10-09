@@ -158,5 +158,24 @@ describe('solo create transaction dependencies', () => {
       await expect(deps.submit(ref as never)).rejects.toThrow('verification failed')
       expect([...records.values()][0]?.transactionSignature).toBe(SIGNATURE)
     })
+
+    // Back on Seed Vault's success sheet (a cancel) or a wallet timeout returns no signature;
+    // the journal then names the creator and week 0, and only the ritual account can settle it.
+    it.each([
+      ['a sheet cancelled after it broadcast', { cancelled: true, submitted: false }],
+      ['a wallet reply lost after it broadcast', { submitted: true }],
+    ])('reads back a landed create after %s, with no signature in its journal', async (_case, failure) => {
+      const { store, records, calls } = makeStore()
+      const client = Object.assign(makeClient(calls, async () => { throw Object.assign(new Error('wallet request was rejected'), failure) }), {
+        readRitual: vi.fn(async () => ({ slot: 120, account: { kind: 'Solo', status: 'Active', creator: CREATOR } })),
+      }) as unknown as RitualClient
+      const deps = depsFor(client, store)
+      await expect(deps.submit(await deps.prepare() as never)).rejects.toThrow('wallet request was rejected')
+      const journaled = [...records.values()][0]
+      expect(journaled).toMatchObject({ actor: CREATOR.toBase58(), eventIndex: 0 })
+      expect(journaled.transactionSignature).toBeUndefined()
+      expect(await deps.reconcile!()).toMatchObject({ status: 'confirmed', slot: 120 })
+      expect(records.size).toBe(0)
+    })
   })
 })

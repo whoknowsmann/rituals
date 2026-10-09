@@ -135,6 +135,20 @@ describe('resolvePendingAction', () => {
       getSignatureStatus: vi.fn(), readRitual: async () => ({ slot: 120, actionObserved: true }) })
     expect(legacyStamp.status).toBe('expired')
   })
+  it('reads back every unsigned create journal by its account, now that it names the creator and week 0', async () => {
+    const { transactionSignature: _ignored, ...unsigned } = base
+    const read = vi.fn(async () => ({ slot: 120, account: { kind: 'Solo', status: 'Active' } }))
+    const transport = { getBlockHeight: async () => 90, getSignatureStatus: vi.fn(),
+      readRitual: (address: PublicKey, target: PendingActionRecord) => readPendingAction({ readRitual: read, getEventBundle: vi.fn() } as never, address, target) }
+    for (const actionKind of ['create', 'create-solo', 'create-and-fund', 'create-solo-fund-and-activate'] as const) {
+      const record = parsePendingAction({ ...unsigned, actionKind, actor: ritual, eventIndex: 0 })!
+      expect(await resolvePendingAction(record, transport)).toEqual({ status: 'confirmed', record, slot: 120 })
+    }
+    // A solo create is only evidence once its account is the active ritual it asked for.
+    read.mockResolvedValueOnce({ slot: 120, account: { kind: 'Solo', status: 'Funding' } })
+    const solo = parsePendingAction({ ...unsigned, actionKind: 'create-solo-fund-and-activate', actor: ritual, eventIndex: 0 })!
+    expect((await resolvePendingAction(solo, transport)).status).toBe('still-unknown')
+  })
   it('lets an unsigned approve, question, fund or activate go once its blockhash is long dead: they have no readback', async () => {
     const { transactionSignature: _ignored, ...unsigned } = base
     const client = { readRitual: async () => ({ slot: 120, account: {} }), getEventBundle: vi.fn() } as never

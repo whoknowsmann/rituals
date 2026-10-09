@@ -3,11 +3,14 @@ import type { RitualClient } from '../../../data/rituals/ritualClient'
 import { RitualRpcError } from '../../../data/rituals/ritualsRpc'
 import type { PendingActionReadback, PendingActionRecord } from './pendingAction'
 
+/** A create journal names its creator and week 0, but its account is the evidence: the address derives from that creator and nonce. */
+const CREATE_KINDS: readonly PendingActionRecord['actionKind'][] = ['create', 'create-solo', 'create-and-fund', 'create-solo-fund-and-activate']
+
 /** Exact-week readback, including a wallet handoff killed before returning a signature. */
 export async function readPendingAction(client: RitualClient, address: PublicKey, record: PendingActionRecord): Promise<PendingActionReadback> {
   try {
     const read = await client.readRitual(address)
-    if (record.actor && record.eventIndex !== undefined) {
+    if (record.actor && record.eventIndex !== undefined && !CREATE_KINDS.includes(record.actionKind)) {
       if (record.actionKind === 'declare-skip') return { slot: read.slot, actionObserved: read.account.skipDeclared && read.account.skipEventIndex === record.eventIndex }
       if (record.actionKind === 'eject') return { slot: read.slot, actionObserved: read.account.status === 'Ended' && read.account.creator.toBase58() === record.actor }
       if (['claim', 'initialize-event-and-claim', 'initialize-event', 'finalize'].includes(record.actionKind)) {
