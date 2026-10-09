@@ -60,6 +60,7 @@ export function walletReminderPlan(loaded: readonly (KnownRitual & { bundle: Rit
     if (!wallet || !item.bundle.ritual.account.creator.equals(wallet)) { silence.push(item.address); continue }
     const input = reminderInputFromBundle(item, item.bundle, nowSeconds)
     if (input) restore.push(input)
+    else silence.push(item.address)
   }
   const key = JSON.stringify([wallet?.toBase58() ?? null, silence, restore.map((input) => [input.ritualAddress, input.stampedWeeks])])
   return Object.freeze({ key, silence: Object.freeze(silence), restore: Object.freeze(restore) })
@@ -67,13 +68,21 @@ export function walletReminderPlan(loaded: readonly (KnownRitual & { bundle: Rit
 
 /** False when the wallet changed part-way; the next plan finishes the job. */
 export async function applyWalletReminderPlan(plan: WalletReminderPlan, mayContinue: () => boolean): Promise<boolean> {
-  for (const address of plan.silence) {
+  if (!mayContinue()) return false
+  const preferences = await reminders.getPreferences()
+  if (!preferences || !mayContinue()) return false
+  // Missing/unreadable accounts cannot prove ownership. This also lets a
+  // disconnected phone silence its saved alerts while the RPC is offline.
+  const restoring = new Set(plan.restore.map((input) => input.ritualAddress))
+  const silence = new Set([...plan.silence, ...Object.keys(preferences.rituals).filter((address) => !restoring.has(address))])
+  let ok = true
+  for (const address of silence) {
     if (!mayContinue()) return false
-    await reminders.silence(address)
+    if (!await reminders.silence(address, mayContinue)) ok = false
   }
   for (const input of plan.restore) {
     if (!mayContinue()) return false
-    await reminders.restore(input, mayContinue)
+    if (!await reminders.restore(input, mayContinue)) ok = false
   }
-  return mayContinue()
+  return ok && mayContinue()
 }

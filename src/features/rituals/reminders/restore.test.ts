@@ -27,6 +27,7 @@ beforeEach(() => {
   vi.mocked(reminders.getPreferences).mockResolvedValue({ masterEnabled: true, permissionAsked: true,
     rituals: { [known(1).address]: { enabled: true, stampedWeeks: [] }, [known(2).address]: { enabled: false, stampedWeeks: [] } } })
   vi.mocked(reminders.restore).mockResolvedValue(true)
+  vi.mocked(reminders.silence).mockResolvedValue(true)
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -126,14 +127,28 @@ describe('reminders follow the connected wallet: A→none→B→A (Home read; no
     expect(after.key).not.toBe(before.key)
     expect(after.restore[0].stampedWeeks).toEqual([0])
   })
+  it.each(['Completed', 'Ended', 'Cancelled'])('silences a %s ritual owned by the connected wallet', async (status) => {
+    const plan = walletReminderPlan([{ ...known(1), bundle: bundle(1, { status }) }], walletA, start)
+    expect(plan.restore).toEqual([])
+    expect(plan.silence).toEqual([known(1).address])
+  })
+  it('silences saved reminders absent from the chain read, including an offline disconnect', async () => {
+    await applyWalletReminderPlan(walletReminderPlan([], null, start), () => true)
+    expect(reminders.silence).toHaveBeenCalledWith(known(1).address, expect.any(Function))
+    expect(reminders.restore).not.toHaveBeenCalled()
+  })
+  it('reports native restore failure so Home can retry the plan', async () => {
+    vi.mocked(reminders.restore).mockResolvedValueOnce(undefined)
+    expect(await applyWalletReminderPlan(walletReminderPlan(loaded, walletA, start), () => true)).toBe(false)
+  })
   it('applies silences, then restores, and stops once the wallet changes', async () => {
     expect(await applyWalletReminderPlan(walletReminderPlan(loaded, walletA, start), () => true)).toBe(true)
-    expect(reminders.silence).toHaveBeenCalledExactlyOnceWith(known(2).address)
+    expect(reminders.silence).toHaveBeenCalledExactlyOnceWith(known(2).address, expect.any(Function))
     expect(reminders.restore).toHaveBeenCalledExactlyOnceWith(reminderInputFromBundle(known(1), bundle(1), start), expect.any(Function))
     expect(vi.mocked(reminders.silence).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(reminders.restore).mock.invocationCallOrder[0])
     vi.mocked(reminders.restore).mockClear()
     let active = true
-    vi.mocked(reminders.silence).mockImplementationOnce(async () => { active = false })
+    vi.mocked(reminders.silence).mockImplementationOnce(async () => { active = false; return false })
     expect(await applyWalletReminderPlan(walletReminderPlan(loaded, walletB, start), () => active)).toBe(false)
     expect(reminders.restore).not.toHaveBeenCalled()
   })

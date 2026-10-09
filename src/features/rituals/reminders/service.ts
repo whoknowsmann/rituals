@@ -123,8 +123,12 @@ export function createReminderService(deps: {
       }
     }),
     /** Another wallet is connected (or none): stop this ritual's alerts but keep its choice, so its wallet gets them back. */
-    silence: (address: string): Promise<void> => run(async () => {
-      await clearReminderPrefix(await deps.loadNotifications(), reminderPrefix(address))
+    silence: (address: string, mayContinue: () => boolean = () => true) => run(async () => {
+      if (!mayContinue()) return false
+      const notifications = await deps.loadNotifications()
+      if (!mayContinue()) return false
+      await clearReminderPrefix(notifications, reminderPrefix(address))
+      return true
     }),
   }
 }
