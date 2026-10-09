@@ -16,7 +16,7 @@ export const REMINDER_LINES = {
     'Week {week} is open. Stamp it.',
     'Week {week} is open. Future you is checking.',
     'Week {week} is open. Keep your word.',
-    'New week {week}. Same ritual. Show up.',
+    'Week {week} is open. Show up.',
     'Week {week} is open. Your stamp belongs here.',
     'Week {week} is open. Make time for your ritual.',
   ],

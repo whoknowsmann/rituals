@@ -6,6 +6,11 @@ import { REMINDER_LINES, demoReminderLine, reminderLine, type ReminderKind } fro
 const banned = /\b(win(?:s|ning)?|beat(?:s|ing)?|pot|jackpot|payout|odds|luck(?:y)?|versus|rival|opponent|AI|mainnet|SKR|live)\b|\bprofit\s+from\b/i
 
 describe('reminder voice', () => {
+  it('never calls the first week a repeat of the same ritual', () => {
+    for (let index = 0; index < 100; index += 1) {
+      expect(reminderLine('open', `address-${index}`, 1, '5 tSKR', 'the food bank')).not.toContain('Same ritual')
+    }
+  })
   it('uses an absolute demo stamp deadline, not a claim that an inexact alert is still timely', () => {
     const deadline = Date.parse('2026-10-07T18:30:45Z') / 1000
     expect(demoReminderLine(2, deadline)).toMatch(/^Week 2: stamp by \d{1,2}:\d{2}:45 (AM|PM)\.$/)
