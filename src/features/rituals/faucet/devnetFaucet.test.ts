@@ -4,6 +4,15 @@ import { balanceMayHaveChanged, faucetLine, interpretFaucetResponse, requestTest
 const fakeFetch = (status: number, body: unknown) => async () => ({ status, json: async () => body })
 
 describe('devnet faucet client', () => {
+  it('does not promise a credit from an unconfirmed broadcast or a minimum-balance refusal', () => {
+    expect(faucetLine({ kind: 'sent', signature: 's', confirmed: false, explorer: null })).toBe('Checking whether it went through…')
+    expect(faucetLine({ kind: 'already-funded' })).not.toMatch(/enough to start/)
+  })
+  it('rechecks the balance after a lost faucet response, which may follow a broadcast', async () => {
+    const result = await requestTestTokens(async () => { throw new Error('timeout after send') }, 'address')
+    expect(balanceMayHaveChanged(result)).toBe(true)
+    expect(faucetLine(result)).toBe('Could not confirm the faucet request. Check your balance before trying again.')
+  })
   it('reads a successful claim', async () => {
     const result = await requestTestTokens(fakeFetch(200, { signature: 'sig123', confirmed: true, explorer: 'https://explorer.solana.com/tx/sig123?cluster=devnet' }), 'Da59UWdaoBej5xdX9atiaZahMYLxJNsdXHVY6GMh8VmV')
     expect(result).toEqual({ kind: 'sent', signature: 'sig123', confirmed: true, explorer: 'https://explorer.solana.com/tx/sig123?cluster=devnet' })
@@ -18,7 +27,7 @@ describe('devnet faucet client', () => {
     expect(interpretFaucetResponse(200, { nonsense: true }).kind).toBe('unreachable')
     const down = await requestTestTokens(async () => { throw new Error('network') }, 'Da59UWdaoBej5xdX9atiaZahMYLxJNsdXHVY6GMh8VmV')
     expect(down.kind).toBe('unreachable')
-    expect(faucetLine(down)).toMatch(/Could not reach/)
+    expect(faucetLine(down)).toMatch(/Could not confirm/)
   })
   it('posts the address as JSON to /api/claim', async () => {
     let seen: { url: string; body: string } | null = null
@@ -30,7 +39,7 @@ describe('devnet faucet client', () => {
   it('re-reads the balance after a send and after "already funded", not after a refusal', () => {
     expect(balanceMayHaveChanged({ kind: 'sent', signature: 's', confirmed: false, explorer: null })).toBe(true)
     expect(balanceMayHaveChanged({ kind: 'already-funded' })).toBe(true)
-    for (const kind of ['disabled', 'limited', 'unreachable'] as const) expect(balanceMayHaveChanged({ kind })).toBe(false)
+    for (const kind of ['disabled', 'limited'] as const) expect(balanceMayHaveChanged({ kind })).toBe(false)
     expect(balanceMayHaveChanged({ kind: 'empty', contact: null })).toBe(false)
   })
 })

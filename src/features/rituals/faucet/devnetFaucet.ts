@@ -57,16 +57,16 @@ export function interpretFaucetResponse(status: number, body: Record<string, unk
 /** One short line for the screen. No jargon; the signature is behind "View". */
 export function faucetLine(result: FaucetResult): string {
   switch (result.kind) {
-    case 'sent': return result.confirmed ? 'Sent: 50 tSKR and 0.05 SOL.' : 'Sent. Your balance updates in a moment.'
-    case 'already-funded': return 'You already have enough to start.'
+    case 'sent': return result.confirmed ? 'Sent: 50 tSKR and 0.05 SOL.' : 'Checking whether it went through…'
+    case 'already-funded': return 'The faucet reports this wallet is already funded.'
     case 'empty': return result.contact ? `The faucet is empty. Email ${result.contact} for tSKR.` : 'The faucet is empty right now.'
     case 'disabled': return 'The faucet is off right now.'
     case 'limited': return 'Too many requests from here. Try again in a few minutes.'
-    case 'unreachable': return 'Could not reach the faucet. Try again in a minute.'
+    case 'unreachable': return 'Could not confirm the faucet request. Check your balance before trying again.'
   }
 }
 
 /** "Already funded" can follow a send that landed after the last balance read: read it again too. */
 export function balanceMayHaveChanged(result: FaucetResult): boolean {
-  return result.kind === 'sent' || result.kind === 'already-funded'
+  return result.kind === 'sent' || result.kind === 'already-funded' || result.kind === 'unreachable'
 }
