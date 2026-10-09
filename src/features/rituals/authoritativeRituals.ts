@@ -9,7 +9,7 @@ import { clearRitualReminders } from './reminders/runtime'
 export const KNOWN_RITUALS_STORAGE_KEY = '@rituals/known-rituals/v1'
 export type KnownRitual = Readonly<{ address: string; title: string; requirement: string; destinationOwner?: string }>
 export type BundleState = Readonly<{ status: 'loading' | 'ready' | 'error'; bundle?: RitualBundleRead; message?: string; retry: () => void }>
-type BundleSnapshot = Readonly<{ status: 'loading' | 'ready' | 'error'; bundle?: RitualBundleRead; message?: string }>
+type BundleSnapshot = Readonly<{ target?: string; status: 'loading' | 'ready' | 'error'; bundle?: RitualBundleRead; message?: string }>
 
 const canonical = (value: unknown): string | null => {
   if (typeof value !== 'string') return null
@@ -105,25 +105,29 @@ export function stateWhileReloading<T extends { status: string }>(previous: T, s
 }
 
 export function useRitualBundle(clientState: RitualClientState, addressText: string, eventIndex?: number): BundleState {
+  const key = `${addressText}:${eventIndex ?? ''}`
   const [state, setState] = useState<BundleSnapshot>({ status: 'loading' })
   const [retryCount, setRetryCount] = useState(0)
   const generation = useRef(0)
   const target = useRef<string | null>(null)
   useEffect(() => {
     const generationValue = ++generation.current
-    const key = `${addressText}:${eventIndex ?? ''}`
     const sameTarget = target.current === key
     target.current = key
-    if (clientState.status !== 'ready') { setState({ status: 'error', message: clientState.reason }); return }
+    if (clientState.status !== 'ready') { setState({ target: key, status: 'error', message: clientState.reason }); return }
     let address: PublicKey
-    try { address = new PublicKey(addressText) } catch { setState({ status: 'error', message: 'This Ritual address is invalid.' }); return }
-    setState((previous) => stateWhileReloading(previous, sameTarget, { status: 'loading' } as BundleSnapshot))
+    try { address = new PublicKey(addressText) } catch { setState({ target: key, status: 'error', message: 'This Ritual address is invalid.' }); return }
+    setState((previous) => stateWhileReloading(previous, sameTarget, { target: key, status: 'loading' } as BundleSnapshot))
     void (eventIndex === undefined ? clientState.client.getRitualBundle(address) : clientState.client.getEventBundle(address, eventIndex))
-      .then((bundle) => { if (generation.current === generationValue) setState({ status: 'ready', bundle }) })
+      .then((bundle) => {
+        if (generation.current === generationValue) setState((previous) => previous.target === key && previous.bundle && previous.bundle.slot > bundle.slot
+          ? previous : { target: key, status: 'ready', bundle })
+      })
       // A failed background refresh keeps the last good read; a first read shows the error.
-      .catch(() => { if (generation.current === generationValue) setState((previous) => stateWhileReloading(previous, sameTarget, { status: 'error', message: 'Ritual data could not be read from devnet. Check your connection and try again.' } as BundleSnapshot)) })
+      .catch(() => { if (generation.current === generationValue) setState((previous) => stateWhileReloading(previous, sameTarget, { target: key, status: 'error', message: 'Ritual data could not be read from devnet. Check your connection and try again.' } as BundleSnapshot)) })
+    return () => { generation.current += 1 }
   }, [clientState, addressText, eventIndex, retryCount])
-  return Object.freeze({ ...state, retry: () => setRetryCount((value) => value + 1) })
+  return Object.freeze({ ...(state.target === key ? state : { status: 'loading' as const }), retry: () => setRetryCount((value) => value + 1) })
 }
 
 export function statusLabel(status: string): string {
