@@ -85,9 +85,9 @@ describe('finished line at full-precision stakes, rounded only on screen (Jack, 
     expect(tileMoneyLine(completed(3_330_000n, 6), undefined)).toBe('19.98 tSKR')
   })
 
-  it('every pick over 1–16 weeks: the total shows as chosen and kept + sent never fall short of it; they pass it by 1 cent only when both end in exactly half a cent', () => {
+  it('every pick over 1–16 weeks: the total shows as chosen and kept + sent always add up to it exactly (half-to-even display)', () => {
     const cents = (text: string) => { const [whole, fraction = ''] = text.split('.'); return BigInt(whole) * 100n + BigInt((fraction + '00').slice(0, 2)) }
-    const over: string[] = []
+    const checked: string[] = []
     for (const total of STAKE_PRESETS) {
       for (let weeks = 1; weeks <= 16; weeks += 1) {
         const split = splitTotalStake(total, weeks)
@@ -99,17 +99,13 @@ describe('finished line at full-precision stakes, rounded only on screen (Jack, 
           if (!match) throw new Error(`unexpected line: ${line}`)
           const [back, shown, sent] = [cents(match[1]), cents(match[2]), cents(match[3] ?? '0')]
           expect(shown).toBe(BigInt(total) * 100n)
-          expect(back + sent >= shown).toBe(true)
-          if (back + sent === shown) continue
-          expect(back + sent - shown).toBe(1n)
-          expect([(perWeek * BigInt(kept)) % 10_000n, (perWeek * BigInt(weeks - kept)) % 10_000n]).toEqual([5_000n, 5_000n])
-          over.push(`${total}/${weeks}`)
+          expect(back + sent).toBe(shown)
+          checked.push(`${total}/${weeks}/${kept}`)
         }
       }
     }
-    // The documented 1-cent case: 24 of 608 lines, e.g. 5 over 8 weeks with one kept.
-    expect(over).toHaveLength(24)
-    expect([...new Set(over)]).toEqual(['5/8', '5/16', '10/16', '50/16'])
-    expect(completedMoneyLine(completed(625_000n, 8), keptFirst(1, 8), cause)).toBe('0.63 of 5 tSKR back · 4.38 tSKR to Northside Food Bank (demo)')
+    expect(checked).toHaveLength(608)
+    // Was "0.63 of 5 … · 4.38" (5.01) under half-up; half-to-even gives 5.00.
+    expect(completedMoneyLine(completed(625_000n, 8), keptFirst(1, 8), cause)).toBe('0.62 of 5 tSKR back · 4.38 tSKR to Northside Food Bank (demo)')
   })
 })

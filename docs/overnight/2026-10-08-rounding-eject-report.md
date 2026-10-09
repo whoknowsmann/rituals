@@ -8,3 +8,5 @@ Also: under 0.005 shows "0" (no pick gets there; the least is 5 over 16 = "0.31"
 Unchanged: the Ended screen and tile never showed the destination amount (now pinned); old 2-decimal rituals read 6.66 / 19.98; the hidden group create review and fixture view models keep their own formatters (SOLO_ONLY). Docs: FACTS full-precision line (the "rounded down to 0.01" clause is gone), README stake bullet, DESIGN rule 9.
 Tests: `npm run typecheck` clean; `npm test` 168 files / 2,862 tests green (baseline 2,852). The 10 new Item 1 tests and the Item 2 rows test failed before their change. The strings above were printed by both trees (5df9267, 475f558), not typed by hand.
 Device check on the next build: create 20 over 6 shows "3.33 tSKR a week" and no Locks line; Settings → End early shows one row.
+
+Hermes follow-up: formatAtomic switched to half-to-even — kept + sent now equal the total in all 608 cases (was 24 off by 1 cent). End early names a lapsed unstamped week this transaction settles ("Missed week, sent"), so no transfer is silent.

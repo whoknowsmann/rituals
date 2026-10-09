@@ -22,8 +22,11 @@ export type EjectRow = Readonly<{ label: string; value: string }>
  * what settles it (a lapsed, unstamped week not yet closed); Back to you already
  * leaves it out.
  */
-export function ejectRows(amounts: Pick<EjectAmounts, 'backToYou'>, decimals: number): readonly EjectRow[] {
-  return Object.freeze([Object.freeze({ label: 'Back to you', value: formatAtomic(amounts.backToYou, decimals) })])
+export function ejectRows(amounts: Pick<EjectAmounts, 'backToYou' | 'pendingForfeit'>, decimals: number): readonly EjectRow[] {
+  const rows: EjectRow[] = [Object.freeze({ label: 'Back to you', value: formatAtomic(amounts.backToYou, decimals) })]
+  // This transaction also settles a lapsed, unstamped week: say so (Hermes, 2026-10-09 — no silent transfer).
+  if (amounts.pendingForfeit > 0n) rows.push(Object.freeze({ label: 'Missed week, sent', value: formatAtomic(amounts.pendingForfeit, decimals) }))
+  return Object.freeze(rows)
 }
 
 export const ejectTitle = (name: string): string => `End ${name} early?`

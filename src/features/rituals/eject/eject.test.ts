@@ -36,6 +36,8 @@ describe('end early: what Settings lists and shows', () => {
     expect(ejectRows(amounts(15_000_000n, 0n), 6)).toEqual([{ label: 'Back to you', value: '15 tSKR' }])
     expect(ejectRows(amounts(10_000_000n, 5_000_000n), 6)).toEqual([{ label: 'Back to you', value: '10 tSKR' }])
     expect(ejectRows(amounts(13_333_332n, 3_333_333n), 6)).toEqual([{ label: 'Back to you', value: '13.33 tSKR' }])
+    // A lapsed, unstamped week settled by this same transaction is named, never silent.
+    expect(ejectRows({ backToYou: 10_000_000n, pendingForfeit: 3_333_333n }, 6)).toEqual([{ label: 'Back to you', value: '10 tSKR' }, { label: 'Missed week, sent', value: '3.33 tSKR' }])
     const flow = readFileSync(resolve(__dirname, 'EndEarly.tsx'), 'utf8')
     expect(flow).toContain('ejectRows(quote, decimals)')
     for (const gone of ['destinationTotal', 'labelSoloDestination', 'useSoloDestinationOwner', 'forfeitDestination']) expect(flow + readFileSync(resolve(__dirname, 'ejectFlow.ts'), 'utf8')).not.toContain(gone)

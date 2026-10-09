@@ -32,7 +32,7 @@ a quiet fact on the card, never the headline. Light, warm, human.
 8. **Copy rules from PRODUCT.md still apply** — no win/beat/pot/jackpot; the
    stake is yours and you get it back.
 9. **Amounts show at most 2 decimals.** Every token amount on screen goes
-   through `formatAtomic` (half-up, trailing zeros dropped: "3.33 tSKR",
+   through `formatAtomic` (half-to-even, trailing zeros dropped: "3.33 tSKR",
    "20 tSKR"); totals and sums are made in atomic units first.
 
 ## Type
