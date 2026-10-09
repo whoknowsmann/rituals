@@ -154,6 +154,28 @@ for (const kind of ['claim', 'create'] as const) describe(`${kind} hook recovery
   })
 })
 
+describe('pre-wallet action refresh', () => {
+  it('re-reads after a preparation failure, once per attempt without another send', async () => {
+    const refresh = vi.fn()
+    const prepare = vi.fn(async () => { throw new Error('stale week') })
+    const submit = vi.fn()
+    const render = () => {
+      harness.cursor = 0
+      const result = useRitualAction(() => ({ prepare, submit, confirm: vi.fn() }), refresh)
+      for (const effect of harness.effects.splice(0)) effect()
+      return result
+    }
+    render().start(); await flush()
+    expect(render().state).toMatchObject({ status: 'error', category: 'preparation', retryable: true })
+    expect(refresh).toHaveBeenCalledOnce()
+    render(); render()
+    expect(refresh).toHaveBeenCalledOnce()
+    render().reset(); render().start(); await flush(); render()
+    expect(refresh).toHaveBeenCalledTimes(2)
+    expect(submit).not.toHaveBeenCalled()
+  })
+})
+
 describe('create Try again after a cancelled sheet', () => {
   it('keeps checking the chain through a failed retry, so a first attempt that landed still ends at Done', async () => {
     let landed = false

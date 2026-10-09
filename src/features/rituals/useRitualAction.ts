@@ -14,8 +14,12 @@ export type UseRitualAction = Readonly<{
   observeReadback: (ritualAddress: string) => void
 }>
 
-export function useRitualAction(makeDeps: () => LifecycleActionDeps): UseRitualAction {
+export function useRitualAction(makeDeps: () => LifecycleActionDeps, onFailure?: () => void): UseRitualAction {
   const [state, dispatch] = useReducer(lifecycleReducer, undefined, lifecycleInitialState)
+  const failureRef = useRef(onFailure); failureRef.current = onFailure
+  // Preparation can reject an obsolete week before the wallet ever opens.
+  // Refresh the screen's premise once per error, not on each clock render.
+  useEffect(() => { if (state.status === 'error') failureRef.current?.() }, [state])
   const inFlight = useRef(false)
   const attempt = useRef<LifecycleActionDeps | null>(null)
   const mounted = useRef(true)

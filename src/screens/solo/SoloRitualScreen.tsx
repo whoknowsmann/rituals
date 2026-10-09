@@ -139,16 +139,16 @@ function WalletSoloRitual({ route }: Props) { const s = useS(); const color = us
     actionTargets.current.skip = { kind: 'skip', eventIndex: model.eventIndex, actor: selectedAccount.publicKey, ritualAddress: ritualAddress.toBase58() }
     return buildSoloSkipDeps({ client: client.client, ritualAddress, actor: selectedAccount.publicKey, eventIndex: model.eventIndex, pendingActionStore: asyncStoragePendingActionStore, getBlockHeight: () => connection.getBlockHeight('confirmed'), getSignatureStatus, authorizedActor: () => accountRef.current?.publicKey ?? null })
   }, [client, connection, getSignatureStatus, model, ritualAddress, selectedAccount])
-  const claim = useRitualAction(() => makeSharedDeps('claim'))
+  const claim = useRitualAction(() => makeSharedDeps('claim'), state.retry)
   const startClaim = useCallback(() => {
     if (!soloStampAvailable(model) || model?.stampBlocked) return
     claimEventIndex.current = model?.eventIndex ?? null
     claim.start()
   }, [claim.start, model])
-  const skip = useRitualAction(makeSkipDeps)
+  const skip = useRitualAction(makeSkipDeps, state.retry)
   // A week nobody checked in to has no event account yet; the first tap opens it
   // (one approval), the screen re-reads, and the next tap settles it.
-  const settle = useRitualAction(() => makeSharedDeps(model?.needsEventInit ? 'initialize-event' : 'finalize'))
+  const settle = useRitualAction(() => makeSharedDeps(model?.needsEventInit ? 'initialize-event' : 'finalize'), state.retry)
   // A generic cancellation is not evidence of a network mismatch.
   const failed = [claim, skip, settle].find((item) => item.state.status === 'error' && item.state.category === 'network-mismatch')?.state
   useDevnetMismatchAlert(failed ? 'error' : 'idle', failed && failed.status === 'error' ? failed.category : null, walletPackage)
