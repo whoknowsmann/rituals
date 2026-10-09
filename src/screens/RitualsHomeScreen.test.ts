@@ -19,8 +19,8 @@ describe('RitualsHomeScreen safety and accessibility structure', () => {
   })
 
   it('shares the create balance reader, refreshes after sending, and discards stale wallet/focus reads', () => {
-    const create = readFileSync(resolve(__dirname, 'solo/SoloCreateScreen.tsx'), 'utf8')
-    expect(create).toContain('readTestTokenBalance(connection, config.account.allowedStakeMint, selectedAccount.publicKey)')
+    const create = readFileSync(resolve(__dirname, '../features/rituals/solo/create/useCreateBalance.ts'), 'utf8')
+    expect(create).toContain('readTestTokenBalance(connection, config.account.allowedStakeMint, wallet)')
     expect(source).toContain('readTestTokenBalance(connection, config.account.allowedStakeMint, wallet)')
     expect(source).toContain("key={selectedAccount?.publicKey.toBase58() ?? 'disconnected'}")
     expect(source).toContain('const onFaucetSent = useCallback(() => setBalanceTick((value) => value + 1), [])')

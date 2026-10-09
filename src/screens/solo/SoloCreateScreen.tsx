@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native'
+import { useIsFocused, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import { PublicKey } from '@solana/web3.js'
 import { decodeSeason, type SeasonAccountView } from '../../data/rituals/accounts'
@@ -11,7 +11,7 @@ import { useAuthorization } from '../../utils/useAuthorization'
 import { useDevnetMismatchAlert } from '../../features/rituals/useDevnetMismatchAlert'
 import { useDevnetFaucet } from '../../features/rituals/faucet/useDevnetFaucet'
 import { faucetLine } from '../../features/rituals/faucet/devnetFaucet'
-import { readTestTokenBalance } from '../../features/rituals/faucet/testTokenBalance'
+import { useCreateBalance } from '../../features/rituals/solo/create/useCreateBalance'
 import { useConnection } from '../../utils/ConnectionProvider'
 import { readChainTime } from '../../features/rituals/chainTime'
 import { useChainTime } from '../../features/rituals/useChainTime'
@@ -38,8 +38,7 @@ import { settlerBudgetLamports } from '../../features/rituals/solo/settler/settl
 import { DEMO_CLOCK_WARNING } from '../../features/rituals/solo/settler/settlementVisibility'
 
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { deriveGroupPool, feeConfigFromProtocol, quoteActivationFee, type FeeConfig } from '../../domain/rituals/money'
-import { RITUAL_FEE_CONFIG } from '../../features/rituals/create/draftForm'
+import { deriveGroupPool, quoteActivationFee } from '../../domain/rituals/money'
 import {
   applyTypedIntention,
   publicKeyFromCanonical,
@@ -181,7 +180,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   // What the approval will take in tSKR: stake for every week, plus whatever
   // activation fee the live ProtocolConfig says (0 once the protocol is free).
   // Checked against the wallet so a short balance never reaches the wallet.
-  const [liveFeeConfig, setLiveFeeConfig] = useState<FeeConfig>(RITUAL_FEE_CONFIG)
+  const { balance: testBalance, feeConfig: liveFeeConfig, onFaucetSent } = useCreateBalance(client, connection, selectedAccount?.publicKey ?? null)
   const feeAtomic = (() => {
     try {
       const total = stakeSplit.ok ? stakeSplit.split.lockedAtomic : 0n
@@ -194,32 +193,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       return total > 0n ? total + feeAtomic : null
     } catch { return null }
   })()
-  const walletAddress = selectedAccount?.publicKey.toBase58() ?? null
-  const [balanceRead, setBalanceRead] = useState<{ wallet: string; amount: bigint } | null>(null)
-  const testBalance = balanceRead?.wallet === walletAddress ? balanceRead.amount : null
-  const balanceGeneration = useRef(0)
-  const [balanceTick, setBalanceTick] = useState(0)
-  // "Get test tokens": the faucet pays; after a send the balance line re-reads a few seconds later.
-  const balanceRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (balanceRefreshTimer.current) clearTimeout(balanceRefreshTimer.current) }, [])
-  const onFaucetSent = useCallback(() => {
-    balanceGeneration.current += 1
-    setBalanceRead(null)
-    if (balanceRefreshTimer.current) clearTimeout(balanceRefreshTimer.current)
-    balanceRefreshTimer.current = setTimeout(() => setBalanceTick((value) => value + 1), 4000)
-  }, [])
   const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, onFaucetSent)
-  useFocusEffect(useCallback(() => {
-    const generation = ++balanceGeneration.current
-    if (client.status !== 'ready' || !selectedAccount) { setBalanceRead(null); return }
-    let active = true
-    void client.client.getProtocolConfig().then(async (config) => {
-      if (active) { try { setLiveFeeConfig(feeConfigFromProtocol(config.account, RITUAL_FEE_CONFIG.tokenDecimals)) } catch { /* keep the constant */ } }
-      const balance = await readTestTokenBalance(connection, config.account.allowedStakeMint, selectedAccount.publicKey)
-      if (active && generation === balanceGeneration.current) setBalanceRead({ wallet: selectedAccount.publicKey.toBase58(), amount: balance })
-    }).catch(() => { if (active && generation === balanceGeneration.current) setBalanceRead(null) }) // unknown: never block on a failed read
-    return () => { active = false }
-  }, [client, connection, selectedAccount, balanceTick]))
   const shortOfTest = testBalance !== null && neededAtomic !== null && testBalance < neededAtomic
 
   // One nonce per Create screen: every Try again targets the same ritual

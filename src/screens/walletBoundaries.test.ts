@@ -5,16 +5,10 @@ import { readFileSync } from 'node:fs'
 // guards pin the render boundary; the data/action paths have separate hook tests.
 const screen = (name: string) => readFileSync(`${__dirname}/${name}.tsx`, 'utf8')
 describe('wallet-local screen boundaries', () => {
-  it('never uses the previous wallet balance on create, even before the read effect runs', () => {
+  it('wires the behavior-tested wallet balance hook to Create and its faucet', () => {
     const create = screen('solo/SoloCreateScreen')
-    // The former bigint survived A→B until B's RPC completed, blocking B on A's zero balance.
-    expect(create).toContain('balanceRead?.wallet === walletAddress ? balanceRead.amount : null')
-    expect(create).toContain('setBalanceRead({ wallet: selectedAccount.publicKey.toBase58(), amount: balance })')
-  })
-  it('invalidates the old create balance immediately when a faucet request may have landed', () => {
-    const create = screen('solo/SoloCreateScreen')
-    const callback = create.slice(create.indexOf('const onFaucetSent ='), create.indexOf('const faucet ='))
-    expect(callback).toContain('setBalanceRead(null)')
+    expect(create).toContain('useCreateBalance(client, connection, selectedAccount?.publicKey ?? null)')
+    expect(create).toContain('useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, onFaucetSent)')
   })
   it('remounts Settings lists and any open End early flow when the wallet changes', () => {
     expect(screen('SettingsScreen')).toContain('<WalletSettings key={selectedAccount?.publicKey.toBase58() ?? \'disconnected\'} />')

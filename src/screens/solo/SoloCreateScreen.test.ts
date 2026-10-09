@@ -39,9 +39,9 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('step === 3 && !selectedAccount && <View>')
     expect(source).toContain('<WalletChoiceButtons')
     expect(source).not.toContain('Connect your wallet to start this ritual.')
-    expect(source).toContain('useFocusEffect(useCallback(() => {')
-    expect(source).toContain('[client, connection, selectedAccount, balanceTick]))')
-    expect(source).toContain('setTimeout(() => setBalanceTick((value) => value + 1), 4000)')
+    // Focus, delay and stale-read behavior run in useCreateBalance.test.ts.
+    expect(source).toContain('useCreateBalance(client, connection, selectedAccount?.publicKey ?? null)')
+    expect(source).toContain('useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, onFaucetSent)')
     expect(source).not.toContain("faucet.status !== 'done'")
   })
   it('hides Lock it in until connected, retaining the chooser and the exact start handler', () => {
