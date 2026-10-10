@@ -1884,7 +1884,7 @@ mod tests {
     #[test]
     fn settlement_exhaustively_partitions_every_member_state() {
         let mut cases = 0usize;
-        for member_count in 2..=6u8 {
+        for member_count in 1..=6u8 {
             let mask = (1u8 << member_count) - 1;
             for states in 0..4usize.pow(member_count as u32) {
                 let mut encoded = states;
@@ -1949,7 +1949,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(cases, (2..=6).map(|n| 4usize.pow(n)).sum::<usize>());
+        assert_eq!(cases, (1..=6).map(|n| 4usize.pow(n)).sum::<usize>());
     }
 
     #[test]
@@ -1967,9 +1967,23 @@ mod tests {
 
     #[test]
     fn settlement_rejects_invalid_inputs_and_overflow() {
-        for count in [0, 1, 7, 8] {
+        for count in [0].into_iter().chain(7..=u8::MAX) {
             assert!(derive_event_settlement_plan(count, 1, 0, 0, 0).is_err());
         }
+        assert_eq!(
+            derive_event_settlement_plan(1, 11, 1, 1, 0).unwrap(),
+            SettlementPlan {
+                payouts: [11, 0, 0, 0, 0, 0],
+                status: EventStatus::Settled,
+                void_reason: VoidReason::None,
+                event_pool: 11,
+                forfeited_total: 0,
+                payout_total: 11,
+                refunded_total: 0,
+                confirmed_member_count: 1,
+                remainder_units: 0,
+            }
+        );
         assert!(derive_event_settlement_plan(2, 0, 0, 0, 0).is_err());
         assert!(derive_event_settlement_plan(2, 1, 4, 0, 0).is_err());
         assert!(derive_event_settlement_plan(2, 1, 1, 2, 0).is_err());
