@@ -27,17 +27,43 @@ export function useRitualAction(makeDeps: () => LifecycleActionDeps, onFailure?:
   const safeDispatch = useCallback((event: LifecycleEvent) => { if (mounted.current) dispatch(event) }, [])
   const start = useCallback(() => {
     if (inFlight.current || !lifecycleCanSubmit(state)) return
+    const carry = lifecycleAwaitsChain(state)
+    const dispatchAttempt = (event: LifecycleEvent) => safeDispatch(carry && event.type === 'FAILED' ? { ...event, unresolved: true } : event)
     inFlight.current = true
-    void (async () => { try { attempt.current = makeDeps(); await runLifecycleAction(attempt.current, safeDispatch) } catch { safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the action. Nothing was sent.' }) } finally { inFlight.current = false } })()
+    void (async () => {
+      try {
+        let deps = makeDeps()
+        if (carry) {
+          // Preparation has no new journal entry; keep the earlier chain check.
+          const previous = attempt.current
+          const prepared = await deps.prepare()
+          if (!mounted.current || attempt.current !== previous) return
+          const reconcile = deps.reconcile
+          deps = { ...deps, prepare: async () => prepared,
+            reconcile: async () => (await reconcile?.()) ?? previous?.reconcile?.() ?? null }
+        }
+        attempt.current = deps
+        await runLifecycleAction(deps, dispatchAttempt)
+      } catch { safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the action. Nothing was sent.' }) }
+      finally { inFlight.current = false }
+    })()
   }, [makeDeps, safeDispatch, state])
   useEffect(() => {
     if (!lifecycleAwaitsChain(state) || !attempt.current?.reconcile) return
     // A cancelled sheet's "Network mismatch?" hint waits for this first answer.
-    return watchActionReconciliation(attempt.current.reconcile, safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
+    const watched = attempt.current
+    return watchActionReconciliation(attempt.current.reconcile, (event) => {
+      if (attempt.current !== watched) return
+      attempt.current = null // A resolved earlier attempt must not open a retry's wallet.
+      safeDispatch(event)
+    }, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
   }, [state, safeDispatch])
   // The screen's own read can show the landing first.
   useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
   const reset = useCallback(() => { if (!inFlight.current) safeDispatch({ type: 'RESET' }) }, [safeDispatch])
-  const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])
+  const observeReadback = useCallback((ritualAddress: string) => {
+    if (state.status === 'error' && state.ritualAddress === ritualAddress) attempt.current = null
+    safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress })
+  }, [safeDispatch, state])
   return { state, copy: lifecycleStatusCopy(state), canSubmit: lifecycleCanSubmit(state), isBusy: lifecycleIsBusy(state), start, reset, observeReadback }
 }

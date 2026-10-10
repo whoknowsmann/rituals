@@ -82,7 +82,17 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps, walletAddress:
         // Every attempt is prepared from the terms on screen, with a fresh
         // blockhash. The screen keeps one nonce, so a retry targets the same
         // ritual address and can never make a second ritual.
-        const deps = makeDeps()
+        let deps = makeDeps()
+        if (carry) {
+          // Keep the earlier state, address and reader until preparation works.
+          // A pre-wallet failure has no new journal entry to reconcile.
+          const previous = scope.attempt
+          const prepared = await deps.prepare()
+          if (!mounted.current || session.current !== scope || scope.attempt !== previous) return
+          const reconcile = deps.reconcile
+          deps = { ...deps, prepare: async () => prepared,
+            reconcile: async () => (await reconcile?.()) ?? previous?.reconcile?.() ?? null }
+        }
         scope.attempt = deps
         await runCreateRitual(deps, dispatchAttempt)
       } catch (error) {
@@ -98,7 +108,12 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps, walletAddress:
   useEffect(() => {
     if (!createAwaitsChain(state) || !scope.attempt?.reconcile) return
     // A cancelled sheet's "Network mismatch?" hint waits for this first answer.
-    return watchActionReconciliation(scope.attempt.reconcile, safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
+    const watched = scope.attempt
+    return watchActionReconciliation(scope.attempt.reconcile, (event) => {
+      if (scope.attempt !== watched) return
+      scope.attempt = null // Do not open a retry's wallet if the earlier attempt resolved during preparation.
+      safeDispatch(event)
+    }, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
   }, [state, safeDispatch, scope])
   useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
 
@@ -108,7 +123,10 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps, walletAddress:
   }, [safeDispatch, scope, state])
 
   const busy = !canSubmitCreate(state) && !isTerminalCreateState(state)
-  const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])
+  const observeReadback = useCallback((ritualAddress: string) => {
+    if (state.status === 'error' && state.ritualAddress === ritualAddress) scope.attempt = null
+    safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress })
+  }, [safeDispatch, scope, state])
 
   return {
     state,

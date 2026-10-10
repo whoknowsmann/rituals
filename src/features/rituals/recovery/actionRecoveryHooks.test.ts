@@ -49,13 +49,14 @@ for (const kind of ['claim', 'skip', 'initialize-event', 'finalize', 'eject', 'c
       confirm: vi.fn(),
       reconcile: vi.fn(reconcile),
     }
+    const makeDeps = vi.fn(() => deps)
     const render = () => {
       harness.cursor = 0
-      const result = kind === 'create' ? useCreateRitual(() => deps as never) : useRitualAction(() => deps as never)
+      const result = kind === 'create' ? useCreateRitual(makeDeps as never) : useRitualAction(makeDeps as never)
       for (const effect of harness.effects.splice(0)) effect()
       return result
     }
-    return { deps, render }
+    return { deps, makeDeps, render }
   }
 
   it('starts recovery without another tap and reaches success without resubmitting', async () => {
@@ -126,6 +127,60 @@ for (const kind of ['claim', 'skip', 'initialize-event', 'finalize', 'eject', 'c
     const reads = deps.reconcile.mock.calls.length
     await vi.advanceTimersByTimeAsync(30_000)
     expect(deps.reconcile).toHaveBeenCalledTimes(reads)
+  })
+
+  it.each([
+    ['prepare', 'confirmed'], ['prepare', 'expired'], ['deps', 'confirmed'], ['deps', 'expired'],
+    ['submit-rpc', 'confirmed'], ['submit-rpc', 'expired'],
+  ] as const)('retains the original chain check after a %s retry failure until %s', async (phase, outcome) => {
+    let resolution: PendingActionResolution = { status: 'still-unknown', record }
+    const { deps, makeDeps, render } = setup(async () => resolution, 'cancelled')
+    render().start(); await flush(); render(); await flush()
+    const retry = { ...deps, prepare: vi.fn(async () => {
+      if (phase === 'submit-rpc') return deps.prepare()
+      throw new Error('RPC unavailable')
+    }), submit: vi.fn(async () => { throw new Error('RPC unavailable before wallet handoff') }), reconcile: vi.fn(async () => null) }
+    makeDeps.mockImplementationOnce(() => { if (phase === 'deps') throw new Error('not ready'); return retry })
+    render().start(); await flush()
+    expect(render().state).toMatchObject({ status: 'error', unresolved: true, ritualAddress: address })
+    const reads = deps.reconcile.mock.calls.length
+    resolution = outcome === 'confirmed' ? { status: 'confirmed', record, slot: 120 } : { status: 'expired', record }
+    await vi.advanceTimersByTimeAsync(3000)
+    const done = render()
+    expect(deps.reconcile.mock.calls.length).toBeGreaterThan(reads)
+    if (outcome === 'confirmed') {
+      expect(done.state.status).toBe('recovered')
+      expect(done.copy.tone).toBe('success')
+      expect(done.canSubmit).toBe(false)
+    } else {
+      expect(done.state).toMatchObject({ status: 'error', submitted: false, retryable: true })
+      expect(done.state).not.toHaveProperty('unresolved')
+      expect(done.copy.body).toContain('Nothing was sent')
+    }
+    expect(deps.submit).toHaveBeenCalledOnce()
+    expect(retry.submit).toHaveBeenCalledTimes(phase === 'submit-rpc' ? 1 : 0)
+    if (phase !== 'submit-rpc') expect(retry.reconcile).not.toHaveBeenCalled()
+    const finalReads = deps.reconcile.mock.calls.length
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(deps.reconcile).toHaveBeenCalledTimes(finalReads)
+  })
+
+  it.each(['confirmed', 'expired'] as const)('keeps checking during retry preparation and does not open another wallet after %s', async (outcome) => {
+    let resolution: PendingActionResolution = { status: 'still-unknown', record }
+    const { deps, makeDeps, render } = setup(async () => resolution, 'cancelled')
+    render().start(); await flush(); render(); await flush()
+    let release!: (value: Awaited<ReturnType<typeof deps.prepare>>) => void
+    const retry = { ...deps, prepare: vi.fn(() => new Promise<Awaited<ReturnType<typeof deps.prepare>>>((resolve) => { release = resolve })), submit: vi.fn(), reconcile: vi.fn(async () => null) }
+    makeDeps.mockReturnValueOnce(retry)
+    render().start(); await flush(); render()
+    resolution = outcome === 'confirmed' ? { status: 'confirmed', record, slot: 120 } : { status: 'expired', record }
+    await vi.advanceTimersByTimeAsync(3000)
+    const settled = render()
+    expect(settled.state.status).toBe(outcome === 'confirmed' ? 'recovered' : 'error')
+    expect(settled.state).not.toHaveProperty('unresolved')
+    release(await deps.prepare()); await flush()
+    expect(render().state).toEqual(settled.state)
+    expect(retry.submit).not.toHaveBeenCalled()
   })
 
   it('silences the hint when the screen\'s own read shows the action landed before the background check answers', async () => {
