@@ -6,7 +6,12 @@ import type { PendingActionRecord, PendingActionResolution } from './pendingActi
 
 const harness = vi.hoisted(() => ({ cells: [] as any[], cursor: 0, effects: [] as (() => void)[] }))
 vi.mock('react', () => ({
-  useCallback: (callback: unknown) => callback,
+  useCallback: (callback: unknown, deps: unknown[]) => {
+    const index = harness.cursor++
+    const previous = harness.cells[index]
+    if (!previous || deps.some((value, i) => !Object.is(value, previous.deps[i]))) harness.cells[index] = { deps, callback }
+    return harness.cells[index].callback
+  },
   useRef: (value: unknown) => {
     const index = harness.cursor++
     if (!(index in harness.cells)) harness.cells[index] = { current: value }
@@ -49,13 +54,15 @@ for (const kind of ['claim', 'skip', 'initialize-event', 'finalize', 'eject', 'c
       confirm: vi.fn(),
       reconcile: vi.fn(reconcile),
     }
+    let currentDeps: unknown = deps
     const render = () => {
       harness.cursor = 0
-      const result = kind === 'create' ? useCreateRitual(() => deps as never) : useRitualAction(() => deps as never)
+      const makeDeps = () => (typeof currentDeps === 'function' ? currentDeps() : currentDeps) as never
+      const result = kind === 'create' ? useCreateRitual(makeDeps) : useRitualAction(makeDeps)
       for (const effect of harness.effects.splice(0)) effect()
       return result
     }
-    return { deps, render }
+    return { deps, render, setDeps: (next: unknown) => { currentDeps = next } }
   }
 
   it('starts recovery without another tap and reaches success without resubmitting', async () => {
@@ -152,6 +159,95 @@ for (const kind of ['claim', 'skip', 'initialize-event', 'finalize', 'eject', 'c
     const reads = deps.reconcile.mock.calls.length
     await vi.advanceTimersByTimeAsync(30_000)
     expect(deps.reconcile).toHaveBeenCalledTimes(reads)
+  })
+
+  it.each(['factory', 'prepare', 'pre-wallet-submit'] as const)('keeps the earlier chain check after a %s RPC failure on retry', async (phase) => {
+    let resolution: PendingActionResolution = { status: 'still-unknown', record }
+    const { deps, render, setDeps } = setup(async () => resolution, 'cancelled')
+    render().start(); await flush(); render(); await flush()
+    const retry = { ...deps, prepare: phase === 'prepare' ? vi.fn(async () => { throw new Error('rpc') }) : deps.prepare,
+      submit: vi.fn(async () => { throw new Error('blockheight RPC unavailable before signing') }), reconcile: vi.fn(async () => null) }
+    setDeps(phase === 'factory' ? () => { throw new Error('rpc') } : retry)
+    render().start(); await flush()
+    expect(render().state).toMatchObject({ status: 'error', retryable: true, unresolved: true, ritualAddress: address })
+    if (phase !== 'pre-wallet-submit') expect(retry.submit).not.toHaveBeenCalled()
+    resolution = { status: 'confirmed', record, slot: 120 }
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(render()).toMatchObject({ state: { status: 'recovered' }, copy: { tone: 'success' }, canSubmit: false })
+    expect(deps.submit).toHaveBeenCalledOnce()
+    expect(deps.confirm).not.toHaveBeenCalled()
+  })
+
+  it('proves the earlier attempt expired after a failed pre-wallet retry and stops polling', async () => {
+    let expired = false
+    const { deps, render, setDeps } = setup(async () => ({ status: expired ? 'expired' : 'still-unknown', record }), 'cancelled')
+    render().start(); await flush(); render(); await flush()
+    setDeps({ ...deps, prepare: vi.fn(async () => { throw new Error('rpc') }), reconcile: vi.fn(async () => null) })
+    render().start(); await flush(); render()
+    expired = true
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(render().state).toMatchObject({ status: 'error', retryable: true, ritualAddress: address })
+    expect(render().state).not.toHaveProperty('unresolved')
+    expect(render().copy.body).toContain('Nothing was sent')
+    const reads = deps.reconcile.mock.calls.length
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(deps.reconcile).toHaveBeenCalledTimes(reads)
+    expect(deps.submit).toHaveBeenCalledOnce()
+  })
+
+  it('keeps checking during retry preparation and does not open the wallet if the earlier attempt lands', async () => {
+    let landed = false
+    let finish!: (value: unknown) => void
+    const { deps, render, setDeps } = setup(async () => landed ? { status: 'confirmed', record, slot: 120 } : { status: 'still-unknown', record }, 'cancelled')
+    render().start(); await flush(); render(); await flush()
+    const retry = { ...deps, prepare: vi.fn(() => new Promise((resolve) => { finish = resolve })), submit: vi.fn(), reconcile: vi.fn(async () => null) }
+    setDeps(retry)
+    render().start(); render(); await vi.advanceTimersByTimeAsync(6000)
+    expect(deps.reconcile.mock.calls.length).toBeGreaterThan(2)
+    landed = true
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(render().state.status).toBe('recovered')
+    finish({ kind, messageDigest: record.messageDigest, ritualAddress: address }); await flush()
+    expect(retry.submit).not.toHaveBeenCalled()
+    expect(render().state.status).toBe('recovered')
+  })
+
+  it.each(['still-unknown', 'rpc-error'] as const)('does not declare expiry while a newer signed retry is %s', async (status) => {
+    let expired = false; let landed = false
+    const { deps, render, setDeps } = setup(async () => ({ status: expired ? 'expired' : 'still-unknown', record }), 'cancelled')
+    render().start(); await flush(); render(); await flush()
+    const later = { ...record, messageDigest: 'b'.repeat(64), lastValidBlockHeight: 200 }
+    setDeps({ ...deps, reconcile: vi.fn(async () => {
+      if (landed) return { status: 'confirmed', record: later, slot: 150 }
+      if (status === 'rpc-error') throw new Error('rpc')
+      return { status: 'still-unknown', record: later }
+    }) })
+    render().start(); await flush(); render()
+    expired = true
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(render().state).toMatchObject({ status: 'error', unresolved: true })
+    landed = true
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(render().state.status).toBe('recovered')
+  })
+
+  it.each(['expired', 'failed'] as const)('clears only the earlier uncertainty when it is %s during retry preparation', async (status) => {
+    let resolution: PendingActionResolution = { status: 'still-unknown', record }
+    let finish!: (value: unknown) => void
+    const { deps, render, setDeps } = setup(async () => resolution, 'cancelled')
+    render().start(); await flush(); render(); await flush()
+    const retry = { ...deps, prepare: vi.fn(() => new Promise((resolve) => { finish = resolve })), submit: vi.fn(async () => { throw new Error('pre-wallet rpc') }), reconcile: vi.fn(async () => null) }
+    setDeps(retry)
+    render().start(); render()
+    resolution = { status, record }
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(deps.reconcile).toHaveBeenCalledTimes(2)
+    expect(render().state.status).toBe('preparing')
+    expect(render().state).not.toHaveProperty('unresolved')
+    finish({ kind, messageDigest: record.messageDigest, ritualAddress: address }); await flush()
+    expect(render().state).toMatchObject({ status: 'error', retryable: true })
+    expect(render().state).not.toHaveProperty('unresolved')
+    expect(retry.submit).toHaveBeenCalledOnce()
   })
 })
 

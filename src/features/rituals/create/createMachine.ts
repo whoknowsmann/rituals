@@ -44,10 +44,10 @@ export type CreateFailureCategory =
 
 export type CreateMachineState =
   | Readonly<{ status: 'idle' }>
-  | Readonly<{ status: 'preparing' }>
-  | Readonly<{ status: 'awaiting-wallet'; prepared: CreatePreparedRef; ritualAddress: string }>
-  | Readonly<{ status: 'submitted'; prepared: CreatePreparedRef; handle: CreateSubmittedRef; ritualAddress: string }>
-  | Readonly<{ status: 'confirming'; prepared: CreatePreparedRef; handle: CreateSubmittedRef; ritualAddress: string }>
+  | Readonly<{ status: 'preparing'; ritualAddress?: string | null; unresolved?: boolean }>
+  | Readonly<{ status: 'awaiting-wallet'; prepared: CreatePreparedRef; ritualAddress: string; unresolved?: boolean }>
+  | Readonly<{ status: 'submitted'; prepared: CreatePreparedRef; handle: CreateSubmittedRef; ritualAddress: string; unresolved?: boolean }>
+  | Readonly<{ status: 'confirming'; prepared: CreatePreparedRef; handle: CreateSubmittedRef; ritualAddress: string; unresolved?: boolean }>
   | Readonly<{ status: 'confirmed'; result: CreateConfirmedRef; ritualAddress: string }>
   | Readonly<{ status: 'recovered'; ritualAddress: string }>
   | Readonly<{
@@ -98,8 +98,9 @@ export function isTerminalCreateState(state: CreateMachineState): boolean {
 
 /** An attempt only the chain can settle: a lost wallet result, or a sheet cancelled after signing began. */
 export function createAwaitsChain(state: CreateMachineState): boolean {
-  return state.status === 'error' && (!state.retryable || state.unresolved === true)
+  return ('unresolved' in state && state.unresolved === true) || (state.status === 'error' && !state.retryable)
 }
+const unresolvedOf = (state: CreateMachineState) => 'unresolved' in state && state.unresolved ? { unresolved: true as const } : {}
 
 const inFlightAddress = (state: CreateMachineState): string | null => {
   switch (state.status) {
@@ -110,6 +111,8 @@ const inFlightAddress = (state: CreateMachineState): string | null => {
       return state.ritualAddress
     case 'error':
       return state.ritualAddress
+    case 'preparing':
+      return state.ritualAddress ?? null
     default:
       return null
   }
@@ -133,6 +136,7 @@ function failureState(
     submitted,
     retryable: !submitted,
     ritualAddress: inFlightAddress(state),
+    ...unresolvedOf(state),
     ...(unresolved ? { unresolved: true } : {}),
   })
 }
@@ -145,8 +149,12 @@ export function createMachineReducer(
   // Recover the existing ritual, never reset Create to an enabled submit button.
   // A retryable error counts too: Back on the wallet's sheet after a broadcast
   // reads as a cancel.
-  if (event.type === 'READBACK_OBSERVED') return state.status === 'error' && state.ritualAddress === event.ritualAddress
+  if (event.type === 'READBACK_OBSERVED') return (state.status === 'error' || createAwaitsChain(state)) && inFlightAddress(state) === event.ritualAddress
     ? freeze({ status: 'recovered' as const, ritualAddress: event.ritualAddress }) : state
+  if ((event.type === 'EXPIRY_OBSERVED' || event.type === 'FAILURE_OBSERVED') && state.status !== 'error' && 'unresolved' in state && state.unresolved && inFlightAddress(state) === event.ritualAddress) {
+    const { unresolved, ...retry } = state
+    return freeze(retry)
+  }
   if (event.type === 'EXPIRY_OBSERVED') {
     if (state.status !== 'error' || state.ritualAddress !== event.ritualAddress || !createAwaitsChain(state)) return state
     // Proven expired: nothing from this attempt can land any more.
@@ -174,6 +182,7 @@ export function createMachineReducer(
             status: 'awaiting-wallet' as const,
             prepared: event.prepared,
             ritualAddress: event.prepared.ritualAddress,
+            ...unresolvedOf(state),
           })
         : state
 
@@ -184,6 +193,7 @@ export function createMachineReducer(
             prepared: state.prepared,
             handle: event.handle,
             ritualAddress: state.ritualAddress,
+            ...unresolvedOf(state),
           })
         : state
 
@@ -194,6 +204,7 @@ export function createMachineReducer(
             prepared: state.prepared,
             handle: state.handle,
             ritualAddress: state.ritualAddress,
+            ...unresolvedOf(state),
           })
         : state
 
@@ -208,12 +219,12 @@ export function createMachineReducer(
 
     case 'error':
       // Only a retryable error may be reset; post-submission errors dead-end.
-      if (event.type === 'RESET' && state.retryable) return createMachineInitialState()
+      if (event.type === 'RESET' && state.retryable && !state.unresolved) return createMachineInitialState()
       // canSubmitCreate() allows starting again straight from a retryable error
       // (the Create button stays enabled). That attempt must drive the machine;
       // ignoring PREPARE here once let a real Create land on devnet while the
       // screen kept showing the previous "Could not create" error.
-      if (event.type === 'PREPARE' && state.retryable) return freeze({ status: 'preparing' as const })
+      if (event.type === 'PREPARE' && state.retryable) return freeze({ status: 'preparing' as const, ...(state.unresolved ? { ritualAddress: state.ritualAddress, unresolved: true } : {}) })
       return state
 
     case 'confirmed':

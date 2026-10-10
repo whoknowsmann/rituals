@@ -5,6 +5,22 @@ import { resolvePendingAction, type PendingActionRecord, type PendingActionResol
 export type ActionReconciler = () => Promise<PendingActionResolution | null>
 export type ActionRecoveryEvent = Readonly<{ type: 'READBACK_OBSERVED' | 'EXPIRY_OBSERVED' | 'FAILURE_OBSERVED'; ritualAddress: string }>
 
+/** A retry with no journal entry cannot replace an earlier uncertain send. */
+export function retainActionReconciliation(previous: ActionReconciler | undefined, current: ActionReconciler | undefined): ActionReconciler | undefined {
+  if (!previous || previous === current) return current
+  if (!current) return previous
+  return async () => {
+    const results = await Promise.all([previous, current].map((read) => Promise.resolve().then(read).catch(() => undefined)))
+    const confirmed = results.find((result) => result?.status === 'confirmed')
+    if (confirmed) return confirmed
+    // An unavailable reader is not proof that all attempts expired.
+    if (results.includes(undefined)) throw new Error('Recovery reader unavailable')
+    return results.find((result) => result?.status === 'still-unknown')
+      ?? results.find((result) => result?.status === 'failed')
+      ?? results.find((result) => result?.status === 'expired') ?? null
+  }
+}
+
 export async function reconcilePendingAction(
   client: RitualClient,
   record: PendingActionRecord | null,

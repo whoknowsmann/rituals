@@ -26,7 +26,7 @@ import {
   type CreateStatusCopy,
 } from './createMachine'
 import { runCreateRitual, type CreateRitualDeps } from './runCreateRitual'
-import { watchActionReconciliation } from '../recovery/reconcilePendingAction'
+import { retainActionReconciliation, watchActionReconciliation } from '../recovery/reconcilePendingAction'
 import { reportChainVerdict } from '../../../utils/chainVerdict'
 
 export type UseCreateRitual = Readonly<{
@@ -58,6 +58,7 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps, walletAddress?
   // committed the first. A ref is synchronous; reducer state is not.
   const inFlight = useRef(false)
   const attempt = useRef<CreateRitualDeps | null>(null)
+  const landed = useRef<string | null>(null)
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -66,40 +67,45 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps, walletAddress?
   }, [])
 
   const safeDispatch = useCallback((event: Parameters<typeof createMachineReducer>[1]) => {
-    if (mounted.current && session.current === scope) dispatch({ scope, event })
+    if (mounted.current && session.current === scope) {
+      if (event.type === 'READBACK_OBSERVED') landed.current = event.ritualAddress
+      dispatch({ scope, event })
+    }
   }, [scope])
 
   const start = useCallback(() => {
     if (session.current !== scope || inFlight.current) return
     if (!canSubmitCreate(state)) return
-    // Try again after a cancelled sheet: the earlier attempt may still land at
-    // the same ritual address, so a failure of this one keeps the chain check.
-    const carry = state.status === 'error' && state.unresolved === true
-    const dispatchAttempt = (event: CreateMachineEvent) => safeDispatch(carry && event.type === 'FAILED' ? { ...event, unresolved: true } : event)
     inFlight.current = true
+    landed.current = null
     void (async () => {
       try {
         // Every attempt is prepared from the terms on screen, with a fresh
         // blockhash. The screen keeps one nonce, so a retry targets the same
         // ritual address and can never make a second ritual.
         const deps = makeDeps()
-        attempt.current = deps
-        await runCreateRitual(deps, dispatchAttempt)
+        const reconcile = retainActionReconciliation(createAwaitsChain(state) ? attempt.current?.reconcile : undefined, deps.reconcile)
+        attempt.current = { ...deps, reconcile }
+        await runCreateRitual({ ...deps, submit: (prepared) => {
+          if (!mounted.current || session.current !== scope || landed.current === prepared.ritualAddress) throw new Error('Action already resolved or screen closed')
+          return deps.submit(prepared)
+        } }, safeDispatch)
       } catch (error) {
         logFailure('create.deps', error)
         // makeDeps itself can reject invalid input before any network work.
-        dispatchAttempt({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the ritual. Nothing was sent.' })
+        safeDispatch({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the ritual. Nothing was sent.' })
       } finally {
         inFlight.current = false
       }
     })()
   }, [makeDeps, safeDispatch, scope, state])
 
+  const awaitsChain = createAwaitsChain(state)
   useEffect(() => {
-    if (!createAwaitsChain(state) || !attempt.current?.reconcile) return
+    if (!awaitsChain || !attempt.current?.reconcile) return
     // A cancelled sheet's "Network mismatch?" hint waits for this first answer.
-    return watchActionReconciliation(attempt.current.reconcile, safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
-  }, [state, safeDispatch])
+    return watchActionReconciliation(() => attempt.current?.reconcile?.() ?? Promise.resolve(null), safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
+  }, [awaitsChain, safeDispatch])
   useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
 
   const reset = useCallback(() => {
