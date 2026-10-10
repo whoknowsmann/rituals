@@ -31,7 +31,9 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
   })
   it('labels the total stake concretely, with no rounding line: the total locked shows as the total chosen (Jack, 2026-10-09)', () => {
     expect(source).toContain('>TOTAL STAKE</Text>')
-    expect(source).toContain('placeholder="Go for a run"')
+    expect(source).toContain('placeholder={example.name}')
+    expect(source).toContain('What will you do each week?')
+    expect(source).toContain('WHAT COUNTS AS A WEEK (OPTIONAL)')
     expect(source).not.toContain('after rounding')
     expect(source).not.toContain('split.exact')
     expect(source).not.toContain('Splits evenly to')

@@ -18,6 +18,17 @@ describe('stamp sayings', () => {
     expect(lines.size).toBeGreaterThan(4)
   })
 
+  it('never repeats a line inside one ritual, up to the 16-week maximum (Jack, 2026-10-09)', () => {
+    expect(new Set(KEPT_SAYINGS).size).toBe(KEPT_SAYINGS.length)
+    expect(KEPT_SAYINGS.length).toBeGreaterThanOrEqual(17)
+    for (let ritual = 0; ritual < 300; ritual += 1) {
+      for (const weeks of [2, 6, 8, 16]) {
+        const lines = Array.from({ length: weeks }, (_, week) => keptSaying(`ritual-${ritual}`, week, weeks))
+        expect(new Set(lines).size).toBe(weeks)
+      }
+    }
+  })
+
   it('handles any seed', () => {
     expect(pickSaying(['only'], '')).toBe('only')
   })

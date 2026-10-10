@@ -68,6 +68,15 @@ const initialDraft: SoloCreateDraft = {
   personAddress: '',
 }
 
+/** Greyed examples that show what a week's worth looks like; they vanish on typing (Jack, 2026-10-09). */
+export const CREATE_EXAMPLES = Object.freeze([
+  { name: 'Go for a run', counts: 'Three runs, any distance' },
+  { name: 'Read', counts: '100 pages' },
+  { name: 'Call mom', counts: 'One real call' },
+  { name: 'Gym', counts: 'Three sessions' },
+  { name: 'No takeout', counts: 'Cook every dinner' },
+])
+
 export function SoloCreateScreen({ route }: Props) { const styles = useStyles(); const color = useColors();
   const navigation = useNavigation<Navigation>()
   const { connection } = useConnection()
@@ -79,6 +88,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   accountRef.current = selectedAccount
   const [step, setStep] = useState<SoloCreateStep>(1)
   const stepPosition = soloCreateStepPosition(step, CREATE_STEPS)
+  const [example] = useState(() => CREATE_EXAMPLES[Math.floor(Math.random() * CREATE_EXAMPLES.length)])
   const [draft, setDraft] = useState<SoloCreateDraft>(initialDraft)
   const [pickedEventCount, setPickedEventCount] = useState<string | number | undefined>(undefined)
   // Demo speed by default; Real weeks writes 7-day windows.
@@ -332,7 +342,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
 
       {step === 1 && (
         <>
-          <Hero>What’s your ritual?</Hero>
+          <Hero>What will you do each week?</Hero>
           {/* Name + the user's own description; no suggestions, no preset weeks (Jack, 2026-10-07). */}
           <Text style={styles.label}>NAME</Text>
           <TextInput
@@ -341,18 +351,18 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
               setDraft((current) => ({ ...current, intention: value, title: '' }))
               setStepErrors([])
             }}
-            placeholder="Go for a run"
+            placeholder={example.name}
             placeholderTextColor={color.faint}
             autoCapitalize="sentences"
             maxLength={60}
             style={styles.input}
             accessibilityLabel="Name your ritual"
           />
-          <Text style={styles.label}>WHAT COUNTS (OPTIONAL)</Text>
+          <Text style={styles.label}>WHAT COUNTS AS A WEEK (OPTIONAL)</Text>
           <TextInput
             value={draft.requirement}
             onChangeText={(value) => setDraft((current) => ({ ...current, requirement: value }))}
-            placeholder="Three miles, any pace"
+            placeholder={example.counts}
             placeholderTextColor={color.faint}
             autoCapitalize="sentences"
             maxLength={140}

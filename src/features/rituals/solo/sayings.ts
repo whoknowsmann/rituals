@@ -13,6 +13,20 @@ export const KEPT_SAYINGS = Object.freeze([
   'Your word is good. Who knew?',
   'Showed up. Barely complained.',
   'Stake safe. Ego slightly inflated.',
+  // Added 2026-10-09 (Jack: no repeats inside a 6-week ritual).
+  'Week done. Excuses: none.',
+  'Look at you, being reliable.',
+  'You did the thing.',
+  'Your stake stays home.',
+  'Nobody had to nag you.',
+  'Past you made a deal. You kept it.',
+  'Quietly impressive.',
+  'Proof you meant it.',
+  'Called your own bluff.',
+  'Week kept. Wallet intact.',
+  'Consistency looks good on you.',
+  'Another week in the books.',
+  'Didn’t even need a reminder. Probably.',
 ])
 
 export const STARTED_SAYINGS = Object.freeze([
@@ -38,9 +52,30 @@ export function pickSaying(list: readonly string[], seed: string): string {
   return list[hash(seed) % list.length]
 }
 
+/** The ritual's own order of the kept lines: a seeded shuffle, so weeks never repeat until the list runs out. */
+function keptOrder(ritualAddress: string): string[] {
+  const order = [...KEPT_SAYINGS]
+  let state = hash(`${ritualAddress}:kept-order`) || 1
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    state ^= state << 13; state >>>= 0
+    state ^= state >>> 17
+    state ^= state << 5; state >>>= 0
+    const swap = state % (index + 1)
+    ;[order[index], order[swap]] = [order[swap], order[index]]
+  }
+  return order
+}
+
+/**
+ * Week N of a ritual gets the Nth line of the ritual's shuffled order, so a ritual
+ * (max 16 weeks) never repeats a line (Jack, 2026-10-09). The final week never says
+ * "Same time next week."; it takes the slot a next week would have used instead,
+ * which no week of this ritual uses.
+ */
 export const keptSaying = (ritualAddress: string, eventIndex: number, weekCount?: number) => {
-  const list = weekCount !== undefined && eventIndex >= weekCount - 1
-    ? KEPT_SAYINGS.filter((line) => line !== 'Same time next week.') : KEPT_SAYINGS
-  return pickSaying(list, `${ritualAddress}:${eventIndex}:kept`)
+  const order = keptOrder(ritualAddress)
+  const line = order[eventIndex % order.length]
+  if (weekCount !== undefined && eventIndex >= weekCount - 1 && line === 'Same time next week.') return order[(eventIndex + 1) % order.length]
+  return line
 }
 export const startedSaying = (ritualAddress: string) => pickSaying(STARTED_SAYINGS, `${ritualAddress}:started`)
