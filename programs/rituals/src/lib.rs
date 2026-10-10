@@ -1967,9 +1967,24 @@ mod tests {
 
     #[test]
     fn settlement_rejects_invalid_inputs_and_overflow() {
-        for count in [0, 1, 7, 8] {
+        for count in [0, 7, 8, u8::MAX] {
             assert!(derive_event_settlement_plan(count, 1, 0, 0, 0).is_err());
         }
+        for count in 1..=6 {
+            let plan = derive_event_settlement_plan(count, 11, 0, 0, 0).unwrap();
+            assert_eq!(plan.status, EventStatus::Voided);
+            assert_eq!(plan.refunded_total, u64::from(count) * 11);
+        }
+        let single = derive_event_settlement_plan(1, 11, 1, 1, 0).unwrap();
+        assert_eq!(single.status, EventStatus::Settled);
+        assert_eq!(single.void_reason, VoidReason::None);
+        assert_eq!(single.payouts, [11, 0, 0, 0, 0, 0]);
+        assert_eq!(single.event_pool, 11);
+        assert_eq!(single.payout_total, 11);
+        assert_eq!(single.refunded_total, 0);
+        assert_eq!(single.forfeited_total, 0);
+        assert_eq!(single.confirmed_member_count, 1);
+        assert_eq!(single.remainder_units, 0);
         assert!(derive_event_settlement_plan(2, 0, 0, 0, 0).is_err());
         assert!(derive_event_settlement_plan(2, 1, 4, 0, 0).is_err());
         assert!(derive_event_settlement_plan(2, 1, 1, 2, 0).is_err());
