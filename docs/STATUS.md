@@ -234,6 +234,15 @@ Demo timing (devnet only): a "week" is 6.5 min — opens ~2 min after create,
 
 ### Next actions, in order (owner · when)
 
+**2026-10-10 morning:** d42 installed (360ddf4, 2,927 tests; root `cargo test` green, program suite 224).
+Since d39: rounding = full-precision split + half-to-even 2-decimal display (smoke J3u6FXjZ…, phone
+wallet Dzgu65… locked 19.999998, ended 46.666667); End early one money row (+"Missed week, sent" when it
+settles a lapsed week); create step 1 "What will you do each week?" + rotating examples; 20 kept sayings,
+no repeats per ritual; docs final pass merged (a5a0ae3); duel Astra vs gpt-6.1-sol on 4 residual fixes →
+Sol merged (Fix 4 kept a retry going when the earlier attempt expired). Remaining: recording on a fresh
+wallet, 7 demo rituals → deck photo + re-render, contact email for `<owner-email>`, video/APK links,
+merge to main, release APK, repo public, submit Sunday afternoon/evening.
+
 **2026-10-08 night (Opus 5.5 main; subagents Astra gpt-6-astra max, Opus/Sonnet 5.5 max):**
 d39 installed on the Seeker (318f3c4, 2,852 tests). Since d34: wallet-timeout/cancel
 reconcile (ccf1d10, 4dbd530, a74c8a4), post-cancel "Network mismatch?" popup max 2
