@@ -19,6 +19,48 @@ export type FaucetResult =
 
 type FetchLike = (input: string, init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal }) => Promise<{ status: number; json: () => Promise<unknown> }>
 
+export type FaucetBalance = Readonly<{ tokens: bigint; lamports: number }>
+type BalanceReader = () => Promise<FaucetBalance>
+
+/** A hung baseline read must not hold the faucet button forever. */
+export function readFaucetBaseline(read: BalanceReader, signal: AbortSignal): Promise<FaucetBalance | null> {
+  return new Promise((resolve) => {
+    const finish = (value: FaucetBalance | null) => { clearTimeout(timer); signal.removeEventListener('abort', cancel); resolve(value) }
+    const cancel = () => finish(null)
+    const timer = setTimeout(cancel, 5000)
+    signal.addEventListener('abort', cancel)
+    if (signal.aborted) cancel()
+    else void Promise.resolve().then(read).then(finish, cancel)
+  })
+}
+
+/** Serialized balance checks, with a deadline even if an RPC never answers. */
+export function confirmFaucetCredit(result: Extract<FaucetResult, { kind: 'sent' }>, before: FaucetBalance | null, read: BalanceReader, signal: AbortSignal): Promise<FaucetResult> {
+  return new Promise((resolve) => {
+    let active = true
+    let retry: ReturnType<typeof setTimeout> | undefined
+    const finish = (value: FaucetResult) => {
+      if (!active) return
+      active = false
+      clearTimeout(deadline); clearTimeout(retry)
+      signal.removeEventListener('abort', cancel)
+      resolve(value)
+    }
+    const cancel = () => finish({ kind: 'unreachable' })
+    const deadline = setTimeout(cancel, 30_000)
+    const check = async () => {
+      const after = await Promise.resolve().then(read).catch(() => null)
+      if (!active) return
+      // Both credits are in the same transaction; old funds are not proof of a send.
+      if (before && after && after.tokens >= before.tokens + 50_000_000n && after.lamports >= before.lamports + 50_000_000) finish({ ...result, confirmed: true })
+      else retry = setTimeout(() => { void check() }, 5000)
+    }
+    signal.addEventListener('abort', cancel)
+    if (signal.aborted) cancel()
+    else void check()
+  })
+}
+
 const text = (value: unknown): string | null => (typeof value === 'string' && value.length > 0 && value.length < 200 ? value : null)
 
 /** One POST, bounded to ~30 s; every failure shape becomes a result, never a throw. */
