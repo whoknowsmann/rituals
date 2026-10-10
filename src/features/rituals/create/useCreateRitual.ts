@@ -41,13 +41,23 @@ export type UseCreateRitual = Readonly<{
   observeReadback: (ritualAddress: string) => void
 }>
 
-export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitual {
-  const [state, dispatch] = useReducer(createMachineReducer, undefined, createMachineInitialState)
+type CreateSession = { walletAddress: string | null; inFlight: boolean; attempt: CreateRitualDeps | null }
+
+export function useCreateRitual(makeDeps: () => CreateRitualDeps, walletAddress: string | null = null): UseCreateRitual {
+  const session = useRef<CreateSession>({ walletAddress, inFlight: false, attempt: null })
+  if (session.current.walletAddress !== walletAddress) session.current = { walletAddress, inFlight: false, attempt: null }
+  const scope = session.current
+  const [stored, dispatch] = useReducer(
+    (previous: { scope: CreateSession; value: CreateMachineState }, action: { scope: CreateSession; event: CreateMachineEvent }) => ({
+      scope: action.scope,
+      value: createMachineReducer(previous.scope === action.scope ? previous.value : createMachineInitialState(), action.event),
+    }), undefined, () => ({ scope, value: createMachineInitialState() }),
+  )
+  // Hide the old wallet's state on the very first render, including A → B → A.
+  const state = stored.scope === scope ? stored.value : createMachineInitialState()
 
   // Guards against a second attempt slipping through before the reducer has
   // committed the first. A ref is synchronous; reducer state is not.
-  const inFlight = useRef(false)
-  const attempt = useRef<CreateRitualDeps | null>(null)
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -56,46 +66,46 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   }, [])
 
   const safeDispatch = useCallback((event: Parameters<typeof createMachineReducer>[1]) => {
-    if (mounted.current) dispatch(event)
-  }, [])
+    if (mounted.current && session.current === scope) dispatch({ scope, event })
+  }, [scope])
 
   const start = useCallback(() => {
-    if (inFlight.current) return
+    if (!mounted.current || session.current !== scope || scope.inFlight) return
     if (!canSubmitCreate(state)) return
     // Try again after a cancelled sheet: the earlier attempt may still land at
     // the same ritual address, so a failure of this one keeps the chain check.
     const carry = state.status === 'error' && state.unresolved === true
     const dispatchAttempt = (event: CreateMachineEvent) => safeDispatch(carry && event.type === 'FAILED' ? { ...event, unresolved: true } : event)
-    inFlight.current = true
+    scope.inFlight = true
     void (async () => {
       try {
         // Every attempt is prepared from the terms on screen, with a fresh
         // blockhash. The screen keeps one nonce, so a retry targets the same
         // ritual address and can never make a second ritual.
         const deps = makeDeps()
-        attempt.current = deps
+        scope.attempt = deps
         await runCreateRitual(deps, dispatchAttempt)
       } catch (error) {
         logFailure('create.deps', error)
         // makeDeps itself can reject invalid input before any network work.
         dispatchAttempt({ type: 'FAILED', category: 'preparation', message: 'Could not prepare the ritual. Nothing was sent.' })
       } finally {
-        inFlight.current = false
+        scope.inFlight = false
       }
     })()
-  }, [makeDeps, safeDispatch, state])
+  }, [makeDeps, safeDispatch, scope, state])
 
   useEffect(() => {
-    if (!createAwaitsChain(state) || !attempt.current?.reconcile) return
+    if (!createAwaitsChain(state) || !scope.attempt?.reconcile) return
     // A cancelled sheet's "Network mismatch?" hint waits for this first answer.
-    return watchActionReconciliation(attempt.current.reconcile, safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
-  }, [state, safeDispatch])
+    return watchActionReconciliation(scope.attempt.reconcile, safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
+  }, [state, safeDispatch, scope])
   useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
 
   const reset = useCallback(() => {
-    if (inFlight.current || createAwaitsChain(state)) return
+    if (scope.inFlight || createAwaitsChain(state)) return
     safeDispatch({ type: 'RESET' })
-  }, [safeDispatch, state])
+  }, [safeDispatch, scope, state])
 
   const busy = !canSubmitCreate(state) && !isTerminalCreateState(state)
   const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])

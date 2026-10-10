@@ -155,6 +155,52 @@ for (const kind of ['claim', 'skip', 'initialize-event', 'finalize', 'eject', 'c
   })
 })
 
+describe('wallet-scoped create state', () => {
+  const render = (wallet: string | null, makeDeps: () => unknown) => {
+    harness.cursor = 0
+    const result = useCreateRitual(makeDeps as never, wallet)
+    for (const effect of harness.effects.splice(0)) effect()
+    return result
+  }
+
+  it.each(['declined', 'cancelled', 'lost'] as const)('clears A\'s %s error immediately on wallet change without reviving it on reconnect', async (failure) => {
+    const error = Object.assign(new Error('wallet request was rejected'), failure === 'lost' ? { submitted: true } : { cancelled: failure === 'cancelled' })
+    const reconcile = vi.fn(async (): Promise<PendingActionResolution> => ({ status: 'still-unknown', record }))
+    const makeDeps = vi.fn(() => ({ prepare: async () => ({ kind: 'create', messageDigest: record.messageDigest, ritualAddress: address }), submit: async () => { throw error }, confirm: vi.fn(), reconcile }))
+    render('A', makeDeps).start(); await flush()
+    const old = render('A', makeDeps)
+    expect(old.state.status).toBe('error')
+    const reads = reconcile.mock.calls.length
+    for (const wallet of ['B', null, 'A']) {
+      const fresh = render(wallet, makeDeps)
+      expect(fresh.state).toEqual({ status: 'idle' })
+      expect(fresh.copy.body).not.toContain('Try again')
+      expect(fresh.canSubmit).toBe(true)
+    }
+    old.start()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(makeDeps).toHaveBeenCalledOnce()
+    expect(reconcile).toHaveBeenCalledTimes(reads)
+  })
+
+  it('ignores A\'s late failure and readback while allowing B to create', async () => {
+    let rejectA!: (error: Error) => void
+    const first = { prepare: async () => ({ kind: 'create', messageDigest: record.messageDigest, ritualAddress: address }),
+      submit: () => new Promise((_, reject) => { rejectA = reject }), confirm: vi.fn() }
+    const next = { prepare: first.prepare, submit: vi.fn(async () => ({ id: 'B' })), confirm: async () => ({ signature: 'B', messageDigest: record.messageDigest }) }
+    const makeDeps = vi.fn().mockReturnValueOnce(first).mockReturnValue(next)
+    render('A', makeDeps).start(); await flush()
+    const old = render('A', makeDeps)
+    render('B', makeDeps).start(); await flush()
+    expect(render('B', makeDeps).state.status).toBe('confirmed')
+    rejectA(new Error('wallet request was rejected')); await flush()
+    old.observeReadback(address); old.reset(); old.start()
+    expect(render('B', makeDeps).state.status).toBe('confirmed')
+    expect(next.submit).toHaveBeenCalledOnce()
+    expect(makeDeps).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('pre-wallet action refresh', () => {
   it('re-reads after a preparation failure, once per attempt without another send', async () => {
     const refresh = vi.fn()
