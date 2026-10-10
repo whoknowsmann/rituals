@@ -41,8 +41,18 @@ export type UseCreateRitual = Readonly<{
   observeReadback: (ritualAddress: string) => void
 }>
 
-export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitual {
-  const [state, dispatch] = useReducer(createMachineReducer, undefined, createMachineInitialState)
+export function useCreateRitual(makeDeps: () => CreateRitualDeps, walletAddress?: string | null): UseCreateRitual {
+  const session = useRef({ walletAddress })
+  if (session.current.walletAddress !== walletAddress) session.current = { walletAddress }
+  const scope = session.current
+  const [snapshot, dispatch] = useReducer(
+    (previous: { scope: object; value: CreateMachineState }, action: { scope: object; event: CreateMachineEvent }) => ({
+      scope: action.scope,
+      value: createMachineReducer(previous.scope === action.scope ? previous.value : createMachineInitialState(), action.event),
+    }), scope, (scope) => ({ scope, value: createMachineInitialState() }),
+  )
+  // Hide the previous wallet's result on the first render, preserving the draft.
+  const state = snapshot.scope === scope ? snapshot.value : createMachineInitialState()
 
   // Guards against a second attempt slipping through before the reducer has
   // committed the first. A ref is synchronous; reducer state is not.
@@ -56,11 +66,11 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
   }, [])
 
   const safeDispatch = useCallback((event: Parameters<typeof createMachineReducer>[1]) => {
-    if (mounted.current) dispatch(event)
-  }, [])
+    if (mounted.current && session.current === scope) dispatch({ scope, event })
+  }, [scope])
 
   const start = useCallback(() => {
-    if (inFlight.current) return
+    if (session.current !== scope || inFlight.current) return
     if (!canSubmitCreate(state)) return
     // Try again after a cancelled sheet: the earlier attempt may still land at
     // the same ritual address, so a failure of this one keeps the chain check.
@@ -83,7 +93,7 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps): UseCreateRitu
         inFlight.current = false
       }
     })()
-  }, [makeDeps, safeDispatch, state])
+  }, [makeDeps, safeDispatch, scope, state])
 
   useEffect(() => {
     if (!createAwaitsChain(state) || !attempt.current?.reconcile) return

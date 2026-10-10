@@ -9,6 +9,7 @@ describe('wallet-local screen boundaries', () => {
     const create = screen('solo/SoloCreateScreen')
     expect(create).toContain('useCreateBalance(client, connection, selectedAccount?.publicKey ?? null)')
     expect(create).toContain('useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, onFaucetSent)')
+    expect(create).toContain('useCreateRitual(makeDeps, selectedAccount?.publicKey.toBase58() ?? null)')
   })
   it('remounts Settings lists and any open End early flow when the wallet changes', () => {
     expect(screen('SettingsScreen')).toContain('<WalletSettings key={selectedAccount?.publicKey.toBase58() ?? \'disconnected\'} />')

@@ -255,7 +255,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
     })
   }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey, speed, stakeTotal])
 
-  const create = useCreateRitual(makeDeps)
+  const create = useCreateRitual(makeDeps, selectedAccount?.publicKey.toBase58() ?? null)
   const showBalanceHelp = showCreateBalanceHelp(create.state)
   const createCopy = withWalletHandoff(create.copy, create.state.status, walletPackage)
   useDevnetMismatchAlert(create.state.status, create.state.status === 'error' ? create.state.category : null, walletPackage)

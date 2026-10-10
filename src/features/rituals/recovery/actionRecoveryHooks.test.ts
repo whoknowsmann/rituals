@@ -177,6 +177,45 @@ describe('pre-wallet action refresh', () => {
   })
 })
 
+describe('wallet-scoped create state', () => {
+  const render = (wallet: string | null, makeDeps: () => unknown) => {
+    harness.cursor = 0
+    const result = useCreateRitual(makeDeps as never, wallet)
+    for (const effect of harness.effects.splice(0)) effect()
+    return result
+  }
+  it.each(['preparation', 'declined', 'uncertain'] as const)('clears A’s %s error on wallet change without reviving it or accepting a stale tap', async (failure) => {
+    const ref = { kind: 'create' as const, messageDigest: record.messageDigest, ritualAddress: address }
+    const first = {
+      prepare: vi.fn(async () => { if (failure === 'preparation') throw new Error('rpc'); return ref }),
+      submit: vi.fn(async () => { throw Object.assign(new Error('wallet request was rejected'), failure === 'uncertain' ? { cancelled: true } : {}) }),
+      confirm: vi.fn(), reconcile: vi.fn(async () => ({ status: 'still-unknown', record })),
+    }
+    const second = { prepare: vi.fn(async () => ref), submit: vi.fn(async () => ({ id: 'h' })), confirm: vi.fn(async () => ({ signature: 'sig', messageDigest: ref.messageDigest })) }
+    const makeDeps = vi.fn().mockReturnValueOnce(first).mockReturnValue(second)
+    render('A', makeDeps).start(); await flush()
+    const old = render('A', makeDeps)
+    expect(old.state.status).toBe('error')
+    if (failure === 'uncertain') expect(old.copy.body).toBe('Try again.')
+    for (const wallet of ['B', null, 'A', 'B']) expect(render(wallet, makeDeps)).toMatchObject({ state: { status: 'idle' }, canSubmit: true })
+    old.start(); await flush()
+    expect(makeDeps).toHaveBeenCalledOnce()
+    render('B', makeDeps).start(); await flush()
+    expect(render('B', makeDeps).state.status).toBe('confirmed')
+    expect(second.submit).toHaveBeenCalledOnce()
+  })
+  it('ignores an A preparation failure that arrives after switching to B', async () => {
+    let fail!: (error: Error) => void
+    const submit = vi.fn()
+    const makeDeps = () => ({ prepare: () => new Promise((_, reject) => { fail = reject }), submit, confirm: vi.fn() })
+    render('A', makeDeps).start(); await flush()
+    expect(render('B', makeDeps).state.status).toBe('idle')
+    fail(new Error('rpc')); await flush()
+    expect(render('B', makeDeps)).toMatchObject({ state: { status: 'idle' }, canSubmit: true })
+    expect(submit).not.toHaveBeenCalled()
+  })
+})
+
 describe('create Try again after a cancelled sheet', () => {
   // Seed Vault answers every decline as a cancelled sheet, so this is also "decline, change the stake, lock it in".
   const cancelled = async (): Promise<never> => { throw Object.assign(new Error('wallet request was rejected'), { cancelled: true }) }
