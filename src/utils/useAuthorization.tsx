@@ -103,6 +103,11 @@ export function useAuthorization() {
   const { data: authorization, isLoading } = useQuery({
     queryKey: ["wallet-authorization"],
     queryFn: () => fetchAuthorization(),
+    // Read once from storage; later changes arrive through setQueryData. A refetch on
+    // every mount re-created the account objects, which re-created the wallet callbacks,
+    // the ritual client and Home's load: Home reloaded in a loop (d42, 2026-10-10).
+    staleTime: Infinity,
+    gcTime: Infinity,
   });
   const { mutateAsync: setAuthorization } = useMutation({
     mutationFn: persistAuthorization,

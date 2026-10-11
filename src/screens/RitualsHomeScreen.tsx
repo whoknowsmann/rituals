@@ -64,11 +64,15 @@ export function RitualsHomeScreen() {
   const [outcomes, setOutcomes] = useState<WeekOutcomes>(new Map())
   const mounted = useRef(false)
   const requestGeneration = useRef(0)
+  const shownRef = useRef(false)
+  shownRef.current = homeState.status === 'ready'
 
   const load = useCallback((quiet = false) => {
     // AUTHORITATIVE CHAIN READS keep ritual cards grounded in current account data.
     const generation = ++requestGeneration.current
-    if (!quiet) { setHomeState(initialState); setOutcomes(new Map()) }
+    // Only an empty screen shows the spinner; a screen with rituals refreshes in place (no flash).
+    console.log(`[rituals] home.load ${quiet ? 'quiet' : 'full'} shown=${shownRef.current}`)
+    if (!quiet && !shownRef.current) { setHomeState(initialState); setOutcomes(new Map()) }
     if (client.status !== 'ready') {
       setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(client.reason) })
       return
@@ -97,7 +101,8 @@ export function RitualsHomeScreen() {
           .catch(() => undefined) // cards keep the neutral "closed" mark
       })
       .catch((error: unknown) => {
-        if (mounted.current && generation === requestGeneration.current) setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(error) })
+        // A failed refresh keeps the rituals already on screen; only a first load shows the error.
+        if (mounted.current && generation === requestGeneration.current && !shownRef.current) setHomeState({ ...initialState, status: 'error', message: safeErrorMessage(error) })
       })
   }, [client, connection])
 
