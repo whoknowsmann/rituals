@@ -5,7 +5,7 @@ Show up, or pay up. Put a stake on a weekly promise; stamp it to keep it; miss i
 Devnet only. tSKR tokens have no value.
 
 ## What's in this build
-- Start a ritual in two steps with one wallet approval. Step 1: a name, and optionally what counts as a week. Step 2: 1 to 16 weeks (2 is the default on Demo speed, 4 on Real weeks) and one total stake: type it, or tap 5, 10, 20 or 50. The app splits it evenly across the weeks at full token precision (20 over 6 weeks locks 19.999998); every amount on screen rounds to 2 decimals. The approval creates the ritual, locks every week's stake, activates it, and pre-pays the app's settle key.
+- Start a ritual in two steps with one wallet approval. Step 1: a name, and optionally what counts as showing up. Step 2: 1 to 16 weeks (2 is the default on Demo speed, 4 on Real weeks) and one total stake: type it, or tap 5, 10, 20 or 50. The app splits it evenly across the weeks at full token precision (20 over 6 weeks locks 19.999998); every amount on screen rounds to 2 decimals. The approval creates the ritual, locks every week's stake, activates it, and pre-pays the app's settle key.
 - You choose where a missed week goes: Northside Food Bank, City Animal Shelter, Public Library Fund (all labelled demo; on devnet they pay into the test-token faucet), or a wallet you choose.
 - After Lock it in, the app goes straight to the ritual screen, with countdowns: "Week 1 opens in 32s", then "32s left".
 - HOLD TO STAMP: add an optional note that stays on the phone, hold for 1.4 seconds, approve once. Then confetti and YOU SHOWED UP!, with one of 20 lines; a ritual never repeats one.

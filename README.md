@@ -16,7 +16,7 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals and tap Connect, then Seed Vault Wallet. It shows the request as coming from Rituals at rituals.whoknowsman.com.
 4. On Home, tap **Get test tokens**. The faucet sends 0.05 devnet SOL and 50 tSKR in one transaction it pays itself, so there is nothing to sign. It refuses a wallet that already holds at least 0.03 SOL and 10 tSKR. If it says it is empty, email <owner-email>. Then tap **Start one**.
-5. "What will you do each week?" Type a name, such as Read. If you like, say what counts as a week. Tap **Next**.
+5. "What will you do each week?" Type a name, such as Read. If you like, say what counts as showing up. Tap **Next**.
 6. "Your stake": keep 2 weeks and Demo speed, tap 20, and pick where a missed week goes. Tap **Lock it in** and approve once: double-tap the side button and use your fingerprint. Approvals need to land within about 60 seconds. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 7. You land on the ritual screen. Week 1 opens 60 seconds after you tapped Lock it in. When it opens, type an optional note, hold **HOLD TO STAMP** for 1.4 seconds and approve. You have 45 seconds.
 8. Leave week 2 alone and stay on the ritual screen. When its time runs out the screen turns to Finished with a MISSED stamp. Within about 20 seconds the app has closed the week, with no wallet prompt, and one line reads, for example, "10 of 20 tSKR back · 10 tSKR to City Animal Shelter (demo)". Tap a closed week on the punch card to open its receipt.

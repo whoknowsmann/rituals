@@ -2,7 +2,7 @@
 
 Target length: ~110 seconds. Built only from adb screen recordings of the app on a Seeker, plus caption cards. Every claim traces to docs/submission/FACTS.md. Updated 2026-10-10 for the d44 flow (recording build): faucet on Home, create step 1 with two fields, Connect offers Seed Vault Wallet only, and the last week's miss shown as Finished with one totals line.
 
-**Demo ritual (Jack, 2026-10-10): NAME "Touch grass", WHAT COUNTS AS A WEEK "Two hours outside. Phone in pocket."** It is naturally weekly and concrete. Do NOT pitch it as "the app that gets you off your phone": that is not what Rituals is. Rituals is keeping your word to yourself, with a stake; the ritual is just an example of a weekly promise.
+**Demo ritual (Jack, 2026-10-10): NAME "Touch grass", WHAT COUNTS AS SHOWING UP "Two hours outside. Phone in pocket."** It is naturally weekly and concrete. Do NOT pitch it as "the app that gets you off your phone": that is not what Rituals is. Rituals is keeping your word to yourself, with a stake; the ritual is just an example of a weekly promise.
 
 ## 1. Premise
 
@@ -20,7 +20,7 @@ FOOTAGE = adb screen recording. CARD = caption card over a still frame of the ap
 |---|---|---|---|---|
 | 1 | 0-5 (5) | CARD. Still of Home, tiles dimmed. | Rituals / Show up, or pay up. | You know the thing you keep meaning to do. Put a stake on it. |
 | 2 | 5-15 (10) | FOOTAGE. Home on a fresh wallet: "Start a ritual?" with Get test tokens as the main button. Tap it; hold on "Sent: 50 tSKR and 0.05 SOL." Tap Start one. | Devnet faucet · nothing to sign | Fresh wallet, nothing in it. One tap for test tokens. Nothing to sign. |
-| 3 | 15-21 (6) | FOOTAGE. Step 1, "What will you do each week?": type "Touch grass" in NAME and "Two hours outside. Phone in pocket." in WHAT COUNTS AS A WEEK. Next. | none | I name what I'll do each week, and what counts. |
+| 3 | 15-21 (6) | FOOTAGE. Step 1, "What will you do each week?": type "Touch grass" in NAME and "Two hours outside. Phone in pocket." in WHAT COUNTS AS SHOWING UP. Next. | none | I name what I'll do each week, and what counts. |
 | 4 | 21-33 (12) | FOOTAGE. Step 2: 2 weeks, Demo speed, tap 20. Hold on "2 demo weeks · 1 min each · 10 tSKR a week". Under IF YOU MISS A WEEK, IT GOES TO, tap City Animal Shelter (demo). | none | Two weeks, twenty in total, ten a week. If I miss a week, it goes to a demo animal shelter. I pick that, not the app. Rituals takes nothing. |
 | 5 | 33-36 (3) | CARD. Still of step 2 with Lock it in. | One approval in Seed Vault Wallet | One approval. |
 | 6 | 36-43 (7) | FOOTAGE. Ritual screen: the demo line and the ticking countdown "Week 1 opens in …s". | none | Every week's stake is locked. Demo speed: a week here is one minute. |
