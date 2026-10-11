@@ -1,5 +1,7 @@
 # Roadmap
 
+> **Historical (September 2026).** Kept for the record of how the program and client were built. It predates the solo product that shipped; for what Rituals is now read `docs/submission/FACTS.md`, and for the measured state `docs/STATUS.md`.
+
 > Current state and the next gate live in `docs/STATUS.md`, which is measured and
 > re-verified. This file is the longer completed/remaining breakdown. If the two
 > disagree, STATUS.md wins.

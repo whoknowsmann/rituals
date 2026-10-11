@@ -2,54 +2,94 @@
 
 ## Current state
 
-Rituals is the active product. Home, detail, claim, confirmation, and receipt data are still deterministic and fixture-backed. The create/review → connected host/member roster → funding-lobby journey is live: the funding lobby submits a **real** Create transaction against the devnet deployment. Current state and the next gate are in `docs/STATUS.md`.
+Solo Rituals on devnet, proven on a Solana Seeker. What is measured and what is
+next: `docs/STATUS.md` (read it first). Product facts: `docs/submission/FACTS.md`.
+Structure: `docs/ARCHITECTURE.md`.
 
-The Anchor program is **deployed to devnet** (`2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p`) and approved through terminal vault closure. The typed mobile client implements RPC reads, all-action preparation, exact message/signature binding, an opaque split submission/confirmation boundary, MWA submission, confirmation, and authoritative readback. The deployment configuration is `deployed`, and the funding-lobby Create CTA invokes a state-changing Ritual action; the other lifecycle actions are proven on devnet by script but have no screen wiring yet. Submitted-action handles are process-local capabilities; never persist or reconstruct them as authority after reload.
-
-The JavaScript/TypeScript source contains only active Rituals app code plus generic shell, cluster, and wallet plumbing. The retired product is preserved only by Git history.
+The JavaScript/TypeScript source contains the active app plus generic shell,
+cluster and wallet plumbing. Group, witness and Seasons code is kept and hidden
+behind `SOLO_ONLY` (`src/features/rituals/productScope.ts`).
 
 ## Setup
 
 ```bash
-npm ci
+npm ci                      # runs the postinstall MWA wallet-package patch
 ```
 
-Do not run `npm audit fix --force`; Expo, React Native, navigation, Solana, and native modules are version-coupled.
+Do not run `npm audit fix --force`; Expo, React Native, navigation, Solana and
+native modules are version-coupled.
 
-## JavaScript quality gates
+## Quality gates
 
 ```bash
-npm test
+npm test                    # vitest, whole suite (~7 s); read the summary line
 npm run typecheck
 npm run doctor
 ```
 
-The hygiene test scans active `App.tsx` and `src` for the archived product name and deleted imports. Keep it green when adding screens or routes. The exact test total is measured from the current checkout; do not copy historical totals into status claims.
+Keep testing proportionate: while working, run the tests for the files you
+touched plus `typecheck`; run the full suite once before an APK build or a
+merge. Measure counts from the checkout; never copy a historical total into a
+status claim.
 
-## Android bundle smoke test
+## Devnet scripts (WSL)
+
+Node devnet scripts can hang on the WSL resolver's AAAA lookups. Preload IPv4:
 
 ```bash
-rm -rf .verify/expo-export
-npx expo export --platform android --output-dir .verify/expo-export
-rm -rf .verify/expo-export
+export NODE_OPTIONS="--require $PWD/scripts/lib/ipv4-only.cjs"
+npx tsx scripts/verify-devnet-config.ts        # on-chain config matches the client
+npx tsx scripts/smoke-app-solo.ts              # create → stamp → settle key closes 2 weeks (kept + missed)
+npx tsx scripts/smoke-app-solo.ts --cadence real
+npx tsx scripts/smoke-app-solo.ts --simulate-wallet-fee-change
 ```
 
-This proves Metro can emit an Android JavaScript bundle. It is not an APK, native-module test, wallet test, or standalone release proof. Expo Go cannot load native Mobile Wallet Adapter.
+Run the solo smoke before every APK build that touches the chain path. Keys for
+scripts sit in `.keys/` (gitignored); never use the Solana CLI default keypair.
 
-## Wallet and build identity
+## Device
 
-MWA authorization uses Rituals on Solana devnet. The wallet URI is still the private repository URI until a public HTTPS origin exists. The Expo slug, Android package, iOS bundle identifier, and EAS project ID remain unchanged legacy build identifiers; do not change them as part of this product migration without a separate build-linkage decision.
+Seeker over USB through the Windows adb (`./scripts/adb.sh`), never a Linux
+`adb`. `./scripts/check-device.sh` reports the device and the installed build.
+`scripts/ui.py` drives screens (dump / tapt / type / shot); `scripts/capture.sh`
+takes screenshots, recordings (`take` for the demo), logs and crash buffers.
 
-Use a custom development or standalone Android build for native MWA checks. Every future state-changing action must show its exact effect, request MWA authorization, wait for confirmation, read back the target state, and mark success only from observed state.
+## Build and install
+
+```bash
+TAG=dN scripts/build-apk-local.sh     # local EAS build (~4 min warm) -> artifacts/rituals-dN.apk, staged for adb
+./scripts/adb.sh push 'C:\Users\<user>\AppData\Local\Temp\rituals\rituals-dN.apk' /data/local/tmp/rituals.apk
+./scripts/adb.sh shell pm install -r /data/local/tmp/rituals.apk   # then dismiss Play Protect: "Don't send"
+```
+
+JDK 17 is required (`~/.local/jdk`); stop Gradle with `./gradlew --stop`, never
+by killing daemons from a compound command. Confirm the install with
+`dumpsys package com.whoknowsmann.rituals | grep lastUpdateTime`, then walk the
+new build on the phone up to the wallet prompt.
+
+## Wallet and identity
+
+MWA authorization identifies the app as Rituals at
+`https://rituals.whoknowsman.com`. Seed Vault Wallet must be set to Devnet; a
+devnet transaction against a mainnet setting shows the wallet's own "Network
+mismatch" sheet and sends nothing. Demo accounts are fresh Seed Vault accounts
+with devnet assets only; the faucet (`https://faucet.whoknowsman.com`) funds
+them from inside the app.
 
 ## Native boundary
 
-Rust, program tests, Cargo, and Anchor files are maintained independently from this JavaScript/docs migration. Run their pinned commands only when working on that boundary. Existing local/native artifacts and placeholder IDs are not deployment credentials or production proof.
+Rust, program tests, Cargo and Anchor files are maintained separately. Native
+tests: `cargo test --manifest-path program-tests/Cargo.toml --locked`. A
+program change that alters an account layout or a value the shipped decoder
+asserts is a rollout, not a routine deploy (see `docs/STATUS.md`).
 
 ## TDD and hygiene
 
-For new behavior: write a focused failing test, run it, implement the minimum, run the focused test, run the relevant suite, then refactor while green. Never add secrets, wallet material, keystores, tokens, or unsanitized device logs.
+For new behavior: write a focused failing test, run it, implement the minimum,
+run the focused test, run the relevant suite, then refactor while green. Never
+add secrets, wallet material, keystores, tokens or unsanitized device logs.
 
-## Git workflow
+## Git
 
-Keep the repository private, make coherent commits, do not push without authorization, and use Git history as the rollback boundary for archived product work. Stage only the paths owned by the current change.
+`feat/solo-screens` is the working branch; `main` is fast-forwarded to it for
+release. Coherent commits, stage only the paths owned by the change.

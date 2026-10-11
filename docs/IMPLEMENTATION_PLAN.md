@@ -1,5 +1,7 @@
 # Implementation Plan Index
 
+> **Historical (September 2026).** Kept for the record of how the program and client were built. It predates the solo product that shipped; for what Rituals is now read `docs/submission/FACTS.md`, and for the measured state `docs/STATUS.md`.
+
 ## Current execution source
 
 The product is Rituals. Use:
