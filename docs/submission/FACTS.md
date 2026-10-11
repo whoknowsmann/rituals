@@ -40,7 +40,7 @@ The progress line reads "NEW RITUAL · 1 OF 2" and "· 2 OF 2". The Home button 
   - One quiet schedule line, for example "2 demo weeks · 1.5 min each · 10 tSKR a week" or "5 tSKR a week · ends Sun, Nov 1".
   - **IF YOU MISS A WEEK, IT GOES TO**: Northside Food Bank (demo, the default), City Animal Shelter (demo), Public Library Fund (demo), or **A wallet you choose**. A pasted wallet must already hold a tSKR account; Get test tokens creates one.
   - On Demo speed, above Lock it in: "Demo weeks keep running while you’re away. Unstamped weeks are missed."
-  - When the wallet's tSKR is unknown, short or empty, the screen offers Get test tokens. When it is short it also says "Not enough tSKR: this needs 20 tSKR." and Lock it in is disabled. With no wallet connected, Lock it in gives way to "Set your wallet to Devnet." and the wallet buttons.
+  - When the wallet's tSKR is unknown, short or empty, or its SOL is short, the screen offers Get test tokens. When short it also says "Not enough tSKR: this needs 20 tSKR." or "Not enough SOL: this needs about 0.022 SOL for rent and fees. You have 0.011 SOL." and Lock it in is disabled. With no wallet connected, Lock it in gives way to "Set your wallet to Devnet." and the wallet buttons.
 - **The single approval** creates the ritual, locks every week's stake in a vault, activates it, and pre-pays the app's settle key: 0.001 SOL plus 0.002 SOL per week (0.013 SOL for 6 weeks, 0.033 SOL at most) [Seeker][Chain]. Then the app opens the ritual screen directly.
 
 ### 2. Stamp a week: 1 approval
@@ -105,8 +105,8 @@ One declared skip per ritual. **Skip week N** appears from week 2 on, between th
 - **What the user pays, in devnet SOL** [Chain]:
   - Network fees: a stamp or a settle 0.0000052 SOL; a create 0.000025 SOL.
   - Account rent for the ritual and its two vault accounts: 0.00875792 SOL, about 0.009 (5,781,040 + 2 × 1,488,440 lamports; every ritual account is 1,010 bytes). It stays with those accounts when a ritual finishes: the app does not close them, and the finished rituals above still show vaultsClosed false. End early closes the vaults and returns their 0.00297688 SOL [Devnet].
-  - The settle-key pre-payment, 0.001 SOL plus 0.002 SOL per week. The settle key spends it on fees and on the rent of a week nobody stamped (about 0.0019 SOL).
-- **Create all-in**: about 0.014 SOL for 2 weeks, 0.018 for 4, 0.022 for 6 (measured on the Seeker: 0.02178292, or 0.0218), 0.042 for 16. The faucet's 0.05 SOL covers any ritual.
+  - The settle-key pre-payment, 0.001 SOL plus 0.002 SOL per week, **less whatever the key already holds** (d48, 2026-10-11: leftovers carry over, so a second ritual on the same phone pre-pays only the shortfall, often nothing). The settle key spends it on fees and on the rent of a week nobody stamped (about 0.0019 SOL).
+- **Create all-in** on a fresh phone: about 0.014 SOL for 2 weeks, 0.018 for 4, 0.022 for 6 (measured on the Seeker: 0.02178292, or 0.0218), 0.042 for 16; later rituals on the same phone about 0.009 (rent and fee) plus any top-up. The faucet's 0.05 SOL covers any ritual. Step 2 checks the wallet's SOL against this and offers Get test tokens when short (d48; before that a short wallet only got "Nothing was sent").
 - **Not a wager**: no chance, no counterparty, nobody gains from a miss. The closest analogue is a forfeitable deposit (StickK, Beeminder), on chain.
 - The name and description of a ritual stay on the phone. The chain stores a SHA-256 digest of them together with the rules [Code].
 
