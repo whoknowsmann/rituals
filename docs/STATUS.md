@@ -13,6 +13,35 @@ judges can read private repos through the Radiants Align GitHub app (organizer F
 License **MIT**. Organizer requires ALL of: APK, GitHub repo, demo video (judged: "Completion based on
 the demo video"), pitch deck or brief presentation (the "or" is deck vs presentation, NOT video vs deck).
 
+### START HERE (2026-10-11 morning, Jack away until ~midday)
+
+**Verified 07:30 CDT (Fable main):** d44 on the Seeker, Home calm on **test 7** =
+`244YxrGsyb5AeDDi9bneGR4juFuowdPnhqJdH453DMy7` (0 SOL devnet + mainnet, no token accounts, no
+history: the faucet will accept it). Tests green, tsc clean, verify-devnet-config PASS, faucet 200.
+**Phone is pre-take ready:** shade cleared, DND on, SystemUI demo mode (10:00 · Wi-Fi · 100 %, no icons;
+`-e command exit` restores; a reboot clears it), day mode, Rituals in the foreground. Do not tap Get test
+tokens before the recorder runs (it is shot 2).
+
+**Done this morning (7043c88 + this commit):** draft GitHub release `v0.1.0-clockin` with
+`rituals-v0.1.0-clockin.apk` (= d44, sha256 `4414fc7e…`, from cdfac7f) — **draft, invisible until
+published**; `<release-url>` filled with the final tag URL in README + submission form. Video: `shots.json`
+rewritten for the 14-row script; `render.py` adds `caption` (voiceover as a lower third), `still` (dimmed
+phone behind a card), `split` (two receipts), and **fixes a real truncation bug** (screenrecord is variable
+frame rate; the overlay's `shortest=1` ended a segment at the phone's last pixel change — now `fps=30`,
+no shortest). All 14 segment kinds render (`artifacts/video/pipeline-test.mp4`). `capture.sh take 2` chains
+two 180 s screenrecord segments. Deck PDF re-rendered from the Oct 9 text (photos still d27–d32).
+
+**Email:** whoknowsman.com already has Cloudflare Email Routing MX + SPF. Missing: the rule + verified
+destination, behind Jack's Cloudflare login (dashboard is bot-walled for automation; no API token on
+this box). Jack: Email → Email Routing → Create address `hello` → his Gmail, verify, enable Catch-all.
+Then `<owner-email>` = hello@whoknowsman.com (README step 4, store listing, FAUCET_CONTACT on Vercel).
+
+**Next, in order:** record (`./scripts/capture.sh take 2`, Jack approves ×2) → screencaps for the deck
+(step 1/2 on d44, the two receipts, End early on one of the 7 demo rituals, 7-ritual Home) → fill
+`shots.json` times → Jack voiceover → render with `--voice` → unlisted YouTube → `<video-url>` → main
+fast-forward → publish the draft release (`gh release edit v0.1.0-clockin --draft=false --target main`)
+→ submit.
+
 ### START HERE (2026-10-10 night)
 
 **Next session, in order:**

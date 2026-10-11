@@ -2,7 +2,7 @@
   {"_": "Shot list for scripts/video/render.py, one entry per row of docs/submission/video-script.md (2026-10-11). Fill start/end (seconds in the source clip) from the real take; `caption` is the voiceover line burned in as a lower third; stills come from the same run (adb screencap, 1200x2670)."},
   {"_": "Sources to drop in after the take: artifacts/video/take-main.mp4 (the run; if screenrecord split it into 180 s files, use take-main-1.mp4, take-main-2.mp4 and adjust `src` per row), artifacts/shots/take-home.png, take-step2.png, take-receipt-1.png, take-receipt-2.png, take-end.png."},
 
-  {"kind": "card", "dur": 5, "still": "artifacts/shots/take-home.png", "head": "Rituals", "body": "Show up, or pay up.",
+  {"kind": "card", "dur": 5, "still": "artifacts/shots/s2-home-demo.png", "head": "Rituals", "body": "Show up, or pay up.",
    "caption": "You know the thing you keep meaning to do.\nPut a stake on it."},
 
   {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 0, "end": 10, "head": "A fresh wallet.", "body": "Nothing in it. One tap\nfor test tokens.", "note": "Devnet faucet · nothing to sign",

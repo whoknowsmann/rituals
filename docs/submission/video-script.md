@@ -83,7 +83,9 @@ Captions: burn the voiceover in as captions as well (the owner wants both). Lowe
 
 ## 5. Recording checklist
 
-Hermes drives the phone over adb and records (`adb shell screenrecord --time-limit 180` in a loop). Jack only approves in the wallet. Jack records the voiceover afterwards.
+Hermes drives the phone over adb and records with `./scripts/capture.sh take 2` (two chained 180 s screenrecord segments → `artifacts/video/take-<stamp>-{1,2}.mp4`; the seam at 180 s falls in week 2's countdown). Stills for the cards and the split come from `adb exec-out screencap` after the run (Home before the faucet is `artifacts/shots/s2-home-demo.png`, taken 2026-10-11 with the clean status bar). Jack only approves in the wallet. Jack records the voiceover afterwards. Cut: fill `docs/submission/shots.json` (start/end per row, sources), then `python3 scripts/video/render.py --shots docs/submission/shots.json --out artifacts/video/rituals-demo.mp4 --voice <m4a>`.
+
+Status bar: SystemUI demo mode (10:00, Wi-Fi, 100 %, no notification icons) is set with `adb shell am broadcast -a com.android.systemui.demo -e command enter` plus clock/battery/network/notifications commands; `-e command exit` restores it. Set 2026-10-11 morning; survives app restarts, not a reboot.
 
 Mode: day mode (sun/moon toggle), confirmed before the first take.
 
