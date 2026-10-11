@@ -21,9 +21,9 @@ FOOTAGE = adb screen recording. CARD = caption card over a still frame of the ap
 | 1 | 0-5 (5) | CARD. Still of Home, tiles dimmed. | Rituals / Show up, or pay up. | You know the thing you keep meaning to do. Put a stake on it. |
 | 2 | 5-15 (10) | FOOTAGE. Home on a fresh wallet: "Start a ritual?" with Get test tokens as the main button. Tap it; hold on "Sent: 50 tSKR and 0.05 SOL." Tap Start one. | Devnet faucet · nothing to sign | Fresh wallet, nothing in it. One tap for test tokens. Nothing to sign. |
 | 3 | 15-21 (6) | FOOTAGE. Step 1, "What will you do each week?": type "Touch grass" in NAME and "Two hours outside. Phone in pocket." in WHAT COUNTS. Next. | none | I name what I'll do each week, and what counts. |
-| 4 | 21-33 (12) | FOOTAGE. Step 2: 2 weeks, Demo speed, tap 20. Hold on "2 demo weeks · 1 min each · 10 tSKR a week". Under IF YOU MISS A WEEK, IT GOES TO, tap City Animal Shelter (demo). | none | Two weeks, twenty in total, ten a week. If I miss a week, it goes to a demo animal shelter. I pick that, not the app. Rituals takes nothing. |
+| 4 | 21-33 (12) | FOOTAGE. Step 2: 2 weeks, Demo speed, tap 20. Hold on "2 demo weeks · 1.5 min each · 10 tSKR a week". Under IF YOU MISS A WEEK, IT GOES TO, tap City Animal Shelter (demo). | none | Two weeks, twenty in total, ten a week. If I miss a week, it goes to a demo animal shelter. I pick that, not the app. Rituals takes nothing. |
 | 5 | 33-36 (3) | CARD. Still of step 2 with Lock it in. | One approval in Seed Vault Wallet | One approval. |
-| 6 | 36-43 (7) | FOOTAGE. Ritual screen: the demo line and the ticking countdown "Week 1 opens in …s". | none | Every week's stake is locked. Demo speed: a week here is one minute. |
+| 6 | 36-43 (7) | FOOTAGE. Ritual screen: the demo line and the ticking countdown "Week 1 opens in …s". | none | Every week's stake is locked. Demo speed: a week here is a minute and a half. |
 | 7 | 43-45 (2) | CARD. | Week 1 opens. | |
 | 8 | 45-53 (8) | FOOTAGE. HOLD TO STAMP with "…s left". Type a short note, then press and hold the full 1.4 s; the button fills. End on release, before the wallet. | none | I add a note, just for me. Then I hold to stamp. |
 | 9 | 53-55 (2) | CARD. | One approval in Seed Vault Wallet | One more approval. |
@@ -51,7 +51,7 @@ Two weeks, twenty in total, ten a week. If I miss a week, it goes to a demo anim
 
 One approval. [pause]
 
-Every week's stake is locked. Demo speed: a week here is one minute. [pause]
+Every week's stake is locked. Demo speed: a week here is a minute and a half. [pause]
 
 I add a note, just for me. Then I hold to stamp. [pause]
 
@@ -75,7 +75,7 @@ Captions: burn the voiceover in as captions as well (the owner wants both). Lowe
 - Nothing from the FACTS "Never" list. A missed stake is nobody's gain.
 - Nothing from the FACTS "Hidden" paragraph (friends, a witness, Seasons). If it appears, re-record.
 - No activation fee: there is none.
-- Never say a week is shorter than one minute; say "demo speed" when timing comes up; never imply Real weeks was recorded (if asked: 7-day weeks, a 6-day stamp window, reminders on).
+- Never say a week is shorter than it is (90 seconds); say "demo speed" when timing comes up; never imply Real weeks was recorded (if asked: 7-day weeks, a 6-day stamp window, reminders on).
 - The stamp note stays on the phone, not on chain.
 - Never frame Rituals as an app to get you off your phone (Jack, 2026-10-10). The pitch is a stake on a weekly promise you keep.
 - Do not say "That's a week, not a verdict." The app shows it only on a missed week that is not the last, and week 2 of 2 is the last.
@@ -100,8 +100,8 @@ The run (about 4 minutes of real time):
 2. Step 2: 2 weeks, Demo speed, 20, City Animal Shelter (demo).
 3. Lock it in → first approval (Jack approves the moment the sheet appears).
 4. Ritual screen: capture the demo line and the countdown. Week 1 opens ~60 s after Lock it in.
-5. Type the note, hold HOLD TO STAMP the full 1.4 s → second approval, immediately (the stamp window is 45 s).
+5. Type the note, hold HOLD TO STAMP the full 1.4 s → second approval, immediately (the stamp window is 60 s; type the note during the countdown, before the week opens).
 6. Confetti + YOU SHOWED UP!.
-7. Stay on the ritual screen. Do nothing through week 2 (it opens 60 s after week 1 did; 45 s window; 10 s grace). Capture Finished with the MISSED stamp, "Closing…" and the totals line.
+7. Stay on the ritual screen. Do nothing through week 2 (it opens 90 s after week 1 did; 60 s window; 10 s grace). Capture Finished with the MISSED stamp, "Closing…" and the totals line.
 8. Open the week 1 and week 2 receipts (tap the cells); capture each. Wait until week 2's receipt shows the totals line and not "Not closed yet".
 9. Stop. Save `adb logcat -d -v time` to artifacts/logs/, and check on chain that the faucet's tSKR account (2JTKtgKa…, where every demo cause pays on devnet) went up by 10.

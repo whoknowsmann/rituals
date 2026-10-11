@@ -12,7 +12,7 @@ Devnet only. tSKR tokens have no value.
 - Weeks close with no wallet prompt, run by the app's settle key while Home or the ritual screen is open. Every closed week on the punch card opens its receipt: KEPT ("10 tSKR back to you", with your note) or MISSED ("10 tSKR went to City Animal Shelter (demo)."). A finished ritual shows one totals line, for example "10 of 20 tSKR back · 10 tSKR to City Animal Shelter (demo)".
 - Home: one tile per ritual with a dot for each week and "X of Y tSKR back". Finished rituals sit under "Finished · N". Home shows only the connected wallet's rituals.
 - End early (Settings → Your rituals): one approval returns everything you haven't missed ("Back to you"). A week that has just closed unstamped shows as "Missed week, sent" and goes to the destination in the same transaction.
-- Demo speed (the default): 1-minute weeks. Week 1 opens 60 seconds after Lock it in; 45 seconds to stamp, 10 seconds of grace. Real weeks: 7-day weeks, stamp any day in the first 6.
+- Demo speed (the default): 90-second weeks. Week 1 opens 60 seconds after Lock it in; 60 seconds to stamp, 10 seconds of grace, 20 seconds before the next week opens. Real weeks: 7-day weeks, stamp any day in the first 6.
 - Reminders, scheduled on the phone with no server: Real weeks get three a week (opens, one day left, last hour), Demo speed one when each week opens. Settings has a Remind me switch; Android lists four notification channels (Week opens, One day left, Last hour, Demo weeks).
 - Get test tokens in the app (Home, the create screen, Settings): the faucet sends 0.05 devnet SOL + 50 tSKR, nothing to sign.
 - Seed Vault Wallet; night mode. Seed Vault Wallet shows the request as coming from Rituals at rituals.whoknowsman.com.

@@ -21,7 +21,7 @@ Each week, hold the big button until the ring fills and the week is stamped. Add
 
 Weeks close without another wallet prompt. When you start, Rituals sets aside a small amount for the app's settle key, which opens and settles weeks while the app is open. Stay on the ritual screen and you can watch a missed week turn MISSED. End early, in Settings, returns everything you haven't missed in one approval. On Real weeks you also get one declared skip per ritual: tap Skip before the week opens and that week's stake comes back to you. The phone reminds you when a week opens, and on Real weeks with one day left and in the last hour.
 
-Demo speed, the default, makes a week one minute long, so you can watch a whole ritual in a few minutes. Real weeks last seven days.
+Demo speed, the default, makes a week a minute and a half, so you can watch a whole ritual in a few minutes. Real weeks last seven days.
 
 Rituals takes nothing. No fee, no share of stakes, no share of forfeits. This build runs on Solana devnet with a valueless tSKR token, so you can try the whole loop with nothing real at stake.
 
@@ -51,7 +51,7 @@ Keywords: commitment, habits, accountability, weekly goals, stake, Solana
 
 First release of Rituals, built for the CLOCK IN hackathon.
 Start a ritual in two steps with one wallet approval: what you will do each week, the weeks, one total stake, and where a missed week goes. Hold to stamp each week. Every closed week has a KEPT or MISSED receipt. End early returns everything you haven't missed.
-Demo speed (1-minute weeks) and Real weeks (7 days, with reminders).
+Demo speed (90-second weeks) and Real weeks (7 days, with reminders).
 Runs on Solana devnet with a valueless tSKR token. Day and night themes included.
 
 ## 5. Privacy policy
@@ -95,7 +95,7 @@ The settle key. The app holds a settle key so weeks can close without a wallet p
 
 Approvals expire. A wallet approval must land within about a minute.
 
-Timing. Demo speed (the default) makes a week one minute: week 1 opens 60 seconds after the user taps Lock it in, with 45 seconds to stamp and 10 seconds of grace, and the next week opens 5 seconds later. Demo weeks keep running while the user is away, and the app says so before Lock it in. Nothing runs while the app is closed: there is no server and no background task. A week that ran out is closed, and its money sent, the next time the app is opened on Home or on that ritual. Real weeks last seven days. Week timings are written on chain at creation and checked against the chain clock, so weeks cannot be clicked through.
+Timing. Demo speed (the default) makes a week 90 seconds: week 1 opens 60 seconds after the user taps Lock it in, with 60 seconds to stamp and 10 seconds of grace, and the next week opens 20 seconds later. Demo weeks keep running while the user is away, and the app says so before Lock it in. Nothing runs while the app is closed: there is no server and no background task. A week that ran out is closed, and its money sent, the next time the app is opened on Home or on that ritual. Real weeks last seven days. Week timings are written on chain at creation and checked against the chain clock, so weeks cannot be clicked through.
 
 Wallet identity. The wallet shows the requester as Rituals at rituals.whoknowsman.com.
 

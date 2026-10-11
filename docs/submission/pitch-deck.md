@@ -37,7 +37,7 @@ One approval locks it in.
 Hold to stamp.
 One hold, one approval: double-tap and fingerprint in Seed Vault.
 Week times are written on chain. Nobody clicks ahead.
-Demo weeks last a minute, so a 4-week ritual runs in under five.
+Demo weeks last 90 seconds, so a 4-week ritual runs in about seven minutes.
 
 **Say:** Each week you hold the button and approve once. The program checks every stamp against the chain clock, and demo speed lets anyone see a whole ritual in a few minutes.
 

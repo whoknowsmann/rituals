@@ -17,7 +17,7 @@ A Solana Mobile app: put a stake on a weekly promise, stamp the week to keep it,
 
 ## Short description (max 500 characters)
 
-Rituals is a commitment app for Solana Mobile. You name a ritual, pick 1 to 16 weeks, and put one stake behind it. Each week you hold a button to stamp it, with one wallet approval. Stamp the week and your stake comes back. Miss it and that week's stake goes where you chose: a demo cause, or a wallet you pick. Rituals takes nothing. It runs on Solana devnet with a valueless test token (tSKR). Demo speed makes a week one minute.
+Rituals is a commitment app for Solana Mobile. You name a ritual, pick 1 to 16 weeks, and put one stake behind it. Each week you hold a button to stamp it, with one wallet approval. Stamp the week and your stake comes back. Miss it and that week's stake goes where you chose: a demo cause, or a wallet you pick. Rituals takes nothing. It runs on Solana devnet with a valueless test token (tSKR). Demo speed makes a week a minute and a half.
 
 ## Long description (about 250 words)
 
@@ -27,7 +27,7 @@ You say what you will do each week, pick 1 to 16 weeks, and lock in one total st
 
 Each week you press and hold HOLD TO STAMP for 1.4 seconds and approve once. You get confetti and a YOU SHOWED UP! stamp, and when the week closes your stake comes back with a KEPT receipt. If you let a week run out, the app's own settle key closes it with no wallet prompt. The stake goes where you chose, and the MISSED receipt says so.
 
-Demo speed makes a week one minute long, so a 2-week ritual, one week kept and one missed, takes about three minutes. Real weeks last seven days and send reminders. Every week's times are on chain, so nobody can click through weeks. End early, in Settings, returns everything you haven't missed in one approval.
+Demo speed makes a week a minute and a half, so a 2-week ritual, one week kept and one missed, takes about four minutes. Real weeks last seven days and send reminders. Every week's times are on chain, so nobody can click through weeks. End early, in Settings, returns everything you haven't missed in one approval.
 
 Rituals takes nothing: no share of stakes or forfeits and no activation fee (the on-chain fee settings are 0 / 0 / 0); you pay only devnet network fees, account rent and the small settle-key pre-payment. Nobody gains from a miss. It is a forfeitable deposit on chain, not a wager.
 
@@ -51,7 +51,7 @@ This build runs on Solana devnet with a valueless test token, tSKR. Get test tok
 - You choose where a miss goes, before you start: one of three demo causes, or a wallet that already holds a tSKR account. The choice is fixed when you lock the ritual in.
 - The weeks are on chain. Every week's open time, deadline and resolution time is written when the ritual is created, and the program checks stamps and settlements against the chain clock.
 - It is a commitment device, not a wager. There is no chance and no counterparty, and nobody gains from a miss. The closest relative is a forfeitable deposit (StickK, Beeminder), on chain.
-- A judge can watch the whole thing. Demo speed makes a week one minute, so one kept week and one missed week take about three minutes.
+- A judge can watch the whole thing. Demo speed makes a week a minute and a half, so one kept week and one missed week take about four minutes.
 
 ## What's next
 
@@ -67,7 +67,7 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals, tap Connect, and on Home tap Get test tokens (0.05 devnet SOL and 50 tSKR, nothing to sign). If it says it is empty, email <owner-email>. Then tap Start one.
 4. Type a name, tap Next, keep 2 weeks and Demo speed, tap 20, choose where a missed week goes, tap Lock it in, and approve once. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
-5. Week 1 opens 60 seconds after you tap Lock it in. Hold HOLD TO STAMP for 1.4 seconds and approve. You have 45 seconds.
+5. Week 1 opens 60 seconds after you tap Lock it in. Hold HOLD TO STAMP for 1.4 seconds and approve. You have 60 seconds.
 6. Stay on the ritual screen and leave week 2 alone. It turns MISSED by itself, and the stake goes where you chose.
 
 ## Anything else judges should know

@@ -17,8 +17,8 @@
   {"kind": "card", "dur": 3, "still": "artifacts/shots/take-step2.png", "head": "One approval.", "body": "In Seed Vault Wallet.",
    "caption": "One approval."},
 
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 60, "end": 67, "head": "Locked in.", "body": "Every week's stake is set.", "note": "Demo speed · a week here is one minute",
-   "caption": "Every week's stake is locked.\nDemo speed: a week here is one minute."},
+  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 60, "end": 67, "head": "Locked in.", "body": "Every week's stake is set.", "note": "Demo speed · a week here is 1.5 minutes",
+   "caption": "Every week's stake is locked.\nDemo speed: a week here is a minute and a half."},
 
   {"kind": "card", "dur": 2, "head": "Week 1 opens."},
 
