@@ -168,7 +168,7 @@ What's next, in this order:
 
 ## Words
 
-Use: your stake, show up, keep your word, get it back, stamp, ritual, week, cause. Never: win, beat, versus, rival, pot, jackpot, payout, odds, luck, "profit from", AI, mainnet as if it were live (we are devnet only; "on mainnet the plan is USDC, SOL and SKR, after review" is allowed in what's next), SKR except as tSKR (the devnet stand-in) or that plan, "live" for anything hidden.
+Use: your stake, show up, keep your word, get it back, stamp, ritual, week, cause. Never: win, beat, versus, rival, pot, jackpot, payout, odds, luck, "profit from", "gets you off your phone" (not what Rituals is; Jack 2026-10-10), AI, mainnet as if it were live (we are devnet only; "on mainnet the plan is USDC, SOL and SKR, after review" is allowed in what's next), SKR except as tSKR (the devnet stand-in) or that plan, "live" for anything hidden.
 
 Check a doc with `grep -niE '\b(win|wins|winning|beat|beats|beating|pot|jackpot|payout|odds|luck|lucky|versus|rival|opponent|AI|mainnet|SKR|live)\b|profit from' FILE` and explain every hit. This section is the only place the banned words may sit, plus the one allowed plan sentence.
 

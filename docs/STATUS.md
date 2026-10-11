@@ -3,15 +3,43 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-10-06 ~15:20 CDT** — `feat/solo-screens` @ 43c3b83 + docs,
-pushed; tsc clean; **2,385 tests / 137 files** green. Phone (Seeker) has **d26**
-(b37ff2c, installed 14:52). d26 run with Jack 15:03–15:07: create → stamp week 1
-(HOLD fill, haptics, confetti, YOU SHOWED UP! all confirmed by Jack) → week 2
-missed on screen → 10 tSKR landed in the chosen wallet (smoke owner
-`fT9X…Jgo1`, ATA `EKe5…A1R9`: 9.125 → 19.125). Faucet health 200
-(1.897 SOL / 4,900 tSKR, 34 claims).
-Deadline: **EXTENDED — Mon Oct 12, 2026, 6:59 AM CDT** (organizer site Event Info, seen 10-08 10:30; was Oct 8 23:59 PT). Judging Oct 12–Nov 9, winners Nov 10. Repo **private** until Jack flips it (public cron `cd4e3bd1e174`
-paused); fast-forward `main` + history scan right before. License **MIT**.
+Last verified: **2026-10-10 ~21:20 CDT** — `feat/solo-screens` @ cdfac7f + docs,
+pushed; tsc clean; **2,930 tests / 169 files** green; root `cargo test` 8/8, program suite 224.
+Phone (Seeker) has **d44** (cdfac7f, installed 21:18) = **the recording build**. Faucet health 200
+(4.74 SOL / 4,750 tSKR, ~90 claims).
+Deadline: **Mon Oct 12, 2026, 6:59 AM CDT** (organizer site). **Plan: record + submit Sunday Oct 11
+afternoon/evening** (Jack, 10-09), never overnight. Judging Oct 12–Nov 9, winners Nov 10. Repo **private**;
+judges can read private repos through the Radiants Align GitHub app (organizer FAQ), public is optional.
+License **MIT**. Organizer requires ALL of: APK, GitHub repo, demo video (judged: "Completion based on
+the demo video"), pitch deck or brief presentation (the "or" is deck vs presentation, NOT video vs deck).
+
+### START HERE (2026-10-10 night)
+
+**Next session, in order:**
+1. Re-verify: `adb devices` (disconnect any stale `192.168.1.216:8086 offline` entry first, or every adb
+   command silently returns nothing), d44 installed, Home calm (no reload loop), faucet health.
+2. **Record** per `docs/submission/video-script.md` on Seed Vault account **"test 7"** (fresh, created and
+   connected by Jack 10-10 night; Home blank, Get test tokens not yet tapped). Demo ritual: **"Touch grass"
+   · "Two hours outside. Phone in pocket."**, 2 demo weeks, 20 tSKR, City Animal Shelter (demo); stamp week 1,
+   leave week 2. Hermes drives adb + screenrecord; Jack approves in Seed Vault. **Positioning (Jack):
+   never pitch Rituals as "the app that gets you off your phone"** — it is a stake on a weekly promise you keep.
+3. 7 unique demo rituals on one wallet → new deck photo (replace the messy "Read ×4" shot) → re-render
+   `scripts/deck/build.py --out …` (deck text already has daily rituals first in What's next).
+4. Fill placeholders: `<owner-email>` (README step 4, store listing; domain mail routes via Cloudflare —
+   Jack to name the address), `<video-url>`, `<release-url>`.
+5. Fast-forward `main` to `feat/solo-screens`, release APK (`rituals-v0.1.0-clockin.apk`) on GitHub,
+   Jack: voiceover + captions, optional repo public, submit.
+
+**Landed 10-09 → 10-10 (since d40):** weekly create copy ("What will you do each week?", "WHAT COUNTS AS
+A WEEK (OPTIONAL)", rotating examples); 20 kept sayings, no repeat within a ritual; docs final pass (Sonnet,
+a5a0ae3; claims verified on chain incl. the 6-week run on wallet Dzgu65…: locked 19.999998, ended
+46.666667, week 2's 3.333333 to Northside); duel Astra vs **gpt-6.1-sol** on 4 residual fixes → Sol merged
+(360ddf4: stale cargo test, faucet "checking" resolves, create clears A's error on switch, retry keeps
+the earlier attempt's chain check); **Home reload loop fixed** (061004a: authorization query
+`staleTime: Infinity` + in-place refresh; d42 showed ~500 RPC 429s/2 min, d43 device check 0 loops/0 429s);
+**Connect offers Seed Vault Wallet only** (cdfac7f; Phantom routing kept for old sessions).
+Decided: no widget and no daily rituals before submission (both first in What's next); weekly is
+deliberate. Kept: the "Network mismatch?" post-cancel popup, "I trust this site" README line.
 
 ### START HERE (2026-10-06)
 

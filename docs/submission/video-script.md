@@ -1,6 +1,8 @@
 # Rituals: demo video script (CLOCK IN)
 
-Target length: ~110 seconds. Built only from adb screen recordings of the app on a Seeker, plus caption cards. Every claim traces to docs/submission/FACTS.md. Updated 2026-10-09 for the d41 flow: faucet on Home, create step 1 with two fields, and the last week's miss shown as Finished with one totals line.
+Target length: ~110 seconds. Built only from adb screen recordings of the app on a Seeker, plus caption cards. Every claim traces to docs/submission/FACTS.md. Updated 2026-10-10 for the d44 flow (recording build): faucet on Home, create step 1 with two fields, Connect offers Seed Vault Wallet only, and the last week's miss shown as Finished with one totals line.
+
+**Demo ritual (Jack, 2026-10-10): NAME "Touch grass", WHAT COUNTS AS A WEEK "Two hours outside. Phone in pocket."** It is naturally weekly and concrete. Do NOT pitch it as "the app that gets you off your phone": that is not what Rituals is. Rituals is keeping your word to yourself, with a stake; the ritual is just an example of a weekly promise.
 
 ## 1. Premise
 
@@ -18,7 +20,7 @@ FOOTAGE = adb screen recording. CARD = caption card over a still frame of the ap
 |---|---|---|---|---|
 | 1 | 0-5 (5) | CARD. Still of Home, tiles dimmed. | Rituals / Show up, or pay up. | You know the thing you keep meaning to do. Put a stake on it. |
 | 2 | 5-15 (10) | FOOTAGE. Home on a fresh wallet: "Start a ritual?" with Get test tokens as the main button. Tap it; hold on "Sent: 50 tSKR and 0.05 SOL." Tap Start one. | Devnet faucet · nothing to sign | Fresh wallet, nothing in it. One tap for test tokens. Nothing to sign. |
-| 3 | 15-21 (6) | FOOTAGE. Step 1, "What will you do each week?": type "Read" in NAME. Next. | none | I name what I'll do each week. |
+| 3 | 15-21 (6) | FOOTAGE. Step 1, "What will you do each week?": type "Touch grass" in NAME and "Two hours outside. Phone in pocket." in WHAT COUNTS AS A WEEK. Next. | none | I name what I'll do each week, and what counts. |
 | 4 | 21-33 (12) | FOOTAGE. Step 2: 2 weeks, Demo speed, tap 20. Hold on "2 demo weeks · 1 min each · 10 tSKR a week". Under IF YOU MISS A WEEK, IT GOES TO, tap City Animal Shelter (demo). | none | Two weeks, twenty in total, ten a week. If I miss a week, it goes to a demo animal shelter. I pick that, not the app. Rituals takes nothing. |
 | 5 | 33-36 (3) | CARD. Still of step 2 with Lock it in. | One approval in Seed Vault Wallet | One approval. |
 | 6 | 36-43 (7) | FOOTAGE. Ritual screen: the demo line and the ticking countdown "Week 1 opens in …s". | none | Every week's stake is locked. Demo speed: a week here is one minute. |
@@ -43,7 +45,7 @@ You know the thing you keep meaning to do. Put a stake on it. [pause]
 
 Fresh wallet, nothing in it. One tap for test tokens. Nothing to sign. [pause]
 
-I name what I'll do each week. [pause]
+I name what I'll do each week, and what counts. [pause]
 
 Two weeks, twenty in total, ten a week. If I miss a week, it goes to a demo animal shelter. I pick that, not the app. Rituals takes nothing. [pause]
 
@@ -75,6 +77,7 @@ Captions: burn the voiceover in as captions as well (the owner wants both). Lowe
 - No activation fee: there is none.
 - Never say a week is shorter than one minute; say "demo speed" when timing comes up; never imply Real weeks was recorded (if asked: 7-day weeks, a 6-day stamp window, reminders on).
 - The stamp note stays on the phone, not on chain.
+- Never frame Rituals as an app to get you off your phone (Jack, 2026-10-10). The pitch is a stake on a weekly promise you keep.
 - Do not say "That's a week, not a verdict." The app shows it only on a missed week that is not the last, and week 2 of 2 is the last.
 - Do not show the wallet. It records black. (It names the app as Rituals at rituals.whoknowsman.com; the cards stand in for it.)
 
@@ -86,12 +89,12 @@ Mode: day mode (sun/moon toggle), confirmed before the first take.
 
 Before the take:
 1. The faucet answers `/api/health` with 200 and has SOL.
-2. Seed Vault Wallet: a FRESH account ("test 2", 0 SOL / 0 tSKR), network set to Devnet, connected in Rituals. Home shows "Start a ritual?" with Get test tokens as the main button.
-3. d41 (or later) is installed and was walked end to end the same day. Create step 1 and the stamp sayings have not been walked on the phone yet.
+2. Seed Vault Wallet: a FRESH account ("test 7", created 2026-10-10, 0 SOL / 0 tSKR), network set to Devnet, connected in Rituals. Home shows "Start a ritual?" with Get test tokens as the main button.
+3. d44 (cdfac7f) or later is installed. `adb devices` shows only the USB Seeker (`adb disconnect` any stale Wi-Fi entry, or every adb command silently fails).
 4. Notifications silenced, clean status bar, nothing in recents.
 
 The run (about 4 minutes of real time):
-1. Record. Home → Get test tokens (wait for "Sent: 50 tSKR and 0.05 SOL.") → Start one → type "Read" → Next.
+1. Record. Home → Get test tokens (wait for "Sent: 50 tSKR and 0.05 SOL.") → Start one → type "Touch grass" / "Two hours outside. Phone in pocket." → Next.
 2. Step 2: 2 weeks, Demo speed, 20, City Animal Shelter (demo).
 3. Lock it in → first approval (Jack approves the moment the sheet appears).
 4. Ritual screen: capture the demo line and the countdown. Week 1 opens ~60 s after Lock it in.
