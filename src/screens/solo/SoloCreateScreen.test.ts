@@ -33,7 +33,7 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('>TOTAL STAKE</Text>')
     expect(source).toContain('placeholder={example.name}')
     expect(source).toContain('What will you do each week?')
-    expect(source).toContain('WHAT COUNTS AS SHOWING UP (OPTIONAL)')
+    expect(source).toContain('WHAT COUNTS (OPTIONAL)')
     expect(source).not.toContain('after rounding')
     expect(source).not.toContain('split.exact')
     expect(source).not.toContain('Splits evenly to')

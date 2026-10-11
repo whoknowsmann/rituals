@@ -358,7 +358,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             style={styles.input}
             accessibilityLabel="Name your ritual"
           />
-          <Text style={styles.label}>WHAT COUNTS AS SHOWING UP (OPTIONAL)</Text>
+          <Text style={styles.label}>WHAT COUNTS (OPTIONAL)</Text>
           <TextInput
             value={draft.requirement}
             onChangeText={(value) => setDraft((current) => ({ ...current, requirement: value }))}
