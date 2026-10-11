@@ -30,6 +30,13 @@ phone behind a card), `split` (two receipts), and **fixes a real truncation bug*
 frame rate; the overlay's `shortest=1` ended a segment at the phone's last pixel change — now `fps=30`,
 no shortest). All 14 segment kinds render (`artifacts/video/pipeline-test.mp4`). `capture.sh take 2` chains
 two 180 s screenrecord segments. Deck PDF re-rendered from the Oct 9 text (photos still d27–d32).
+**Docs audit (Astra) acted on:** `docs/ARCHITECTURE.md`, `PRODUCT.md`, `SECURITY.md`, `DEVELOPMENT.md`
+were still September group-era ("MWA signing not yet proven", fixture screens, forfeits to members, 2 %
+fee) — the four docs the README links for judges. Rewritten against FACTS (647ac66, 85f869f);
+ROADMAP/IMPLEMENTATION_PLAN marked historical; test counts, repo-private line, settle-key-signs wording,
+note-then-hold order, store-listing icon/date fixed. Rejected from the audit: "built into every Seeker"
+(true), the reminders proof (in STATUS), Q&A phrasing nits. Still open from it: `<owner-email>`,
+`<video-url>`, `X: <x-handle>` in submission-form.md (Jack).
 
 **Email:** whoknowsman.com already has Cloudflare Email Routing MX + SPF. Missing: the rule + verified
 destination, behind Jack's Cloudflare login (dashboard is bot-walled for automation; no API token on
