@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { useMobileWallet } from '../../utils/useMobileWallet'
-import { WALLET_OPTIONS, walletNotFound, type WalletOption } from '../../utils/walletChoice'
+import { CONNECT_OPTIONS, walletNotFound, type WalletOption } from '../../utils/walletChoice'
 import { palette, space, type } from '../../theme'
 
 /**
@@ -39,7 +39,7 @@ export function WalletChoiceButtons({
 
   return (
     <View style={styles.stack}>
-      {WALLET_OPTIONS.map((option, index) => (
+      {CONNECT_OPTIONS.map((option, index) => (
         <View key={option.id} style={styles.option}>
           <Button
             mode={index === 0 ? 'contained' : 'contained-tonal'}

@@ -15,11 +15,11 @@ Devnet only. tSKR tokens have no value.
 - Demo speed (the default): 1-minute weeks. Week 1 opens 60 seconds after Lock it in; 45 seconds to stamp, 10 seconds of grace. Real weeks: 7-day weeks, stamp any day in the first 6.
 - Reminders, scheduled on the phone with no server: Real weeks get three a week (opens, one day left, last hour), Demo speed one when each week opens. Settings has a Remind me switch; Android lists four notification channels (Week opens, One day left, Last hour, Demo weeks).
 - Get test tokens in the app (Home, the create screen, Settings): the faucet sends 0.05 devnet SOL + 50 tSKR, nothing to sign.
-- Seed Vault Wallet and Phantom; night mode. Seed Vault Wallet shows the request as coming from Rituals at rituals.whoknowsman.com.
+- Seed Vault Wallet; night mode. Seed Vault Wallet shows the request as coming from Rituals at rituals.whoknowsman.com.
 - 2,863 TypeScript tests and 224 native program tests.
 
 ## Install
-1. Download `rituals-v0.1.0-clockin.apk` below and install it on a Solana Seeker. Seed Vault Wallet and Phantom are both offered as wallets.
+1. Download `rituals-v0.1.0-clockin.apk` below and install it on a Solana Seeker.
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals, tap Connect, and on Home tap **Get test tokens** if your wallet is short. Then **Start one** and Lock it in. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 

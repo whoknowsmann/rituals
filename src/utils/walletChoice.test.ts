@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
+  CONNECT_OPTIONS,
   WALLET_OPTIONS,
   associationConfigFor,
   reusableAuthToken,
@@ -62,14 +63,22 @@ describe('brand line', () => {
     expect(home).not.toContain('Show up. Get it back.')
   })
 
-  it('offers every wallet option at each connect point', () => {
+  it('offers the connect options (Seed Vault only, Jack 2026-10-10) at each connect point', () => {
     for (const file of ['src/components/wallet/ConnectWalletCard.tsx', 'src/screens/RitualRosterScreen.tsx']) {
       expect(readFileSync(file, 'utf8')).toContain('WalletChoiceButtons')
     }
-    expect(readFileSync('src/components/top-bar/top-bar-ui.tsx', 'utf8')).toContain('WALLET_OPTIONS.map')
+    expect(readFileSync('src/components/top-bar/top-bar-ui.tsx', 'utf8')).toContain('CONNECT_OPTIONS.map')
+    expect(readFileSync('src/components/wallet/WalletChoiceButtons.tsx', 'utf8')).toContain('CONNECT_OPTIONS.map')
     // No bare connect() left anywhere: it would fall back to Android's default wallet.
     for (const file of ['src/components/wallet/ConnectWalletCard.tsx', 'src/screens/RitualRosterScreen.tsx', 'src/components/top-bar/top-bar-ui.tsx']) {
       expect(readFileSync(file, 'utf8')).not.toMatch(/(?<!dis)connect\(\)/)
     }
+  })
+})
+
+describe('connect options', () => {
+  it('offer Seed Vault Wallet only, while a Phantom session still routes to Phantom', () => {
+    expect(CONNECT_OPTIONS.map((option) => option.id)).toEqual(['seed-vault'])
+    expect(associationConfigFor('app.phantom')).toEqual({ walletPackage: 'app.phantom' })
   })
 })

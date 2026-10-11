@@ -14,7 +14,7 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 
 1. Install the APK from the GitHub release: <release-url>
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
-3. Open Rituals and tap Connect: Seed Vault Wallet or Phantom. Seed Vault Wallet shows the request as coming from Rituals at rituals.whoknowsman.com.
+3. Open Rituals and tap Connect, then Seed Vault Wallet. It shows the request as coming from Rituals at rituals.whoknowsman.com.
 4. On Home, tap **Get test tokens**. The faucet sends 0.05 devnet SOL and 50 tSKR in one transaction it pays itself, so there is nothing to sign. It refuses a wallet that already holds at least 0.03 SOL and 10 tSKR. If it says it is empty, email <owner-email>. Then tap **Start one**.
 5. "What will you do each week?" Type a name, such as Read. If you like, say what counts as a week. Tap **Next**.
 6. "Your stake": keep 2 weeks and Demo speed, tap 20, and pick where a missed week goes. Tap **Lock it in** and approve once: double-tap the side button and use your fingerprint. Approvals need to land within about 60 seconds. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
@@ -74,7 +74,7 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 The program was last upgraded on 2026-10-07 at slot 508611515, for End early.
 
 - React Native with Expo, in TypeScript. The program is Anchor.
-- Wallet connection uses Mobile Wallet Adapter with an explicit choice of wallet (Seed Vault Wallet or Phantom). The app binds the wallet's signature to the exact bytes you reviewed; if a wallet rewrites the priority fee, it verifies the landed transaction instead.
+- Wallet connection uses Mobile Wallet Adapter pinned to Seed Vault Wallet, the wallet built into every Seeker. The app binds the wallet's signature to the exact bytes you reviewed; if a wallet rewrites the priority fee, it verifies the landed transaction instead.
 - A lost wallet reply, or a cancel after signing, is treated as "may have gone through" and checked against the chain. In-flight actions are journaled, so a killed app recovers on restart.
 - Account decoders are strict, and reads retry a bounded number of times on public-RPC 429s.
 - Get test tokens calls our devnet faucet at faucet.whoknowsman.com (Vercel functions).

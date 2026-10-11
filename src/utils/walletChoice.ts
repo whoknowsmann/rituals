@@ -31,6 +31,13 @@ export const WALLET_OPTIONS: readonly WalletOption[] = Object.freeze([
   }),
 ])
 
+/**
+ * What Connect offers (Jack, 2026-10-10): Seed Vault Wallet only, the wallet every Seeker ships
+ * with and the only one proven end to end. Phantom stays in WALLET_OPTIONS so a session authorized
+ * through it earlier is still routed back to Phantom, never to Seed Vault.
+ */
+export const CONNECT_OPTIONS: readonly WalletOption[] = Object.freeze(WALLET_OPTIONS.filter((option) => option.id === 'seed-vault'))
+
 export function walletOptionById(id: string): WalletOption | undefined {
   return WALLET_OPTIONS.find((option) => option.id === id)
 }

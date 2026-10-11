@@ -36,7 +36,7 @@ This build runs on Solana devnet with a valueless test token, tSKR. Get test tok
 ## How it uses Solana Mobile, Seed Vault and Mobile Wallet Adapter
 
 - The full loop has been run on a Solana Seeker (Android 16) with Seed Vault Wallet. The latest run, on 2026-10-09, is readable on chain: one wallet approval created a 6-week ritual, five stamps followed, and six settle transactions were signed by the app's settle key, none by the wallet.
-- Mobile Wallet Adapter connects the app to the wallet. The user picks the wallet: Seed Vault Wallet or Phantom.
+- Mobile Wallet Adapter connects the app to the wallet. The app connects to Seed Vault Wallet, built into every Seeker.
 - Every approval is Seed Vault Wallet's double-tap on the side button and a fingerprint. Starting a ritual takes one approval. Each stamp takes one more. An approval has to land within about 60 seconds.
 - The app binds the wallet's signature to the exact bytes the user reviewed. If the wallet rewrites the priority fee, the app checks the landed transaction instead.
 - A lost wallet reply, or a cancel after the signing sheet opened, is treated as "may have gone through" and checked against the chain. A create keeps one nonce, so a retry cannot make a second ritual.

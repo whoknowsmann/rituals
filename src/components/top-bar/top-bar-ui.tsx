@@ -7,7 +7,7 @@ import { useState } from "react";
 import * as Clipboard from "expo-clipboard";
 import { Linking } from "react-native";
 import { useCluster } from "../cluster/cluster-data-access";
-import { WALLET_OPTIONS, walletNotFound, walletOptionByPackage, type WalletOption } from "../../utils/walletChoice";
+import { CONNECT_OPTIONS, walletNotFound, walletOptionByPackage, type WalletOption } from "../../utils/walletChoice";
 
 export function TopBarWalletButton({
   selectedAccount,
@@ -91,7 +91,7 @@ export function TopBarWalletMenu() {
       }
     >
       {!selectedAccount &&
-        WALLET_OPTIONS.map((option) => (
+        CONNECT_OPTIONS.map((option) => (
           <Menu.Item
             key={option.id}
             onPress={() => { void connectWith(option); }}
