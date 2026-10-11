@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Alert } from 'react-native'
 import { needsDevnetSwitchHint } from './walletChoice'
-import { awaitChainVerdict } from './chainVerdict'
+import { awaitChainVerdict, devnetProven } from './chainVerdict'
 
 export const NETWORK_MISMATCH_HINT_STORAGE_KEY = '@rituals/network-mismatch-hint/v1'
 const LIMIT = 2
@@ -28,7 +28,7 @@ async function showUnderLimit(): Promise<void> {
  * twice per phone, and at most once per failure.
  */
 export function showNetworkMismatchHint(walletPackage: string | null | undefined): Promise<void> {
-  if (!needsDevnetSwitchHint(walletPackage)) return Promise.resolve()
+  if (!needsDevnetSwitchHint(walletPackage) || devnetProven()) return Promise.resolve()
   const landed = awaitChainVerdict(CHAIN_WAIT_MS)
   queue = queue.then(async () => { if (!(await landed)) await showUnderLimit() }).catch(() => undefined)
   return queue

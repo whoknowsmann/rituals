@@ -60,9 +60,9 @@ describe('what the create screen says for a split', () => {
   }
 
   it('20 over 6 weeks reads 3.33 a week; one week reads the total chosen', () => {
-    expect(line('20', 6, DEMO_SOLO_CADENCE)).toBe('6 demo weeks · 1 min each · 3.33 tSKR a week')
+    expect(line('20', 6, DEMO_SOLO_CADENCE)).toBe('6 demo weeks · 1.5 min each · 3.33 tSKR a week')
     expect(line('20', 6, REAL_SOLO_CADENCE)).toMatch(/^3\.33 tSKR a week · ends /)
     expect(line('20', 4, REAL_SOLO_CADENCE)).toMatch(/^5 tSKR a week · ends /)
-    for (const total of STAKE_PRESETS) expect(line(total, 1, DEMO_SOLO_CADENCE)).toBe(`1 demo week · 1 min · ${total} tSKR`)
+    for (const total of STAKE_PRESETS) expect(line(total, 1, DEMO_SOLO_CADENCE)).toBe(`1 demo week · 1.5 min · ${total} tSKR`)
   })
 })

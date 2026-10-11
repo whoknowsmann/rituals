@@ -24,3 +24,15 @@ export function awaitChainVerdict(waitMs: number): Promise<boolean> {
 export function reportChainVerdict(landed: boolean): void {
   pending?.(landed)
 }
+
+/**
+ * Once any action from this app session has landed on devnet, the connected
+ * wallet is on devnet: a later cancelled sheet is a decline or a closed window,
+ * never a network mismatch (Jack, 2026-10-11: the popup after a week closed
+ * mid-approval was wrong and jarring).
+ */
+let proven = false
+export function markDevnetProven(): void { proven = true }
+export function devnetProven(): boolean { return proven }
+/** Test seam. */
+export function resetDevnetProven(): void { proven = false }

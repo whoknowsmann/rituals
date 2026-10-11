@@ -34,7 +34,7 @@ vi.mock('react', () => ({
 }))
 vi.mock('../../../utils/diagnostics', () => ({ logFailure: vi.fn() }))
 const verdict = vi.hoisted(() => ({ report: vi.fn() }))
-vi.mock('../../../utils/chainVerdict', () => ({ reportChainVerdict: verdict.report }))
+vi.mock('../../../utils/chainVerdict', () => ({ reportChainVerdict: verdict.report, markDevnetProven: () => undefined }))
 
 const address = new PublicKey(new Uint8Array(32).fill(7)).toBase58()
 const record: PendingActionRecord = { version: 1, actionKind: 'claim', ritualAddress: address, messageDigest: 'a'.repeat(64), actor: address, eventIndex: 0, blockhash: address, lastValidBlockHeight: 100, createdAt: 1 }

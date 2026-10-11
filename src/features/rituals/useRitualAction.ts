@@ -2,7 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { lifecycleAwaitsChain, lifecycleCanSubmit, lifecycleInitialState, lifecycleIsBusy, lifecycleReducer, lifecycleStatusCopy, type LifecycleEvent, type LifecycleState } from './lifecycleMachine'
 import { runLifecycleAction, type LifecycleActionDeps } from './runLifecycleAction'
 import { retainActionReconciliation, watchActionReconciliation } from './recovery/reconcilePendingAction'
-import { reportChainVerdict } from '../../utils/chainVerdict'
+import { markDevnetProven, reportChainVerdict } from '../../utils/chainVerdict'
 
 export type UseRitualAction = Readonly<{
   state: LifecycleState
@@ -50,7 +50,7 @@ export function useRitualAction(makeDeps: () => LifecycleActionDeps, onFailure?:
     return watchActionReconciliation(() => attempt.current?.reconcile?.() ?? Promise.resolve(null), safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
   }, [awaitsChain, safeDispatch])
   // The screen's own read can show the landing first.
-  useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
+  useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true); if (state.status === 'confirmed' || state.status === 'recovered') markDevnetProven() }, [state])
   const reset = useCallback(() => { if (!inFlight.current) safeDispatch({ type: 'RESET' }) }, [safeDispatch])
   const observeReadback = useCallback((ritualAddress: string) => safeDispatch({ type: 'READBACK_OBSERVED', ritualAddress }), [safeDispatch])
   return { state, copy: lifecycleStatusCopy(state), canSubmit: lifecycleCanSubmit(state), isBusy: lifecycleIsBusy(state), start, reset, observeReadback }

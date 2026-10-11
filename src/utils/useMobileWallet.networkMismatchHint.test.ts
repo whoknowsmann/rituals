@@ -99,6 +99,17 @@ describe('Seed Vault Devnet popup: after a cancelled signing sheet', () => {
     expect(AsyncStorage.setItem).toHaveBeenCalledExactlyOnceWith('@rituals/network-mismatch-hint/v1', '1')
   })
 
+  it('never shows once an action from this session has landed on devnet (the wallet is on devnet; a later cancel is a decline or a closed window)', async () => {
+    verdict.markDevnetProven()
+    vi.mocked(transact).mockImplementation(async (run) => run(nativeWallet as never))
+    nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
+    await expect(hook.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)
+    verdict.reportChainVerdict(false)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(Alert.alert).not.toHaveBeenCalled()
+    verdict.resetDevnetProven()
+  })
+
   it('waits for the chain first, and stays silent when the action went through (Back on the success sheet)', async () => {
     nativeWallet.signAndSendTransactions.mockRejectedValue(cancellation())
     await expect(hook.useMobileWallet().signAndSendTransaction(transaction(), 12)).rejects.toMatchObject(declined)

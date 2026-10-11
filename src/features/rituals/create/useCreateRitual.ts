@@ -27,7 +27,7 @@ import {
 } from './createMachine'
 import { runCreateRitual, type CreateRitualDeps } from './runCreateRitual'
 import { retainActionReconciliation, watchActionReconciliation } from '../recovery/reconcilePendingAction'
-import { reportChainVerdict } from '../../../utils/chainVerdict'
+import { markDevnetProven, reportChainVerdict } from '../../../utils/chainVerdict'
 
 export type UseCreateRitual = Readonly<{
   state: CreateMachineState
@@ -106,7 +106,7 @@ export function useCreateRitual(makeDeps: () => CreateRitualDeps, walletAddress?
     // A cancelled sheet's "Network mismatch?" hint waits for this first answer.
     return watchActionReconciliation(() => attempt.current?.reconcile?.() ?? Promise.resolve(null), safeDispatch, state.status === 'error' && state.unresolved ? reportChainVerdict : undefined)
   }, [awaitsChain, safeDispatch])
-  useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true) }, [state])
+  useEffect(() => { if (state.status === 'recovered') reportChainVerdict(true); if (state.status === 'confirmed' || state.status === 'recovered') markDevnetProven() }, [state])
 
   const reset = useCallback(() => {
     if (inFlight.current || createAwaitsChain(state)) return

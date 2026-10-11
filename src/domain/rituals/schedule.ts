@@ -85,10 +85,19 @@ export const DEMO_CADENCE: RitualCadence = Object.freeze({
  * previous resolution; it sets no minimum window). A 4-week ritual runs start
  * to finish in under 5 minutes. The group lobby keeps DEMO_CADENCE.
  */
-export const DEMO_SOLO_CLAIM_WINDOW_SECONDS = 45
+/**
+ * Demo weeks (2026-10-11, Jack): 60 s to stamp, 10 s grace, then a 20 s gap
+ * before the next week opens. The gap matters: the app's settle key can only
+ * close a week after its resolution, and the next week's HOLD stays disabled
+ * until that settle has landed and been read back from a public devnet node.
+ * With a 5 s gap (the 1-minute weeks before this) the dead time overlapped the
+ * next stamp window; a 45 s window lost a stamp to it on the Seeker.
+ */
+export const DEMO_SOLO_CLAIM_WINDOW_SECONDS = 60
 export const DEMO_SOLO_RESOLUTION_GRACE_SECONDS = 10
+export const DEMO_SOLO_SETTLE_GAP_SECONDS = 20
 export const DEMO_SOLO_CADENCE: RitualCadence = Object.freeze({
-  periodSeconds: DEMO_SOLO_CLAIM_WINDOW_SECONDS + DEMO_SOLO_RESOLUTION_GRACE_SECONDS + 5,
+  periodSeconds: DEMO_SOLO_CLAIM_WINDOW_SECONDS + DEMO_SOLO_RESOLUTION_GRACE_SECONDS + DEMO_SOLO_SETTLE_GAP_SECONDS,
   claimWindowSeconds: DEMO_SOLO_CLAIM_WINDOW_SECONDS,
   resolutionGraceSeconds: DEMO_SOLO_RESOLUTION_GRACE_SECONDS,
   accelerated: true,

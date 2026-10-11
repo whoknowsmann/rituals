@@ -26,9 +26,9 @@ describe('week speed on create (Demo speed · Real weeks, approved 2026-10-04)',
 
   it('says how long demo weeks are, singular for one week', () => {
     const four = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 4 }).schedule
-    expect(soloScheduleSummary({ weekCount: 4, stakeEachLabel: '5 tSKR', totalStakeLabel: '20 tSKR', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 1 min each · 5 tSKR a week')
+    expect(soloScheduleSummary({ weekCount: 4, stakeEachLabel: '5 tSKR', totalStakeLabel: '20 tSKR', schedule: four, nowSeconds: now })).toBe('4 demo weeks · 1.5 min each · 5 tSKR a week')
     const one = selectSoloSchedule({ cadence: DEMO_SOLO_CADENCE, referenceSeconds: now, eventCount: 1 }).schedule
-    expect(soloScheduleSummary({ weekCount: 1, stakeEachLabel: '5 tSKR', totalStakeLabel: '5 tSKR', schedule: one, nowSeconds: now })).toBe('1 demo week · 1 min · 5 tSKR')
+    expect(soloScheduleSummary({ weekCount: 1, stakeEachLabel: '5 tSKR', totalStakeLabel: '5 tSKR', schedule: one, nowSeconds: now })).toBe('1 demo week · 1.5 min · 5 tSKR')
   })
 
   it('names the day the last real week settles, in the app date style', () => {

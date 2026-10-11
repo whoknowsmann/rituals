@@ -21,10 +21,10 @@ const DAY = 24 * HOUR
  * lobby keeps DEMO_CADENCE.
  */
 describe('DEMO_SOLO_CADENCE', () => {
-  it('is a 1-minute week: 45 s to stamp, 10 s grace, 5 s before the next opens (Jack, 2026-10-06)', () => {
-    expect(DEMO_SOLO_CADENCE.claimWindowSeconds).toBe(45)
+  it('is a 90-second week: 60 s to stamp, 10 s grace, 20 s before the next opens so the settle key lands first (Jack, 2026-10-11)', () => {
+    expect(DEMO_SOLO_CADENCE.claimWindowSeconds).toBe(60)
     expect(DEMO_SOLO_CADENCE.resolutionGraceSeconds).toBe(10)
-    expect(DEMO_SOLO_CADENCE.periodSeconds).toBe(60)
+    expect(DEMO_SOLO_CADENCE.periodSeconds).toBe(90)
     expect(DEMO_SOLO_CADENCE.accelerated).toBe(true)
     expect(DEMO_SOLO_CADENCE.periodSeconds).toBeGreaterThan(DEMO_SOLO_CADENCE.claimWindowSeconds + DEMO_SOLO_CADENCE.resolutionGraceSeconds)
   })
@@ -48,7 +48,7 @@ describe('DEMO_SOLO_CADENCE', () => {
       expect(entry.claimDeadlineAt).toBeLessThan(entry.resolutionDeadlineAt)
       if (index > 0) expect(entry.claimOpensAt).toBeGreaterThan(schedule[index - 1].resolutionDeadlineAt)
     })
-    expect(schedule[0].claimDeadlineAt - schedule[0].claimOpensAt).toBe(45)
+    expect(schedule[0].claimDeadlineAt - schedule[0].claimOpensAt).toBe(60)
   })
 })
 
@@ -111,6 +111,6 @@ describe('demo speed from the on-chain schedule (no local record)', () => {
     expect(demoWeekMinutesLabel([1_000, 1_390])).toBe('6.5')
     expect(demoWeekMinutesLabel([1_000, 1_180])).toBe('3')
     expect(demoWeekMinutesLabel([1_000, 1_120])).toBe('2')
-    expect(demoWeekMinutesLabel([1_000])).toBe('1')
+    expect(demoWeekMinutesLabel([1_000])).toBe('1.5')
   })
 })
