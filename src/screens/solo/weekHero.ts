@@ -26,8 +26,13 @@ export function keptWeekOnScreen(model: HeroModel, seen: number | null): number 
 }
 
 /** Preview the next HOLD during the lead and gaps, without making it actionable. */
-export function stampHoldState(model: Pick<SoloRitualModel, 'state' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel'>, stampPending: boolean): 'waiting' | 'open' | 'hidden' {
+export function stampHoldState(model: Pick<SoloRitualModel, 'state' | 'showedUp' | 'weekSkipped' | 'nextOpensLabel'> & Partial<Pick<SoloRitualModel, 'stampBlocked'>>, stampPending: boolean): 'waiting' | 'open' | 'hidden' {
   if (stampPending || model.showedUp || model.weekSkipped) return 'hidden'
+  // The clock has opened the next week but the chain cursor still sits on the
+  // last one until the settle key closes it: a HOLD here can only be disabled,
+  // so show the "Closing…" line instead (Seeker, 2026-10-11: a dead HOLD TO
+  // STAMP appeared under a week still closing after a successful stamp).
+  if (model.stampBlocked) return 'hidden'
   if (model.nextOpensLabel && (model.state === 'waiting' || model.state === 'missed' || model.state === 'skipped')) return 'waiting'
   return model.state === 'claimable' || model.state === 'open-not-initialized' ? 'open' : 'hidden'
 }

@@ -15,7 +15,10 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
   it('renders a short starting balance quietly without changing the words or lock gating', () => {
     expect(source).toContain('{shortOfTest && neededAtomic !== null && <Text style={styles.quiet} accessibilityLiveRegion="polite">{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? \' (stake plus the activation fee)\' : \'\'}.`}</Text>}')
     expect(source).not.toMatch(/<ErrorLine>[^\n]*Not enough tSKR/)
-    expect(source).toContain("disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || causeUnavailable || shortOfTest}")
+    expect(source).toContain("disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || causeUnavailable || shortOfTest || shortOfSol}")
+    // Devnet SOL is checked too (rent + fee + settle-key top-up), with the faucet offered when short (Seeker, 2026-10-11).
+    expect(source).toContain('const shortOfSol = solBalance !== null && solNeeded !== null && solBalance < solNeeded')
+    expect(source).toMatch(/shortOfSol && solNeeded !== null && <Text[^\n]*Not enough SOL: this needs about/)
     expect(source).toContain('causeUnavailable && <ErrorLine>This cause is unavailable. Try again later.</ErrorLine>')
     expect(source).toContain('confirmedAddress && readbackError && <ErrorLine>{readbackError}</ErrorLine>')
   })
@@ -83,9 +86,9 @@ describe('SoloCreateScreen transaction and commitment wiring', () => {
     expect(source).toContain('IF YOU MISS A WEEK, IT GOES TO')
     expect(source).toContain('causeTokenAccount: selectedCause.tokenAccount')
     expect(source).not.toContain('Missed weeks go to')
-    for (const removed of ['YOUR RITUAL', 'LOCKED BEFORE YOU START', 'If I miss, it goes to', 'One declared skip', 'formatSol(', 'styles.promiseCard']) expect(source).not.toContain(removed)
+    for (const removed of ['YOUR RITUAL', 'LOCKED BEFORE YOU START', 'If I miss, it goes to', 'One declared skip', 'styles.promiseCard']) expect(source).not.toContain(removed)
     expect(source).toMatch(/testBalance !== null && \(shortOfTest \|\| testBalance === 0n\) && <Text[^\n]*You have/)
-    expect(source).toMatch(/selectedAccount && \(testBalance === null \|\| shortOfTest \|\| testBalance === 0n\)[^\n]*Get test tokens/)
+    expect(source).toMatch(/selectedAccount && \(testBalance === null \|\| shortOfTest \|\| testBalance === 0n \|\| shortOfSol\)[^\n]*Get test tokens/)
     expect(source).toContain('testBalance < neededAtomic')
     expect(source).toContain('stepThreeErrors.filter((error) => error !== personError)')
     expect(source).toContain('causeUnavailable && <ErrorLine>')

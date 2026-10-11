@@ -34,7 +34,7 @@ import { shouldReturnToFirstCreateStep } from '../../features/rituals/solo/creat
 import { nextSoloCreateStep, previousSoloCreateStep, soloCreateStepPosition, soloCreateSteps, type SoloCreateStep } from '../../features/rituals/solo/create/steps'
 import { SCOPE } from '../../features/rituals/productScope'
 import { loadOrCreateSettler } from '../../features/rituals/solo/settler/settlerKey'
-import { settlerBudgetLamports } from '../../features/rituals/solo/settler/settlerBudget'
+import { createSolNeededLamports, formatSol, settlerTopUpLamports } from '../../features/rituals/solo/settler/settlerBudget'
 import { DEMO_CLOCK_WARNING } from '../../features/rituals/solo/settler/settlementVisibility'
 
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
@@ -108,11 +108,18 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   // The app's settle key, pre-paid in this same approval so weeks close with
   // no further wallet prompt. Without it, create still works (manual settle).
   const [settlerKey, setSettlerKey] = useState<PublicKey | null>(null)
+  // What the key already holds (leftovers from earlier rituals); null = unread, so the full budget is sent.
+  const [settlerBalance, setSettlerBalance] = useState<bigint | null>(null)
   useEffect(() => {
     let active = true
-    void loadOrCreateSettler().then((key) => { if (active) setSettlerKey(key.publicKey) }).catch(() => undefined)
+    void loadOrCreateSettler().then(async (key) => {
+      if (!active) return
+      setSettlerKey(key.publicKey)
+      const lamports = await connection.getBalance(key.publicKey, 'confirmed').catch(() => null)
+      if (active) setSettlerBalance(lamports === null ? null : BigInt(lamports))
+    }).catch(() => undefined)
     return () => { active = false }
-  }, [])
+  }, [connection])
   const seasonAddressText = SCOPE.seasons ? route.params?.seasonAddress : undefined
   const seasonAddress = useMemo(() => {
     if (!seasonAddressText) return null
@@ -190,7 +197,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   // What the approval will take in tSKR: stake for every week, plus whatever
   // activation fee the live ProtocolConfig says (0 once the protocol is free).
   // Checked against the wallet so a short balance never reaches the wallet.
-  const { balance: testBalance, feeConfig: liveFeeConfig, onFaucetSent } = useCreateBalance(client, connection, selectedAccount?.publicKey ?? null)
+  const { balance: testBalance, sol: solBalance, feeConfig: liveFeeConfig, onFaucetSent } = useCreateBalance(client, connection, selectedAccount?.publicKey ?? null)
   const feeAtomic = (() => {
     try {
       const total = stakeSplit.ok ? stakeSplit.split.lockedAtomic : 0n
@@ -205,6 +212,11 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
   })()
   const faucet = useDevnetFaucet(selectedAccount?.publicKey.toBase58() ?? null, onFaucetSent)
   const shortOfTest = testBalance !== null && neededAtomic !== null && testBalance < neededAtomic
+  // Devnet SOL for rent, fee and the settle-key top-up. Without this check the
+  // wallet's simulation fails and the screen could only say "Nothing was sent"
+  // (seen on the Seeker 2026-10-11 with 0.0106 SOL and a 6-week ritual).
+  const solNeeded = (() => { try { return createSolNeededLamports(weekCount, settlerTopUpLamports(weekCount, settlerBalance)) } catch { return null } })()
+  const shortOfSol = solBalance !== null && solNeeded !== null && solBalance < solNeeded
 
   // One nonce per Create screen: every Try again targets the same ritual
   // address, so a retry after a sheet cancelled post-broadcast cannot make a
@@ -239,7 +251,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
       causeTokenAccount: selectedCause.tokenAccount,
       personAddress: draft.personAddress,
       seasonAddress,
-      settlerFunding: settlerKey ? { to: settlerKey, lamports: settlerBudgetLamports(eventCount) } : null,
+      settlerFunding: settlerKey && settlerTopUpLamports(eventCount, settlerBalance) > 0n ? { to: settlerKey, lamports: settlerTopUpLamports(eventCount, settlerBalance) } : null,
       authorizedActor: () => accountRef.current?.publicKey ?? null,
       getBlockHeight: () => connection.getBlockHeight('confirmed'),
       getSignatureStatus: async (signature) => {
@@ -253,7 +265,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
         await saveProofMode(address, draft.proofMode)
       },
     })
-  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerKey, speed, stakeTotal])
+  }, [client, connection, draft, pickedEventCount, season, seasonAddress, seasonAddressText, selectedAccount, settlerBalance, settlerKey, speed, stakeTotal])
 
   const create = useCreateRitual(makeDeps, selectedAccount?.publicKey.toBase58() ?? null)
   const showBalanceHelp = showCreateBalanceHelp(create.state)
@@ -437,9 +449,10 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
             <Text style={styles.quiet} accessibilityLiveRegion="polite">{scheduleLine}</Text>
             {showBalanceHelp && <>
               {testBalance !== null && (shortOfTest || testBalance === 0n) && <Text style={styles.quiet}>{`You have ${formatAtomic(testBalance, 6)}`}</Text>}
-              {selectedAccount && (testBalance === null || shortOfTest || testBalance === 0n) && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
+              {selectedAccount && (testBalance === null || shortOfTest || testBalance === 0n || shortOfSol) && <ActionButton tone="quiet" label={faucet.status === 'requesting' ? 'Sending…' : 'Get test tokens'} onPress={faucet.request} disabled={faucet.status === 'requesting'} loading={faucet.status === 'requesting'} accessibilityLabel="Get test tokens from the devnet faucet" />}
               {faucet.status === 'done' && faucet.result && <Text style={styles.quiet} accessibilityLiveRegion="polite">{faucetLine(faucet.result)}</Text>}
               {shortOfTest && neededAtomic !== null && <Text style={styles.quiet} accessibilityLiveRegion="polite">{`Not enough tSKR: this needs ${formatAtomic(neededAtomic, 6)}${feeAtomic > 0n ? ' (stake plus the activation fee)' : ''}.`}</Text>}
+              {shortOfSol && solNeeded !== null && <Text style={styles.quiet} accessibilityLiveRegion="polite">{`Not enough SOL: this needs about ${formatSol(solNeeded)} for rent and fees. You have ${formatSol(solBalance!)}.`}</Text>}
             </>}
           </View>
           {/* Where missed weeks go: the user picks (Jack, 2026-10-06). Three labelled demo causes or a wallet. */}
@@ -476,7 +489,7 @@ export function SoloCreateScreen({ route }: Props) { const styles = useStyles();
           {confirmedAddress && readbackError && <ActionButton tone="quiet" label="Check your ritual again" onPress={() => setReadbackAttempt((value) => value + 1)} />}
           {!createComplete && speed === 'demo' && <Text style={styles.quiet}>{DEMO_CLOCK_WARNING}</Text>}
           {!createComplete && selectedAccount && (
-            <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || causeUnavailable || shortOfTest} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
+            <ActionButton label={create.isBusy ? 'Locking in…' : 'Lock it in'} onPress={() => { setTriedCreate(true); if (stepThreeErrors.length === 0 && !causeUnavailable) create.start() }} disabled={!selectedAccount || client.status !== 'ready' || season.status !== 'ready' || create.isBusy || !create.canSubmit || causeUnavailable || shortOfTest || shortOfSol} loading={create.isBusy} accessibilityLabel="Lock in this ritual" />
           )}
 
         </>

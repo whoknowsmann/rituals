@@ -13,8 +13,10 @@ export function useCreateBalance(client: RitualClientState, connection: Connecti
   const session = useRef({ address })
   if (session.current.address !== address) session.current = { address }
   const scope = session.current
-  const [balanceRead, setBalanceRead] = useState<{ scope: typeof scope; amount: bigint } | null>(null)
+  const [balanceRead, setBalanceRead] = useState<{ scope: typeof scope; amount: bigint; sol: bigint | null } | null>(null)
   const balance = balanceRead?.scope === scope ? balanceRead.amount : null
+  // Devnet SOL, for rent and the settle-key pre-payment; null when unread (never blocks).
+  const sol = balanceRead?.scope === scope ? balanceRead.sol : null
   const generation = useRef(0)
   const [tick, setTick] = useState(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -32,10 +34,13 @@ export function useCreateBalance(client: RitualClientState, connection: Connecti
     let active = true
     void client.client.getProtocolConfig().then(async (config) => {
       if (active) { try { setFeeConfig(feeConfigFromProtocol(config.account, RITUAL_FEE_CONFIG.tokenDecimals)) } catch { /* keep the constant */ } }
-      const amount = await readTestTokenBalance(connection, config.account.allowedStakeMint, wallet)
-      if (active && request === generation.current && session.current === scope) setBalanceRead({ scope, amount })
+      const [amount, sol] = await Promise.all([
+        readTestTokenBalance(connection, config.account.allowedStakeMint, wallet),
+        Promise.resolve().then(() => connection.getBalance(wallet, 'confirmed')).then((value) => BigInt(value)).catch(() => null),
+      ])
+      if (active && request === generation.current && session.current === scope) setBalanceRead({ scope, amount, sol })
     }).catch(() => { if (active && request === generation.current) setBalanceRead(null) })
     return () => { active = false }
   }, [client, connection, wallet, tick, scope]))
-  return { balance, feeConfig, onFaucetSent }
+  return { balance, sol, feeConfig, onFaucetSent }
 }
