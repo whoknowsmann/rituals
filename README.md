@@ -24,7 +24,7 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 ## How the money works
 
 - **One stake, split across the weeks.** You pick 1 to 16 weeks and one total: type it, or tap 5, 10, 20 or 50 (default 20). The app splits it evenly at full token precision, so 20 over 6 weeks locks 19.999998 tSKR (6 × 3.333333). Every amount on screen rounds to 2 decimals: that ritual reads "3.33 tSKR a week", and with one kept week it finishes as "3.33 of 20 tSKR back · 16.67 tSKR to Northside Food Bank (demo)". Your wallet's approval sheet may show 20 or 19.999998.
-- **Kept or missed.** A stamped week returns that week's stake and leaves a KEPT receipt. A missed week sends that week's stake to the destination you chose before you started: Northside Food Bank, City Animal Shelter or Public Library Fund (devnet token accounts labelled "(demo)", not real charities), or a wallet you choose, which must already hold a tSKR account. The destination is locked when you create the ritual.
+- **Kept or missed.** A stamped week returns that week's stake and leaves a KEPT receipt. A missed week sends that week's stake to the destination you chose before you started: Northside Food Bank, City Animal Shelter or Public Library Fund (labelled "(demo)", not real charities: on devnet all three pay into the faucet's tSKR account, so a missed stake funds the next judge's test tokens), or a wallet you choose, which must already hold a tSKR account. The destination is locked when you create the ritual.
 - **What it costs.** Rituals takes nothing: no share of stakes or forfeits and no activation fee (on-chain fee settings 0 / 0 / 0). You pay the chain: about 0.000005 SOL per stamp or settle, account rent of about 0.009 SOL per ritual (not refunded when a ritual finishes), and a settle-key pre-payment of 0.001 SOL plus 0.002 SOL per week. Creating a 2-week ritual costs about 0.014 SOL, and the 6-week ritual on the Seeker cost 0.0218 SOL. The faucet's 0.05 SOL covers any ritual.
 - **Not a wager.** There is no chance, no counterparty, and no one gains from your miss. The closest relative is a forfeitable deposit, the StickK and Beeminder idea, on chain.
 
@@ -67,9 +67,8 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 | Rituals program (Anchor) | `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` |
 | ProtocolConfig | `7LMgBSJmEFKkfYKh2znr6VSxcm5QEHEouNijXDENhMd1` |
 | tSKR mint | `AaHgFh7ussUDor8QfaBCaRz2RHiPNCs7i2yuzdLbt9tc` |
-| Demo cause: Northside Food Bank | `4adFBqT1x7AyBFF4bd8qVgeSjPbqhnaJVB4x5muMzbT5` |
-| Demo cause: City Animal Shelter | `7axVhUouRPmMkUDELbSakXEAQitRMkZ1xLwXPaJCNkzQ` |
-| Demo cause: Public Library Fund | `Bg6uNu6tzKUxUgNWB2tjiQU9K9zB8ycunECiP1MG3cZ5` |
+| Demo causes (all three): the faucet's tSKR account | `2JTKtgKaGE6DaGmsNGsRd8oipsw9UQB1Cdu6f9D25HtY` |
+| Faucet hot wallet | `FDjXc5KeLbWf9UaMr3y6uUe5ZQDqJYctWuMW7CdnRK8q` |
 
 The program was last upgraded on 2026-10-07 at slot 508611515, for End early.
 

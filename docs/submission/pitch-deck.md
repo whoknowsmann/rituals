@@ -100,7 +100,7 @@ No. There is no chance in it, no counterparty, and nobody gains from a miss. The
 We don't. Rituals takes no share of stakes or forfeits, and there is no activation fee; the on-chain fee settings are 0, 0, 0. Users pay only what the chain charges: network fees, account rent, and the small settle-key pre-payment (0.001 SOL plus 0.002 SOL per week, 0.033 SOL at most).
 
 **Where does a missed stake go?**
-Where the user chose before starting: Northside Food Bank, City Animal Shelter or Public Library Fund, or a wallet they pick. The three causes are labelled demo in the app. They are devnet token accounts, not real charities. Real donation rails come after the hackathon, through The Giving Block.
+Where the user chose before starting: Northside Food Bank, City Animal Shelter or Public Library Fund, or a wallet they pick. The three causes are labelled demo in the app; they are not real charities. On devnet all three pay into our faucet, so a missed stake becomes the next judge's test tokens. Real donation rails come after the hackathon, through The Giving Block.
 
 **Why devnet?**
 Because a stake with real value needs a legal and security review we have not done. tSKR has no value, so a judge can try every path with nothing at risk. The program is mint-agnostic, so changing the stake asset is one config value.

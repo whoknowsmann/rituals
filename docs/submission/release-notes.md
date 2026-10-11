@@ -6,7 +6,7 @@ Devnet only. tSKR tokens have no value.
 
 ## What's in this build
 - Start a ritual in two steps with one wallet approval. Step 1: a name, and optionally what counts as a week. Step 2: 1 to 16 weeks (2 is the default on Demo speed, 4 on Real weeks) and one total stake: type it, or tap 5, 10, 20 or 50. The app splits it evenly across the weeks at full token precision (20 over 6 weeks locks 19.999998); every amount on screen rounds to 2 decimals. The approval creates the ritual, locks every week's stake, activates it, and pre-pays the app's settle key.
-- You choose where a missed week goes: Northside Food Bank, City Animal Shelter, Public Library Fund (all labelled demo), or a wallet you choose.
+- You choose where a missed week goes: Northside Food Bank, City Animal Shelter, Public Library Fund (all labelled demo; on devnet they pay into the test-token faucet), or a wallet you choose.
 - After Lock it in, the app goes straight to the ritual screen, with countdowns: "Week 1 opens in 32s", then "32s left".
 - HOLD TO STAMP: add an optional note that stays on the phone, hold for 1.4 seconds, approve once. Then confetti and YOU SHOWED UP!, with one of 20 lines; a ritual never repeats one.
 - Weeks close with no wallet prompt, run by the app's settle key while Home or the ritual screen is open. Every closed week on the punch card opens its receipt: KEPT ("10 tSKR back to you", with your note) or MISSED ("10 tSKR went to City Animal Shelter (demo)."). A finished ritual shows one totals line, for example "10 of 20 tSKR back · 10 tSKR to City Animal Shelter (demo)".
@@ -23,7 +23,7 @@ Devnet only. tSKR tokens have no value.
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals, tap Connect, and on Home tap **Get test tokens** if your wallet is short. Then **Start one** and Lock it in. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 
-sha256: `4414fc7e51ba2d1e5d781822d2faedea6a8b8a4066627c7fe8b9f88ef95417a3`
-Built from commit `cdfac7f` (local build d44, 2026-10-10). Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` (devnet).
+sha256: `6b898473b768be5473da6b09117b09332519f6c2b5c8287e124185295b9e14ad`
+Built from commit `395dae2` (local build d45, 2026-10-11). Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` (devnet).
 
 Known limits: devnet only; nothing runs while the app is closed, so a missed week's money moves the next time the app is opened; the clock never pauses on Demo speed, so weeks you are away for are missed; Seed Vault Wallet has to be set to Devnet; a wallet you choose as the destination must already hold a tSKR account; stamps are self-reported; stamp notes stay on the phone.

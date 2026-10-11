@@ -15,7 +15,7 @@ the demo video"), pitch deck or brief presentation (the "or" is deck vs presenta
 
 ### START HERE (2026-10-11 morning, Jack away until ~midday)
 
-**Verified 07:30 CDT (Fable main):** d44 on the Seeker, Home calm on **test 7** =
+**Verified 07:30 CDT (Fable main), d45 installed 13:58:** d45 on the Seeker (d44 + demo causes pay into the faucet), Home calm on **test 7** =
 `244YxrGsyb5AeDDi9bneGR4juFuowdPnhqJdH453DMy7` (0 SOL devnet + mainnet, no token accounts, no
 history: the faucet will accept it). Tests green, tsc clean, verify-devnet-config PASS, faucet 200.
 **Phone is pre-take ready:** shade cleared, DND on, SystemUI demo mode (10:00 · Wi-Fi · 100 %, no icons;
@@ -23,7 +23,7 @@ history: the faucet will accept it). Tests green, tsc clean, verify-devnet-confi
 tokens before the recorder runs (it is shot 2).
 
 **Done this morning (7043c88 + this commit):** draft GitHub release `v0.1.0-clockin` with
-`rituals-v0.1.0-clockin.apk` (= d44, sha256 `4414fc7e…`, from cdfac7f) — **draft, invisible until
+`rituals-v0.1.0-clockin.apk` (= **d45**, sha256 `6b898473…`, from 395dae2: demo causes → faucet tSKR account `2JTKtgKa…`, smoke PASS `smoke-faucet-destination-2026-10-11.log`, faucet 4750→4751) — **draft, invisible until
 published**; `<release-url>` filled with the final tag URL in README + submission form. Video: `shots.json`
 rewritten for the 14-row script; `render.py` adds `caption` (voiceover as a lower third), `still` (dimmed
 phone behind a card), `split` (two receipts), and **fixes a real truncation bug** (screenrecord is variable
