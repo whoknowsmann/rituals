@@ -10,8 +10,14 @@ A shot list is a JSON array of segments, rendered in order and concatenated:
 
   {"kind": "clip", "src": "artifacts/video/run.mp4", "start": 12.0, "end": 20.0,
    "speed": 1.0, "head": "One approval.", "body": "Create, stake every week,\nactivate — in one tap.",
-   "note": "Seed Vault Wallet · Devnet"}
-  {"kind": "card", "dur": 3.0, "head": "Show up, or pay up.", "body": "Rituals"}
+   "note": "Seed Vault Wallet · Devnet", "caption": "One approval."}
+  {"kind": "card", "dur": 3.0, "head": "Show up, or pay up.", "body": "Rituals", "still": "artifacts/shots/home.png"}
+  {"kind": "split", "dur": 12.0, "left": "artifacts/shots/receipt-1.png", "right": "artifacts/shots/receipt-2.png",
+   "head": "One promise.\nBoth outcomes.", "caption": "Show up: your stake comes back."}
+
+`caption` is the voiceover line, burned in as a lower third in the text column
+(the owner wants captions as well as the voice). `still` dims a phone screenshot
+behind a card. `split` shows two stills side by side (the two receipts).
 
 Layout (1920x1080): dark canvas, the phone (1200x2670 screen recording) scaled
 to 1000 px tall on the left third, text on the right. Speed > 1 compresses the
@@ -45,46 +51,98 @@ LIME = '0xC8F560'        # the app's "chosen" lime
 PHONE_H = 1000
 PHONE_X = 200
 TEXT_X = 760
+CAPTION_Y = H - 200
+CAPTION_SIZE = 40
 
 
 def esc(text: str) -> str:
-    """Escape for drawtext: backslash, colon, quote, percent; keep real newlines."""
-    return (text.replace('\\', '\\\\').replace(':', '\\:').replace("'", "\\'")
+    """Escape for drawtext: backslash, colon, percent, comma; keep real newlines.
+
+    A straight apostrophe inside the quoted text= value needs two levels of
+    filtergraph escaping and still fails on some builds; the typographic one
+    (which Figtree/Fraunces render properly) needs none.
+    """
+    return (text.replace('\\', '\\\\').replace(':', '\\:').replace("'", "\u2019")
             .replace('%', '\\%').replace(',', '\\,'))
 
 
-def text_filters(seg: dict) -> str:
+def text_filters(seg: dict, text_x: int = TEXT_X, head_size: int = 74) -> str:
     parts = []
     head = seg.get('head'); body = seg.get('body'); note = seg.get('note')
-    y = 380
+    y = 320
     if head:
-        parts.append(f"drawtext=fontfile={FONT_HEAD}:text='{esc(head)}':fontcolor={INK}:fontsize=74:x={TEXT_X}:y={y}:line_spacing=6")
-        y += 74 * (head.count('\n') + 1) + 40
+        parts.append(f"drawtext=fontfile={FONT_HEAD}:text='{esc(head)}':fontcolor={INK}:fontsize={head_size}:x={text_x}:y={y}:line_spacing=6")
+        y += head_size * (head.count('\n') + 1) + 40
     if body:
-        parts.append(f"drawtext=fontfile={FONT_BODY}:text='{esc(body)}':fontcolor={INK}:fontsize=40:x={TEXT_X}:y={y}:line_spacing=12")
+        parts.append(f"drawtext=fontfile={FONT_BODY}:text='{esc(body)}':fontcolor={INK}:fontsize=40:x={text_x}:y={y}:line_spacing=12")
         y += 52 * (body.count('\n') + 1) + 30
     if note:
-        parts.append(f"drawtext=fontfile={FONT_BODY_BOLD}:text='{esc(note)}':fontcolor={LIME}:fontsize=30:x={TEXT_X}:y={y}")
+        parts.append(f"drawtext=fontfile={FONT_BODY_BOLD}:text='{esc(note)}':fontcolor={LIME}:fontsize=30:x={text_x}:y={y}")
+    caption = seg.get('caption')
+    if caption:
+        # Lower third of the text column: the voiceover line, on a quiet box so it reads over anything.
+        lines = caption.count('\n') + 1
+        cy = CAPTION_Y - (lines - 1) * (CAPTION_SIZE + 10)
+        parts.append(f"drawtext=fontfile={FONT_BODY_BOLD}:text='{esc(caption)}':fontcolor={INK}:fontsize={CAPTION_SIZE}:x={text_x}:y={cy}"
+                     f":line_spacing=10:box=1:boxcolor=0x1C1C1C@0.92:boxborderw=22")
     return ','.join(parts)
+
+
+def _abs(p: str) -> str:
+    return p if os.path.isabs(p) else os.path.join(ROOT, p)
 
 
 def render_segment(seg: dict, out_path: str) -> None:
     kind = seg.get('kind', 'clip')
     if kind == 'card':
         dur = float(seg['dur'])
-        vf = f"[0:v]{text_filters(seg)}[v]" if text_filters(seg) else "[0:v]copy[v]"
+        tf = text_filters(seg)
+        still = seg.get('still')
+        if still:
+            # A dimmed phone still behind the card text, same place the live phone sits.
+            fc = (f"[1:v]scale=-2:{PHONE_H}:flags=lanczos,format=yuva420p,colorchannelmixer=aa=0.35[ph];"
+                  f"[0:v][ph]overlay=x={PHONE_X}:y={(H - PHONE_H) // 2}[base];"
+                  + (f"[base]{tf}[v]" if tf else "[base]copy[v]"))
+            cmd = [FFMPEG, '-y', '-loglevel', 'error',
+                   '-f', 'lavfi', '-i', f'color=c={BG}:s={W}x{H}:r={FPS}:d={dur}',
+                   '-loop', '1', '-t', str(dur), '-i', _abs(still),
+                   '-f', 'lavfi', '-i', f'anullsrc=r=48000:cl=stereo:d={dur}',
+                   '-filter_complex', fc, '-map', '[v]', '-map', '2:a',
+                   '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-r', str(FPS), '-c:a', 'aac', '-t', str(dur), out_path]
+        else:
+            vf = f"[0:v]{tf}[v]" if tf else "[0:v]copy[v]"
+            cmd = [FFMPEG, '-y', '-loglevel', 'error',
+                   '-f', 'lavfi', '-i', f'color=c={BG}:s={W}x{H}:r={FPS}:d={dur}',
+                   '-f', 'lavfi', '-i', f'anullsrc=r=48000:cl=stereo:d={dur}',
+                   '-filter_complex', vf, '-map', '[v]', '-map', '1:a',
+                   '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-r', str(FPS), '-c:a', 'aac', '-shortest', out_path]
+    elif kind == 'split':
+        # Two stills side by side (the two receipts), text in a narrower column on the right.
+        dur = float(seg['dur'])
+        split_h = 900
+        y0 = (H - split_h) // 2
+        tf = text_filters(seg, text_x=1180, head_size=60)
+        fc = (f"[1:v]scale=-2:{split_h}:flags=lanczos,format=yuva420p[l];"
+              f"[2:v]scale=-2:{split_h}:flags=lanczos,format=yuva420p[r];"
+              f"[0:v][l]overlay=x=140:y={y0}[b1];[b1][r]overlay=x=640:y={y0}[base];"
+              + (f"[base]{tf}[v]" if tf else "[base]copy[v]"))
         cmd = [FFMPEG, '-y', '-loglevel', 'error',
                '-f', 'lavfi', '-i', f'color=c={BG}:s={W}x{H}:r={FPS}:d={dur}',
+               '-loop', '1', '-t', str(dur), '-i', _abs(seg['left']),
+               '-loop', '1', '-t', str(dur), '-i', _abs(seg['right']),
                '-f', 'lavfi', '-i', f'anullsrc=r=48000:cl=stereo:d={dur}',
-               '-filter_complex', vf, '-map', '[v]', '-map', '1:a',
-               '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-r', str(FPS), '-c:a', 'aac', '-shortest', out_path]
+               '-filter_complex', fc, '-map', '[v]', '-map', '3:a',
+               '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-r', str(FPS), '-c:a', 'aac', '-t', str(dur), out_path]
     else:
-        src = os.path.join(ROOT, seg['src']) if not os.path.isabs(seg['src']) else seg['src']
+        src = _abs(seg['src'])
         start = float(seg.get('start', 0)); end = float(seg['end']); speed = float(seg.get('speed', 1.0))
         dur = (end - start) / speed
-        phone = (f"[1:v]trim=start={start}:end={end},setpts=(PTS-STARTPTS)/{speed},"
+        # screenrecord output is variable frame rate (a frame only when pixels change), so a still
+        # screen yields almost no frames: force 30 fps, and never let the phone stream end the segment
+        # (overlay's default eof_action=repeat holds the last frame until -t dur).
+        phone = (f"[1:v]trim=start={start}:end={end},setpts=(PTS-STARTPTS)/{speed},fps={FPS},"
                  f"scale=-2:{PHONE_H}:flags=lanczos,format=yuva420p[ph]")
-        overlay = f"[0:v][ph]overlay=x={PHONE_X}:y={(H - PHONE_H) // 2}:shortest=1[base]"
+        overlay = f"[0:v][ph]overlay=x={PHONE_X}:y={(H - PHONE_H) // 2}[base]"
         tf = text_filters(seg)
         text = f"[base]{tf}[v]" if tf else "[base]copy[v]"
         fc = ';'.join([phone, overlay, text])

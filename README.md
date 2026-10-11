@@ -8,11 +8,11 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 
 - Product page: https://rituals.whoknowsman.com
 - Demo video: <video-url>
-- APK: <release-url>
+- APK: https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
 
 ## Try it in five minutes
 
-1. Install the APK from the GitHub release: <release-url>
+1. Install the APK from the GitHub release: https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals and tap Connect, then Seed Vault Wallet. It shows the request as coming from Rituals at rituals.whoknowsman.com.
 4. On Home, tap **Get test tokens**. The faucet sends 0.05 devnet SOL and 50 tSKR in one transaction it pays itself, so there is nothing to sign. It refuses a wallet that already holds at least 0.03 SOL and 10 tSKR. If it says it is empty, email <owner-email>. Then tap **Start one**.

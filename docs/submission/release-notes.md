@@ -16,14 +16,14 @@ Devnet only. tSKR tokens have no value.
 - Reminders, scheduled on the phone with no server: Real weeks get three a week (opens, one day left, last hour), Demo speed one when each week opens. Settings has a Remind me switch; Android lists four notification channels (Week opens, One day left, Last hour, Demo weeks).
 - Get test tokens in the app (Home, the create screen, Settings): the faucet sends 0.05 devnet SOL + 50 tSKR, nothing to sign.
 - Seed Vault Wallet; night mode. Seed Vault Wallet shows the request as coming from Rituals at rituals.whoknowsman.com.
-- 2,863 TypeScript tests and 224 native program tests.
+- 2,930 TypeScript tests and 224 native program tests.
 
 ## Install
 1. Download `rituals-v0.1.0-clockin.apk` below and install it on a Solana Seeker.
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals, tap Connect, and on Home tap **Get test tokens** if your wallet is short. Then **Start one** and Lock it in. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 
-sha256: `<sha256 of the APK>`
-Built from commit `<sha>` on `main`. Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` (devnet).
+sha256: `4414fc7e51ba2d1e5d781822d2faedea6a8b8a4066627c7fe8b9f88ef95417a3`
+Built from commit `cdfac7f` (local build d44, 2026-10-10). Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` (devnet).
 
 Known limits: devnet only; nothing runs while the app is closed, so a missed week's money moves the next time the app is opened; the clock never pauses on Demo speed, so weeks you are away for are missed; Seed Vault Wallet has to be set to Devnet; a wallet you choose as the destination must already hold a tSKR account; stamps are self-reported; stamp notes stay on the phone.

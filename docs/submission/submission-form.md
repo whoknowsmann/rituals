@@ -63,7 +63,7 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 
 ## How to try it
 
-1. Install the APK: <release-url>
+1. Install the APK: https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals, tap Connect, and on Home tap Get test tokens (0.05 devnet SOL and 50 tSKR, nothing to sign). If it says it is empty, email <owner-email>. Then tap Start one.
 4. Type a name, tap Next, keep 2 weeks and Demo speed, tap 20, choose where a missed week goes, tap Lock it in, and approve once. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
@@ -83,7 +83,7 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 - Repository: https://github.com/whoknowsmann/rituals
 - Product page: https://rituals.whoknowsman.com
 - Demo video: <video-url>
-- APK (GitHub release): <release-url>
+- APK (GitHub release): https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
 - Pitch deck (PDF): artifacts/deck/rituals-deck.pdf
 
 ## Team
