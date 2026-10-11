@@ -13,7 +13,7 @@ Show up, or pay up.
 
 ## One-sentence description (max 140 characters)
 
-A Solana Mobile app: put a stake on a weekly promise, stamp the week to keep it, and a missed week goes where you chose (devnet).
+A Solana Mobile app: put a stake on a weekly promise, stamp the week to keep it, and a missed week's stake goes where you chose (devnet).
 
 ## Short description (max 500 characters)
 
@@ -29,7 +29,7 @@ Each week you press and hold HOLD TO STAMP for 1.4 seconds and approve once. You
 
 Demo speed makes a week one minute long, so a 2-week ritual, one week kept and one missed, takes about three minutes. Real weeks last seven days and send reminders. Every week's times are on chain, so nobody can click through weeks. End early, in Settings, returns everything you haven't missed in one approval.
 
-Rituals takes nothing: the on-chain fees are all 0, and there is no activation fee. Nobody gains from a miss. It is a forfeitable deposit on chain, not a wager.
+Rituals takes nothing: no share of stakes or forfeits and no activation fee (the on-chain fee settings are 0 / 0 / 0); you pay only devnet network fees, account rent and the small settle-key pre-payment. Nobody gains from a miss. It is a forfeitable deposit on chain, not a wager.
 
 This build runs on Solana devnet with a valueless test token, tSKR. Get test tokens in the app gives a wallet 0.05 devnet SOL and 50 tSKR.
 
@@ -47,7 +47,7 @@ This build runs on Solana devnet with a valueless test token, tSKR. Get test tok
 
 ## What is novel
 
-- One approval starts a ritual and the app closes the weeks itself. The first approval creates the ritual, locks every week's stake in a vault and pre-pays the settle key. After that, a missed week settles with no signature.
+- One approval starts a ritual and the app closes the weeks itself. The first approval creates the ritual, locks every week's stake in a vault and pre-pays the settle key. After that, finished weeks settle with no wallet prompt: the settle key signs them while the app is open.
 - You choose where a miss goes, before you start: one of three demo causes, or a wallet that already holds a tSKR account. The choice is fixed when you lock the ritual in.
 - The weeks are on chain. Every week's open time, deadline and resolution time is written when the ritual is created, and the program checks stamps and settlements against the chain clock.
 - It is a commitment device, not a wager. There is no chance and no counterparty, and nobody gains from a miss. The closest relative is a forfeitable deposit (StickK, Beeminder), on chain.
@@ -59,7 +59,7 @@ In this order: daily rituals (the same mechanics with shorter windows; the progr
 
 ## Built with
 
-React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Wallet Adapter, Seed Vault Wallet, expo-notifications. 2,863 TypeScript tests and 224 native program tests.
+React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Wallet Adapter, Seed Vault Wallet, expo-notifications. 2,930 TypeScript tests and 224 native program tests.
 
 ## How to try it
 
@@ -76,7 +76,7 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 - Rituals takes no fee. Users still pay network fees (about 0.000005 SOL per stamp or settle), account rent (about 0.009 SOL per ritual, not refunded when a ritual finishes), and the settle-key pre-payment.
 - Nothing runs while the app is closed: there is no server and no background task. A missed week's money moves the next time the app is opened.
 - You stamp your own weeks. Nothing checks that you did the thing; the stake is the check.
-- Friends, witness and Seasons are not in the app, and are not part of this submission.
+- Friends, a witness and Seasons are built but hidden in the app, and are not part of this submission.
 
 ## Links
 
@@ -84,7 +84,7 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 - Product page: https://rituals.whoknowsman.com
 - Demo video: <video-url>
 - APK (GitHub release): https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
-- Pitch deck (PDF): artifacts/deck/rituals-deck.pdf
+- Pitch deck (PDF): attached as rituals-deck.pdf (rendered from docs/submission/pitch-deck.md by scripts/deck/build.py)
 
 ## Team
 

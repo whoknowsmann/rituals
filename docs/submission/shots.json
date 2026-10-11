@@ -23,7 +23,7 @@
   {"kind": "card", "dur": 2, "head": "Week 1 opens."},
 
   {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 130, "end": 138, "head": "Hold to stamp.", "body": "A note, just for me.",
-   "caption": "Now I hold to stamp.\nI add a note, just for me."},
+   "caption": "I add a note, just for me.\nThen I hold to stamp."},
 
   {"kind": "card", "dur": 2, "head": "One more approval.", "body": "In Seed Vault Wallet.",
    "caption": "One more approval."},

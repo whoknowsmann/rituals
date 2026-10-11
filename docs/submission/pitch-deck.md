@@ -52,7 +52,7 @@ Miss it, it goes where you chose.
 Every week ends in a receipt.
 Rituals takes nothing.
 
-**Say:** A kept week returns that week's stake. A missed week sends it to the cause or wallet picked at the start. No fees, no house, nobody gains from a miss.
+**Say:** A kept week returns that week's stake. A missed week sends it to the cause or wallet picked at the start. No fee from Rituals, no house, nobody gains from a miss.
 
 ## Slide 5 — Why it sticks
 

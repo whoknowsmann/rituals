@@ -41,7 +41,7 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 
 - **On a Seeker, 2026-10-09.** A wallet with no tSKR took 50 from the faucet and created a 6-week demo ritual at 20 tSKR with one wallet approval; the create locked 19.999998. Five weeks were stamped and week 2 was left alone. Six settle transactions followed, one a minute, all signed by the app's settle key and none by the wallet: five returned 3.333333 each, and week 2's 3.333333 went to Northside Food Bank. The wallet ended at 46.666667 (50 − 19.999998 + 5 × 3.333333), read from the chain. On 2026-10-06 a missed week's 10 tSKR landed in the wallet the user had chosen (9.125 before, 19.125 after).
 - **On devnet.** Scripted runs of the app's own create, stamp and settle code pass, including a 3.333333-a-week ritual on 2026-10-09 and End early in three variants on 2026-10-07.
-- **Tests.** 2,863 TypeScript tests (168 files) and 224 native program tests. A bug hunt on 2026-10-08 fixed about 25 issues.
+- **Tests.** 2,930 TypeScript tests (169 files) and 224 native program tests (measured 2026-10-11). A bug hunt on 2026-10-08 fixed about 25 issues.
 - **Reminders.** Real-week alarms were checked on the Seeker on 2026-10-06. Demo-week reminders, the Android channels and the Remind me switch are tested in code only.
 
 ## Known limits

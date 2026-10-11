@@ -1,114 +1,80 @@
 # Product
 
-Canonical description of what Rituals is and is not. Use it for copy, the pitch
-deck, the submission form, and any app-review or classification question. Settled
-2026-09-18; mirrors `Projects/Rituals/Product Framing.md` in Jack's Hub vault,
-which is the decision authority.
+What Rituals is and is not. Copy, the deck, the submission form and any
+app-review or classification question are governed by
+`docs/submission/FACTS.md`; this page is the framing behind it. Updated
+2026-10-11 (solo product; the group framing from 2026-09-18 is in git history).
 
 ## One line
 
-**Show up, or pay up. You set the stake. You do the work. You get it back.**
+**Show up, or pay up.** Put a stake on a weekly promise. Stamp the week to keep
+it. Miss it and that week's stake goes where you chose. Rituals takes nothing.
 
 ## What it actually is
 
-A **commitment device**. You put your own money behind a recurring commitment you
-keep skipping. If you show up, you get it back. If you don't, you forfeit it.
+A **commitment device**. You put your own money behind a weekly commitment you
+keep skipping. Show up and stamp the week: that week's share comes back. Miss
+it: that week's share goes to a destination you fixed before you started, a demo
+cause or a wallet you pick.
 
-The category is well established: StickK (founded by a Yale behavioural
-economist), Beeminder, and similar forfeit-based goal tools. They are categorised
-as productivity and self-improvement software.
+The category is established: StickK, Beeminder and similar forfeit-based tools,
+classed as productivity and self-improvement software. Jack's framing: *you are
+the donkey pulling the cart of your own goal, and you put the carrot on the
+stick yourself.*
 
-Jack's framing, which is the clearest version: *you are the donkey pulling the
-cart of your own goal, and you are putting the carrot on the stick yourself.*
+Rituals is a stake on a weekly promise you keep; the promise is yours. It is not
+pitched as a cure for phone use or as anything but that.
 
 ## Why this is not gambling
 
-Gambling requires three elements together: **consideration, chance, and prize**.
-Rituals has no chance element.
+Gambling needs consideration, chance and a prize together. Rituals has no
+chance element and no counterparty.
 
-- The outcome is determined entirely by whether the user performed the activity
-  they committed to. Nothing is random.
-- There is no counterparty. You are not wagering against your friends, the house,
-  or the protocol.
-- You cannot lose because someone else got lucky. You can only lose by not doing
-  the thing you said you would do.
-- Rituals takes **nothing**: no share of stakes or forfeitures, and since
-  2026-10-04 no activation fee either (the on-chain fee settings are 0 / 0 / 0).
-
-The closest legal analogue is a forfeitable deposit, not a wager.
-
-## Friends are witnesses, not rivals
-
-Members confirm that a claimant actually showed up. This is deliberately not
-framed as competition, for two reasons:
-
-1. **Product.** The research that selected Rituals over Pact Club found
-   competitive framing carried a "disputes and betting-like framing" risk, and
-   that social betting is a crowded lane. The open lane was tools where Solana
-   coordinates a group rather than inviting speculation.
-
-2. **Mechanism.** The protocol depends on honest attestation. If friends profited
-   meaningfully from a member's failure, attesters would have a financial reason
-   to lie. Keeping the framing self-directed keeps their incentive clean.
-
-Forfeited allocations do redistribute to confirmed members, but that is a
-consequence of the pool conserving value, not the point of the product. Copy
-should never present taking a friend's money as the reward.
-
-## Copy rules
-
-Use:
-- your stake, your follow-through, show up, keep your word
-- friends confirm, friends verify, your crew
-- get it back, recover your stake
-
-Avoid:
-- win, beat, versus, rival, opponent
-- pot, jackpot, payout as the primary reward
-- anything implying you profit from a friend's failure
-- anything implying chance, odds, or luck
-
-`src/screens/RitualsHomeScreen.test.ts` guards raw hex colours in screens; the
-copy rules above are not machine-enforced, so check them by eye in review.
+- The outcome depends only on whether you stamped the week. Nothing is random,
+  and nothing verifies that the activity happened: the stake is the check on
+  yourself (a witness who confirms is built, hidden).
+- Nobody gains from a miss. A missed week's stake goes to the cause or wallet
+  you chose; Rituals takes no share of stakes or forfeits and charges no
+  activation fee (the on-chain fee settings are 0 / 0 / 0).
+- The closest legal analogue is a forfeitable deposit, not a wager. Today it is
+  also a valueless devnet token (tSKR).
 
 ## Verified mechanics
 
-From the devnet settlement proof (2026-09-18), asserted exactly rather than
-loosely:
+Measured on the Seeker and devnet (details and signatures in FACTS "Evidence"):
 
-- Each member stakes an equal amount per event.
-- A member who claims completion and is confirmed recovers their allocation.
-- A member who does not claim forfeits that event's allocation, which is split
-  among confirmed members.
-- The pool conserves exactly. No remainder is stranded.
-- The protocol takes nothing from stakes or forfeitures.
+- One total stake, split evenly across 1 to 16 weeks at full token precision.
+- One wallet approval creates, locks every week's stake in a program-owned
+  vault, activates the ritual and pre-pays the app's settle key.
+- One approval per stamp. Weeks close by themselves while the app is open; the
+  settle key signs those, the wallet never does.
+- Kept: that week's share back. Missed: that week's share to the destination.
+  The pool conserves exactly; the protocol is never paid.
+- End early: one approval returns everything not already missed and closes the
+  vaults.
 
 ## Revenue model
 
-None. Rituals is free (Jack's decision, 2026-10-04). Users pay only what the
-chain charges them: network fees, account rent (vault rent comes back when a
-ritual closes), and a small pre-payment to the app's settle key so weeks close
-without a wallet prompt. The fee funded nothing (no servers, no fee key we
-run), it was charged even on fully kept rituals, and "missed stakes go to a
-cause; Rituals takes nothing" is the honest pitch.
+None. Users pay only what the chain charges: network fees, account rent (kept
+with the ritual's accounts when it finishes; End early closes the vaults and
+returns their rent) and the small settle-key pre-payment. The program still
+supports a protocol fee (`ProtocolConfig`, changeable by the config authority
+with `update_protocol_config`, locked per ritual at creation so a later change
+never alters an existing commitment); the current devnet settings are 0 / 0 / 0,
+asserted by `scripts/verify-devnet-config.ts`.
 
-Mechanically the program still supports a fee: `ProtocolConfig` holds
-`feeBasisPoints` / `minimumFee` / `maximumFee`, and the config authority can
-change them with `update_protocol_config` (no redeploy). The live devnet
-settings are **0 / 0 / 0**, asserted by `scripts/verify-devnet-config.ts`.
-The exact fee is still locked per ritual at creation, so a later change can
-never alter an existing commitment; rituals created before the change paid
-the fee they locked (2 % of the pool, 0.5–5 TEST).
+## Hidden, and what's next
 
-## Confirmation modes
+Built and hidden (code kept, `SOLO_ONLY` in `productScope.ts`): With friends
+(2 to 6 people stake and confirm each other), a witness who confirms without
+staking, Seasons (shared public rituals). They are described only as "built,
+hidden". Then: daily rituals, a home-screen widget, real donation rails; on
+mainnet the plan is USDC, SOL and SKR stakes after legal and security review.
 
-`X` counts additional signatures beyond the claimant:
+## Words
 
-- Honor — `0`
-- One friend — `1` (default)
-- Group majority — `floor((N - 1) / 2) + 1`
-- Unanimous — `N - 1`
-
-Signatures prove who claimed and confirmed. Friends remain the oracle for
-physical-world truth; the protocol never adjudicates whether someone told the
-truth, and neither does any AI surface.
+Use the vocabulary in FACTS "Words" (your stake, show up, keep your word, get it
+back, stamp, ritual, week, cause) and nothing from its banned list, which is the
+only place those words are written down. The copy rules are not
+machine-enforced (only the tagline and the stamp are pinned by test); check a
+document with the grep given there.

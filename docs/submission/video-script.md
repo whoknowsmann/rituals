@@ -25,7 +25,7 @@ FOOTAGE = adb screen recording. CARD = caption card over a still frame of the ap
 | 5 | 33-36 (3) | CARD. Still of step 2 with Lock it in. | One approval in Seed Vault Wallet | One approval. |
 | 6 | 36-43 (7) | FOOTAGE. Ritual screen: the demo line and the ticking countdown "Week 1 opens in …s". | none | Every week's stake is locked. Demo speed: a week here is one minute. |
 | 7 | 43-45 (2) | CARD. | Week 1 opens. | |
-| 8 | 45-53 (8) | FOOTAGE. HOLD TO STAMP with "…s left". Type a short note, then press and hold the full 1.4 s; the button fills. End on release, before the wallet. | none | Now I hold to stamp. I add a note, just for me. |
+| 8 | 45-53 (8) | FOOTAGE. HOLD TO STAMP with "…s left". Type a short note, then press and hold the full 1.4 s; the button fills. End on release, before the wallet. | none | I add a note, just for me. Then I hold to stamp. |
 | 9 | 53-55 (2) | CARD. | One approval in Seed Vault Wallet | One more approval. |
 | 10 | 55-65 (10) | FOOTAGE. Confetti, YOU SHOWED UP! thumps in, the saying. Rest 2 s. | none | Stamped. |
 | 11 | 65-68 (3) | CARD. | Week 2: I do nothing. | Week two, I do nothing. |
@@ -53,7 +53,7 @@ One approval. [pause]
 
 Every week's stake is locked. Demo speed: a week here is one minute. [pause]
 
-Now I hold to stamp. I add a note, just for me. [pause]
+I add a note, just for me. Then I hold to stamp. [pause]
 
 One more approval. [pause]
 

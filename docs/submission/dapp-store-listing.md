@@ -17,7 +17,7 @@ Long description:
 
 Rituals is for the thing you keep meaning to do. Say what you will do each week, choose how many weeks (1 to 16), put in one stake for the whole thing, and pick where a missed week goes: one of three demo causes, or a wallet you choose. One approval in your wallet locks it in.
 
-Each week, hold the big button until the ring fills and the week is stamped. Add a one-line note if you like; it stays on your phone. A YOU SHOWED UP! stamp lands, and when the week closes your stake comes back with a KEPT receipt. Miss the week and that week's stake goes where you chose, and the MISSED receipt says where. It's a week, not a verdict.
+Each week, hold the big button until the ring fills and the week is stamped. Add a one-line note if you like; it stays on your phone. A YOU SHOWED UP! stamp lands, and when the week closes that week's stake comes back with a KEPT receipt. Miss the week and that week's stake goes where you chose, and the MISSED receipt says where. It's a week, not a verdict.
 
 Weeks close without another wallet prompt. When you start, Rituals sets aside a small amount for the app's settle key, which opens and settles weeks while the app is open. Stay on the ritual screen and you can watch a missed week turn MISSED. End early, in Settings, returns everything you haven't missed in one approval. On Real weeks you also get one declared skip per ritual: tap Skip before the week opens and that week's stake comes back to you. The phone reminds you when a week opens, and on Real weeks with one day left and in the last hour.
 
@@ -27,7 +27,7 @@ Rituals takes nothing. No fee, no share of stakes, no share of forfeits. This bu
 
 Show up, or pay up.
 
-Icon: `<icon path>`
+Icon: `assets/icon.png` (adaptive: `assets/adaptive-icon.png`)
 Website: https://rituals.whoknowsman.com
 Source: github.com/whoknowsmann/rituals
 
@@ -56,7 +56,7 @@ Runs on Solana devnet with a valueless tSKR token. Day and night themes included
 
 ## 5. Privacy policy
 
-Last updated: <date>
+Last updated: 2026-10-11
 
 Rituals has no accounts and no analytics. Nothing about you is sent to us, with one exception: the Get test tokens button. When you tap it, the app sends your wallet's public address to our devnet faucet (faucet.whoknowsman.com), which sends test tokens to that address. The only other data that leaves your phone is the public blockchain transactions you approve.
 
@@ -69,7 +69,7 @@ What the app keeps on your phone
 - A journal of actions in flight, so that if the app is killed mid-action it can recover on restart.
 
 What goes on chain
-A ritual's schedule, its stake, the destination for missed weeks, a hash of its name and description (not the text itself), your stamps and the settlements are written to the Solana blockchain. That data is public and permanent. Anyone can read it.
+A ritual's schedule, its stake, the destination for missed weeks, a hash of its name and description (not the text itself), your stamps and the settlements are written to the Solana blockchain. That data is public. Anyone can read it.
 
 What we never collect
 Names, emails, phone numbers, location, contacts, advertising identifiers or usage analytics. No personal data leaves your phone except the public blockchain transactions described above and the Get test tokens request, which carries your wallet's public address.

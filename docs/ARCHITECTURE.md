@@ -1,71 +1,106 @@
 # Architecture
 
+Measured state, not plans. For product claims see `docs/submission/FACTS.md`; for
+what is proven on the phone and when, `docs/STATUS.md`. Updated 2026-10-11.
+
 ## Status
 
-The active product is Rituals. The program is **deployed to devnet** and the full
-lifecycle has been exercised as real transactions with CLI keypairs. The Create
-path is wired end to end from the funding-lobby screen; the remaining visible
-screens still read deterministic fixtures. Mobile Wallet Adapter signing from a
-physical device is **not yet proven** — see `docs/STATUS.md`.
+The shipped product is **solo Rituals**: start a ritual → hold to stamp each
+week → weeks close by themselves → receipts. The Anchor program is deployed on
+**devnet** (`2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p`). The full solo loop
+has been run on a Solana Seeker with Seed Vault Wallet through Mobile Wallet
+Adapter: one wallet approval creates, funds and activates a ritual; one approval
+per stamp; the app's own settle key closes finished weeks with no wallet prompt
+(6-week run on 2026-10-09, every settle signed by the settle key, none by the
+wallet). The same code path is exercised on devnet by `scripts/smoke-app-solo.ts`.
 
-## Active mobile path
+Group rituals (friends who stake and confirm each other), a non-staking witness
+and Seasons are implemented in the program and the client, hidden in the app by
+`src/features/rituals/productScope.ts` (`SOLO_ONLY`), and not part of the
+submission.
+
+## Mobile path
 
 ```text
-Rituals React Native app
-    -> Fixture-backed read path (home, detail, claim, confirmation, receipts)
-        -> AppNavigator
-        -> RitualsHomeScreen and lifecycle preview screens
-        -> typed RitualsRepository
-            -> deterministic FixtureRitualsRepository
-        -> normalized loading / populated / funding / confirmation / completed / empty / error view
-    -> Live transaction path (Create only, today)
-        -> RitualRosterScreen        -> authorizes a host wallet via MWA
-        -> RitualFundingLobbyScreen  -> submits a real Create transaction
-            -> useRitualClient
-                -> deployment and cluster gate (config: `deployed`, devnet)
-                -> RitualClient (RPC reads, preparation, submission, confirmation/readback)
-                -> useMobileWallet MWA transport
+Rituals React Native app (Expo, TypeScript)
+  Home (src/screens/RitualsHomeScreen.tsx)
+    -> remembered rituals for the connected wallet, read from chain in one batched call
+    -> settles overdue weeks in the foreground (settle key)
+  Create (src/screens/solo/*, src/features/rituals/solo/create/)
+    -> step 1: name + what counts as a week; step 2: weeks, speed, one total stake, destination
+    -> one prepared transaction: CreateSoloRitual + FundMember + ActivateRitual
+       + one capped SystemProgram transfer that pre-pays the settle key
+  Ritual screen (src/screens/solo/*, src/features/rituals/solo/lifecycle/)
+    -> chain-timed countdowns, HOLD TO STAMP (InitializeCurrentEvent + ClaimCompletion, one approval)
+    -> settle key opens a missed week and finalizes every closed week (src/features/rituals/solo/settler/)
+    -> receipts per week; Finished totals line on the last week
+  Settings -> End early (one approval returns everything not missed and closes the vaults),
+              reminders, faucet, network and program info
+  Faucet button (src/features/rituals/faucet/) -> POST https://faucet.whoknowsman.com/api/claim
 ```
 
-Home and the lifecycle preview screens still perform no transaction. The roster
-authorizes a host wallet; the funding lobby holds the Create state machine and its
-CTA is gated on `!ready || !create.canSubmit || create.isBusy` rather than being
-hard-disabled. `useAuthorization.tsx` holds the devnet MWA identity (`Rituals`) and
-cached authorization plumbing.
+Every chain action goes through the same layers:
 
-Fund, Activate, Claim, Approve, Question, Finalize, Cancel, and Close are
-implemented and proven in the typed client and on devnet via
-`scripts/smoke-full-lifecycle.ts`, but have no visible screen wiring yet.
+- `src/data/rituals/` — frozen Anchor IDL (`idl/`), PDA helpers, strict fail-closed
+  account decoders (ProtocolConfig, Ritual, RitualEvent, CompletionClaim), RPC
+  readers with bounded retry on public-RPC 429s, instruction builders, prepared
+  actions (every prepared transaction carries compute-budget instructions),
+  submission and confirmation/readback.
+- `src/features/rituals/` — the lifecycle state machine (`lifecycleMachine.ts`),
+  wallet handoff and recovery (`walletHandoff.ts`, `recovery/`: in-flight actions
+  are journaled and resolved from chain after a restart), chain time, reminders,
+  the faucet client, the solo create/lifecycle view models and the settle key.
+- `src/utils/` — Mobile Wallet Adapter transport and authorization cache
+  (`useMobileWallet.tsx`, `useAuthorization.tsx`, `walletChoice.ts`). Connect
+  offers Seed Vault Wallet only; the association intent is pinned to that
+  package by a postinstall patch of the MWA native module
+  (`scripts/patch-mwa-wallet-package.mjs`).
+- `src/domain/rituals/` — pure contracts and money math (checked atomic units as
+  `bigint`); no fetching, rendering, signing or wallet access.
 
-Active modules:
+## Signing and the wallet
 
-- `src/domain/rituals/` — typed draft, invite, lifecycle, money, settlement, threshold contracts;
-- `src/data/rituals/` — repository fixtures plus the frozen Anchor IDL, canonical PDA helpers, fail-closed decoders, RPC readers, all-action preparers, submission binding, and authoritative confirmation/readback;
-- `src/features/rituals/home/`, `create/`, `claims/`, and `client/` — home, form/roster validation, fee math, route safety, attestations, receipt view models, and the cluster/deployment-gated client hook;
-- `src/screens/` — Rituals home, template, create, review, roster, funding-lobby preview, detail, claim, confirmation, receipt, and settings screens;
-- `src/navigators/` — Rituals home and settings routes;
-- `src/utils/` — connection and wallet authorization plumbing;
-- `src/components/cluster/` and `top-bar/` — generic active shell components.
-
-Pure domain code does not fetch, render, sign, submit, or mutate wallets. Token math uses checked atomic units represented by `bigint`.
+- The app binds the wallet's signature to the exact bytes the user reviewed. If
+  the wallet rewrites the priority fee (Seed Vault Wallet does), the submitter
+  verifies the landed transaction instead (`src/data/rituals/walletFeeChange.ts`).
+- A lost wallet reply, or a cancel after signing began, is "possibly sent": the
+  app checks the chain before showing an error, and a create reuses one nonce
+  per screen so a retry cannot make a second ritual.
+- The app never sees a seed phrase or private key. Seed Vault Wallet shows the
+  requester as Rituals at `https://rituals.whoknowsman.com`.
+- The settle key is a keypair generated on the phone, funded inside the user's
+  first approval (0.001 SOL + 0.002 SOL per week, 0.033 SOL at most). It can sign
+  only the permissionless open and settle instructions; the program moves money
+  only where the ritual already says.
 
 ## On-chain boundary
 
-The Anchor workspace and native ProgramTest coverage are separate from the mobile slice. Approved program work covers protocol initialization, creation, exact HOST/SPLIT funding, activation, cancellation, current-event accounts, claims, friend attestations, questioning, atomic event settlement, and terminal cleanup. Settlement conserves each event pool, routes pending/questioned events to full principal refunds, redistributes only clearly unclaimed allocations, preserves future-event principal, and never pays the protocol.
+The Anchor workspace (`programs/rituals`) and its native ProgramTest suite
+(`program-tests/`, 224 tests) are separate from the mobile code. The program
+covers protocol config (fees are configurable and set to 0 / 0 / 0 on devnet),
+solo and group creation, funding, activation, per-week events, claims, friend
+attestations, settlement, declared skips, End early (eject) and vault closure.
+Solo settlement returns a kept week's share to the member and sends a missed
+week's share to the destination fixed at creation; the pool conserves exactly
+and the protocol is never paid.
 
-`funded_fee_total` is historical cumulative activation-fee funding, not an outstanding post-activation liability. Successful activation transfers that exact amount from the fee vault while retaining the value for invariant/readback checks; live fee custody is represented by the actual fee-vault balance. Terminal closure requires coherent Completed or Cancelled state and both actual vault balances to be zero, fails closed on unsolicited dust, and can return token-account rent only to the immutable Ritual creator. Ritual and event receipts remain.
+Deployment records: `deployment/devnet.json`, `deployment/devnet-mint.json`.
+Deploy keypairs sit in `.keys/` (gitignored). `scripts/verify-devnet-config.ts`
+asserts that the on-chain config matches the client's constants.
 
-The devnet deployment is recorded in `deployment/devnet.json` and
-`deployment/devnet-mint.json`; addresses are also listed in the README. Deploy
-keypairs live in `.keys/` and are gitignored. Validator ledgers and `target/`
-artifacts are local and disposable, and intentionally absent from Git. The reviewed IDL snapshot is frozen under `src/data/rituals/idl/` and has been reproduced byte-for-byte from a clean Anchor build. PDA helpers and strict decoders cover ProtocolConfig, Ritual, RitualEvent, and CompletionClaim. All eleven instruction encoders/builders feed opaque prepared actions; the submitter verifies the wallet-returned signature against the exact prepared message, then returns a runtime-opaque submitted-action handle. Only the issuing client can confirm that handle, and duplicate confirmation calls share one authoritative blockheight-confirmation/readback promise. The compatibility `submitAndConfirm` method composes the same primitives. Handles are process-local and cannot be restored from serialized data; reload recovery requires a future separately validated transaction-identity path. `useRitualClient` composes the stack with RPC and MWA only after an authorized devnet deployment is configured. The current configuration is `deployed` against program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` on devnet, so the facade opens; `assertSupportedRitualsProgram` still fails closed on any other cluster or program identity.
+## What runs where
 
-## Identity and build boundary
+- No server of ours except the faucet (`whoknowsmann/rituals-faucet`, Vercel).
+  No accounts, no analytics.
+- Nothing runs while the app is closed: weeks are settled the next time Home or
+  the ritual screen is open. Reminders are phone-local (expo-notifications),
+  scheduled from the on-chain schedule.
+- On the phone: remembered rituals, stamp notes, the settle key, reminder
+  settings, theme and the in-flight journal. Uninstalling removes all of it.
 
-Visible app metadata and wallet identity say Rituals. The existing Expo slug, Android package, iOS bundle identifier, and EAS project ID remain unchanged as legacy build identifiers to preserve linkage temporarily. They are not product identity. The wallet URI remains the current private repository URI until a public HTTPS origin exists.
+## Build and release
 
-## Release boundary
-
-P0 is devnet and valueless test assets. Metro export proves JavaScript bundling only. Expo Go does not prove native MWA. A standalone Seeker APK, real two-wallet flow, and independent security review remain release gates.
-
-The historical rebuild plan remains in `docs/plans/2026-09-09-rituals-rebuild.md`; Git history is the archive for the retired product implementation.
+Local EAS builds (`scripts/build-apk-local.sh`, `preview` profile, APK) are the
+test builds; the submission APK is the same artifact, published as a GitHub
+release with its sha256. Devnet only; tSKR is valueless. Assets with real value
+require legal and security review first.
