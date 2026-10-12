@@ -23,8 +23,8 @@
  {
   "kind": "clip",
   "src": "artifacts/video/take3-1.mp4",
-  "start": 35,
-  "end": 40,
+  "start": 36.5,
+  "end": 40.5,
   "head": "What will you do\neach week?",
   "body": "A name, and what counts.",
   "caption": "I name what I'll do each week,\nand what counts."
