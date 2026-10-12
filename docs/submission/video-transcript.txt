@@ -1,0 +1,27 @@
+Rituals - demo video transcript (https://youtu.be/Ui1SzJJtZBA)
+
+Welcome to Rituals. Show up, or pay up... where you put a stake on a weekly promise.
+
+Here we have a fresh wallet with nothing in it. I tap Get test tokens, get 50 of them plus a little devnet SOL. Nothing to sign. Then we start one.
+
+Step one, we name it. Mine's Touch grass. I decide what counts: two hours outside, phone in pocket.
+
+Step two: how many weeks, and how many tokens. For the demo I picked two weeks and 20 tokens, an even split. Any combination up to 16 weeks works.
+
+Next, where the stake goes if you miss a week's check-in. A few demo options, or a wallet address of your choice. I pick City Animal Shelter, and lock it in.
+
+Seed Vault Wallet warns it doesn't recognize this domain, because the APK is sideloaded. Double-tap the side button, fingerprint. One approval creates it, stakes it and activates it.
+
+Week one opens in 25 seconds. Demo speed means a week is about a minute and a half. I fill in a quick note here to remember what I did.
+
+Week one is open. Now I hold, and the ring fills up. For now Rituals works on the honor system; there are plans on the roadmap to change that.
+
+Second wallet approval, for the check-in stamp. Same drill: double-tap, fingerprint. It thinks about it, says success, and I'm back in the app. Then confetti. You showed up! A little fun never hurts.
+
+Week two. The clock's at 3x so you don't have to sit through it. I'll stamp it later. Wink wink. Totally. Then the week gets away from me. Toddler this and that, snack, bath, twelve books for bedtime. The time goes by.
+
+Timer hits zero. The week is missed and closing. No approval needed this time; the app handles it with its own key.
+
+Side by side: KEPT, 10 back to me with my note. MISSED, 10 to the shelter. Same promise, two outcomes. But hey, at least it's a good cause.
+
+And that's it. All devnet, all test tokens, and Rituals takes nothing. Show up, or pay up.

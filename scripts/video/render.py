@@ -67,6 +67,7 @@ def esc(text: str) -> str:
 
 
 def text_filters(seg: dict, text_x: int = TEXT_X, head_size: int = 74) -> str:
+    head_size = int(seg.get('head_size', head_size))
     parts = []
     head = seg.get('head'); body = seg.get('body'); note = seg.get('note')
     y = int(seg.get('text_y', 320))
@@ -139,7 +140,7 @@ def render_segment(seg: dict, out_path: str) -> None:
         still = seg.get('still')
         if still:
             # A dimmed phone still behind the card text, same place the live phone sits.
-            fc = (f"[1:v]scale=-2:{PHONE_H}:flags=lanczos,format=yuva420p,colorchannelmixer=aa=0.35[ph];"
+            fc = (f"[1:v]scale=-2:{PHONE_H}:flags=lanczos,format=yuva420p,colorchannelmixer=aa={seg.get('still_alpha', 0.35)}[ph];"
                   f"[0:v][ph]overlay=x={PHONE_X}:y={(H - PHONE_H) // 2}[base];"
                   + (f"[base]{tf}[v]" if tf else "[base]copy[v]"))
             cmd = [FFMPEG, '-y', '-loglevel', 'error',
