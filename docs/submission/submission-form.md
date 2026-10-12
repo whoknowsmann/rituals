@@ -82,7 +82,7 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 
 - Repository: https://github.com/whoknowsmann/rituals
 - Product page: https://rituals.whoknowsman.com
-- Demo video: <video-url>
+- Demo video: https://youtu.be/Ui1SzJJtZBA
 - APK (GitHub release): https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
 - Pitch deck (PDF): attached as rituals-deck.pdf (rendered from docs/submission/pitch-deck.md by scripts/deck/build.py)
 

@@ -7,7 +7,7 @@ Rituals puts a stake on a weekly promise. Stamp the week to keep it. Miss it and
 A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet with a valueless test token (tSKR) and has been run end to end on a Seeker (Android 16) with Seed Vault Wallet.
 
 - Product page: https://rituals.whoknowsman.com
-- Demo video: <video-url>
+- Demo video: https://youtu.be/Ui1SzJJtZBA
 - APK: https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
 
 ## Try it in five minutes
