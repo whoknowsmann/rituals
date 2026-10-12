@@ -1,6 +1,6 @@
 # Rituals: pitch deck content (CLOCK IN)
 
-Seven slides, one idea each. Every claim traces to docs/submission/FACTS.md (2026-10-12, d51). `**Image:**` lines are read by scripts/deck/build.py, which stops if an image is missing, so add a new capture before renaming one. Screenshots: slides 1 to 4 from the 2026-10-12 recording run (d51), slide 5 Home from d32, slide 6 End early from d31 (screens unchanged since).
+Eight slides, one idea each. Every claim traces to docs/submission/FACTS.md (2026-10-12, d51). `**Image:**` lines are read by scripts/deck/build.py, which stops if an image is missing, so add a new capture before renaming one. Screenshots: slides 1 to 4 from the 2026-10-12 recording run (d51), slide 5 Home from d32, slide 6 End early from d31 (screens unchanged since).
 
 ## Slide 1 — Title
 
@@ -14,7 +14,18 @@ Put a stake on a weekly promise.
 
 **Say:** Welcome to Rituals. Show up, or pay up. It's a Solana Mobile app for the Seeker where you put a stake on a weekly promise. React Native and Expo on the phone, an Anchor program on devnet.
 
-## Slide 2 — Start
+## Slide 2 — Why
+
+**On the slide:**
+
+Knowing was never the problem.
+You know what you should do each week. Following through is the hard part.
+A streak costs nothing to break. A stake does: show up and it comes back, skip and it goes where you chose.
+You're the donkey pulling the cart of your own goal. Rituals is you, putting the carrot on the stick yourself.
+
+**Say:** Every habit app gives you a streak, and a streak costs nothing to break. Rituals gives you something that does cost: your own stake, every week, going somewhere you chose if you skip. Nobody else gains from a miss, so there's nothing to game. Just a real reason to show up.
+
+## Slide 3 — Start
 
 **Image:** artifacts/shots/deck-step1.png, artifacts/shots/take-step2.png
 
@@ -27,7 +38,7 @@ Pick where a missed week goes.
 
 **Say:** Two steps. Step one, I name it and decide what counts. Step two: how many weeks, how many tokens, and where the stake goes if I miss a week. That's a demo cause, or any wallet I choose. One approval creates it, stakes it and activates it.
 
-## Slide 3 — Every week
+## Slide 4 — Every week
 
 **Image:** artifacts/shots/take-w1.png
 
@@ -41,7 +52,7 @@ Demo weeks are 90 seconds. Real weeks are 7 days.
 
 **Say:** Now I hold, and the ring fills up. One approval. It's the honor system for now: nothing checks that I went outside. A witness and friends who confirm are built but hidden. What the chain does check is time: every week's open, deadline and resolution are written on chain when I create it, so nobody can click ahead. Demo weeks are 90 seconds, real weeks 7 days.
 
-## Slide 4 — Outcomes
+## Slide 5 — Outcomes
 
 **Image:** artifacts/shots/take-receipt-1.png, artifacts/shots/take-receipt-2.png
 
@@ -55,7 +66,7 @@ Rituals takes nothing.
 
 **Say:** Side by side. KEPT: that week's share comes back to me, with my note. MISSED: it goes where I said at the start. Same promise, two outcomes. Rituals takes no fee and no share.
 
-## Slide 5 — Why it sticks
+## Slide 6 — Every week has a point
 
 **Image:** artifacts/shots/d32-home.png
 
@@ -69,7 +80,7 @@ Home shows a dot per week and what's come back.
 
 **Say:** My weeks get away from me: toddler this and that, snack, bath, twelve books for bedtime. So the phone nudges me. Real weeks get three reminders, demo speed one, and they're phone-local, no server. If I still don't stamp, the week closes by itself while the app is open. Its own settle key signs it, so no wallet prompt.
 
-## Slide 6 — Your stake
+## Slide 7 — Your stake
 
 **Image:** artifacts/shots/d31-end-1.png
 
@@ -81,7 +92,7 @@ The screen shows Back to you before you sign.
 
 **Say:** Plans change, so there's a way out. End early shows what comes back before I sign, and one approval returns everything not already missed.
 
-## Slide 7 — Try it
+## Slide 8 — Try it
 
 **On the slide:**
 
