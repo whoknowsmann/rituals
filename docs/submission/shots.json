@@ -1,6 +1,6 @@
 [
  {
-  "_": "Draft cut from the 10-12 06:34 take (file-local seconds). Retake replaces src/stills; keep the row structure."
+  "_": "Cut from the 10-12 10:13 take (take3-1/2/3, file-local seconds). Stills: take-home/step2/receipt-1/receipt-2/finished.png from the same run."
  },
  {
   "kind": "card",
@@ -12,9 +12,9 @@
  },
  {
   "kind": "clip",
-  "src": "artifacts/video/take-final-1.mp4",
-  "start": 14,
-  "end": 24,
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 1,
+  "end": 9,
   "head": "A fresh wallet.",
   "body": "Nothing in it. One tap\nfor test tokens.",
   "note": "Devnet faucet \u00b7 nothing to sign",
@@ -22,21 +22,31 @@
  },
  {
   "kind": "clip",
-  "src": "artifacts/video/take-final-1.mp4",
-  "start": 30,
-  "end": 38,
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 35,
+  "end": 40,
   "head": "What will you do\neach week?",
   "body": "A name, and what counts.",
   "caption": "I name what I'll do each week,\nand what counts."
  },
  {
   "kind": "clip",
-  "src": "artifacts/video/take-final-1.mp4",
-  "start": 42,
-  "end": 48,
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 44,
+  "end": 56,
+  "speed": 1.0,
   "head": "Two weeks.\nTwenty in all.",
   "body": "Miss a week and that week's\nstake goes where I chose.",
   "note": "Rituals takes nothing",
+  "caption": "Two weeks, twenty in total, ten a week. If I miss a week,\nit goes to a demo animal shelter. I pick that, not the app.\nRituals takes nothing."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 62,
+  "end": 72,
+  "head": "Where a missed\nweek goes.",
+  "body": "A demo cause, or any wallet.\nLocked before you start.",
   "caption": "Two weeks, twenty in total, ten a week. If I miss a week,\nit goes to a demo animal shelter. I pick that, not the app.\nRituals takes nothing."
  },
  {
@@ -49,13 +59,22 @@
  },
  {
   "kind": "clip",
-  "src": "artifacts/video/take-final-1.mp4",
-  "start": 73,
-  "end": 79,
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 108,
+  "end": 113,
   "head": "Locked in.",
   "body": "Every week's stake is set.",
   "note": "Demo speed \u00b7 a week here is 1.5 minutes",
   "caption": "Every week's stake is locked.\nDemo speed: a week here is a minute and a half."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 120,
+  "end": 126,
+  "head": "A note,\njust for me.",
+  "body": "It stays on the phone.",
+  "caption": "I add a note, just for me."
  },
  {
   "kind": "card",
@@ -64,12 +83,11 @@
  },
  {
   "kind": "clip",
-  "src": "artifacts/video/take-final-1.mp4",
-  "start": 107,
-  "end": 115,
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 131,
+  "end": 137.5,
   "head": "Hold to stamp.",
-  "body": "A note, just for me.",
-  "caption": "I add a note, just for me.\nThen I hold to stamp."
+  "caption": "Then I hold to stamp."
  },
  {
   "kind": "card",
@@ -80,9 +98,9 @@
  },
  {
   "kind": "clip",
-  "src": "artifacts/video/take-final-1.mp4",
-  "start": 133,
-  "end": 143,
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 4,
+  "end": 14,
   "head": "Stamped.",
   "caption": "Stamped."
  },
@@ -94,29 +112,39 @@
  },
  {
   "kind": "clip",
-  "src": "artifacts/video/take-final-2.mp4",
-  "start": 70,
-  "end": 82,
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 114,
+  "end": 126,
   "head": "Missed.",
   "body": "No approval.\nThe app settles it.",
-  "caption": "The week closes on its own. Missed.\nTen of the twenty goes to the shelter."
+  "caption": "The week closes on its own. Missed."
  },
  {
   "kind": "clip",
-  "src": "artifacts/video/take-final-2.mp4",
-  "start": 92,
-  "end": 98,
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 140,
+  "end": 145.5,
   "head": "Settled.",
   "body": "10 of 20 back.\n10 to the shelter.",
-  "caption": "The week closes on its own. Missed.\nTen of the twenty goes to the shelter."
+  "caption": "Ten of the twenty goes to the shelter."
  },
  {
   "kind": "split",
-  "dur": 16,
+  "dur": 12,
   "left": "artifacts/shots/take-receipt-1.png",
   "right": "artifacts/shots/take-receipt-2.png",
   "head": "One promise.\nBoth outcomes.",
   "caption": "Show up: your stake comes back.\nMiss: it goes where you chose."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take3-3.mp4",
+  "start": 11,
+  "end": 19,
+  "head": "On chain.",
+  "body": "Every stamp and settlement\nis a transaction on devnet.",
+  "note": "Solana Explorer \u00b7 Success",
+  "caption": "Every week is on chain.\nCheck it from any receipt."
  },
  {
   "kind": "card",
