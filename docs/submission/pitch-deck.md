@@ -86,7 +86,7 @@ End early any time: what you haven't missed comes back.
 Try it in five minutes.
 Install the APK. Set Seed Vault to Devnet.
 Tap Get test tokens, then Start one.
-Next: daily rituals, a home-screen widget, friends, real donation rails.
+Next: a journal of every week's stamps and notes, hands-free stamps, daily rituals, a widget, friends, real donation rails.
 rituals.whoknowsman.com · github.com/whoknowsmann/rituals
 
 **Say:** It runs on devnet with a test token, and the app hands out tokens itself. Next come daily rituals, then a home-screen widget, then friends and a witness, then real donation rails. On mainnet the plan is USDC, SOL and SKR stakes, after legal and security review. We'd like a place on the Solana dApp Store.

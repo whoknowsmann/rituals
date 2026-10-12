@@ -140,11 +140,13 @@ One declared skip per ritual. **Skip week N** appears from week 2 on, between th
 Hidden in the app (code kept; described as "built, hidden" and nothing more): With friends (2 to 6 people stake and confirm each other; program deployed on devnet, flow built, needs a UI pass), a witness who confirms without staking, Seasons (shared public rituals with honest counts).
 
 What's next, in this order:
-1. Daily rituals: same mechanics with shorter windows. The program already takes any window length; Demo speed runs one-minute weeks.
-2. A home-screen widget (designed).
-3. Friends, a witness and Seasons (built, hidden).
-4. Real donation rails (The Giving Block).
-5. On mainnet the plan is to offer USDC, SOL and SKR as stake options, after legal and security review. The program is mint-agnostic: the stake asset is one config value.
+1. Journal: every week of a ritual on one page, stamps, amounts and your notes together, with one Explorer link per week (Jack, 2026-10-12).
+2. Hands-free stamps: authorize the app once at create, then HOLD is the only step (a program delegate; designed, not built).
+3. Daily rituals: same mechanics with shorter windows. The program already takes any window length; Demo speed runs one-minute weeks.
+4. A home-screen widget (designed).
+5. Friends, a witness and Seasons (built, hidden).
+6. Real donation rails (The Giving Block).
+7. On mainnet the plan is to offer USDC, SOL and SKR as stake options, after legal and security review. The program is mint-agnostic: the stake asset is one config value.
 
 ## Tech
 
