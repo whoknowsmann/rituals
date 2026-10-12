@@ -18,12 +18,12 @@ Put a stake on a weekly promise.
 
 **On the slide:**
 
-Knowing was never the problem.
+Put your money where your mouth is.
 You know what you should do each week. Following through is the hard part.
-A streak costs nothing to break. A stake does: show up and it comes back, skip and it goes where you chose.
-You're the donkey pulling the cart of your own goal. Rituals is you, putting the carrot on the stick yourself.
+Rituals lets you stake money against your promises.
+Keep your word, keep your money. Miss it, and your stake goes to the cause you chose.
 
-**Say:** Every habit app gives you a streak, and a streak costs nothing to break. Rituals gives you something that does cost: your own stake, every week, going somewhere you chose if you skip. Nobody else gains from a miss, so there's nothing to game. Just a real reason to show up.
+**Say:** You know what you should do each week. Following through is the hard part. So this time, put your money where your mouth is. Rituals lets you stake money against your promises: keep your word, keep your money; miss it, and your stake goes to the cause you chose. Nobody else gains from a miss, so there's nothing to game. Just a real reason to show up.
 
 ## Slide 3 — Start
 
@@ -99,7 +99,8 @@ The screen shows Back to you before you sign.
 Show up, or pay up.
 Install the APK. Set Seed Vault Wallet to Devnet.
 Tap Get test tokens. Nothing to sign.
-Next: a journal, hands-free stamps, daily rituals, a widget, friends, real donation rails.
+Next: a journal of your weeks, hands-free stamps, daily rituals, a home-screen widget.
+Then rituals with friends, a witness who confirms, app-wide Seasons, and real donation rails.
 rituals.whoknowsman.com · github.com/whoknowsmann/rituals
 
 **Say:** Install the APK and set Seed Vault Wallet to Devnet. It warns that it doesn't recognize this domain, because the APK is sideloaded. Fresh wallet, nothing in it? Tap Get test tokens: 50 tSKR and a little devnet SOL, nothing to sign. Then start one. Next, in order: a journal of every week's stamps and notes on one page; hands-free stamps (authorize once at create, then HOLD is the only step); daily rituals; a widget; friends, a witness and Seasons; real donation rails. On mainnet the plan is USDC, SOL and SKR stakes, after legal and security review. That's it. All devnet, all test tokens, and Rituals takes nothing. I'd like Rituals on the Solana dApp Store. Show up, or pay up.
