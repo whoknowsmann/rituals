@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigators/AppNavigator'
@@ -41,12 +41,21 @@ export function SoloReceiptScreen({ route }: Props) { const s = useS();
       {receipt.state === 'kept' ? <View style={s.card}><Stamp kind="kept" note={keptSaying(route.params.ritualId, route.params.eventIndex, state.bundle.ritual.account.schedule.length)} />{moneyLine && <Text style={s.muted}>{moneyLine}</Text>}{receiptNote ? <View style={s.receiptNote}><Text style={s.noteLabel}>YOUR NOTE</Text><Text style={s.hand}>{receiptNote}</Text></View> : null}</View> : null}
       {receipt.state === 'missed' ? <View style={s.card}><Stamp kind="missed" note={route.params.eventIndex + 1 < (state.status === 'ready' ? state.bundle.ritual.account.schedule.length : 0) ? "That's a week, not a verdict." : undefined} animate={false} />{moneyLine && <Text style={s.muted}>{moneyLine}</Text>}</View> : null}
       {receipt.state === 'skipped' ? <View style={s.paper}><Stamp kind="skipped" note="Your stake comes back." animate={false} />{moneyLine && <Text style={s.muted}>{moneyLine}</Text>}</View> : null}
+      {/* The receipt is a reading of chain state; let anyone check it (Jack, 2026-10-12: an in-app
+          receipt that claims money went to a cause must point at the transaction, or it looks hidden). */}
+      {receipt.state !== 'pending' && state.bundle.event && (
+        <ActionButton tone="link" label="View on Solana Explorer" accessibilityLabel="View this week's settlement on Solana Explorer"
+          onPress={() => { void Linking.openURL(explorerAccountUrl(state.bundle!.event!.address.toBase58())).catch(() => {}) }} />
+      )}
       <ActionButton tone="link" label="Back to ritual" onPress={() => navigation.goBack()} />
       <Footnote>Devnet · tSKR is a test token with no real value</Footnote>
     </ScrollView>
   )
 }
 
+
+/** Devnet account page: the week's settle transaction and the token transfer it made sit in its history. */
+export function explorerAccountUrl(address: string): string { return `https://explorer.solana.com/address/${address}?cluster=devnet` }
 
 function Centered({ children }: { children: React.ReactNode }) { const s = useS(); return <View style={s.center}><Text style={s.muted}>{children}</Text></View> }
 function ErrorState({ message, retry, onHome }: { message: string; retry: () => void; onHome: () => void }) { const s = useS(); return <View style={s.center}><Text style={s.title}>Receipt unavailable</Text><ErrorLine>{message}</ErrorLine><ActionButton tone="quiet" label="Try again" onPress={retry} /><ActionButton tone="dark" label="Back" onPress={onHome} /></View> }

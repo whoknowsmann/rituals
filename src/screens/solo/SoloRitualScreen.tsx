@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, AppState, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Linking, Alert, AppState, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native'
 import { PublicKey } from '@solana/web3.js'
@@ -27,6 +27,7 @@ import { notesOffered, readSoloNotes, saveWeekNote, type SoloNotes } from '../..
 import { SCOPE } from '../../features/rituals/productScope'
 import { keptSaying } from '../../features/rituals/solo/sayings'
 import { useCatchup } from '../../features/rituals/solo/settler/useCatchup'
+import { explorerAccountUrl } from './SoloReceiptScreen'
 import { shortRosterAddress } from '../../features/rituals/create/roster'
 import { witnessShareMessage } from '../../features/rituals/solo/create/witnessShare'
 import { formatAtomic } from '../../features/rituals/displayFormat'
@@ -323,6 +324,7 @@ function WalletSoloRitual({ route }: Props) { const s = useS(); const color = us
       {holdVisible && <View style={s.holdArea}><Text style={s.muted}>{holdWaiting ? `Week ${model.eventIndex + 1} opens ${model.nextOpensLabel}` : model.stampTimeLeftLabel}</Text><HoldButton onComplete={startClaim} disabled={holdWaiting || model.stampBlocked || !readyForWallet || claim.isBusy || !claim.canSubmit} label="HOLD TO STAMP" doneLabel="DONE" accessibilityLabel="Hold to stamp" size={200} /></View>}
       {model.settlementEventIndex !== null && !settlingByItself && <ActionButton tone="quiet" label={settle.isBusy ? 'Working…' : model.needsEventInit ? 'Close this week' : 'Settle this week'} onPress={settle.start} disabled={!readyForWallet || settle.isBusy || !settle.canSubmit} loading={settle.isBusy} />}
       {model.canSkip && <ActionButton tone="link" label={skip.isBusy ? 'Working…' : `Skip week ${model.eventIndex + 1}`} onPress={skip.start} disabled={!readyForWallet || skip.isBusy || !skip.canSubmit} loading={skip.isBusy} />}
+      {model.state === 'completed' && readyBundle.ritual.address && <ActionButton tone="link" label="View on Solana Explorer" accessibilityLabel="View this ritual on Solana Explorer" onPress={() => { void Linking.openURL(explorerAccountUrl(readyBundle.ritual.address.toBase58())).catch(() => {}) }} />}
       {model.lastClosedEventIndex !== null && <ActionButton tone="link" label={`See week ${model.lastClosedEventIndex + 1} receipt`} onPress={() => navigation.navigate('SoloReceipt', { ritualId: route.params.ritualId, eventIndex: model.lastClosedEventIndex! })} />}
 
       {readyBundle.ritual.account.status === 'Active' && model.state !== 'completed' && <ActionButton tone="link" label={`Reminders: ${ritualRemindersOn ? 'on' : 'off'}`} onPress={toggleRitualReminders} disabled={!reminderSettings.preferences?.masterEnabled || reminderSettings.busy || claim.isBusy || skip.isBusy || settle.isBusy} />}

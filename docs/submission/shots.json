@@ -1,45 +1,130 @@
 [
-  {"_": "Shot list for scripts/video/render.py, one entry per row of docs/submission/video-script.md (2026-10-11). Fill start/end (seconds in the source clip) from the real take; `caption` is the voiceover line burned in as a lower third; stills come from the same run (adb screencap, 1200x2670)."},
-  {"_": "Sources to drop in after the take: artifacts/video/take-main.mp4 (the run; if screenrecord split it into 180 s files, use take-main-1.mp4, take-main-2.mp4 and adjust `src` per row), artifacts/shots/take-home.png, take-step2.png, take-receipt-1.png, take-receipt-2.png, take-end.png."},
-
-  {"kind": "card", "dur": 5, "still": "artifacts/shots/s2-home-demo.png", "head": "Rituals", "body": "Show up, or pay up.",
-   "caption": "You know the thing you keep meaning to do.\nPut a stake on it."},
-
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 0, "end": 10, "head": "A fresh wallet.", "body": "Nothing in it. One tap\nfor test tokens.", "note": "Devnet faucet · nothing to sign",
-   "caption": "Fresh wallet, nothing in it.\nOne tap for test tokens. Nothing to sign."},
-
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 10, "end": 16, "head": "What will you do\neach week?", "body": "A name, and what counts.",
-   "caption": "I name what I'll do each week,\nand what counts."},
-
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 16, "end": 28, "head": "Two weeks.\nTwenty in all.", "body": "Miss a week and that week's\nstake goes where I chose.", "note": "Rituals takes nothing",
-   "caption": "Two weeks, twenty in total, ten a week. If I miss a week,\nit goes to a demo animal shelter. I pick that, not the app.\nRituals takes nothing."},
-
-  {"kind": "card", "dur": 3, "still": "artifacts/shots/take-step2.png", "head": "One approval.", "body": "In Seed Vault Wallet.",
-   "caption": "One approval."},
-
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 60, "end": 67, "head": "Locked in.", "body": "Every week's stake is set.", "note": "Demo speed · a week here is 1.5 minutes",
-   "caption": "Every week's stake is locked.\nDemo speed: a week here is a minute and a half."},
-
-  {"kind": "card", "dur": 2, "head": "Week 1 opens."},
-
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 130, "end": 138, "head": "Hold to stamp.", "body": "A note, just for me.",
-   "caption": "I add a note, just for me.\nThen I hold to stamp."},
-
-  {"kind": "card", "dur": 2, "head": "One more approval.", "body": "In Seed Vault Wallet.",
-   "caption": "One more approval."},
-
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 155, "end": 165, "head": "Stamped.",
-   "caption": "Stamped."},
-
-  {"kind": "card", "dur": 3, "head": "Week 2:\nI do nothing.",
-   "caption": "Week two, I do nothing."},
-
-  {"kind": "clip", "src": "artifacts/video/take-main.mp4", "start": 250, "end": 262, "head": "Missed.", "body": "No approval.\nThe app settles it.",
-   "caption": "The week closes on its own. Missed.\nTen of the twenty goes to the shelter."},
-
-  {"kind": "split", "dur": 20, "left": "artifacts/shots/take-receipt-1.png", "right": "artifacts/shots/take-receipt-2.png", "head": "One promise.\nBoth outcomes.",
-   "caption": "Show up: your stake comes back.\nMiss: it goes where you chose."},
-
-  {"kind": "card", "dur": 10, "still": "artifacts/shots/take-end.png", "head": "Show up, or pay up.", "body": "Rituals\nrituals.whoknowsman.com", "note": "Devnet · test tokens",
-   "caption": "It's devnet, with test tokens. Rituals takes nothing.\nShow up, or pay up."}
+ {
+  "_": "Draft cut from the 10-12 06:34 take (file-local seconds). Retake replaces src/stills; keep the row structure."
+ },
+ {
+  "kind": "card",
+  "dur": 5,
+  "still": "artifacts/shots/take-home.png",
+  "head": "Rituals",
+  "body": "Show up, or pay up.",
+  "caption": "You know the thing you keep meaning to do.\nPut a stake on it."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take-final-1.mp4",
+  "start": 14,
+  "end": 24,
+  "head": "A fresh wallet.",
+  "body": "Nothing in it. One tap\nfor test tokens.",
+  "note": "Devnet faucet \u00b7 nothing to sign",
+  "caption": "Fresh wallet, nothing in it.\nOne tap for test tokens. Nothing to sign."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take-final-1.mp4",
+  "start": 30,
+  "end": 38,
+  "head": "What will you do\neach week?",
+  "body": "A name, and what counts.",
+  "caption": "I name what I'll do each week,\nand what counts."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take-final-1.mp4",
+  "start": 42,
+  "end": 48,
+  "head": "Two weeks.\nTwenty in all.",
+  "body": "Miss a week and that week's\nstake goes where I chose.",
+  "note": "Rituals takes nothing",
+  "caption": "Two weeks, twenty in total, ten a week. If I miss a week,\nit goes to a demo animal shelter. I pick that, not the app.\nRituals takes nothing."
+ },
+ {
+  "kind": "card",
+  "dur": 3,
+  "still": "artifacts/shots/take-step2.png",
+  "head": "One approval.",
+  "body": "In Seed Vault Wallet.",
+  "caption": "One approval."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take-final-1.mp4",
+  "start": 73,
+  "end": 79,
+  "head": "Locked in.",
+  "body": "Every week's stake is set.",
+  "note": "Demo speed \u00b7 a week here is 1.5 minutes",
+  "caption": "Every week's stake is locked.\nDemo speed: a week here is a minute and a half."
+ },
+ {
+  "kind": "card",
+  "dur": 2,
+  "head": "Week 1 opens."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take-final-1.mp4",
+  "start": 107,
+  "end": 115,
+  "head": "Hold to stamp.",
+  "body": "A note, just for me.",
+  "caption": "I add a note, just for me.\nThen I hold to stamp."
+ },
+ {
+  "kind": "card",
+  "dur": 2,
+  "head": "One more approval.",
+  "body": "In Seed Vault Wallet.",
+  "caption": "One more approval."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take-final-1.mp4",
+  "start": 133,
+  "end": 143,
+  "head": "Stamped.",
+  "caption": "Stamped."
+ },
+ {
+  "kind": "card",
+  "dur": 3,
+  "head": "Week 2:\nI do nothing.",
+  "caption": "Week two, I do nothing."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take-final-2.mp4",
+  "start": 70,
+  "end": 82,
+  "head": "Missed.",
+  "body": "No approval.\nThe app settles it.",
+  "caption": "The week closes on its own. Missed.\nTen of the twenty goes to the shelter."
+ },
+ {
+  "kind": "clip",
+  "src": "artifacts/video/take-final-2.mp4",
+  "start": 92,
+  "end": 98,
+  "head": "Settled.",
+  "body": "10 of 20 back.\n10 to the shelter.",
+  "caption": "The week closes on its own. Missed.\nTen of the twenty goes to the shelter."
+ },
+ {
+  "kind": "split",
+  "dur": 16,
+  "left": "artifacts/shots/take-receipt-1.png",
+  "right": "artifacts/shots/take-receipt-2.png",
+  "head": "One promise.\nBoth outcomes.",
+  "caption": "Show up: your stake comes back.\nMiss: it goes where you chose."
+ },
+ {
+  "kind": "card",
+  "dur": 8,
+  "still": "artifacts/shots/take-finished.png",
+  "head": "Show up, or pay up.",
+  "body": "Rituals\nrituals.whoknowsman.com",
+  "note": "Devnet \u00b7 test tokens",
+  "caption": "It's devnet, with test tokens. Rituals takes nothing.\nShow up, or pay up."
+ }
 ]

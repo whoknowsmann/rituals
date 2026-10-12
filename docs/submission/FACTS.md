@@ -56,7 +56,7 @@ Press and hold **HOLD TO STAMP** for 1.4 s (a ring fills, light haptics) and app
 - **Kept**: that week's stake returns to the wallet; the KEPT receipt reads "{amount} back to you" and shows the note.
 - **Missed**: that week's stake goes to the destination fixed at create; MISSED stamp. On a week that is not the last, the receipt and (until the next week opens) the screen say "{amount} went to {destination}."
 - **The last week** is different [Code]. The screen reads Finished and shows one totals line, "{back} of {total} tSKR back · {sent} tSKR to {destination}", with the sent part left out when nothing was sent. The last week's receipt shows the same line. A 2-week ritual with week 2 missed reads "10 of 20 tSKR back · 10 tSKR to City Animal Shelter (demo)".
-- Tapping any closed week on the punch card opens its receipt. A wallet destination reads "the wallet you chose · fT9Xe…LJgo1": the owner, never the token account.
+- Tapping any closed week on the punch card opens its receipt. Every closed receipt has **View on Solana Explorer** (the week's account on devnet: its settle transaction and the token transfer it made); a finished ritual has the same link to the ritual account (d50, 2026-10-12). A wallet destination reads "the wallet you chose · fT9Xe…LJgo1": the owner, never the token account.
 
 ### 5. Home
 

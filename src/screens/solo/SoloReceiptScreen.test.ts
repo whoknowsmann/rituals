@@ -28,3 +28,14 @@ describe('SoloReceiptScreen proof note', () => {
     expect(source).toContain('fonts.hand')
   })
 })
+
+describe('on-chain proof (Jack, 2026-10-12)', () => {
+  it('links every closed receipt to the week account on Solana Explorer (devnet), and never a pending one', () => {
+    const source = readFileSync(resolve(__dirname, 'SoloReceiptScreen.tsx'), 'utf8')
+    expect(source).toContain("receipt.state !== 'pending' && state.bundle.event && (")
+    expect(source).toContain('label="View on Solana Explorer"')
+    expect(source).toContain('https://explorer.solana.com/address/${address}?cluster=devnet')
+    const ritual = readFileSync(resolve(__dirname, 'SoloRitualScreen.tsx'), 'utf8')
+    expect(ritual).toMatch(/model\.state === 'completed' && readyBundle\.ritual\.address && <ActionButton tone="link" label="View on Solana Explorer"/)
+  })
+})
