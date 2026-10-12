@@ -15,7 +15,7 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 1. Install the APK from the GitHub release: https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals and tap Connect, then Seed Vault Wallet. It shows the request as coming from Rituals at rituals.whoknowsman.com.
-4. On Home, tap **Get test tokens**. The faucet sends 0.05 devnet SOL and 50 tSKR in one transaction it pays itself, so there is nothing to sign. It refuses a wallet that already holds at least 0.03 SOL and 10 tSKR. If it says it is empty, email <owner-email>. Then tap **Start one**.
+4. On Home, tap **Get test tokens**. The faucet sends 0.05 devnet SOL and 50 tSKR in one transaction it pays itself, so there is nothing to sign. It refuses a wallet that already holds at least 0.03 SOL and 10 tSKR. If it says it is empty, email hello@whoknowsman.com. Then tap **Start one**.
 5. "What will you do each week?" Type a name, such as Read. If you like, say what counts as showing up. Tap **Next**.
 6. "Your stake": keep 2 weeks and Demo speed, tap 20, and pick where a missed week goes. Tap **Lock it in** and approve once: double-tap the side button and use your fingerprint. Approvals need to land within about 60 seconds. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 7. You land on the ritual screen. Week 1 opens 60 seconds after you tapped Lock it in. When it opens, type an optional note, hold **HOLD TO STAMP** for 1.4 seconds and approve. You have 60 seconds.

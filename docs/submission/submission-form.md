@@ -65,7 +65,7 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 
 1. Install the APK: https://github.com/whoknowsmann/rituals/releases/tag/v0.1.0-clockin
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
-3. Open Rituals, tap Connect, and on Home tap Get test tokens (0.05 devnet SOL and 50 tSKR, nothing to sign). If it says it is empty, email <owner-email>. Then tap Start one.
+3. Open Rituals, tap Connect, and on Home tap Get test tokens (0.05 devnet SOL and 50 tSKR, nothing to sign). If it says it is empty, email hello@whoknowsman.com. Then tap Start one.
 4. Type a name, tap Next, keep 2 weeks and Demo speed, tap 20, choose where a missed week goes, tap Lock it in, and approve once. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 5. Week 1 opens 60 seconds after you tap Lock it in. Hold HOLD TO STAMP for 1.4 seconds and approve. You have 60 seconds.
 6. Stay on the ritual screen and leave week 2 alone. It turns MISSED by itself, and the stake goes where you chose.
@@ -88,4 +88,4 @@ React Native, Expo, TypeScript, an Anchor program on Solana devnet, Mobile Walle
 
 ## Team
 
-Jack, solo builder (GitHub: whoknowsmann). X: <x-handle>
+Jack, solo builder (GitHub: whoknowsmann).

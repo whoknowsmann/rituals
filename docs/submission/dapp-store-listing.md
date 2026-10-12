@@ -83,7 +83,7 @@ The app talks to a public Solana devnet RPC endpoint to read chain state and sub
 Deleting your data
 Uninstall the app and everything stored on the phone is removed, including names, notes, the settle key, reminders and the journal. Any SOL still held by the settle key is lost with it. A kept week leaves its 0.002 SOL pre-payment in the key, and a missed week uses about 0.0019 SOL of it, so finish or settle your rituals before you uninstall. Data already on chain is public and permanent and cannot be deleted by us or by you.
 
-Contact: `<owner-email>`
+Contact: `hello@whoknowsman.com`
 
 ## 6. Disclosures for review
 
