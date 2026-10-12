@@ -1,10 +1,10 @@
 # Rituals: pitch deck content (CLOCK IN)
 
-Seven slides, one idea each. Every line traces to docs/submission/FACTS.md (2026-10-09, d41). `**Image:**` lines are rendered by scripts/deck/build.py, which stops if an image is missing, so add a new capture before renaming one. The screenshots named below come from builds d27 to d32. Recapture from d41: slide 2 (both create screens changed), slide 4 (a last week's receipt now shows the totals line) and slide 6 (End early now shows one "Back to you" row). Check slides 3 and 5 against d41.
+Seven slides, one idea each. Every line traces to docs/submission/FACTS.md (2026-10-12, d51). `**Image:**` lines are rendered by scripts/deck/build.py, which stops if an image is missing, so add a new capture before renaming one. Screenshots: slides 1, 2, 3, 4 from the 2026-10-12 recording run (d51); slide 5 Home from d32; slide 6 End early from d31 (screens unchanged since).
 
 ## Slide 1 — Title
 
-**Image:** artifacts/shots/d27-receipt-w1.png
+**Image:** artifacts/shots/take-receipt-1.png
 
 **On the slide:**
 
@@ -16,7 +16,7 @@ A weekly promise with your money on it.
 
 ## Slide 2 — Start
 
-**Image:** artifacts/shots/d29-step1.png, artifacts/shots/d27-step2.png
+**Image:** artifacts/shots/deck-step1.png, artifacts/shots/take-step2.png
 
 **On the slide:**
 
@@ -30,7 +30,7 @@ One approval locks it in.
 
 ## Slide 3 — Every week
 
-**Image:** artifacts/shots/now-jack.png
+**Image:** artifacts/shots/take-w1.png
 
 **On the slide:**
 
@@ -43,7 +43,7 @@ Demo weeks last 90 seconds, so a 4-week ritual runs in about seven minutes.
 
 ## Slide 4 — Outcomes
 
-**Image:** artifacts/shots/d27-receipt-w1.png, artifacts/shots/d27-receipt-w2.png
+**Image:** artifacts/shots/take-receipt-1.png, artifacts/shots/take-receipt-2.png
 
 **On the slide:**
 
