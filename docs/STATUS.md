@@ -7,7 +7,7 @@ Last verified: **2026-10-10 ~21:20 CDT** — `feat/solo-screens` @ cdfac7f + doc
 pushed; tsc clean; **2,930 tests / 169 files** green; root `cargo test` 8/8, program suite 224.
 Phone (Seeker) has **d44** (cdfac7f, installed 21:18) = **the recording build**. Faucet health 200
 (4.74 SOL / 4,750 tSKR, ~90 claims).
-Deadline: **Mon Oct 12, 2026, 6:59 AM CDT** (organizer site). **Plan: record + submit Sunday Oct 11
+Deadline: **Mon Oct 12, 2026, 6:59 PM CDT** (organizer site, re-read 10-12 06:53: "Submissions due Oct 12, 2026, 6:59 PM CDT"; an earlier note said AM, wrong). **Plan: record + submit Sunday Oct 11
 afternoon/evening** (Jack, 10-09), never overnight. Judging Oct 12–Nov 9, winners Nov 10. Repo **private**;
 judges can read private repos through the Radiants Align GitHub app (organizer FAQ), public is optional.
 License **MIT**. Organizer requires ALL of: APK, GitHub repo, demo video (judged: "Completion based on

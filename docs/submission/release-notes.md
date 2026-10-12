@@ -23,7 +23,7 @@ Devnet only. tSKR tokens have no value.
 2. In Seed Vault Wallet, go to Settings → Network → Devnet before you open Rituals.
 3. Open Rituals, tap Connect, and on Home tap **Get test tokens** if your wallet is short. Then **Start one** and Lock it in. Seed Vault doesn't recognize the site yet, so tick "I trust this site" when you approve.
 
-sha256: `6b898473b768be5473da6b09117b09332519f6c2b5c8287e124185295b9e14ad`
-Built from commit `395dae2` (local build d45, 2026-10-11). Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` (devnet).
+sha256: `c91e43e470bb83ef538d0d4769cda08546e1e33952464849901390d63dc043d0`
+Built from commit `0ce4685` (local build d48, 2026-10-11). Program `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` (devnet).
 
 Known limits: devnet only; nothing runs while the app is closed, so a missed week's money moves the next time the app is opened; the clock never pauses on Demo speed, so weeks you are away for are missed; Seed Vault Wallet has to be set to Devnet; a wallet you choose as the destination must already hold a tSKR account; stamps are self-reported; stamp notes stay on the phone.

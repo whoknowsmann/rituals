@@ -174,6 +174,6 @@ Check a doc with `grep -niE '\b(win|wins|winning|beat|beats|beating|pot|jackpot|
 
 ## Hackathon
 
-CLOCK IN, the Solana Mobile Hackathon with RadiantsDAO. Submissions close Mon Oct 12, 2026, 6:59 AM CDT (extended; organizer Event Info, seen 10-08). Judging Oct 12 to Nov 9; winners announced Nov 10. Required: a functional Android APK, the GitHub repository, a demo video, a pitch deck. Judged on: stickiness and product-market fit · user experience · innovation · presentation and demo. Winners publish on the Solana dApp Store. A token-integration prize is optional and separate; we are not entering it.
+CLOCK IN, the Solana Mobile Hackathon with RadiantsDAO. Submissions close Mon Oct 12, 2026, 6:59 PM CDT (organizer Key Dates, read 2026-10-12). Judging Oct 12 to Nov 9; winners announced Nov 10. Required: a functional Android APK, the GitHub repository, a demo video, a pitch deck. Judged on: stickiness and product-market fit · user experience · innovation · presentation and demo. Winners publish on the Solana dApp Store. A token-integration prize is optional and separate; we are not entering it.
 
 Judges: Anatoly Yakovenko, Mert Mumtaz, Chase Barker, Akshay Rajan, Beeman, Voynich and A2nkF (EthelSec).
