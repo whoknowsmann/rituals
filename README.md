@@ -67,7 +67,9 @@ A Solana Mobile app for the Seeker, built for CLOCK IN. It runs on Solana devnet
 | Rituals program (Anchor) | `2MycqaTePBvUbci13NQswby9qDnstBqhJzVq5EYMCB9p` |
 | ProtocolConfig | `7LMgBSJmEFKkfYKh2znr6VSxcm5QEHEouNijXDENhMd1` |
 | tSKR mint | `AaHgFh7ussUDor8QfaBCaRz2RHiPNCs7i2yuzdLbt9tc` |
-| Demo causes (all three): the faucet's tSKR account | `2JTKtgKaGE6DaGmsNGsRd8oipsw9UQB1Cdu6f9D25HtY` |
+| Demo cause: Northside Food Bank (faucet's associated account) | `2JTKtgKaGE6DaGmsNGsRd8oipsw9UQB1Cdu6f9D25HtY` |
+| Demo cause: City Animal Shelter (owned by the faucet) | `GizqwkMZHZgNHGhmCfetPprMWjUA4fPQHViFNyDGC1ab` |
+| Demo cause: Public Library Fund (owned by the faucet) | `7YvDmkYb1tCDaS5eTLuJ1jem72vqaw72GcorzJNnVWju` |
 | Faucet hot wallet | `FDjXc5KeLbWf9UaMr3y6uUe5ZQDqJYctWuMW7CdnRK8q` |
 
 The program was last upgraded on 2026-10-07 at slot 508611515, for End early.

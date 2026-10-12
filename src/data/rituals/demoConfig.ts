@@ -11,20 +11,28 @@ import { PublicKey } from '@solana/web3.js'
 export type DemoCause = Readonly<{ label: string; detail: string; tokenAccount: PublicKey | null }>
 
 /**
- * Where every demo cause sends a missed week on devnet (Jack, 2026-10-11): the
- * faucet's own tSKR account (`https://faucet.whoknowsman.com`, hot wallet
- * FDjXc5KeLbWf9UaMr3y6uUe5ZQDqJYctWuMW7CdnRK8q). A missed stake goes back into
- * the pool that funds the next judge's test tokens instead of sitting in an
- * anonymous account. Before 2026-10-11 each cause had its own devnet-only
- * token account (4adFBqT1…, 7axVhUou…, Bg6uNu6t…; owners' keys in .keys/).
+ * Where the demo causes send a missed week on devnet (Jack, 2026-10-11): token
+ * accounts owned by the faucet's hot wallet FDjXc5KeLbWf9UaMr3y6uUe5ZQDqJYctWuMW7CdnRK8q
+ * (`https://faucet.whoknowsman.com`), so a missed stake goes back into the pool
+ * that funds the next judge's test tokens instead of sitting in an anonymous
+ * account. One account per cause: the app labels a ritual's destination by
+ * looking the account up, so a shared account would read as the first cause
+ * for every ritual (seen on the Seeker 2026-10-12: "Northside" after picking
+ * the shelter). Northside = the faucet's associated token account; the other
+ * two were created 2026-10-12 with `spl-token create-account --owner <faucet>`
+ * (keypairs in .keys/, gitignored; the faucet owner signs for them).
  */
-export const DEMO_CAUSE_TOKEN_ACCOUNT = new PublicKey('2JTKtgKaGE6DaGmsNGsRd8oipsw9UQB1Cdu6f9D25HtY')
+export const FAUCET_CAUSE_ACCOUNTS = Object.freeze({
+  northside: new PublicKey('2JTKtgKaGE6DaGmsNGsRd8oipsw9UQB1Cdu6f9D25HtY'),
+  shelter: new PublicKey('GizqwkMZHZgNHGhmCfetPprMWjUA4fPQHViFNyDGC1ab'),
+  library: new PublicKey('7YvDmkYb1tCDaS5eTLuJ1jem72vqaw72GcorzJNnVWju'),
+})
 
 /** A labelled demo beneficiary. Not a real donation rail; always say "(demo)". */
 export const DEMO_CAUSE: DemoCause = Object.freeze({
   label: 'Northside Food Bank (demo)',
   detail: 'Demo beneficiary on devnet. Not a real donation.',
-  tokenAccount: DEMO_CAUSE_TOKEN_ACCOUNT,
+  tokenAccount: FAUCET_CAUSE_ACCOUNTS.northside,
 })
 
 /**
@@ -38,12 +46,12 @@ export const DEMO_CAUSES: readonly DemoCause[] = Object.freeze([
   Object.freeze({
     label: 'City Animal Shelter (demo)',
     detail: 'Demo beneficiary on devnet. Not a real donation.',
-    tokenAccount: DEMO_CAUSE_TOKEN_ACCOUNT,
+    tokenAccount: FAUCET_CAUSE_ACCOUNTS.shelter,
   }),
   Object.freeze({
     label: 'Public Library Fund (demo)',
     detail: 'Demo beneficiary on devnet. Not a real donation.',
-    tokenAccount: DEMO_CAUSE_TOKEN_ACCOUNT,
+    tokenAccount: FAUCET_CAUSE_ACCOUNTS.library,
   }),
 ])
 

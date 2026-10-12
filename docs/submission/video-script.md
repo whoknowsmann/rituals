@@ -104,4 +104,4 @@ The run (about 4 minutes of real time):
 6. Confetti + YOU SHOWED UP!.
 7. Stay on the ritual screen. Do nothing through week 2 (it opens 90 s after week 1 did; 60 s window; 10 s grace). Capture Finished with the MISSED stamp, "Closing…" and the totals line.
 8. Open the week 1 and week 2 receipts (tap the cells); capture each. Wait until week 2's receipt shows the totals line and not "Not closed yet".
-9. Stop. Save `adb logcat -d -v time` to artifacts/logs/, and check on chain that the faucet's tSKR account (2JTKtgKa…, where every demo cause pays on devnet) went up by 10.
+9. Stop. Save `adb logcat -d -v time` to artifacts/logs/, and check on chain that the shelter's account (GizqwkMZ…, owned by the faucet) went up by 10.
