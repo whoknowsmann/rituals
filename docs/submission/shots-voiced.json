@@ -149,8 +149,9 @@
   "dur": 9.48,
   "still": "artifacts/shots/take-finished.png",
   "head": "Rituals",
-  "body": "Show up, or pay up.\nrituals.whoknowsman.com",
-  "note": "Devnet \u00b7 test tokens",
-  "caption": "That's it. All devnet, all test tokens,\nand Rituals takes nothing.\nShow up, or pay up."
+  "body": "Show up, or pay up.\nrituals.whoknowsman.com\n\nNext: a journal of your weeks \u00b7 hands-free stamps\ndaily rituals \u00b7 mainnet after review",
+  "note": "Devnet \u00b7 test tokens \u00b7 github.com/whoknowsmann/rituals",
+  "caption": "That's it. All devnet, all test tokens,\nand Rituals takes nothing.\nShow up, or pay up.",
+  "text_y": 200
  }
 ]

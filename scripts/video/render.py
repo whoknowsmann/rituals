@@ -69,7 +69,7 @@ def esc(text: str) -> str:
 def text_filters(seg: dict, text_x: int = TEXT_X, head_size: int = 74) -> str:
     parts = []
     head = seg.get('head'); body = seg.get('body'); note = seg.get('note')
-    y = 320
+    y = int(seg.get('text_y', 320))
     if head:
         parts.append(f"drawtext=fontfile={FONT_HEAD}:text='{esc(head)}':fontcolor={INK}:fontsize={head_size}:x={text_x}:y={y}:line_spacing=6")
         y += head_size * (head.count('\n') + 1) + 40
@@ -77,8 +77,26 @@ def text_filters(seg: dict, text_x: int = TEXT_X, head_size: int = 74) -> str:
         parts.append(f"drawtext=fontfile={FONT_BODY}:text='{esc(body)}':fontcolor={INK}:fontsize=40:x={text_x}:y={y}:line_spacing=12")
         y += 52 * (body.count('\n') + 1) + 30
     if note:
-        parts.append(f"drawtext=fontfile={FONT_BODY_BOLD}:text='{esc(note)}':fontcolor={LIME}:fontsize=30:x={text_x}:y={y}")
+        # With no headline (continuous cut) the note sits just above the caption box as a context tag.
+        ny = y if (head or body) else CAPTION_Y - 120 - (seg.get('caption', '').count('\n')) * (CAPTION_SIZE + 10)
+        parts.append(f"drawtext=fontfile={FONT_BODY_BOLD}:text='{esc(note)}':fontcolor={LIME}:fontsize=30:x={text_x}:y={ny}")
     caption = seg.get('caption')
+    if caption and not (head or body):
+        # Continuous cut: the caption is the hero of the text column, vertically centred, no box.
+        # Wrap to the column with the real font metrics; shrink a notch if a word still overflows.
+        size = 54
+        caption = wrap_caption(caption, W - text_x - 80, size)
+        while size > 40 and max(text_width(line, size) for line in caption.split('\n')) > W - text_x - 80:
+            size -= 4
+            caption = wrap_caption(seg['caption'], W - text_x - 80, size)
+        lines = caption.count('\n') + 1
+        block = lines * (size + 14)
+        cy = (H - block) // 2
+        parts = [p for p in parts if ':fontcolor=' + LIME + ':' not in p]  # note goes under the caption instead
+        parts.append(f"drawtext=fontfile={FONT_BODY_BOLD}:text='{esc(caption)}':fontcolor={INK}:fontsize={size}:x={text_x}:y={cy}:line_spacing=14")
+        if note:
+            parts.append(f"drawtext=fontfile={FONT_BODY_BOLD}:text='{esc(note)}':fontcolor={LIME}:fontsize=28:x={text_x}:y={cy + block + 24}")
+        return ','.join(parts)
     if caption:
         # Lower third of the text column: the voiceover line, on a quiet box so it reads over anything.
         lines = caption.count('\n') + 1
@@ -86,6 +104,27 @@ def text_filters(seg: dict, text_x: int = TEXT_X, head_size: int = 74) -> str:
         parts.append(f"drawtext=fontfile={FONT_BODY_BOLD}:text='{esc(caption)}':fontcolor={INK}:fontsize={CAPTION_SIZE}:x={text_x}:y={cy}"
                      f":line_spacing=10:box=1:boxcolor=0x1C1C1C@0.92:boxborderw=22")
     return ','.join(parts)
+
+
+def text_width(text: str, size: int) -> int:
+    from PIL import ImageFont
+    return int(ImageFont.truetype(FONT_BODY_BOLD, size).getlength(text))
+
+
+def wrap_caption(text: str, max_px: int, size: int) -> str:
+    """Re-wrap on word boundaries so no line is wider than the column (authored line breaks are hints only)."""
+    out = []
+    for para in text.replace('\n', ' ').split('  '):  # a double space keeps an authored hard break
+        words = para.split()
+        line = ''
+        for w in words:
+            cand = (line + ' ' + w).strip()
+            if line and text_width(cand, size) > max_px:
+                out.append(line); line = w
+            else:
+                line = cand
+        if line: out.append(line)
+    return '\n'.join(out)
 
 
 def _abs(p: str) -> str:
