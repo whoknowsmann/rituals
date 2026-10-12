@@ -1,0 +1,221 @@
+[
+ {
+  "_": "Continuous cut v2 (Jack's notes 10-12 13:30): wallets at 1x, typing/countdowns fast, week 2 at 3x, phone always on screen, side-by-side receipts, Rituals over the tagline. Captions come from the voiceover script by beat number."
+ },
+ {
+  "kind": "card",
+  "beat": "1",
+  "dur": 4,
+  "still": "artifacts/shots/take-home.png",
+  "head": "Rituals",
+  "body": "Show up, or pay up.",
+  "caption": "[1]"
+ },
+ {
+  "kind": "clip",
+  "beat": "2",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 0,
+  "end": 10,
+  "caption": "[2]",
+  "note": "Devnet faucet \u00b7 nothing to sign"
+ },
+ {
+  "kind": "clip",
+  "beat": "3",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 10,
+  "end": 14,
+  "caption": "[3]"
+ },
+ {
+  "kind": "clip",
+  "beat": "3",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 14,
+  "end": 34,
+  "caption": "[3]",
+  "speed": 4,
+  "note": "\u00d74"
+ },
+ {
+  "kind": "clip",
+  "beat": "3",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 34,
+  "end": 40,
+  "caption": "[3]"
+ },
+ {
+  "kind": "clip",
+  "beat": "4",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 40,
+  "end": 62,
+  "caption": "[4]",
+  "speed": 1.5,
+  "note": "\u00d71.5"
+ },
+ {
+  "kind": "clip",
+  "beat": "5",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 62,
+  "end": 72,
+  "caption": "[5]"
+ },
+ {
+  "kind": "clip",
+  "beat": "6",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 72,
+  "end": 106,
+  "caption": "[6]",
+  "note": "Seed Vault Wallet \u00b7 one approval creates, stakes and activates \u00b7 sideloaded APK, so it warns about the domain"
+ },
+ {
+  "kind": "clip",
+  "beat": "7",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 106,
+  "end": 112,
+  "caption": "[7]",
+  "note": "Demo speed \u00b7 a week here is 1.5 minutes"
+ },
+ {
+  "kind": "clip",
+  "beat": "8",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 112,
+  "end": 120,
+  "caption": "[8]",
+  "speed": 2,
+  "note": "\u00d72 \u00b7 the note stays on the phone"
+ },
+ {
+  "kind": "clip",
+  "beat": "9",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 120,
+  "end": 131,
+  "caption": "[9]",
+  "speed": 4,
+  "note": "\u00d74"
+ },
+ {
+  "kind": "clip",
+  "beat": "10",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 131,
+  "end": 140,
+  "caption": "[10]"
+ },
+ {
+  "kind": "clip",
+  "beat": "11",
+  "src": "artifacts/video/take3-1.mp4",
+  "start": 140,
+  "end": 159,
+  "caption": "[11]",
+  "note": "Seed Vault Wallet \u00b7 one approval per stamp"
+ },
+ {
+  "kind": "clip",
+  "beat": "11",
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 0,
+  "end": 4,
+  "caption": "[11]"
+ },
+ {
+  "kind": "clip",
+  "beat": "12",
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 4,
+  "end": 14,
+  "caption": "[12]"
+ },
+ {
+  "kind": "clip",
+  "beat": "13a",
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 14,
+  "end": 44,
+  "caption": "[13a]",
+  "speed": 3,
+  "note": "\u00d73"
+ },
+ {
+  "kind": "clip",
+  "beat": "13b",
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 44,
+  "end": 84,
+  "caption": "[13b]",
+  "speed": 3,
+  "note": "\u00d73"
+ },
+ {
+  "kind": "clip",
+  "beat": "13c",
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 84,
+  "end": 118,
+  "caption": "[13c]",
+  "speed": 3,
+  "note": "\u00d73"
+ },
+ {
+  "kind": "clip",
+  "beat": "14",
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 118,
+  "end": 128,
+  "caption": "[14]"
+ },
+ {
+  "kind": "clip",
+  "beat": "14",
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 128,
+  "end": 139,
+  "caption": "[14]",
+  "speed": 3,
+  "note": "\u00d73 \u00b7 the app's settle key closes the week, no approval"
+ },
+ {
+  "kind": "clip",
+  "beat": "15",
+  "src": "artifacts/video/take3-2.mp4",
+  "start": 139,
+  "end": 146,
+  "caption": "[15]"
+ },
+ {
+  "kind": "split",
+  "beat": "16",
+  "dur": 12,
+  "left": "artifacts/shots/take-receipt-1.png",
+  "right": "artifacts/shots/take-receipt-2.png",
+  "caption": "[16]"
+ },
+ {
+  "kind": "clip",
+  "beat": "17",
+  "src": "artifacts/video/take3-3.mp4",
+  "start": 8,
+  "end": 20,
+  "caption": "[17]",
+  "note": "Solana Explorer \u00b7 devnet"
+ },
+ {
+  "kind": "card",
+  "beat": "18",
+  "dur": 7,
+  "still": "artifacts/shots/take-finished.png",
+  "head": "Rituals",
+  "body": "Show up, or pay up.\nrituals.whoknowsman.com",
+  "note": "Devnet \u00b7 test tokens",
+  "caption": "[18]"
+ }
+]
