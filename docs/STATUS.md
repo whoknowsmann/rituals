@@ -3,17 +3,42 @@
 **Read this first at the start of a session.** It is the single source of truth
 for where Rituals actually is. Everything here is measured, not inherited.
 
-Last verified: **2026-10-10 ~21:20 CDT** — `feat/solo-screens` @ cdfac7f + docs,
-pushed; tsc clean; **2,930 tests / 169 files** green; root `cargo test` 8/8, program suite 224.
-Phone (Seeker) has **d44** (cdfac7f, installed 21:18) = **the recording build**. Faucet health 200
-(4.74 SOL / 4,750 tSKR, ~90 claims).
+Last verified: **2026-10-13 09:40 CDT** — `main` = `feat/solo-screens` @ 21d86aa, public, submitted.
+Phone (Seeker) has **d51**. Faucet live.
 Deadline: **Mon Oct 12, 2026, 6:59 PM CDT** (organizer site, re-read 10-12 06:53: "Submissions due Oct 12, 2026, 6:59 PM CDT"; an earlier note said AM, wrong). **Plan: record + submit Sunday Oct 11
 afternoon/evening** (Jack, 10-09), never overnight. Judging Oct 12–Nov 9, winners Nov 10. Repo **private**;
 judges can read private repos through the Radiants Align GitHub app (organizer FAQ), public is optional.
 License **MIT**. Organizer requires ALL of: APK, GitHub repo, demo video (judged: "Completion based on
 the demo video"), pitch deck or brief presentation (the "or" is deck vs presentation, NOT video vs deck).
 
-### START HERE (2026-10-11 morning, Jack away until ~midday)
+## SUBMITTED — 2026-10-12, 18:xx CDT (CLOCK IN, accepted)
+
+**What shipped:** repo `whoknowsmann/rituals` **public**, `main` = `feat/solo-screens` @ 21d86aa. Release
+`v0.1.0-clockin`: `rituals-v0.1.0-clockin.apk` = **d51** (0ea74af, sha256 `443b6f2d…`) + `rituals-deck.pdf`.
+Video https://youtu.be/Ui1SzJJtZBA (2:50, Jack's voiceover, captions .srt uploaded; transcript
+`docs/submission/video-transcript.txt`). Deck 8 slides (`docs/submission/pitch-deck.md`, Why slide second).
+Form answers: `docs/submission/submission-form.md`. Organizer AI coach scored 45/100 before it could read
+the transcript or the repo (demo 22/60 "not read", code "none"); advisory only. Their security audit ran on
+e53a73a after submission (result not seen). Judging Oct 12–Nov 9; winners Nov 10.
+
+**Shipped on the last day (10-11/12):** demo weeks 90 s (60 s stamp, 10 s grace, 20 s gap); no "Network
+mismatch?" popup after a landed tx; step-2 SOL check + settle-key top-up (not full refund every create);
+HOLD hidden while the previous week closes; demo causes pay into faucet-owned token accounts (one per
+cause, else every receipt read "Northside"); "WHAT COUNTS (OPTIONAL)"; Explorer links on receipts and
+finished rituals; Finished screen without the redundant receipt link; docs (ARCHITECTURE/PRODUCT/SECURITY/
+DEVELOPMENT) rewritten for the solo product; `scripts/lib/ipv4-only.cjs` in-repo; `capture.sh take`;
+`render.py` (captions, stills, split, voice, VFR fix, auto-wrap).
+
+**Phone:** d51 installed; settings restored 10-13 (timeout 60 s, stay-awake 15, demo status bar off).
+Test wallets (all devnet, 0 mainnet): test 7 `244Yx…DMy7`, test 8 `A8qS…DD7f`, `Fkmi…MD5q`, `GwNa…Pzdc`.
+
+**Next (post-hackathon, Jack's order):** 1) Journal: every week of a ritual on one page (stamps, amounts,
+notes, one Explorer link per week). 2) Hands-free stamps (program delegate; design in the 10-12 session).
+3) Daily rituals. 4) Widget (built on `exp/reminders-widget`, parked). 5) dApp Store listing
+(`docs/submission/dapp-store-listing.md`). Also: hello@whoknowsman.com needs the Cloudflare Email Routing
+rule (DNS is done); FAUCET_CONTACT on Vercel still the placeholder.
+
+### START HERE (2026-10-11 morning) — superseded by the block above
 
 **Verified 07:30 CDT (Fable main), d45 installed 13:58:** d45 on the Seeker (d44 + demo causes pay into the faucet), Home calm on **test 7** =
 `244YxrGsyb5AeDDi9bneGR4juFuowdPnhqJdH453DMy7` (0 SOL devnet + mainnet, no token accounts, no
